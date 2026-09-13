@@ -113,7 +113,7 @@ test('a pack ships a style and the preset that asks for it, and the preset wears
   const result = installFacePack(workshopPack(), { library, presets });
   assert.deepEqual([result.ok, result.parts, result.presets], [true, ['mouth.small-workshop'], ['workshop-face']]);
   assert.equal(library.variant('mouth.small', 'workshop').id, 'mouth.small-workshop', 'reached through the drawing it restyles');
-  assert.deepEqual(library.cards('mouth').map((asset) => asset.id), ['mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive', 'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve', 'mouth.robot-display', 'mouth.robot-retro-grille', 'mouth.robot-industrial-vent', 'mouth.robot-toy-simple'], 'and no card of its own');
+  assert.deepEqual(library.cards('mouth').map((asset) => asset.id), ['mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive', 'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve', 'mouth.robot-display', 'mouth.robot-retro-grille', 'mouth.robot-industrial-vent', 'mouth.robot-toy-simple', 'mouth.beak-owl', 'mouth.beak-duck', 'mouth.beak-parrot', 'mouth.beak-crow', 'mouth.beak-small', 'mouth.beak-wide'], 'and no card of its own');
   assert.deepEqual(presetDrawings(presets.get('workshop-face'), library), { parts: { head: 'head.round', mouth: 'mouth.small-workshop' }, accessories: [] });
 
   // A style of a drawing the same pack ships, written down before it.

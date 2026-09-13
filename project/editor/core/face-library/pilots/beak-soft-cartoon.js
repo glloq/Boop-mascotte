@@ -99,7 +99,9 @@ export const PILOT_REUSE_VERDICTS = Object.freeze(['reuse', 'possible-reuse', 'r
  */
 const asset = (entry) => Object.freeze({
   species: Object.freeze([]), tags: Object.freeze([]), capabilities: Object.freeze([]),
-  morphologies: Object.freeze([PILOT_MORPHOLOGY]), priority: 'pilot', status: 'needs-art',
+  // MASC-12B drew all thirty. They are `candidate`: the drawing exists and
+  // nobody has signed it off, which is what `npm run face:assets` is for.
+  morphologies: Object.freeze([PILOT_MORPHOLOGY]), priority: 'pilot', status: 'candidate',
   distinct: '', turn: 'category-default', notes: '',
   // A piece no recipe names: an accessory any of the six may wear.
   catalogue: false, sheetLabel: '',
@@ -125,7 +127,10 @@ const brow = row('brows', { prefix: 'eyebrows', slot: 'eyebrows', category: 'eye
 // rig understands (docs/MASC_LIBRARY_BASELINE.md, MASC-01).
 const beak = row('beaks', { prefix: 'mouth', slot: 'beak', category: 'mouth', mountPoint: 'mouth.center', requiredRoles: ['mouth'], capabilities: ['mouthOpen', 'smile', 'mouthWidth'] });
 const crest = row('crests', { prefix: 'accessory', slot: 'crest', category: 'accessory', mountPoint: 'head.top', requiredRoles: ['element'], turn: 'needs-profile' });
-const worn = row('accessories', { prefix: 'accessory', slot: 'accessory', category: 'accessory', mountPoint: 'head.center', requiredRoles: ['element'], turn: 'needs-profile' });
+// A monocle sits over one eye, so it anchors to one: `eye.right` rather than
+// the `head.center` an accessory takes by default. MASC-12B drew it there and
+// this line follows the drawing, which is what a manifest's anchors are for.
+const worn = row('accessories', { prefix: 'accessory', slot: 'accessory', category: 'accessory', mountPoint: 'eye.right', requiredRoles: ['element'], turn: 'needs-profile' });
 
 /**
  * The drawings the pilot needs, row by row, in the order the planche lays them
@@ -433,5 +438,6 @@ export const pilotSummary = () => ({
   presets: PILOT_PRESETS.length,
   palettes: Object.keys(PILOT_PALETTES).length,
   blocking: PILOT_OPEN_QUESTIONS.filter((item) => item.blocking).length,
+  drawn: PILOT_ASSETS.filter((item) => item.status === 'candidate').length,
   groups: Object.fromEntries(PILOT_REVIEW_GROUPS.map((group) => [group, pilotAssets({ group }).length]))
 });

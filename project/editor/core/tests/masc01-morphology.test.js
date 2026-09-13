@@ -8,8 +8,7 @@ import { FACE_STYLES, FACE_STYLE_IDS, availableFaceStyles, faceStyle } from '../
 import { FACE_PART_CATEGORY_IDS, facePartCategory } from '../face-library/face-part-model.js';
 import { FACE_PART_LIBRARY, createFacePartRegistry } from '../face-library/face-part-registry.js';
 import { FACE_PRESET_LIBRARY } from '../face-library/face-presets.js';
-import { ANIMAL_FACE_PARTS } from '../face-library/builtin/animals/index.js';
-import { ROBOT_FACE_PARTS } from '../face-library/builtin/robots/index.js';
+import { HUMAN_LIBRARY_SIZE, NARROWED } from './fixtures/face-packs.js';
 
 /**
  * MASC-01 — morphologies, slots and styles, as metadata and nothing else.
@@ -76,19 +75,17 @@ test('an asset that says nothing is compatible with every kind of face', () => {
   assert.deepEqual(compatibleMorphologies({}), [...FACE_MORPHOLOGY_IDS]);
   assert.deepEqual(compatibleMorphologies({ morphologies: [] }), [...FACE_MORPHOLOGY_IDS]);
   assert.deepEqual(compatibleMorphologies({ morphologies: ['*'] }), [...FACE_MORPHOLOGY_IDS], 'the same thing, said out loud');
-  // Two packs narrow, and between them they are the whole of what narrows: a
+  // The packs narrow, and between them they are the whole of what narrows: a
   // cat's ear on a human head is not a look anyone asked for, and neither is a
-  // bolted side module. Each says one kind and means it, and their arrival left
-  // the original 47 alone -- which is the compatibility contract holding twice.
-  const packs = new Map([
-    ...ANIMAL_FACE_PARTS.map((asset) => [asset.id, 'muzzle']),
-    ...ROBOT_FACE_PARTS.map((asset) => [asset.id, 'robot'])
-  ]);
+  // bolted side module or an owl's beak. Each says one kind and means it, and
+  // their arrival left the original 47 alone -- the compatibility contract
+  // holding once per pack, three times now.
   for (const asset of FACE_PART_LIBRARY.list()) {
-    if (packs.has(asset.id)) assert.deepEqual(compatibleMorphologies(asset), [packs.get(asset.id)], `${asset.id} is drawn for one kind of face`);
+    if (NARROWED.has(asset.id)) assert.deepEqual(compatibleMorphologies(asset), [NARROWED.get(asset.id)], `${asset.id} is drawn for one kind of face`);
     else assert.deepEqual(compatibleMorphologies(asset), [...FACE_MORPHOLOGY_IDS], `${asset.id} lost its universality`);
   }
-  assert.equal(FACE_PART_LIBRARY.size - packs.size, 47, 'and the 47 are all still there');
+  assert.equal(FACE_PART_LIBRARY.list().filter((asset) => !NARROWED.has(asset.id)).length, HUMAN_LIBRARY_SIZE + 1,
+    'the 47 that were here, and the monocle the bird pack shipped universal');
 
   assert.deepEqual(compatibleMorphologies({ morphologies: ['muzzle', 'monster'] }), ['muzzle', 'monster']);
   assert.equal(assetSupportsMorphology({ morphologies: ['muzzle'] }, 'muzzle'), true);
@@ -108,11 +105,11 @@ test('an asset is offered in the slot it names, or in its category', () => {
   assert.equal(assetSlot({ category: 'mouth', slot: 'bekk' }), 'mouth');
   assert.equal(assetSlot({ category: 'nope' }), null);
   // What the library actually ships: everything sits in its own category except
-  // the pieces that are accessories by category and rows of their own on screen
-  // -- the animal pack's muzzles and whiskers, and the robot pack's antennae
-  // and panels. There is no muzzle *category* and no antenna one, and MASC-01
-  // made neither: a slot is what an author picks, a category is what the rig
-  // understands, and four slots here name one category.
+  // the packs' own rows -- muzzles and whiskers, antennae and panels, beaks and
+  // crests. There is no muzzle *category* and no antenna one, and MASC-01 made
+  // neither: a slot is what an author picks and a category is what the rig
+  // understands, so five of these name `accessory` and one names `mouth`,
+  // because a beak opens.
   const slotted = FACE_PART_LIBRARY.list().filter((asset) => assetSlot(asset) !== asset.category);
   assert.deepEqual(slotted.map((asset) => `${asset.id} (${asset.category}) -> ${assetSlot(asset)}`), [
     'accessory.muzzle-feline-short (accessory) -> muzzle', 'accessory.muzzle-feline-rounded (accessory) -> muzzle',
@@ -123,7 +120,12 @@ test('an asset is offered in the slot it names, or in its category', () => {
     'accessory.antenna-single-short (accessory) -> antenna', 'accessory.antenna-retro-multi (accessory) -> antenna',
     'accessory.antenna-industrial-robust (accessory) -> antenna', 'accessory.antenna-toy-fun (accessory) -> antenna',
     'accessory.panels-light-panel (accessory) -> panels', 'accessory.panels-retro-buttons (accessory) -> panels',
-    'accessory.panels-warning-stripe (accessory) -> panels', 'accessory.panels-toy-buttons (accessory) -> panels'
+    'accessory.panels-warning-stripe (accessory) -> panels', 'accessory.panels-toy-buttons (accessory) -> panels',
+    'mouth.beak-owl (mouth) -> beak', 'mouth.beak-duck (mouth) -> beak', 'mouth.beak-parrot (mouth) -> beak',
+    'mouth.beak-crow (mouth) -> beak', 'mouth.beak-small (mouth) -> beak', 'mouth.beak-wide (mouth) -> beak',
+    'accessory.crest-owl-tufts (accessory) -> crest', 'accessory.crest-simple (accessory) -> crest',
+    'accessory.crest-messy-tuft (accessory) -> crest', 'accessory.crest-smooth-feather (accessory) -> crest',
+    'accessory.crest-parrot-tall (accessory) -> crest', 'accessory.crest-round-tuft (accessory) -> crest'
   ]);
 });
 

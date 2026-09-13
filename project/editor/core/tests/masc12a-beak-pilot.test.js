@@ -10,7 +10,7 @@ import { FACE_PART_LIBRARY } from '../face-library/face-part-registry.js';
 import { BUILTIN_FACE_PARTS } from '../face-library/builtin/index.js';
 import { FACE_PRESET_LIBRARY } from '../face-library/face-presets.js';
 import { FACE_MOUNT_POINTS, FACE_TAG, PALETTE_TOKENS, facePartCategory } from '../face-library/face-part-model.js';
-import { FACE_MORPHOLOGY_IDS, faceMorphology, faceSlot, morphologySlots } from '../face-library/face-morphologies.js';
+import { FACE_MORPHOLOGY_IDS, assetSlot, faceMorphology, faceSlot, morphologySlots } from '../face-library/face-morphologies.js';
 import { FACE_BASE_STYLE_ID } from '../face-library/face-styles.js';
 
 /**
@@ -32,15 +32,31 @@ import { FACE_BASE_STYLE_ID } from '../face-library/face-styles.js';
 
 /* ── The manifest is a manifest, not a library ─────────────────────────── */
 
-test('not one production drawing is added, and not one preset is registered', () => {
-  assert.equal(FACE_PART_LIBRARY.list().length, 120, 'the shipped library is exactly as it was');
-  assert.equal(BUILTIN_FACE_PARTS.length, 120);
+test('every planned drawing is a drawing now, and every recipe a preset', () => {
+  // The library has grown past this pilot since -- MASC-12B drew it -- so what
+  // is asked is that every planned id is in it, under the planned name, in the
+  // planned slot. The manifest stays hand-written, and this is where it and the
+  // library are made to agree.
   for (const item of PILOT_ASSETS) {
-    assert.equal(FACE_PART_LIBRARY.has(item.id), false, `${item.id} is planned, not registered`);
-    assert.equal(BUILTIN_FACE_PARTS.some((asset) => asset.id === item.id), false, `${item.id} is not a built-in`);
+    const shipped = FACE_PART_LIBRARY.get(item.id);
+    assert.ok(shipped, `${item.id} was planned and is not drawn`);
+    assert.equal(shipped.category, item.category, `${item.id} is a ${shipped.category}, and was planned as a ${item.category}`);
+    // Compared through `assetSlot`, not through the field: the library's rule is
+    // that a slot left out *is* the category, and `accessory.monocle` leaves it
+    // out because it is an ordinary accessory. The manifest spells it.
+    assert.equal(assetSlot(shipped), item.slot, `${item.id} is offered under ${assetSlot(shipped)}, and was planned for ${item.slot}`);
+    assert.equal(shipped.mountPoint, item.mountPoint, `${item.id} mounts at ${shipped.mountPoint}, and was planned at ${item.mountPoint}`);
+    assert.equal(shipped.name, item.proposedName, `${item.id} shipped under another name`);
+    assert.equal(shipped.origin, 'builtin');
   }
-  for (const preset of PILOT_PRESETS) assert.equal(FACE_PRESET_LIBRARY.has(preset.id), false, `${preset.id} is a recipe, not a preset`);
-  assert.equal(FACE_PRESET_LIBRARY.size, 16, 'six people, six animals, four machines');
+  for (const preset of PILOT_PRESETS) {
+    const shipped = FACE_PRESET_LIBRARY.get(preset.id);
+    assert.ok(shipped, `${preset.id} is a recipe with no preset`);
+    assert.deepEqual(Object.entries(shipped.parts).sort(), Object.entries(preset.parts).sort(), `${preset.id} wears what it named`);
+    assert.deepEqual([...shipped.accessories], [...preset.accessories], `${preset.id} wears the accessories it named`);
+    assert.equal(shipped.palette, preset.palette);
+    assert.equal(shipped.morphology, 'beak');
+  }
   assert.equal('artwork' in PILOT_ASSETS[0], false, 'a planned entry has no artwork, which is the point');
   assert.ok(Object.isFrozen(PILOT_ASSETS) && Object.isFrozen(PILOT_ASSETS[0]) && Object.isFrozen(PILOT_ASSETS[0].tags));
 });
@@ -103,7 +119,7 @@ test('every planned drawing is for bird faces, mounts somewhere a face has, and 
     assert.ok(FACE_MOUNT_POINTS.includes(item.mountPoint), `${item.id} mounts at ${item.mountPoint}, which exists`);
     assert.ok(item.tags.length, `${item.id} can be found by a word`);
     for (const tag of item.tags) assert.match(tag, FACE_TAG, `"${tag}" on ${item.id} is a tag`);
-    assert.equal(item.status, 'needs-art', `${item.id} starts where everything starts`);
+    assert.equal(item.status, 'candidate', `${item.id} is drawn, and nobody has signed it off`);
     assert.ok(PILOT_STATUSES.includes(item.status));
     assert.equal(item.priority, 'pilot');
     assert.ok(item.direction.length > 25, `${item.id} says what it looks like`);

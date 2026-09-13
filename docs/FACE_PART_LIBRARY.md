@@ -973,15 +973,21 @@ movement its drawing cannot carry fails there, before it reaches a face.
 
 ## The built-in assets
 
-A hundred and twenty assets in three parts. The **human** library is the V1 of
-the roadmap (phase 45), forty-seven: the basic face library of PR 6, the seven
-it asked for on top, and the four face shapes the brief added later. The
-**animal** library is the Soft Cartoon pack (MASC-10B), forty-five, in
-`builtin/animals/`. The **robot** library is the Soft Cartoon robot pack
-(MASC-11B), twenty-eight, in `builtin/robots/`. All three are drawn in the
-template face's frame, so the same reference boxes fit them onto any face and a
-part from any of them lands on any kind of head. One file per category in
-`core/face-library/builtin/`. A card's title lists every
+A hundred and fifty assets in four parts: the **human** library (forty-seven —
+the basic face library of PR 6, the seven it asked for on top, and the four face
+shapes the brief added later) and three Soft Cartoon packs drawn from delivered
+art direction.
+
+```text
+builtin/            47   human      PR 6 · phase 45
+builtin/animals/    45   muzzle     MASC-10B · Soft Cartoon — Face Parts V1
+builtin/robots/     28   robot      MASC-11B · ROBOT-V1
+builtin/birds/      30   beak       MASC-12B · BIRD-10A
+```
+
+All four are drawn in the template face's frame, so the same reference boxes fit
+them onto any face and a part from any of them lands on any kind of head. One
+file per category in `core/face-library/builtin/`. A card's title lists every
 movement of its category, `✓` carried or `–` not (phase 26), under *Fully
 animated* or *Limited animation*.
 
@@ -1080,6 +1086,43 @@ lamp from a cartoon eye is the palette inverting them.
 **A panel paints over the shell, and that is free.** It shares the shell's own
 anchor, and an accessory installed with nothing before it lands last in its
 group. The muzzle needed the opposite, and solved it with layout instead.
+
+### The Soft Cartoon bird pack
+
+Thirty drawings in `builtin/birds/`, for the **BIRD-10A** planche's thirty-three
+pieces: two of its four accessories already existed. The brief and the recipes
+are `docs/BEAK_SOFT_CARTOON_PILOT.md`.
+
+| Category | Slot | Assets | Notes |
+| --- | --- | --- | --- |
+| head | `head` | six silhouettes | feathered, and they **keep their jaw** — a bird is soft where a robot shell is not |
+| eyes | `eyes` | six sets | composites, pupils inside them |
+| eyebrows | `eyebrows` | five pairs | the planche's *formes d'yeux / sourcils*, drawn as brows |
+| mouth | **`beak`** | six | ← the first drawings this slot has ever had |
+| accessory | **`crest`** | six | ← and this one, at `head.top` |
+| accessory | `accessory` | the monocle | universal, at `eye.right` |
+
+**MASC-01 drew a bird correctly.** The planche's six rows land on six slots and
+every one was already in the `beak` morphology's list — down to what it leaves
+out. There is no nose row, no mouth row, no ears row and no hair row on the
+sheet, and no such slot in the morphology. Where the robot pack had to amend
+`MORPHOLOGY_TABLE` first, this one amended nothing.
+
+**A beak is a mouth.** Its id begins `mouth.` because that is the category it
+installs through; `beak` is the slot an author picks it from. It keeps
+`mouthOpen`, `smile` and `mouthWidth`, and the `mouth` role names the group
+holding both mandibles — `mouthOpen` is a `scaleY`, so the beak gapes about its
+own centre. All six are drawn well above the template's lip line, because a beak
+takes the middle of a bird's face where a mouth sits low on a person's.
+
+**The crest closed MASC-09's open question.** It had two candidate anchors and
+the first real crest was to decide: it is `head.top`, because a `beak` face
+offers no hair slot at all and `hair.top` would measure from something that can
+never be there.
+
+**One drawing in the pack is universal.** `accessory.monocle` declares no
+`morphologies` — row 6 is captioned *compatibles*, and a monocle suits a person
+as readily as an owl. It is the only piece any pack has shipped that way.
 
 ### The eight face shapes
 

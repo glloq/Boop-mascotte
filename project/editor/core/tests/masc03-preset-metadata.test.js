@@ -39,13 +39,12 @@ test('a preset carries the kind of face it makes, and the words to find it by', 
   assert.ok(Object.isFrozen(item.tags));
   // The six presets written before this said nothing, which stays legal: a
   // preset with no kind is a preset nobody has classified, not a broken one.
-  // The six animals (MASC-10B) were the first to answer and the four robots
-  // (MASC-11B) the second, and both answer in full: a kind, and words to find
-  // it by.
+  // Every preset written since answers in full -- a kind, and words to find it
+  // by -- because every one of them arrived with a planche that said which.
   for (const preset of FACE_PRESET_LIBRARY.list()) {
     if (preset.morphology === '') { assert.deepEqual(preset.tags, [], `${preset.id} is unclassified, and tagged to match`); continue; }
-    assert.ok(['muzzle', 'robot'].includes(preset.morphology), `${preset.id} claims a kind of face no shipped preset draws`);
-    assert.ok(preset.tags.includes(preset.morphology === 'muzzle' ? 'animal' : 'robot'), `${preset.id} says what it is`);
+    assert.ok(['muzzle', 'robot', 'beak'].includes(preset.morphology), `${preset.id} claims a kind of face no shipped preset draws`);
+    assert.ok(preset.tags.includes({ muzzle: 'animal', robot: 'robot', beak: 'bird' }[preset.morphology]), `${preset.id} says what it is`);
   }
   assert.deepEqual(FACE_PRESET_LIBRARY.list().filter((preset) => preset.morphology === '').map((preset) => preset.id),
     ['classic', 'professor', 'young', 'old', 'robot', 'minimal'], 'and the six that said nothing still say nothing');

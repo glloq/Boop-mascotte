@@ -1,7 +1,8 @@
 # Beak · Soft Cartoon — the first bird faces
 
-The brief for the third body of real content in the face library (MASC-12A),
-following the delivered art direction:
+The third body of real content in the face library: the brief (MASC-12A) and
+the thirty drawings answering it (MASC-12B), following the delivered art
+direction:
 
 ```text
 sheet        Bibliothèque modulaire Boop — Oiseaux / Beak (BIRD-10A)
@@ -10,10 +11,16 @@ style        soft-cartoon — the style the library is drawn in
 species      Hibou · Canard · Perroquet · Corbeau · Oiseau mignon · Oiseau fin
 ```
 
-**Nothing here is drawn yet, and nothing here is registered.** The manifest is
-`core/face-library/pilots/beak-soft-cartoon.js`: data only, read by this
-document and by `masc12a-beak-pilot.test.js` and by nothing in the editor.
-`npm run face:assets` still reviews the 120 drawings that really exist.
+**All thirty are drawn**, in `core/face-library/builtin/birds/`, and ship in
+`BUILTIN_FACE_PARTS` alongside the six presets. The library holds 150 drawings
+and 22 presets; `npm run face:assets` reviews all of them with no geometry
+warnings. **`beak` is available**, which makes four kinds of face offered out of
+five.
+
+The manifest is still `core/face-library/pilots/beak-soft-cartoon.js`: data
+only, written by hand and never derived from the library, so the two can
+disagree — and a test asserts they do not, id for id, slot for slot, anchor for
+anchor and name for name.
 
 The geometry contract is `docs/FACE_ASSET_AUTHORING.md`; the library contract is
 `docs/FACE_PART_LIBRARY.md`; the two pilots this one is modelled on are
@@ -137,7 +144,7 @@ friendly beak; the slim one gets the small neat beak.
 | --- | --- | --- |
 | Lunettes rondes (classiques) | `accessory.glasses` | **reuse**, whole |
 | Nœud papillon (élégant) | `accessory.bow-tie` | **reuse**, whole |
-| Monocle (distingué) | `accessory.monocle` | one drawing, universal |
+| Monocle (distingué) | `accessory.monocle` | one drawing, universal, at `eye.right` |
 | Petit chapeau (stylisé) | `accessory.hat`? | an open question |
 
 The monocle ships with **no `morphologies` at all** — universal, like the six
@@ -174,37 +181,46 @@ slot in a `beak` face, and a beak has neither a tongue nor teeth. The manifest
 leaves all four out; a registered palette carries all twelve, so MASC-12B fills
 them in at registration.
 
-## What the drawings have to settle
+## What the drawings settled
 
-Eight questions, in `PILOT_OPEN_QUESTIONS` with a proposal each — and **none of
-them blocks**, which is the difference between this pilot and the robot one.
-Every question here is about a drawing, not about the shape of the library.
+Eight questions, **none of them blocking** — which was the difference between
+this pilot and the robot one, and stayed true: every one was about a drawing
+rather than about the shape of the library.
 
-**The crest anchor, which closes a question MASC-09 left open.** It gave the
-crest two candidates — `head.top`, the skull, and `hair.top`, the top of
-whatever hair the face has, "which on a bird *is* the crest" — and said the
-first real crest would decide. It is `head.top`, and the argument settles it
-without waiting for the drawings: a `beak` face offers no hair slot at all, so
-`hair.top` would be an anchor measured from something that can never be there.
+**The crest anchor, and MASC-09's question closed.** It gave the crest two
+candidates — `head.top`, the skull, and `hair.top`, the top of whatever hair the
+face has, "which on a bird *is* the crest" — and said the first real crest would
+decide. It is **`head.top`**, and the argument settled it without waiting for
+the drawings: a `beak` face offers no hair slot at all, so `hair.top` would be
+an anchor measured from something that can never be there. All six crests are
+there, and the test that asserts it also asserts the reason.
 
-**A beak opens as a mouth.** A person's mouth opens by redrawing a lip; a beak
-opens by two mandibles parting. Draw each as an upper and a lower in one group
-and let `mouthOpen` move the lower one — the precedent is
-`mouth.animal-open-friendly`, which names a tongue beside its mouth.
+**A beak is a mouth, and the group is what the role names.** `mouthOpen` is a
+`scaleY` on whatever the `mouth` role names, so the beak stretches about its own
+centre and gapes. The two mandibles are separate paths *inside* that group —
+which is what makes the seam read, not an attempt to move them independently,
+which would need a role the mouth part has not got. The lower is painted first
+and the upper over it, because that is how a beak closes.
 
-**The owl's tufts appear twice**, once in the head silhouette and once as a
-crest, and both are wanted: an author who puts the owl crest on a duck head
-should get tufts, and the owl head should read as an owl with nothing on it.
-Draw the head's short and the crest's tall.
+**And a beak is not where a mouth is.** All six are drawn well above the
+template's lip line, taking the middle of the face. The fit keeps the offset
+from the anchor to the box centre, so a part saying "higher than a mouth" costs
+nothing and lands where it was drawn.
 
-**The parrot's side feathers** are outside the skull outline, and the head is
-what the 2.5D turn measures the face's scale from. The animal pack's tufted fur
-edge is the precedent and it measured fine; if the feathers push the box wide
-enough to shrink the face on a fit, they become a crest instead.
+**A bird head keeps its jaw**, where a robot shell has none: a feathered head is
+soft, so it ships the same outline twice, at rest and dropped. What a bird has
+not got is a *separate* mouth — `jawOpen` drops the face and `mouthOpen` opens
+the beak, and the two read together.
 
-**The small hat.** Wear the shipped one on all six birds and look. If it
-dominates a small round head, a smaller one is one more cheap drawing; if it
-reads, row 6 costs exactly one drawing.
+**The owl's tufts appear twice** and both are wanted, so the head's are short
+and the crest's tall. An owl wearing both reads as one bird.
+
+**The parrot's side feathers** stay inside the head's own reference box: three
+short feathers against the cheek, not a second silhouette. The review sheet
+reports no overflow.
+
+**The small hat** is still open — the one question these drawings did not need
+to answer, because row 6 cost exactly one drawing either way.
 
 ## The sheets
 
@@ -218,17 +234,25 @@ reads, row 6 costs exactly one drawing.
 ```
 
 Every drawing goes through the loop in `docs/FACE_ASSET_AUTHORING.md`
-individually — alone, auto-fitted, fit matrix — **before** any of them reaches a
-pack.
+individually — alone, auto-fitted, fit matrix. All thirty have, and all thirty
+come back with no geometry warning.
 
 ## Status
 
-Every planned drawing starts at `needs-art`.
+Every drawing is `candidate`: it exists, and nobody has signed it off.
 
 ```text
 needs-art → candidate → approved → rejected
 ```
 
 This is pilot vocabulary. No face part carries it, and nothing in the editor
-reads it; it is how a drawing moves from the brief through the artistic review
-to MASC-12B.
+reads it; it is how a drawing moves from the brief through the artistic review.
+`npm run face:assets` is where that review happens.
+
+One thing the baseline noticed and this document should carry: **the beaks sign
+five different turn words between six drawings**, where every other row in the
+library signs one per row. `tests/fixtures/head-turn-baseline.js` records the
+observation and deliberately does not explain it — the beaks are the only part
+of any pack whose role names a group of two paths rather than a single shape,
+and the six sit at six different heights on the face. The baseline's job is to
+notice if that changes.

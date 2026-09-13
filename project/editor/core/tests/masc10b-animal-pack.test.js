@@ -6,7 +6,7 @@ import { FACE_PART_LIBRARY } from '../face-library/face-part-registry.js';
 import { FACE_PRESET_LIBRARY, FACE_PALETTES, presetColours } from '../face-library/face-presets.js';
 import { PALETTE_TOKENS } from '../face-library/face-part-model.js';
 import { assetSlot, compatibleMorphologies } from '../face-library/face-morphologies.js';
-import { ROBOT_FACE_PARTS } from '../face-library/builtin/robots/index.js';
+import { NARROWED } from './fixtures/face-packs.js';
 import { availableMorphologies, presetsFor } from '../face-library/compatibility.js';
 import { reviewAssets } from '../face-library/face-asset-review.js';
 
@@ -47,10 +47,11 @@ test('the pack narrows to one kind, and narrows nothing that was here before it'
   // person is the look nobody asked for, and saying `muzzle` is the whole of
   // what prevents it. Everything that shipped before says nothing and is
   // untouched by the pack's arrival -- and so is everything that arrived after,
-  // which by now is the robot pack saying `robot` for the same reason.
+  // which by now is two more packs saying `robot` and `beak` for the reason.
+  for (const asset of ANIMAL_FACE_PARTS) assert.equal(NARROWED.get(asset.id), 'muzzle', `${asset.id} narrows to its own kind`);
   const narrowed = FACE_PART_LIBRARY.list().filter((asset) => asset.morphologies?.length);
-  assert.deepEqual(narrowed.map((asset) => asset.id).sort(),
-    [...ANIMAL_FACE_PARTS, ...ROBOT_FACE_PARTS].map((asset) => asset.id).sort());
+  assert.deepEqual(narrowed.map((asset) => asset.id).sort(), [...NARROWED.keys()].sort(),
+    'and the packs between them are the whole of what narrows');
   for (const asset of ANIMAL_FACE_PARTS) assert.deepEqual(compatibleMorphologies(asset), ['muzzle'], asset.id);
   // And the same for the slots: a muzzle and a pair of whiskers are accessories
   // to the rig and rows of their own on screen. Nothing else in the library
@@ -76,7 +77,7 @@ test('drawing the muzzles turned the Muzzle kind of face on', () => {
   const kinds = availableMorphologies({ library: FACE_PART_LIBRARY });
   assert.equal(kinds.find((kind) => kind.id === 'muzzle').available, true);
   assert.deepEqual(kinds.find((kind) => kind.id === 'muzzle').missing, []);
-  assert.deepEqual(kinds.find((kind) => kind.id === 'beak').missing, ['beak', 'crest'], 'and a kind nobody has drawn for still says what it wants');
+  assert.deepEqual(kinds.find((kind) => kind.id === 'monster').missing, ['horns'], 'and a kind nobody has drawn for still says what it wants');
 });
 
 /* ── The snout question, which is the pack's one real design result ──────── */

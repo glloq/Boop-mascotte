@@ -246,5 +246,59 @@ export const BUILTIN_HEAD_TURNS = Object.freeze({
   'accessory.panels-light-panel': '146:c9131dce23214758',
   'accessory.panels-retro-buttons': '146:c9131dce23214758',
   'accessory.panels-warning-stripe': '146:c9131dce23214758',
-  'accessory.panels-toy-buttons': '146:c9131dce23214758'
+  'accessory.panels-toy-buttons': '146:c9131dce23214758',
+
+  /**
+   * The Soft Cartoon bird pack (MASC-12B), and the one row in this file that
+   * does not behave.
+   *
+   * The heads, the eyes and the brows sign as their categories do, as every
+   * pack's have: one word each, and all three of those words were already here.
+   * The crests take the word the robot antennae take, which is right and worth
+   * noticing -- the two slots are different, but both are accessories standing
+   * off the crown at `head.top` declaring the same `depth: 0.35`, so the turn
+   * they generate is the same turn. The monocle is its own word, being the only
+   * accessory in the library anchored to `eye.right`.
+   *
+   * **The beaks sign five words between six drawings**, and nothing else in the
+   * library does that inside one row. What is recorded here is the observation,
+   * not a mechanism: a beak is the only part in the pack whose role names a `<g>`
+   * of two paths rather than a single shape, and the six sit at six different
+   * heights on the face -- well above the lip line, because a beak takes the
+   * middle of a bird's face where a mouth sits low on a person's. Two of them
+   * (`beak-crow` and `beak-small`) share a word and their reference boxes share
+   * a centre; the other four differ in both. That is as far as the evidence
+   * goes, and the baseline's job is to notice if any of it changes, not to
+   * explain it.
+   */
+  'head.bird-owl': '139:9ae6b641b1d414e9',
+  'head.bird-duck': '139:9ae6b641b1d414e9',
+  'head.bird-parrot': '139:9ae6b641b1d414e9',
+  'head.bird-crow': '139:9ae6b641b1d414e9',
+  'head.bird-cute': '139:9ae6b641b1d414e9',
+  'head.bird-slim': '139:9ae6b641b1d414e9',
+  'eyes.bird-round-large': '139:620f5cafd8c98fa2',
+  'eyes.bird-soft': '139:620f5cafd8c98fa2',
+  'eyes.bird-bright': '139:620f5cafd8c98fa2',
+  'eyes.bird-sleepy': '139:620f5cafd8c98fa2',
+  'eyes.bird-happy': '139:620f5cafd8c98fa2',
+  'eyes.bird-piercing': '139:620f5cafd8c98fa2',
+  'eyebrows.bird-angry': '139:e0f8bbe9e363dfa3',
+  'eyebrows.bird-curious': '139:e0f8bbe9e363dfa3',
+  'eyebrows.bird-relaxed': '139:e0f8bbe9e363dfa3',
+  'eyebrows.bird-happy': '139:e0f8bbe9e363dfa3',
+  'eyebrows.bird-sharp': '139:e0f8bbe9e363dfa3',
+  'mouth.beak-owl': '125:0d2371fb57715b8f',
+  'mouth.beak-duck': '125:8c5e01f47dbb97d5',
+  'mouth.beak-parrot': '125:ea54b64639c451a0',
+  'mouth.beak-crow': '125:38c8fde69a9378dc',
+  'mouth.beak-small': '125:38c8fde69a9378dc',
+  'mouth.beak-wide': '125:1f5e3e299cb93ba4',
+  'accessory.crest-owl-tufts': '146:c9c00f821b121c8e',
+  'accessory.crest-simple': '146:c9c00f821b121c8e',
+  'accessory.crest-messy-tuft': '146:c9c00f821b121c8e',
+  'accessory.crest-smooth-feather': '146:c9c00f821b121c8e',
+  'accessory.crest-parrot-tall': '146:c9c00f821b121c8e',
+  'accessory.crest-round-tuft': '146:c9c00f821b121c8e',
+  'accessory.monocle': '146:1a041be436fcd05b'
 });

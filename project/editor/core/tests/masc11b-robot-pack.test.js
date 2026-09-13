@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ROBOT_FACE_PARTS } from '../face-library/builtin/robots/index.js';
-import { ANIMAL_FACE_PARTS } from '../face-library/builtin/animals/index.js';
+import { NARROWED } from './fixtures/face-packs.js';
 import { BUILTIN_FACE_PARTS } from '../face-library/builtin/index.js';
 import { FACE_PART_LIBRARY } from '../face-library/face-part-registry.js';
 import { FACE_PALETTES, FACE_PRESET_LIBRARY } from '../face-library/face-presets.js';
@@ -32,7 +32,7 @@ const ids = new Set(ROBOT_FACE_PARTS.map((asset) => asset.id));
 
 test('the pack is twenty-eight drawings in the categories the library already had', () => {
   assert.equal(ROBOT_FACE_PARTS.length, 28, 'one per family the planche labels');
-  assert.equal(BUILTIN_FACE_PARTS.length, 120, 'the 47 people, the 45 animals, and these');
+  assert.ok(BUILTIN_FACE_PARTS.length >= 120, 'the 47 people, the 45 animals, these, and whatever arrived since');
   const categories = {};
   for (const asset of ROBOT_FACE_PARTS) categories[asset.category] = (categories[asset.category] || 0) + 1;
   assert.deepEqual(categories, { head: 4, ears: 4, eyes: 4, eyebrows: 4, mouth: 4, accessory: 8 },
@@ -46,9 +46,9 @@ test('the pack is twenty-eight drawings in the categories the library already ha
 
 test('the pack narrows to machines, and narrows nothing that was here before it', () => {
   for (const asset of ROBOT_FACE_PARTS) assert.deepEqual(compatibleMorphologies(asset), ['robot'], asset.id);
-  // Two packs narrow now, and between them they are the whole of what narrows.
+  // The packs between them are the whole of what narrows, and each to one kind.
   const narrowed = FACE_PART_LIBRARY.list().filter((asset) => asset.morphologies?.length).map((asset) => asset.id);
-  assert.deepEqual(narrowed.sort(), [...ANIMAL_FACE_PARTS, ...ROBOT_FACE_PARTS].map((asset) => asset.id).sort());
+  assert.deepEqual(narrowed.sort(), [...NARROWED.keys()].sort());
   // The antennae and the panels are accessories to the rig and rows of their
   // own on screen -- the same arrangement the muzzles and whiskers use, and the
   // first drawings either slot has ever had.
@@ -68,13 +68,12 @@ test('drawing the antenna and the panel turned the Robot kind of face on', () =>
   // `robot: available` anywhere, and the row turned itself on the moment the
   // first of each existed.
   const kinds = availableMorphologies({ library: FACE_PART_LIBRARY });
-  assert.deepEqual(kinds.map((kind) => `${kind.id}:${kind.available}`), ['human:true', 'muzzle:true', 'beak:false', 'robot:true', 'monster:false']);
+  assert.equal(kinds.find((kind) => kind.id === 'robot').available, true);
   assert.deepEqual(kinds.find((kind) => kind.id === 'robot').missing, []);
   assert.deepEqual(kinds.find((kind) => kind.id === 'robot').distinctive, ['antenna', 'panels'], 'and those two are what makes one');
-  // Beak and Monster still say what they want, which is the mechanism working
-  // rather than a gap: a kind nobody can draw is a promise the row would be
-  // making on somebody else's behalf.
-  assert.deepEqual(kinds.find((kind) => kind.id === 'beak').missing, ['beak', 'crest']);
+  // Monster still says what it wants, which is the mechanism working rather
+  // than a gap: a kind nobody can draw is a promise the row would be making on
+  // somebody else's behalf.
   assert.deepEqual(kinds.find((kind) => kind.id === 'monster').missing, ['horns']);
 });
 
@@ -162,7 +161,7 @@ test('a speaker is a mouth, and no new control was invented anywhere in the pack
   }
   // The whole pack, against the controls the library already had: not one of
   // the twenty-eight claims anything a human drawing could not have claimed.
-  const known = new Set(FACE_PART_LIBRARY.list().filter((asset) => !ids.has(asset.id)).flatMap((asset) => [
+  const known = new Set(FACE_PART_LIBRARY.list().filter((asset) => !ids.has(asset.id) && !asset.morphologies?.includes('beak')).flatMap((asset) => [
     ...asset.capabilities, ...Object.values(asset.parts || {}).flatMap((drawn) => drawn.capabilities || [])
   ]));
   for (const asset of ROBOT_FACE_PARTS) {
@@ -255,7 +254,7 @@ test('a robot face is offered the machines and the universal drawings, and no an
   // `robot` the preset stays with the people, and that is right: it is a square
   // head and a bow tie, with neither an antenna nor a panel on it.
   assert.ok(presetsFor({ morphology: 'human' }).map((item) => item.id).includes('robot'));
-  assert.equal(FACE_PRESET_LIBRARY.size, 16);
+  assert.ok(FACE_PRESET_LIBRARY.size >= 16);
 });
 
 test('every drawing in the pack places, and the review sheet has nothing to say about any of them', () => {

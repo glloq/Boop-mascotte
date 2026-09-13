@@ -2,8 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { availableMorphologies } from '../face-library/compatibility.js';
 import { FACE_PART_LIBRARY, createFacePartRegistry } from '../face-library/face-part-registry.js';
-import { ANIMAL_FACE_PARTS } from '../face-library/builtin/animals/index.js';
-import { ROBOT_FACE_PARTS } from '../face-library/builtin/robots/index.js';
+import { NARROWED } from './fixtures/face-packs.js';
 import { CHARACTER_CATEGORY_IDS, characterCategory } from '../../ui/character-builder/character-model.js';
 import { typeBrowserMarkup } from '../../ui/character-builder/type-browser.js';
 
@@ -25,27 +24,26 @@ const part = (id, category, extra = {}) => {
 };
 
 test('a kind of face is offered once the library can draw what makes it that kind', () => {
-  // The shipped library was a human one until MASC-10B drew the Soft Cartoon
-  // animals and MASC-11B the robots, and it is those packs' own pieces --
-  // nothing anybody wrote in a list -- that put Muzzle and Robot on the row.
-  // Beak and Monster are still waiting on theirs, and that is the mechanism
-  // working rather than a gap: a kind nobody can draw is a promise the row
-  // would be making on somebody else's behalf.
+  // The shipped library was a human one until the Soft Cartoon packs arrived,
+  // and it is those packs' own pieces -- nothing anybody wrote in a list --
+  // that put Muzzle, Robot and Beak on the row. Monster is still waiting on its
+  // horns, and that is the mechanism working rather than a gap: a kind nobody
+  // can draw is a promise the row would be making on somebody else's behalf.
   const shipped = availableMorphologies({ library: FACE_PART_LIBRARY });
-  assert.deepEqual(shipped.map((type) => `${type.id}:${type.available}`), ['human:true', 'muzzle:true', 'beak:false', 'robot:true', 'monster:false']);
-  assert.deepEqual(shipped.find((type) => type.id === 'muzzle').missing, [], 'both pieces drawn');
-  assert.deepEqual(shipped.find((type) => type.id === 'robot').missing, [], 'the antenna and the panels too');
-  assert.deepEqual(shipped.find((type) => type.id === 'beak').missing, ['beak', 'crest']);
+  assert.deepEqual(shipped.map((type) => `${type.id}:${type.available}`), ['human:true', 'muzzle:true', 'beak:true', 'robot:true', 'monster:false']);
+  for (const id of ['muzzle', 'robot', 'beak']) assert.deepEqual(shipped.find((type) => type.id === id).missing, [], `${id} has everything it needs`);
+  assert.deepEqual(shipped.find((type) => type.id === 'monster').missing, ['horns']);
   assert.deepEqual(shipped.find((type) => type.id === 'human').distinctive, [], 'human is the reference the library grew as');
 
-  // Take a pack back out and its kind goes off again; draw the two pieces, and
-  // it turns on by itself. Which is the whole mechanism, in one library.
-  const packed = new Set([...ANIMAL_FACE_PARTS, ...ROBOT_FACE_PARTS].map((asset) => asset.id));
+  // Take the packs back out and their kinds go off again; draw the pieces, and
+  // each turns on by itself. Which is the whole mechanism, in one library.
   const library = createFacePartRegistry();
-  for (const asset of FACE_PART_LIBRARY.list()) if (!packed.has(asset.id)) library.register({ ...asset, origin: 'custom' });
-  for (const id of ['muzzle', 'robot']) assert.equal(availableMorphologies({ library }).find((type) => type.id === id).available, false, id);
-  assert.deepEqual(availableMorphologies({ library }).find((type) => type.id === 'muzzle').missing, ['muzzle', 'whiskers']);
-  assert.deepEqual(availableMorphologies({ library }).find((type) => type.id === 'robot').missing, ['antenna', 'panels']);
+  for (const asset of FACE_PART_LIBRARY.list()) if (!NARROWED.has(asset.id)) library.register({ ...asset, origin: 'custom' });
+  const bare = availableMorphologies({ library });
+  assert.deepEqual(bare.map((type) => `${type.id}:${type.available}`), ['human:true', 'muzzle:false', 'beak:false', 'robot:false', 'monster:false']);
+  assert.deepEqual(bare.find((type) => type.id === 'muzzle').missing, ['muzzle', 'whiskers']);
+  assert.deepEqual(bare.find((type) => type.id === 'robot').missing, ['antenna', 'panels']);
+  assert.deepEqual(bare.find((type) => type.id === 'beak').missing, ['beak', 'crest']);
   library.register(part('accessory.muzzle-cat', 'accessory', { slot: 'muzzle', morphologies: ['muzzle'] }));
   assert.deepEqual(availableMorphologies({ library }).find((type) => type.id === 'muzzle').missing, ['whiskers'], 'half-drawn is not drawn');
   library.register(part('accessory.whiskers-cat', 'accessory', { slot: 'whiskers', morphologies: ['muzzle'] }));

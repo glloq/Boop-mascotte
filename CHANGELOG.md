@@ -1,5 +1,56 @@
 # Changelog
 
+## Unreleased — The birds are drawn
+
+The thirty drawings BIRD-10A asked for, in `core/face-library/builtin/birds/`,
+registered in `BUILTIN_FACE_PARTS` alongside the six recipes as presets
+(MASC-12B). The library is **150 assets and 22 presets**; `npm run face:assets`
+reviews all of them with **0 geometry warnings**.
+
+**`beak` turned itself on, and four kinds of face out of five are now offered.**
+`beak` and `crest` had been in `FACE_SLOTS` since MASC-01 and empty ever since.
+Only `monster` is left, still saying exactly what it wants: horns.
+
+**MASC-01 drew a bird correctly.** The planche's six rows land on six slots and
+every one was already in the `beak` morphology's list — down to what it leaves
+out. There is no nose row, no mouth row, no ears row and no hair row on the
+sheet, and no such slot in the morphology. Where MASC-11B had to amend
+`MORPHOLOGY_TABLE` before a line could be drawn, this pack amended nothing.
+
+**Thirty drawings for thirty-three pieces**, because an accessory that declares
+no `morphologies` is universal: `accessory.glasses` *is* Lunettes rondes and
+`accessory.bow-tie` *is* Nœud papillon, reused whole. The monocle is the one
+piece of row 6 that had to be made — and it ships universal too, the first
+drawing any pack has contributed to every kind of face rather than to its own.
+
+**A beak is a mouth.** Its id begins `mouth.` because that is the category it
+installs through; `beak` is the slot an author picks it from. `mouthOpen` is a
+`scaleY` on whatever the `mouth` role names, so the role names the group holding
+both mandibles and the beak gapes about its own centre — the two paths are what
+makes the seam read, not an attempt to move them independently. All six sit well
+above the template's lip line, because a beak takes the middle of a bird's face
+where a mouth sits low on a person's, and the fit carries that offset for free.
+
+**A bird head keeps its jaw**, where a robot shell has none: a feathered head is
+soft. What a bird has not got is a *separate* mouth, so `jawOpen` drops the face
+and `mouthOpen` opens the beak.
+
+**MASC-09's crest question is closed**, and by argument rather than by looking:
+a `beak` face offers no hair slot at all, so `hair.top` would be an anchor
+measured from something that can never be there. All six crests take `head.top`.
+
+**One oddity, recorded rather than explained.** The beaks sign **five turn words
+between six drawings**, where every other row in the library signs one per row.
+`tests/fixtures/head-turn-baseline.js` notes what is observable — they are the
+only part of any pack whose role names a group of two paths, and the six sit at
+six different heights — and stops there. Noticing a change is the baseline's
+job; explaining it is not.
+
+**And a test fixture that should have existed two packs ago.**
+`tests/fixtures/face-packs.js` lists the packs and what each narrows to, because
+the same half-dozen assertions had been hand-edited three milestones running.
+A fourth pack adds one entry.
+
 ## Unreleased — The brief for the first bird faces
 
 The **BIRD-10A** planche turned into a cahier des charges (MASC-12A):

@@ -63,6 +63,26 @@ export const FACE_PALETTES = Object.freeze({
   'robot-retro': Object.freeze({ skin: '#f2ece0', skinShadow: '#d8d0bf', outline: '#3a3630', hair: '#8a8d90', hairShadow: '#6a6d70', eyeWhite: '#3a3630', pupil: '#f2c230', mouth: '#3a3630', tongue: '#d1453f', teeth: '#f2ece0', accessoryPrimary: '#d1453f', accessorySecondary: '#7d9a72' }),
   'robot-industrial': Object.freeze({ skin: '#b6b9bc', skinShadow: '#8f9497', outline: '#33373a', hair: '#55595e', hairShadow: '#3d4145', eyeWhite: '#33373a', pupil: '#e08a24', mouth: '#33373a', tongue: '#9b3a30', teeth: '#b6b9bc', accessoryPrimary: '#f0c02c', accessorySecondary: '#9b3a30' }),
   'robot-toy': Object.freeze({ skin: '#fdfdfd', skinShadow: '#e3e8ee', outline: '#3b4046', hair: '#9aa2ab', hairShadow: '#79818a', eyeWhite: '#ffffff', pupil: '#3b4046', mouth: '#3b4046', tongue: '#f39ab4', teeth: '#ffffff', accessoryPrimary: '#e04a48', accessorySecondary: '#f5c93f' }),
+
+  /* ── The birds (MASC-12B) ──────────────────────────────────────────────
+   * Six plumages, following the planche's own head colours. A feather is
+   * `skin`, its shading `skinShadow`, its edge `outline`; the beak takes
+   * `accessoryPrimary` and the crest `accessorySecondary`, because both are
+   * what a bird is *coloured* by rather than what it is made of — which is why
+   * a crow's beak and a duck's are one drawing apart and four shades apart.
+   *
+   * `hair` and `hairShadow` paint nothing: there is no hair slot in a `beak`
+   * face, and a crest is what stands where hair would. `tongue` and `teeth`
+   * paint nothing either, because a beak has neither. All four carry the
+   * plumage's own shades so the table stays complete, and no swatch for them
+   * ever reaches the Colours row.
+   */
+  'bird-owl-cream': Object.freeze({ skin: '#f0e2cd', skinShadow: '#d8c4a6', outline: '#8a6f4e', hair: '#d8c4a6', hairShadow: '#b89f7c', eyeWhite: '#ffffff', pupil: '#3a2c1e', mouth: '#c98a3c', tongue: '#d98f86', teeth: '#fff8ec', accessoryPrimary: '#c98a3c', accessorySecondary: '#d8c4a6' }),
+  'bird-duck-cream': Object.freeze({ skin: '#f5efe2', skinShadow: '#ddd3c0', outline: '#8f8368', hair: '#ddd3c0', hairShadow: '#bdb197', eyeWhite: '#ffffff', pupil: '#2f2a22', mouth: '#f2c230', tongue: '#d98f86', teeth: '#fff8ec', accessoryPrimary: '#f2c230', accessorySecondary: '#e8dcc4' }),
+  'bird-parrot-orange': Object.freeze({ skin: '#e8613c', skinShadow: '#c4482a', outline: '#7d2a16', hair: '#c4482a', hairShadow: '#9c3620', eyeWhite: '#ffffff', pupil: '#2a1a12', mouth: '#cfd3d6', tongue: '#d9707f', teeth: '#fff8ec', accessoryPrimary: '#cfd3d6', accessorySecondary: '#f2c230' }),
+  'bird-crow-slate': Object.freeze({ skin: '#6f767c', skinShadow: '#565c61', outline: '#2f3438', hair: '#565c61', hairShadow: '#3f4448', eyeWhite: '#ffffff', pupil: '#1e2225', mouth: '#3f4548', tongue: '#9c5a60', teeth: '#e8e6e2', accessoryPrimary: '#3f4548', accessorySecondary: '#565c61' }),
+  'bird-cute-blue': Object.freeze({ skin: '#9fcdf0', skinShadow: '#7fb2dc', outline: '#3f6b93', hair: '#7fb2dc', hairShadow: '#5f92bc', eyeWhite: '#ffffff', pupil: '#26333f', mouth: '#f0a23c', tongue: '#e08a96', teeth: '#ffffff', accessoryPrimary: '#f0a23c', accessorySecondary: '#f4a7c0' }),
+  'bird-slim-amber': Object.freeze({ skin: '#f0a94e', skinShadow: '#d88c34', outline: '#8a521c', hair: '#d88c34', hairShadow: '#b06f24', eyeWhite: '#ffffff', pupil: '#2f2114', mouth: '#e07a2c', tongue: '#d9707f', teeth: '#fff8ec', accessoryPrimary: '#e07a2c', accessorySecondary: '#f2c230' }),
   'rabbit-cream': Object.freeze({ skin: '#f0dfc6', skinShadow: '#fdf6ec', outline: '#a3866a', hair: '#d8c2a3', hairShadow: '#b39f83', eyeWhite: '#ffffff', pupil: '#3a2f26', mouth: '#b46b74', tongue: '#e08a96', teeth: '#fff8ec', accessoryPrimary: '#a3866a', accessorySecondary: '#f2b8ae' })
 });
 
@@ -138,7 +158,36 @@ export const FACE_STYLE_PRESETS = Object.freeze([
     ['accessory.antenna-industrial-robust', 'accessory.panels-warning-stripe'], 'robot-industrial', { morphology: 'robot', tags: ['robot', 'industrial', 'robust'] }),
   preset('robot-toy', 'Toy robot', 'A round shell, big cartoon eyes with a glint, and a star on a stalk.',
     { head: 'head.robot-toy-round', ears: 'ears.robot-toy-colorful', eyes: 'eyes.robot-toy-expressive', eyebrows: 'eyebrows.robot-toy-cute', mouth: 'mouth.robot-toy-simple' },
-    ['accessory.antenna-toy-fun', 'accessory.panels-toy-buttons'], 'robot-toy', { morphology: 'robot', tags: ['robot', 'toy', 'cute'] })
+    ['accessory.antenna-toy-fun', 'accessory.panels-toy-buttons'], 'robot-toy', { morphology: 'robot', tags: ['robot', 'toy', 'cute'] }),
+
+  /* ── The birds (MASC-12B) ──────────────────────────────────────────────
+   * Four parts and a crest each, and **no nose, no ears, no hair and no facial
+   * hair**: a `beak` face is not made of them, and the morphology says so
+   * without being asked. The beak sits under the `mouth` key because that is
+   * the category it installs through — a slot is what an author picks, a
+   * category is what the rig understands.
+   *
+   * Five brows for six birds: the duck and the parrot are both curious, and
+   * that is the only piece two of them share.
+   */
+  preset('owl', 'Owl', 'A broad tufted head, the biggest eyes on the sheet, and two pointed aigrettes.',
+    { head: 'head.bird-owl', eyes: 'eyes.bird-round-large', eyebrows: 'eyebrows.bird-relaxed', mouth: 'mouth.beak-owl' },
+    ['accessory.crest-owl-tufts'], 'bird-owl-cream', { morphology: 'beak', tags: ['owl', 'bird'] }),
+  preset('duck', 'Duck', 'Round, wide and friendly, with the flat bill and one smooth feather.',
+    { head: 'head.bird-duck', eyes: 'eyes.bird-soft', eyebrows: 'eyebrows.bird-curious', mouth: 'mouth.beak-duck' },
+    ['accessory.crest-smooth-feather'], 'bird-duck-cream', { morphology: 'beak', tags: ['duck', 'bird'] }),
+  preset('parrot', 'Parrot', 'Upright and loud: side feathers, a hooked bill and a tall fan crest.',
+    { head: 'head.bird-parrot', eyes: 'eyes.bird-bright', eyebrows: 'eyebrows.bird-curious', mouth: 'mouth.beak-parrot' },
+    ['accessory.crest-parrot-tall'], 'bird-parrot-orange', { morphology: 'beak', tags: ['parrot', 'bird'] }),
+  preset('crow', 'Crow', 'Angular and unimpressed: narrowed eyes, a straight point and a ragged tuft.',
+    { head: 'head.bird-crow', eyes: 'eyes.bird-piercing', eyebrows: 'eyebrows.bird-angry', mouth: 'mouth.beak-crow' },
+    ['accessory.crest-messy-tuft'], 'bird-crow-slate', { morphology: 'beak', tags: ['crow', 'corvid', 'bird'] }),
+  preset('cute-bird', 'Cute bird', 'A round head, happy eyes with two highlights, and a broad friendly beak.',
+    { head: 'head.bird-cute', eyes: 'eyes.bird-happy', eyebrows: 'eyebrows.bird-happy', mouth: 'mouth.beak-wide' },
+    ['accessory.crest-round-tuft'], 'bird-cute-blue', { morphology: 'beak', tags: ['cute', 'bird', 'small'] }),
+  preset('slim-bird', 'Slim bird', 'Tall and elegant: heavy lids, the smallest beak, three plain feathers.',
+    { head: 'head.bird-slim', eyes: 'eyes.bird-sleepy', eyebrows: 'eyebrows.bird-sharp', mouth: 'mouth.beak-small' },
+    ['accessory.crest-simple'], 'bird-slim-amber', { morphology: 'beak', tags: ['slim', 'bird', 'elegant'] })
 ]);
 
 const strings = (value) => (Array.isArray(value) ? value.filter((item) => typeof item === 'string' && item.trim()).map((item) => item.trim()) : []);
