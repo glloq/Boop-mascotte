@@ -1,5 +1,44 @@
 # Changelog
 
+## Unreleased — The brief for the first bird faces
+
+The **BIRD-10A** planche turned into a cahier des charges (MASC-12A):
+`docs/BEAK_SOFT_CARTOON_PILOT.md` and the data-only manifest beside it. Nothing
+is drawn and nothing is registered — the library is still 120 assets and 16
+presets.
+
+**MASC-01 drew a bird correctly.** The planche's six rows land on six slots, and
+every one of them is already in the `beak` morphology's own list — down to what
+it leaves out. There is no nose row, no mouth row, no ears row and no hair row
+on the sheet, and no such slot in the morphology. A beak *is* the mouth; a crest
+is what a bird has instead of hair. Where MASC-11B had to amend
+`MORPHOLOGY_TABLE` before a line could be drawn, this pilot amends nothing, and
+a test asserts the fit rather than a comment claiming it.
+
+**Thirty drawings for thirty-three pieces.** Row 6 is captioned "4 accessoires
+simples et compatibles", and compatible is what the library's accessories
+already are: an accessory that declares no `morphologies` is universal, so
+`accessory.glasses` *is* Lunettes rondes and `accessory.bow-tie` *is* Nœud
+papillon, reused whole. Only the monocle has to be made — and it ships universal
+too, because a monocle suits a person as readily as an owl. The small hat is an
+open question rather than a drawing.
+
+**A beak's id begins `mouth.`, and that is not a slip.** A slot is what an
+author picks from and a category is what the rig understands: `beak` is the
+slot, `mouth` the category, and a beak keeps `mouthOpen`, `smile` and
+`mouthWidth` because a beak opens.
+
+**MASC-09's crest question is closed.** It left two candidate anchors —
+`head.top`, the skull, and `hair.top`, the top of whatever hair the face has —
+and said the first real crest would decide. It is `head.top`, and the argument
+settles it without waiting for the drawings: a `beak` face offers no hair slot
+at all, so `hair.top` would be an anchor measured from something that can never
+be there.
+
+Eight open questions, **none of them blocking**: every one is about a drawing
+rather than about the shape of the library, which is what a third pilot on the
+same machinery should look like.
+
 ## Unreleased — The robots are drawn
 
 The twenty-eight families ROBOT-V1 labels, in
