@@ -1,34 +1,43 @@
 # Changelog
 
-## Unreleased — Four animals, nineteen drawings
+## Unreleased — Six animals, forty-five drawings
 
-The brief for the first real content of the new face library (MASC-10A): Cat,
-Dog, Fox and Bear, in `muzzle` and `soft-cartoon`. Nothing is drawn and nothing
-is registered — `docs/MUZZLE_SOFT_CARTOON_PILOT.md` and the data-only manifest
-beside it say what has to be made, what must not be made twice, and which of the
-47 shipped drawings can be used instead.
+The brief for the first real content of the new face library (MASC-10A),
+following the delivered **Soft Cartoon — Face Parts V1** sheet: eight sections,
+forty-five drawings, six species. Nothing is drawn and nothing is registered —
+`docs/MUZZLE_SOFT_CARTOON_PILOT.md` and the data-only manifest beside it say
+what has to be made, what must not be made twice, and which of the 47 shipped
+drawings an animal face may still wear.
 
-**Four recipes, not four libraries.** A cat, a dog and a bear share a head; a
-cat and a fox share a nose and a mouth; three of the four share a brow. What
-makes a cat a cat is its ears, its muzzle, its pupils and its palette. Nineteen
-drawings dress four animals, and four more come off the shelf.
+**Six recipes, not six libraries.** A fox and a wolf share their eyes and their
+brows; a cat and a fox share a nose; a dog and a wolf share a muzzle. Thirty-
+eight of the forty-five are claimed by a recipe, where six species over eight
+slots would be forty-eight if each owned its own. Cat, Dog, Fox and Bear were
+the brief; the sheet also draws a rabbit's ears, a rodent's muzzle, a button
+nose and a wolf's ears, so Rabbit and Wolf are recipes too rather than pieces
+drawn for nobody. Seven more are the catalogue — expressions and species an
+author picks themselves.
 
-**The pupils turned out to be inside the eyes.** Every eye set in this library
-draws its own pupils and lids, there has never been a standalone pupils card,
-and no preset may name one. So two eye families and two pupil families are three
-drawings — the combinations a recipe actually asks for — rather than four.
+**The sheet settled two questions.** *"6 styles d'yeux (pupilles intégrées)"*
+confirms that an eye set draws its own pupils, so the pupil families are
+properties of the eye drawings and a recipe reaches them through the eyes.
+*"6 museaux modulaires (sans nez ni bouche)"* answers the pilot's biggest
+graphical risk: a muzzle is a pad with the nose and mouth area left open, and
+the semantic nose and mouth sit on top of it keeping every control. What is left
+is the draw order.
 
-**All 47 shipped drawings were audited**, each with a verdict and a reason. Four
-are reused outright; thirteen more are worth trying before anybody draws a
-replacement. If the Heads sheet says the human round and narrow skulls already
-carry these species, the inventory drops to seventeen.
+**All 47 shipped drawings were audited**, each with a verdict and a reason. The
+sheet draws its own brow, noses and mouths, so no recipe leans on a shipped
+drawing; the four that were going to stand in are fallbacks if a planned one is
+cut. Glasses, a hat and a bow tie stay universal.
 
-**Colours are palettes.** Five of them, no new token, and no drawing named for a
-colour: a ginger cat and a grey cat are one drawing.
+**Colours are palettes.** Seven of them following the sheet's own head colours,
+no new token, and no drawing named for a colour: a ginger cat and a grey cat are
+one drawing.
 
-**No new runtime control.** The four species run on the parameters a person runs
-on. What is new is the 2.5D turn — the muzzles, the whiskers and the ears each
-need a profile, and none will be written until the drawings exist.
+**No new runtime control.** Six species run on the parameters a person runs on.
+What is new is the 2.5D turn — the muzzles, the whiskers and the ears each need
+a profile, and none will be written until the drawings exist.
 
 ## Unreleased — Look at a drawing before drawing fifty
 

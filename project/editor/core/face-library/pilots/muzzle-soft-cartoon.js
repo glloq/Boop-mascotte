@@ -20,10 +20,24 @@
  * shared parts  +  species-specific parts  +  preset recipe
  * ```
  *
- * Four species are **not** four libraries. A cat and a bear share a head, a
- * pair of eyes and a brow; what makes them a cat and a bear is the ears, the
- * muzzle, the nose and the palette. Nineteen drawings make four animals, and
- * four more come free from the shelf.
+ * Species are **not** libraries. A fox and a wolf share their eyes and their
+ * brows, a cat and a fox share a nose, a dog and a wolf share a muzzle; what
+ * makes each one itself is its ears, its muzzle and its palette. Forty-five
+ * drawings dress six species across eight slots — forty-eight pieces if every
+ * species owned its own.
+ *
+ * The inventory follows the **parts sheet** delivered with this brief, section
+ * for section: six heads, six eye sets, five brows, eight ear pairs, six
+ * muzzles, five noses, five mouths, four sets of whiskers. Each entry carries
+ * the sheet's own label under `sheetLabel`, so a drawing on the planche and a
+ * line here are the same thing.
+ *
+ * Two of the sheet's own captions settle questions the manifest had open:
+ *
+ * ```text
+ * "6 styles d'yeux (pupilles intégrées)"        an eye set draws its own pupils
+ * "6 museaux modulaires (sans nez ni bouche)"   a muzzle is a pad, features on top
+ * ```
  *
  * Every id below is a *proposal*. MASC-10B draws them, runs each through
  * `npm run face:assets` (docs/FACE_ASSET_AUTHORING.md), and registers what
@@ -35,8 +49,18 @@ export const PILOT_ID = 'muzzle-soft-cartoon';
 export const PILOT_MORPHOLOGY = 'muzzle';
 export const PILOT_STYLE = FACE_BASE_STYLE_ID;
 
-/** The species the pilot dresses. Each is a **preset inside `muzzle`**, never a morphology. */
-export const PILOT_SPECIES = Object.freeze(['cat', 'dog', 'fox', 'bear']);
+/** The art direction this manifest follows, piece for piece. */
+export const PILOT_SHEET = 'Soft Cartoon — Face Parts V1';
+
+/**
+ * The species the pilot dresses. Each is a **preset inside `muzzle`**, never a
+ * morphology.
+ *
+ * Six, not four: the sheet draws a rabbit's ears, a rodent's muzzle, a button
+ * nose and a wolf's ears, which is a rabbit and a wolf fully specified. Leaving
+ * them unnamed would be drawing pieces for nobody.
+ */
+export const PILOT_SPECIES = Object.freeze(['cat', 'dog', 'fox', 'bear', 'rabbit', 'wolf']);
 
 /**
  * Where a planned drawing is between "somebody should draw this" and "the
@@ -60,12 +84,19 @@ export const PILOT_REVIEW_GROUPS = Object.freeze(['heads', 'eyes', 'pupils', 'br
  */
 export const PILOT_REUSE_VERDICTS = Object.freeze(['reuse', 'possible-reuse', 'replace', 'not-relevant']);
 
+/**
+ * One planned drawing. Everything optional has a default, so a group's table
+ * below says only what varies.
+ */
 const asset = (entry) => Object.freeze({
   species: Object.freeze([]), tags: Object.freeze([]), capabilities: Object.freeze([]),
   morphologies: Object.freeze([PILOT_MORPHOLOGY]), priority: 'pilot', status: 'needs-art',
   // Which drawings put this on the face, when it is not a card of its own.
   // The pupils are the only case, and the reason is below.
   drawnBy: Object.freeze([]), distinct: '', turn: 'category-default', notes: '',
+  // A piece no recipe names: an expression or a species an author picks for
+  // themselves. The library is a library, not four presets.
+  catalogue: false, sheetLabel: '',
   ...entry,
   drawnBy: Object.freeze([...(entry.drawnBy || [])]),
   tags: Object.freeze([...(entry.tags || [])]), species: Object.freeze([...(entry.species || [])]),
@@ -77,274 +108,158 @@ const ORDER = Object.fromEntries(PILOT_REVIEW_GROUPS.map((group, index) => [grou
 let seen = {};
 const inGroup = (group) => { seen[group] = (seen[group] || 0) + 1; return ORDER[group] + seen[group]; };
 
+/** A section of the sheet: everything its pieces share, filled in once. */
+const section = (reviewGroup, { prefix, ...shared }) => (slug, sheetLabel, proposedName, direction, species, tags, distinct, extra = {}) =>
+  asset({ ...shared, id: `${prefix}.${slug}`, reviewGroup, reviewOrder: inGroup(reviewGroup), sheetLabel, proposedName, direction, species, tags, distinct, ...extra });
+
+const head = section('heads', { prefix: 'head', slot: 'head', category: 'head', mountPoint: 'head.center', requiredRoles: ['head'], capabilities: ['headX', 'headY', 'headTilt'] });
+const eyes = section('eyes', { prefix: 'eyes', slot: 'eyes', category: 'eyes', mountPoint: 'eyes', requiredRoles: ['leftEye', 'rightEye'], capabilities: ['eyeOpen'] });
+const pupils = section('pupils', { prefix: 'pupils', slot: 'pupils', category: 'pupils', mountPoint: 'eyes', requiredRoles: ['leftPupil', 'rightPupil'], capabilities: ['lookX', 'lookY', 'pupilScale'] });
+const brow = section('brows', { prefix: 'eyebrows', slot: 'eyebrows', category: 'eyebrows', mountPoint: 'brows', requiredRoles: ['leftBrow', 'rightBrow'], capabilities: ['browRaise', 'browTilt'] });
+const ear = section('ears', { prefix: 'ears', slot: 'ears', category: 'ears', mountPoint: 'ears', requiredRoles: ['leftEar', 'rightEar'], capabilities: ['earWiggle'], turn: 'needs-profile' });
+const muzzle = section('muzzles', { prefix: 'accessory', slot: 'muzzle', category: 'accessory', mountPoint: 'nose.center', requiredRoles: ['element'], turn: 'needs-profile' });
+const nose = section('noses', { prefix: 'nose', slot: 'nose', category: 'nose', mountPoint: 'nose.center', requiredRoles: ['nose'], capabilities: ['noseScrunch'] });
+const mouth = section('mouths', { prefix: 'mouth', slot: 'mouth', category: 'mouth', mountPoint: 'mouth.center', requiredRoles: ['mouth'], capabilities: ['mouthOpen', 'smile', 'mouthWidth'] });
+const whiskers = section('whiskers', { prefix: 'accessory', slot: 'whiskers', category: 'accessory', mountPoint: 'nose.center', requiredRoles: ['element'], turn: 'needs-profile' });
+
 /**
- * The drawings the pilot needs, in the order they are reviewed.
+ * The drawings the pilot needs, section by section, in the order the sheet
+ * lays them out.
  *
- * Nineteen, and every one of them is in at least one recipe. Where a shipped
- * drawing does the job it is named in the recipe instead and no entry appears
- * here — that is what keeps the count at nineteen rather than twenty-five.
+ * Forty-five drawings, and the sharing is the point: `eyes.animal-almond-alert`
+ * dresses the fox *and* the wolf, `nose.triangle-small` the cat *and* the fox,
+ * `accessory.muzzle-canine-medium` the dog *and* the wolf. Six species over
+ * eight slots would be forty-eight drawings if each owned its own; thirty-eight
+ * of these are claimed by a recipe and eight of those are shared, and the seven
+ * left over are the catalogue — an author's own choice of expression.
  */
 export const PILOT_ASSETS = Object.freeze([
-  /* ── Heads ─────────────────────────────────────────────────────────────
-   * Two, and neither replaces the eight human skulls: an animal face is a
-   * different set of proportions, not a better oval. They are declared for
-   * `muzzle` only, so Design offers them when an author is making an animal
-   * and never when they are making a person.
+  /* ── 1 · Fonds de tête ─────────────────────────────────────────────────
+   * "6 formes de base sans oreilles, museau, nez ni bouche": a head in this
+   * library is a bare fur silhouette with a tufted edge and nothing on it.
+   * Every feature is a separate piece, which is exactly the shape the rest of
+   * the face library already has.
    */
-  asset({
-    id: 'head.animal-round', proposedName: 'Animal round', reviewGroup: 'heads', reviewOrder: inGroup('heads'),
-    slot: 'head', category: 'head', mountPoint: 'head.center', requiredRoles: ['head'],
-    capabilities: ['headX', 'headY', 'headTilt'],
-    tags: ['animal', 'round', 'soft'], species: ['cat', 'dog', 'bear'],
-    direction: 'Round skull, soft cheeks, a short lower face and a large forehead.',
-    distinct: 'Rounder and shorter in the lower face than animal-narrow.',
-    notes: 'The fit matrix should compare it against head.round: if the difference does not read, drop it and reuse the human one.'
-  }),
-  asset({
-    id: 'head.animal-narrow', proposedName: 'Animal narrow', reviewGroup: 'heads', reviewOrder: inGroup('heads'),
-    slot: 'head', category: 'head', mountPoint: 'head.center', requiredRoles: ['head'],
-    capabilities: ['headX', 'headY', 'headTilt'],
-    tags: ['animal', 'narrow', 'sharp'], species: ['fox'],
-    direction: 'Slightly longer, a narrower lower face, sharper cheeks.',
-    distinct: 'Longer and narrower below the eyes than animal-round.'
-  }),
+  head('animal-round', 'Ronde', 'Animal round', 'A round fur silhouette with a soft tufted edge. No ears, no muzzle, no features.', ['cat'], ['animal', 'round', 'soft'], 'The roundest: as wide as it is tall.'),
+  head('animal-narrow', 'Étroite', 'Animal narrow', 'Narrower and a little taller, the same tufted edge.', ['fox'], ['animal', 'narrow', 'sharp'], 'Narrower below the eyes than every other.'),
+  head('animal-wide', 'Large', 'Animal wide', 'Broad and heavy, wider than it is tall.', ['bear'], ['animal', 'wide', 'heavy'], 'The widest, and the only one broader than tall.'),
+  head('animal-square', 'Carrée', 'Animal square', 'A squared skull with soft corners and a spiked crown.', ['wolf'], ['animal', 'square', 'angular'], 'The only squared silhouette; the crown is spiked rather than round.'),
+  head('animal-small', 'Petite', 'Animal small', 'Small and neat, with a light tufted edge.', ['rabbit'], ['animal', 'small', 'neat'], 'The smallest, and the plainest edge.'),
+  head('animal-chubby', 'Joufflue', 'Animal chubby', 'Full cheeks, widest at the jaw.', ['dog'], ['animal', 'chubby', 'friendly'], 'The only one that widens towards the jaw rather than the brow.'),
 
-  /* ── Eyes, and the pupils inside them ──────────────────────────────────
-   * The finding that shapes this whole section: **a pair of eyes in this
-   * library draws its own pupils.** Every one of the five shipped eye sets is
-   * a composite that names `gaze` and `eyelids` under `parts`, there has never
-   * been a standalone pupils card, and `PRESET_PART_ORDER` does not let a
-   * preset name one — so a Cat preset could not put vertical pupils on a face
-   * even if the card existed.
-   *
-   * So two eye families times two pupil families is not four drawings, it is
-   * the combinations any recipe actually asks for, which is three:
-   *
-   * ```text
-   * cartoon-large       round pupils     dog · bear
-   * cartoon-large-slit  vertical pupils  cat
-   * alert-almond        round pupils     fox
-   * ```
-   *
-   * Almond with vertical pupils — an alert cat — is the fourth, and nobody
-   * needs it yet. It is a drawing, not a decision, whenever somebody does.
+  /* ── 2 · Yeux ──────────────────────────────────────────────────────────
+   * "6 styles d'yeux (pupilles intégrées)" — the sheet says out loud what the
+   * library already does: an eye set draws its own pupils and lids. There is
+   * no standalone pupils card, and no preset may name one.
    */
-  asset({
-    id: 'eyes.cartoon-large', proposedName: 'Cartoon large', reviewGroup: 'eyes', reviewOrder: inGroup('eyes'),
-    slot: 'eyes', category: 'eyes', mountPoint: 'eyes', requiredRoles: ['leftEye', 'rightEye'],
-    capabilities: ['eyeOpen'], tags: ['animal', 'large', 'friendly'], species: ['dog', 'bear'],
-    direction: 'Big round friendly eyes, round pupils, a glint.',
-    distinct: 'Round pupils, where cartoon-large-slit has vertical ones.',
-    notes: 'Composite: also draws the gaze (leftPupil, rightPupil) and the eyelids, as every shipped eye set does.'
-  }),
-  asset({
-    id: 'eyes.cartoon-large-slit', proposedName: 'Cartoon large, slit', reviewGroup: 'eyes', reviewOrder: inGroup('eyes'),
-    slot: 'eyes', category: 'eyes', mountPoint: 'eyes', requiredRoles: ['leftEye', 'rightEye'],
-    capabilities: ['eyeOpen'], tags: ['cat', 'feline', 'large', 'slit'], species: ['cat'],
-    direction: 'The same big round eye, with a vertical slit pupil.',
-    distinct: 'Vertical pupils, where cartoon-large has round ones.',
-    notes: 'The whole difference is the pupil geometry; the socket, the lids and their drivers are cartoon-large\'s.'
-  }),
-  asset({
-    id: 'eyes.alert-almond', proposedName: 'Alert almond', reviewGroup: 'eyes', reviewOrder: inGroup('eyes'),
-    slot: 'eyes', category: 'eyes', mountPoint: 'eyes', requiredRoles: ['leftEye', 'rightEye'],
-    capabilities: ['eyeOpen'], tags: ['animal', 'almond', 'alert'], species: ['fox'],
-    direction: 'Almond eyes tilted up at the outer corner: awake rather than sweet.',
-    distinct: 'Almond and tilted, where the cartoon-large family is round.'
-  }),
+  eyes('animal-round-large', 'Grands ronds', 'Big round', 'Big round eyes, round pupils, a glint high on each.', ['dog', 'rabbit'], ['animal', 'large', 'round', 'friendly'], 'Round pupils, where animal-round-slit has vertical ones.',
+    { notes: 'Composite: draws the gaze (leftPupil, rightPupil) and the eyelids under `parts`, as every shipped eye set does.' }),
+  eyes('animal-round-slit', 'Grands ronds pupilles fendues', 'Big round, slit', 'The same big round eye with a tall vertical slit pupil.', ['cat'], ['cat', 'feline', 'large', 'slit'], 'Vertical pupils; the socket and the lids are the big round eye\'s.'),
+  eyes('animal-almond-alert', 'En amande alerte', 'Alert almond', 'Almond eyes tilted up at the outer corner: awake rather than sweet.', ['fox', 'wolf'], ['animal', 'almond', 'alert'], 'Almond and tilted, where the round family is round.'),
+  eyes('animal-sleepy', 'Endormis', 'Sleepy', 'Heavy lids half over the eye, a narrow pupil beneath.', [], ['animal', 'sleepy', 'heavy'], 'Lids drawn low at rest.', { catalogue: true, notes: 'An expression, not a species: any of the six can wear it.' }),
+  eyes('animal-happy', 'Joyeux', 'Happy', 'Two closed upward arcs: an eye that is already smiling.', [], ['animal', 'happy', 'closed'], 'The only pair drawn shut.',
+    { catalogue: true, notes: 'Drawn shut, so it has no pupil to move and nothing left for eyeOpen to close. See the open question.' }),
+  eyes('animal-small-cute', 'Petits mignons', 'Small and cute', 'Small round eyes set wide, with a large pupil each.', ['bear'], ['animal', 'small', 'cute'], 'Smallest of the six, and the widest set.'),
 
-  /* ── Pupils ────────────────────────────────────────────────────────────
-   * Two families and **no drawings of their own**: each is a property of the
-   * eye set that draws it. They are listed so the validation sheet has a
-   * Pupils page — the pupil is where a cat stops being a dog, and it deserves
-   * looking at on its own even though it is not a card.
+  /* ── Pupils, inside the eyes ───────────────────────────────────────────
+   * Two families and no drawings of their own. Listed so the review has a
+   * Pupils page — the pupil is where a cat stops being a dog — and so a recipe
+   * can be checked for one.
    */
-  asset({
-    id: 'pupils.round', proposedName: 'Round pupils', reviewGroup: 'pupils', reviewOrder: inGroup('pupils'),
-    slot: 'pupils', category: 'pupils', mountPoint: 'eyes', requiredRoles: ['leftPupil', 'rightPupil'],
-    capabilities: ['lookX', 'lookY', 'pupilScale'], tags: ['animal', 'round'], species: ['dog', 'fox', 'bear'],
-    drawnBy: ['eyes.cartoon-large', 'eyes.alert-almond'], standalone: false,
-    direction: 'A plain round pupil with a glint, as the shipped eyes have.',
-    distinct: 'Round, where pupils.vertical is a slit.',
-    notes: 'Reviewed as part of the eye sets that draw it: it has no card, and no preset names it.'
-  }),
-  asset({
-    id: 'pupils.vertical', proposedName: 'Vertical pupils', reviewGroup: 'pupils', reviewOrder: inGroup('pupils'),
-    slot: 'pupils', category: 'pupils', mountPoint: 'eyes', requiredRoles: ['leftPupil', 'rightPupil'],
-    capabilities: ['lookX', 'lookY', 'pupilScale'], tags: ['cat', 'feline', 'slit', 'vertical'], species: ['cat'],
-    drawnBy: ['eyes.cartoon-large-slit'], standalone: false,
-    direction: 'A tall slit pupil, narrow at rest.',
-    distinct: 'A slit, where pupils.round is round.',
-    notes: 'Must keep the gaze working: lookX, lookY and pupilScale drive it exactly as they drive a round pupil.'
-  }),
+  pupils('round', '(pupilles intégrées)', 'Round pupils', 'A plain round pupil with a glint, as the shipped eyes have.', ['dog', 'fox', 'bear', 'wolf', 'rabbit'], ['animal', 'round'], 'Round, where pupils.vertical is a slit.',
+    { drawnBy: ['eyes.animal-round-large', 'eyes.animal-almond-alert', 'eyes.animal-sleepy', 'eyes.animal-small-cute'], standalone: false, notes: 'Reviewed inside the eye sets that draw it: it has no card, and no preset names it.' }),
+  pupils('vertical', '(pupilles intégrées)', 'Vertical pupils', 'A tall slit pupil, narrow at rest.', ['cat'], ['cat', 'feline', 'slit', 'vertical'], 'A slit, where pupils.round is round.',
+    { drawnBy: ['eyes.animal-round-slit'], standalone: false, notes: 'Must keep the gaze working: lookX, lookY and pupilScale drive it exactly as they drive a round pupil.' }),
 
-  /* ── Brows ─────────────────────────────────────────────────────────────
-   * One drawing. `eyebrows.thin` is already a thin arc above the eye and works
-   * unchanged on an animal, so the soft family is a reuse and only the fox's
-   * sharper brow is drawn.
+  /* ── 3 · Sourcils ──────────────────────────────────────────────────────
+   * Five, and they carry more of the expression than anything but the ears.
    */
-  asset({
-    id: 'eyebrows.animal-sharp', proposedName: 'Animal sharp', reviewGroup: 'brows', reviewOrder: inGroup('brows'),
-    slot: 'eyebrows', category: 'eyebrows', mountPoint: 'brows', requiredRoles: ['leftBrow', 'rightBrow'],
-    capabilities: ['browRaise', 'browTilt'], tags: ['animal', 'sharp', 'alert'], species: ['fox'],
-    direction: 'An angled brow, higher at the outer end: alert, a little sly.',
-    distinct: 'Angled, where the reused eyebrows.thin is a soft arc.'
-  }),
+  brow('animal-thin-soft', 'Fins doux', 'Thin and soft', 'Thin soft arcs, set high.', ['cat', 'rabbit'], ['animal', 'thin', 'soft'], 'The lightest weight of the five.'),
+  brow('animal-firm', 'Affirmés', 'Firm', 'Straighter and angled in towards the nose.', ['fox', 'wolf'], ['animal', 'firm', 'angled'], 'Angled in, where thin-soft arcs up.'),
+  brow('animal-thick', 'Épais', 'Thick', 'Heavy and blunt.', ['bear'], ['animal', 'thick', 'heavy'], 'The heaviest weight of the five.'),
+  brow('animal-friendly-raised', 'Relevés amicaux', 'Friendly raised', 'Raised at the outer end: open and friendly.', ['dog'], ['animal', 'raised', 'friendly'], 'The only pair raised at the outer end rather than the inner.'),
+  brow('animal-worried', 'Inquiets courbés', 'Worried', 'Curved and tipped in at the inner end: worried.', [], ['animal', 'worried', 'curved'], 'Tipped in at the inner end.', { catalogue: true, notes: 'An expression, not a species.' }),
 
-  /* ── Ears ──────────────────────────────────────────────────────────────
-   * The first slot that really says which animal this is, and the only group
-   * where four drawings are worth it: the same head with the same eyes reads
-   * as a different creature when the ears change.
-   *
-   * All four sit **on top of the skull**, where the three shipped pairs sit at
-   * its sides. That is the one geometric departure in the pilot, and the fit
-   * matrix across Round, Narrow, Wide and Square is what has to bless it.
+  /* ── 4 · Oreilles ──────────────────────────────────────────────────────
+   * Eight pairs, and the first thing anybody reads. All of them sit **on top
+   * of the skull**, where the three shipped pairs sit at its sides: that is
+   * the pilot's one geometric departure, and the fit matrix has to bless it.
    */
-  asset({
-    id: 'ears.cat-pointed', proposedName: 'Cat pointed', reviewGroup: 'ears', reviewOrder: inGroup('ears'),
-    slot: 'ears', category: 'ears', mountPoint: 'ears', requiredRoles: ['leftEar', 'rightEar'],
-    capabilities: ['earWiggle'], tags: ['cat', 'feline', 'pointed'], species: ['cat'],
-    direction: 'Two upright triangles on top of the skull, with an inner ear.',
-    distinct: 'Upright and small, where the fox\'s are large and swept.',
-    turn: 'needs-profile', notes: 'On top of the head, unlike every shipped ear pair.'
-  }),
-  asset({
-    id: 'ears.fox-large-pointed', proposedName: 'Fox large pointed', reviewGroup: 'ears', reviewOrder: inGroup('ears'),
-    slot: 'ears', category: 'ears', mountPoint: 'ears', requiredRoles: ['leftEar', 'rightEar'],
-    capabilities: ['earWiggle'], tags: ['fox', 'vulpine', 'pointed', 'large'], species: ['fox'],
-    direction: 'Tall triangles, wider at the base and leaning outward.',
-    distinct: 'Much taller and wider than the cat\'s.',
-    turn: 'needs-profile'
-  }),
-  asset({
-    id: 'ears.dog-folded', proposedName: 'Dog folded', reviewGroup: 'ears', reviewOrder: inGroup('ears'),
-    slot: 'ears', category: 'ears', mountPoint: 'ears', requiredRoles: ['leftEar', 'rightEar'],
-    capabilities: ['earWiggle'], tags: ['dog', 'canine', 'folded', 'floppy'], species: ['dog'],
-    direction: 'Ears that fold over and hang down beside the head.',
-    distinct: 'Hanging, where every other pair stands up.',
-    turn: 'needs-profile', notes: 'The only pair that hangs: its wiggle should swing rather than twitch.'
-  }),
-  asset({
-    id: 'ears.bear-round', proposedName: 'Bear round', reviewGroup: 'ears', reviewOrder: inGroup('ears'),
-    slot: 'ears', category: 'ears', mountPoint: 'ears', requiredRoles: ['leftEar', 'rightEar'],
-    capabilities: ['earWiggle'], tags: ['bear', 'round', 'small'], species: ['bear'],
-    direction: 'Two small circles set wide on top of the skull, with an inner ear.',
-    distinct: 'Round and set high, where the shipped ears.round sits at the side of the head.',
-    turn: 'needs-profile', notes: 'The likeliest of the four to become a reuse of ears.round if the sheet says the side placement reads.'
-  }),
+  ear('cat-pointed', 'Chat pointues', 'Cat pointed', 'Two upright triangles with a pink inner ear.', ['cat'], ['cat', 'feline', 'pointed'], 'Upright and small, where the fox\'s are large and swept.'),
+  ear('fox-large-pointed', 'Renard grandes pointues', 'Fox large pointed', 'Tall triangles, wide at the base, leaning outward, dark at the tip.', ['fox'], ['fox', 'vulpine', 'pointed', 'large'], 'Much taller and wider than the cat\'s.'),
+  ear('dog-folded', 'Chien tombantes', 'Dog folded', 'Ears that fold over and hang down beside the head.', ['dog'], ['dog', 'canine', 'folded', 'floppy'], 'Hanging, where every other pair stands up.',
+    { notes: 'The only pair that hangs: its wiggle should swing rather than twitch.' }),
+  ear('bear-round', 'Ours rondes', 'Bear round', 'Two small circles set wide on top of the skull, with an inner ear.', ['bear'], ['bear', 'round', 'small'], 'Round and set wide, where small-round sits closer in.'),
+  ear('rabbit-long', 'Lapin grandes', 'Rabbit long', 'Two long upright ears with a pale inner ear running most of their length.', ['rabbit'], ['rabbit', 'long', 'upright'], 'Far the tallest pair, and the only ones longer than the head is high.'),
+  ear('wolf-pointed', 'Loup pointues', 'Wolf pointed', 'Broad-based triangles, more upright than the fox\'s and grey inside.', ['wolf'], ['wolf', 'canine', 'pointed'], 'Broader at the base and more upright than the fox\'s.'),
+  ear('small-round', 'Petites rondes', 'Small round', 'Two small plain rounds, no inner ear.', [], ['animal', 'small', 'round', 'plain'], 'Plain: the only pair with no inner ear drawn.', { catalogue: true, notes: 'The neutral pair, for a creature that is not one of the six.' }),
+  ear('tufted', 'Avec touffes', 'Tufted', 'Pointed ears with a tuft of fur breaking the tip.', [], ['animal', 'tufted', 'pointed', 'lynx'], 'The only pair with a tuft.', { catalogue: true, notes: 'A lynx, a squirrel, a caracal: a species the pilot does not name.' }),
 
-  /* ── Muzzles ───────────────────────────────────────────────────────────
-   * Four, one a species, all `accessory` at `nose.center`: a muzzle is artwork
-   * parented to the head, and the rig that plays it is the accessory rig it
-   * already has. No new semantic part, and no new control.
-   *
-   * The open graphical question of the whole pilot is here: the nose and the
-   * mouth are semantic parts that must stay on top of — or cut through — the
-   * snout. See `PILOT_OPEN_QUESTIONS`.
+  /* ── 5 · Museaux ───────────────────────────────────────────────────────
+   * "6 museaux modulaires (sans nez ni bouche)" — and that line settles the
+   * biggest question the pilot had. A muzzle is a **pad**, drawn with the nose
+   * and the mouth left out, so the semantic nose and the semantic mouth sit on
+   * top of it and keep every control they have. What is left is the draw
+   * order, which `behind` answers.
    */
-  asset({
-    id: 'accessory.muzzle-feline-short', proposedName: 'Short feline muzzle', reviewGroup: 'muzzles', reviewOrder: inGroup('muzzles'),
-    slot: 'muzzle', category: 'accessory', mountPoint: 'nose.center', requiredRoles: ['element'],
-    tags: ['cat', 'feline', 'short', 'broad'], species: ['cat'],
-    direction: 'Short and broad, two cheek pads meeting under the nose.',
-    distinct: 'Shortest and broadest of the four.',
-    turn: 'needs-profile'
-  }),
-  asset({
-    id: 'accessory.muzzle-canine-medium', proposedName: 'Medium canine muzzle', reviewGroup: 'muzzles', reviewOrder: inGroup('muzzles'),
-    slot: 'muzzle', category: 'accessory', mountPoint: 'nose.center', requiredRoles: ['element'],
-    tags: ['dog', 'canine', 'medium', 'rounded'], species: ['dog'],
-    direction: 'Longer than the cat\'s and rounded at the end.',
-    distinct: 'Longer than feline-short, blunter than canine-narrow.',
-    turn: 'needs-profile'
-  }),
-  asset({
-    id: 'accessory.muzzle-canine-narrow', proposedName: 'Narrow canine muzzle', reviewGroup: 'muzzles', reviewOrder: inGroup('muzzles'),
-    slot: 'muzzle', category: 'accessory', mountPoint: 'nose.center', requiredRoles: ['element'],
-    tags: ['fox', 'vulpine', 'canine', 'narrow', 'pointed'], species: ['fox'],
-    direction: 'Narrow and slightly pointed.',
-    distinct: 'Narrower and sharper than canine-medium.',
-    turn: 'needs-profile'
-  }),
-  asset({
-    id: 'accessory.muzzle-bear-broad', proposedName: 'Broad bear muzzle', reviewGroup: 'muzzles', reviewOrder: inGroup('muzzles'),
-    slot: 'muzzle', category: 'accessory', mountPoint: 'nose.center', requiredRoles: ['element'],
-    tags: ['bear', 'broad', 'round'], species: ['bear'],
-    direction: 'Wide and round, with a large nose area.',
-    distinct: 'Widest of the four, and the only one drawn around a large nose.',
-    turn: 'needs-profile'
-  }),
+  muzzle('muzzle-feline-short', 'Félin court', 'Short feline muzzle', 'Short and broad, two cheek pads meeting under an open nose area.', ['cat'], ['cat', 'feline', 'short', 'broad'], 'Shortest and broadest of the six.'),
+  muzzle('muzzle-feline-rounded', 'Félin arrondi', 'Rounded feline muzzle', 'The same pads, rounder and fuller.', [], ['cat', 'feline', 'rounded'], 'Rounder than feline-short, and slightly deeper.', { catalogue: true, notes: 'A second cat, or a fuller-faced one: an author\'s choice.' }),
+  muzzle('muzzle-canine-medium', 'Canin moyen', 'Medium canine muzzle', 'Longer than the cat\'s and rounded at the end.', ['dog', 'wolf'], ['dog', 'canine', 'medium', 'rounded'], 'Longer than feline-short, blunter than canine-narrow.'),
+  muzzle('muzzle-canine-narrow', 'Canin étroit', 'Narrow canine muzzle', 'Narrow and slightly pointed.', ['fox'], ['fox', 'vulpine', 'canine', 'narrow', 'pointed'], 'Narrower and sharper than canine-medium.'),
+  muzzle('muzzle-bear-broad', 'Ours large', 'Broad bear muzzle', 'Wide and round, with a large open nose area.', ['bear'], ['bear', 'broad', 'round'], 'Widest of the six, and drawn around the largest nose.'),
+  muzzle('muzzle-rodent-small', 'Rongeur petit', 'Small rodent muzzle', 'Small, high and soft, with a shallow pad each side.', ['rabbit'], ['rabbit', 'rodent', 'small'], 'The smallest, and the highest on the face.'),
 
-  /* ── Noses ─────────────────────────────────────────────────────────────
-   * Two drawings. `nose.cartoon` is already a big round nose with a fill and
-   * an outline, so the rounded-animal family is a reuse.
+  /* ── 6 · Nez ───────────────────────────────────────────────────────────
+   * Five, and every one of them sits *on* the muzzle rather than in it.
    */
-  asset({
-    id: 'nose.triangle-small', proposedName: 'Small triangle', reviewGroup: 'noses', reviewOrder: inGroup('noses'),
-    slot: 'nose', category: 'nose', mountPoint: 'nose.center', requiredRoles: ['nose'],
-    capabilities: ['noseScrunch'], tags: ['cat', 'fox', 'triangle', 'small'], species: ['cat', 'fox'],
-    direction: 'A small rounded triangle, point down.',
-    distinct: 'Triangular and small, where nose.broad-bear is wide and round.'
-  }),
-  asset({
-    id: 'nose.broad-bear', proposedName: 'Broad bear nose', reviewGroup: 'noses', reviewOrder: inGroup('noses'),
-    slot: 'nose', category: 'nose', mountPoint: 'nose.center', requiredRoles: ['nose'],
-    capabilities: ['noseScrunch'], tags: ['bear', 'broad', 'large'], species: ['bear'],
-    direction: 'A wide rounded nose covering most of the top of the muzzle.',
-    distinct: 'Much wider than nose.triangle-small and than the reused nose.cartoon.'
-  }),
+  nose('triangle-small', 'Petit triangle', 'Small triangle', 'A small rounded triangle, point down.', ['cat', 'fox'], ['cat', 'fox', 'triangle', 'small'], 'Triangular and small.'),
+  nose('animal-rounded', 'Arrondi animal', 'Rounded animal', 'A rounded triangle, fuller at the top.', ['dog'], ['dog', 'rounded', 'animal'], 'Rounder at the top than triangle-small, smaller than bear-broad.'),
+  nose('bear-broad', 'Large ours', 'Broad bear', 'A wide nose covering most of the top of the muzzle.', ['bear'], ['bear', 'broad', 'large'], 'Much the widest of the five.'),
+  nose('button-tiny', 'Minuscule bouton', 'Tiny button', 'A tiny pink button.', ['rabbit'], ['rabbit', 'button', 'tiny', 'pink'], 'The smallest, and the only one drawn pink rather than dark.'),
+  nose('oval-soft', 'Ovale doux', 'Soft oval', 'A soft dark oval, wider than tall.', ['wolf'], ['wolf', 'oval', 'soft'], 'Oval rather than triangular.'),
 
-  /* ── Mouths ────────────────────────────────────────────────────────────
-   * One drawing. The animal smile — the ω under the nose — is what a human
-   * mouth cannot stand in for; neutral and open-friendly are `mouth.small` and
-   * `mouth.cartoon`, which already carry the controls.
-   *
-   * The muzzle does **not** absorb this: `mouthOpen`, `smile` and `mouthWidth`
-   * stay the semantic mouth's, exactly as on a person (MASC-10A §12).
+  /* ── 7 · Bouches ───────────────────────────────────────────────────────
+   * "5 styles de bouches (pièces seules)": the mouth is its own piece, and it
+   * keeps every control it has. The muzzle does not absorb it.
    */
-  asset({
-    id: 'mouth.animal-smile', proposedName: 'Animal smile', reviewGroup: 'mouths', reviewOrder: inGroup('mouths'),
-    slot: 'mouth', category: 'mouth', mountPoint: 'mouth.center', requiredRoles: ['mouth'],
-    capabilities: ['mouthOpen', 'smile', 'mouthWidth'], tags: ['animal', 'smile', 'omega'], species: ['cat', 'fox'],
-    direction: 'The ω: two curves meeting under the nose, turning up at the ends.',
-    distinct: 'The only mouth in the library drawn as two curves rather than one.',
-    notes: 'Must open and smile like any mouth: the drivers are the category\'s, and no new control is added.'
-  }),
+  mouth('animal-smile', 'Sourire animal', 'Animal smile', 'The ω: two curves meeting under the nose, turning up at the ends.', ['cat'], ['animal', 'smile', 'omega'], 'The only mouth drawn as two curves rather than one.'),
+  mouth('animal-neutral', 'Neutre', 'Neutral', 'A short line down from the nose and a small curve each side.', ['bear', 'wolf'], ['animal', 'neutral', 'plain'], 'The flattest of the five.'),
+  mouth('animal-open-friendly', 'Ouverte amicale', 'Open and friendly', 'An open mouth with a tongue showing.', ['dog'], ['animal', 'open', 'friendly', 'tongue'], 'The only one drawn open.',
+    { capabilities: ['mouthOpen', 'smile', 'mouthWidth', 'tongue'], notes: 'Names a tongue role, so it claims the tongue control as mouth.cartoon does.' }),
+  mouth('animal-small-smile', 'Petit sourire', 'Small smile', 'One short curve turning up at the ends.', ['fox', 'rabbit'], ['animal', 'small', 'smile'], 'Shorter and shallower than happy-curve.'),
+  mouth('animal-happy-curve', 'Joyeuse courbée', 'Happy curve', 'One wide curve across the lower face.', [], ['animal', 'happy', 'wide'], 'The widest single curve.', { catalogue: true, notes: 'An expression, not a species.' }),
 
-  /* ── Whiskers ──────────────────────────────────────────────────────────
-   * Two drawings. "None" is not an asset: it is a recipe that names none, and
-   * the dog and the bear are exactly that.
+  /* ── 8 · Moustaches ────────────────────────────────────────────────────
+   * Four. "None" is not a fifth: it is a recipe that names none, and the dog
+   * and the bear are exactly that.
    */
-  asset({
-    id: 'accessory.whiskers-three-straight', proposedName: 'Three straight whiskers', reviewGroup: 'whiskers', reviewOrder: inGroup('whiskers'),
-    slot: 'whiskers', category: 'accessory', mountPoint: 'nose.center', requiredRoles: ['element'],
-    tags: ['cat', 'feline', 'three', 'straight'], species: ['cat'],
-    direction: 'Three straight whiskers a side, fanned from the cheek pad.',
-    distinct: 'Three and straight, where whiskers-two-soft is two and curved.',
-    turn: 'needs-profile'
-  }),
-  asset({
-    id: 'accessory.whiskers-two-soft', proposedName: 'Two soft whiskers', reviewGroup: 'whiskers', reviewOrder: inGroup('whiskers'),
-    slot: 'whiskers', category: 'accessory', mountPoint: 'nose.center', requiredRoles: ['element'],
-    tags: ['fox', 'soft', 'two', 'curved'], species: ['fox'],
-    direction: 'Two soft curved whiskers a side, shorter and lower.',
-    distinct: 'Two and curved, where whiskers-three-straight is three and straight.',
-    turn: 'needs-profile'
-  })
+  whiskers('whiskers-three-straight', 'Trois droites', 'Three straight', 'Three straight whiskers a side, fanned from the cheek pad.', ['cat'], ['cat', 'feline', 'three', 'straight'], 'Three and straight.'),
+  whiskers('whiskers-two-soft', 'Deux douces', 'Two soft', 'Two soft curved whiskers a side, shorter and lower.', ['fox'], ['fox', 'soft', 'two', 'curved'], 'Two and gently curved.'),
+  whiskers('whiskers-long-curved', 'Longues courbées', 'Long curved', 'Three long whiskers a side, sweeping well past the cheek.', ['wolf'], ['wolf', 'long', 'curved'], 'The longest reach of the four.'),
+  whiskers('whiskers-subtle-short', 'Subtiles courtes', 'Subtle short', 'Two short fine whiskers a side, barely past the muzzle.', ['rabbit'], ['rabbit', 'subtle', 'short'], 'The shortest and lightest.')
 ]);
 seen = {};
 
 /**
  * What the 47 shipped drawings are worth to an animal face (MASC-10A §14).
  *
- * The point of the audit is the four `reuse` lines: four drawings nobody has to
- * make. Nothing here changes any asset's metadata — this is a reading.
+ * The audit was made before the parts sheet arrived, when four shipped drawings
+ * were going to stand in for an animal brow, an animal nose and two animal
+ * mouths. **The sheet draws its own**, so those four moved back to
+ * `possible-reuse`: they are what to fall back on if a planned drawing is cut,
+ * and nothing is drawn twice either way.
+ *
+ * What survives as real value is the other direction — which shipped pieces an
+ * animal face may still *wear*. Glasses, a hat and a bow tie are universal, and
+ * a fox in square glasses is a perfectly good mascot.
+ *
+ * Nothing here changes any asset's metadata: this is a reading.
  */
 export const PILOT_REUSE = Object.freeze([
-  Object.freeze({ id: 'eyebrows.thin', verdict: 'reuse', why: 'A thin arc above the eye reads as an animal brow unchanged. It is the soft brow family, named by three of the four recipes.' }),
-  Object.freeze({ id: 'nose.cartoon', verdict: 'reuse', why: 'A big round nose with a fill and an outline: the rounded-animal nose, already drawn. The dog takes it.' }),
-  Object.freeze({ id: 'mouth.small', verdict: 'reuse', why: 'A short neutral line: the animal-neutral mouth, with mouthOpen, smile and mouthWidth already on it. The bear takes it.' }),
-  Object.freeze({ id: 'mouth.cartoon', verdict: 'reuse', why: 'An open mouth with teeth and a tongue: the open-friendly mouth. The dog takes it.' }),
+  Object.freeze({ id: 'eyebrows.thin', verdict: 'possible-reuse', why: 'A thin arc above the eye reads as an animal brow unchanged. The sheet draws its own five, so this is the fallback if one of them is cut.' }),
+  Object.freeze({ id: 'nose.cartoon', verdict: 'possible-reuse', why: 'A big round nose with a fill and an outline, close to the Arrondi animal on the sheet. The fallback if that one is cut.' }),
+  Object.freeze({ id: 'mouth.small', verdict: 'possible-reuse', why: 'A short neutral line, close to the Neutre on the sheet. The fallback if that one is cut.' }),
+  Object.freeze({ id: 'mouth.cartoon', verdict: 'possible-reuse', why: 'An open mouth with teeth and a tongue, close to the Ouverte amicale on the sheet, and the precedent for claiming the tongue control.' }),
 
   Object.freeze({ id: 'head.round', verdict: 'possible-reuse', why: 'If the fit sheet says animal-round does not read differently enough from it, this is the head and one drawing is saved.' }),
   Object.freeze({ id: 'head.narrow', verdict: 'possible-reuse', why: 'Same question for animal-narrow and the fox.' }),
@@ -407,11 +322,13 @@ export const PILOT_REUSE = Object.freeze([
  * `PILOT_OPEN_QUESTIONS` is about.
  */
 export const PILOT_PALETTES = Object.freeze({
-  'cat-ginger': Object.freeze({ species: 'cat', skin: '#e8a45c', skinShadow: '#f3d7b4', outline: '#8a4f22', eyeWhite: '#ffffff', pupil: '#2f3a43', mouth: '#7a3b45', tongue: '#e08a96', teeth: '#fff8ec', accessoryPrimary: '#8a4f22', accessorySecondary: '#f3d7b4' }),
-  'cat-grey': Object.freeze({ species: 'cat', skin: '#9aa3ab', skinShadow: '#d6dbdf', outline: '#4a545c', eyeWhite: '#ffffff', pupil: '#2f3a43', mouth: '#7a3b45', tongue: '#e08a96', teeth: '#fff8ec', accessoryPrimary: '#4a545c', accessorySecondary: '#d6dbdf' }),
-  'dog-brown': Object.freeze({ species: 'dog', skin: '#b98150', skinShadow: '#f0dcc0', outline: '#6d4526', eyeWhite: '#ffffff', pupil: '#2f2a24', mouth: '#6d2831', tongue: '#e08a96', teeth: '#fff8ec', accessoryPrimary: '#6d4526', accessorySecondary: '#f0dcc0' }),
-  'fox-ginger': Object.freeze({ species: 'fox', skin: '#d86a2c', skinShadow: '#f7e3cd', outline: '#5e2f14', eyeWhite: '#ffffff', pupil: '#2a231c', mouth: '#7a3b45', tongue: '#e08a96', teeth: '#fff8ec', accessoryPrimary: '#5e2f14', accessorySecondary: '#f7e3cd' }),
-  'bear-brown': Object.freeze({ species: 'bear', skin: '#8d6243', skinShadow: '#d9b892', outline: '#4e3524', eyeWhite: '#ffffff', pupil: '#2a231c', mouth: '#6d2831', tongue: '#d9707f', teeth: '#fff8ec', accessoryPrimary: '#4e3524', accessorySecondary: '#d9b892' })
+  'cat-ginger': Object.freeze({ species: 'cat', skin: '#e8a45c', skinShadow: '#f7e3c8', outline: '#8a4f22', eyeWhite: '#ffffff', pupil: '#2f3a43', mouth: '#7a3b45', tongue: '#e08a96', teeth: '#fff8ec', accessoryPrimary: '#8a4f22', accessorySecondary: '#f7e3c8' }),
+  'cat-grey': Object.freeze({ species: 'cat', skin: '#9aa3ab', skinShadow: '#e2e6e9', outline: '#4a545c', eyeWhite: '#ffffff', pupil: '#2f3a43', mouth: '#7a3b45', tongue: '#e08a96', teeth: '#fff8ec', accessoryPrimary: '#4a545c', accessorySecondary: '#e2e6e9' }),
+  'dog-tan': Object.freeze({ species: 'dog', skin: '#d3a878', skinShadow: '#f4e4cd', outline: '#7a5330', eyeWhite: '#ffffff', pupil: '#3a2f26', mouth: '#6d2831', tongue: '#e08a96', teeth: '#fff8ec', accessoryPrimary: '#7a5330', accessorySecondary: '#f4e4cd' }),
+  'fox-orange': Object.freeze({ species: 'fox', skin: '#e9a25a', skinShadow: '#fbeedd', outline: '#8a4a1c', eyeWhite: '#ffffff', pupil: '#2a231c', mouth: '#7a3b45', tongue: '#e08a96', teeth: '#fff8ec', accessoryPrimary: '#8a4a1c', accessorySecondary: '#fbeedd' }),
+  'bear-brown': Object.freeze({ species: 'bear', skin: '#a97d55', skinShadow: '#e2c9a8', outline: '#5c3f28', eyeWhite: '#ffffff', pupil: '#2a231c', mouth: '#6d2831', tongue: '#d9707f', teeth: '#fff8ec', accessoryPrimary: '#5c3f28', accessorySecondary: '#e2c9a8' }),
+  'rabbit-cream': Object.freeze({ species: 'rabbit', skin: '#f3e3cd', skinShadow: '#fdf6ec', outline: '#a3866a', eyeWhite: '#ffffff', pupil: '#3a2f26', mouth: '#b46b74', tongue: '#e08a96', teeth: '#fff8ec', accessoryPrimary: '#a3866a', accessorySecondary: '#f7c9cd' }),
+  'wolf-grey': Object.freeze({ species: 'wolf', skin: '#a9a6a0', skinShadow: '#e6e4e0', outline: '#4f4c48', eyeWhite: '#ffffff', pupil: '#2a2724', mouth: '#6d2831', tongue: '#d9707f', teeth: '#fff8ec', accessoryPrimary: '#4f4c48', accessorySecondary: '#e6e4e0' })
 });
 
 /**
@@ -429,35 +346,51 @@ export const PILOT_PALETTES = Object.freeze({
 export const PILOT_PRESETS = Object.freeze([
   Object.freeze({
     id: 'cat', proposedName: 'Cat', species: 'cat', morphology: PILOT_MORPHOLOGY, style: PILOT_STYLE,
-    direction: 'Friendly, compact, rounded: large eyes, pointed ears, a short feline muzzle, a small triangular nose, whiskers you can see.',
+    direction: 'Friendly, compact, rounded: big eyes with a slit pupil, pointed ears, a short feline muzzle, a small triangular nose, whiskers you can see.',
     tags: Object.freeze(['cat', 'feline']),
-    parts: Object.freeze({ head: 'head.animal-round', eyes: 'eyes.cartoon-large-slit', eyebrows: 'eyebrows.thin', ears: 'ears.cat-pointed', nose: 'nose.triangle-small', mouth: 'mouth.animal-smile' }),
+    parts: Object.freeze({ head: 'head.animal-round', eyes: 'eyes.animal-round-slit', eyebrows: 'eyebrows.animal-thin-soft', ears: 'ears.cat-pointed', nose: 'nose.triangle-small', mouth: 'mouth.animal-smile' }),
     accessories: Object.freeze(['accessory.muzzle-feline-short', 'accessory.whiskers-three-straight']),
     palette: 'cat-ginger', alternatePalettes: Object.freeze(['cat-grey'])
   }),
   Object.freeze({
     id: 'dog', proposedName: 'Dog', species: 'dog', morphology: PILOT_MORPHOLOGY, style: PILOT_STYLE,
-    direction: 'Friendly, a slightly longer face, folded ears, a medium canine muzzle, a rounded nose, no whiskers.',
+    direction: 'Friendly and full-cheeked: big round eyes, brows raised at the outer end, folded ears, a medium canine muzzle, a rounded nose, an open mouth, no whiskers.',
     tags: Object.freeze(['dog', 'canine']),
-    parts: Object.freeze({ head: 'head.animal-round', eyes: 'eyes.cartoon-large', eyebrows: 'eyebrows.thin', ears: 'ears.dog-folded', nose: 'nose.cartoon', mouth: 'mouth.cartoon' }),
+    parts: Object.freeze({ head: 'head.animal-chubby', eyes: 'eyes.animal-round-large', eyebrows: 'eyebrows.animal-friendly-raised', ears: 'ears.dog-folded', nose: 'nose.animal-rounded', mouth: 'mouth.animal-open-friendly' }),
     accessories: Object.freeze(['accessory.muzzle-canine-medium']),
-    palette: 'dog-brown', alternatePalettes: Object.freeze([])
+    palette: 'dog-tan', alternatePalettes: Object.freeze([])
   }),
   Object.freeze({
     id: 'fox', proposedName: 'Fox', species: 'fox', morphology: PILOT_MORPHOLOGY, style: PILOT_STYLE,
-    direction: 'Alert: a narrower face, large pointed ears, a narrow muzzle, a small triangular nose, a lighter expression.',
+    direction: 'Alert: a narrow face, almond eyes, firm brows, large pointed ears, a narrow muzzle, a small triangular nose, a light smile.',
     tags: Object.freeze(['fox', 'vulpine']),
-    parts: Object.freeze({ head: 'head.animal-narrow', eyes: 'eyes.alert-almond', eyebrows: 'eyebrows.animal-sharp', ears: 'ears.fox-large-pointed', nose: 'nose.triangle-small', mouth: 'mouth.animal-smile' }),
+    parts: Object.freeze({ head: 'head.animal-narrow', eyes: 'eyes.animal-almond-alert', eyebrows: 'eyebrows.animal-firm', ears: 'ears.fox-large-pointed', nose: 'nose.triangle-small', mouth: 'mouth.animal-small-smile' }),
     accessories: Object.freeze(['accessory.muzzle-canine-narrow', 'accessory.whiskers-two-soft']),
-    palette: 'fox-ginger', alternatePalettes: Object.freeze([])
+    palette: 'fox-orange', alternatePalettes: Object.freeze([])
   }),
   Object.freeze({
     id: 'bear', proposedName: 'Bear', species: 'bear', morphology: PILOT_MORPHOLOGY, style: PILOT_STYLE,
-    direction: 'Broad and round: small round ears, a broad muzzle, a large nose, friendly eyes, no whiskers.',
+    direction: 'Broad and heavy: small wide-set eyes, thick brows, small round ears, a broad muzzle, a large nose, a plain mouth, no whiskers.',
     tags: Object.freeze(['bear', 'ursine']),
-    parts: Object.freeze({ head: 'head.animal-round', eyes: 'eyes.cartoon-large', eyebrows: 'eyebrows.thin', ears: 'ears.bear-round', nose: 'nose.broad-bear', mouth: 'mouth.small' }),
+    parts: Object.freeze({ head: 'head.animal-wide', eyes: 'eyes.animal-small-cute', eyebrows: 'eyebrows.animal-thick', ears: 'ears.bear-round', nose: 'nose.bear-broad', mouth: 'mouth.animal-neutral' }),
     accessories: Object.freeze(['accessory.muzzle-bear-broad']),
     palette: 'bear-brown', alternatePalettes: Object.freeze([])
+  }),
+  Object.freeze({
+    id: 'rabbit', proposedName: 'Rabbit', species: 'rabbit', morphology: PILOT_MORPHOLOGY, style: PILOT_STYLE,
+    direction: 'Small and soft: a neat head under long upright ears, big round eyes, thin brows, a small rodent muzzle, a tiny pink nose, fine short whiskers.',
+    tags: Object.freeze(['rabbit', 'lagomorph']),
+    parts: Object.freeze({ head: 'head.animal-small', eyes: 'eyes.animal-round-large', eyebrows: 'eyebrows.animal-thin-soft', ears: 'ears.rabbit-long', nose: 'nose.button-tiny', mouth: 'mouth.animal-small-smile' }),
+    accessories: Object.freeze(['accessory.muzzle-rodent-small', 'accessory.whiskers-subtle-short']),
+    palette: 'rabbit-cream', alternatePalettes: Object.freeze([])
+  }),
+  Object.freeze({
+    id: 'wolf', proposedName: 'Wolf', species: 'wolf', morphology: PILOT_MORPHOLOGY, style: PILOT_STYLE,
+    direction: 'Squared and watchful: almond eyes, firm brows, upright ears, a medium canine muzzle, a soft oval nose, a plain mouth, long whiskers.',
+    tags: Object.freeze(['wolf', 'canine', 'lupine']),
+    parts: Object.freeze({ head: 'head.animal-square', eyes: 'eyes.animal-almond-alert', eyebrows: 'eyebrows.animal-firm', ears: 'ears.wolf-pointed', nose: 'nose.oval-soft', mouth: 'mouth.animal-neutral' }),
+    accessories: Object.freeze(['accessory.muzzle-canine-medium', 'accessory.whiskers-long-curved']),
+    palette: 'wolf-grey', alternatePalettes: Object.freeze([])
   })
 ]);
 
@@ -467,39 +400,49 @@ export const PILOT_PRESETS = Object.freeze([
  */
 export const PILOT_OPEN_QUESTIONS = Object.freeze([
   Object.freeze({
-    id: 'muzzle-over-mouth', about: 'muzzles',
-    question: 'A muzzle is an accessory painted over the face; the nose and the mouth are semantic parts under it. Drawn plainly, the snout hides both.',
-    proposal: 'The muzzle declares its pads under `behind`, as hair.long declares hairBack, so they paint behind the features. The alternative is a snout drawn with the nose and mouth area cut out. The first muzzle sheet decides.'
+    id: 'muzzle-draw-order', about: 'muzzles',
+    question: 'The sheet settles half of the muzzle problem — "6 museaux modulaires (sans nez ni bouche)", so a muzzle is a pad drawn with the nose and mouth area left open and the semantic nose and mouth sit on top of it. What is left is the order: an accessory with nothing before it is installed last in the group, so a muzzle would still paint over both.',
+    proposal: 'The muzzle declares its pads under `behind`, as hair.long declares hairBack, which puts them at the front of the group and therefore under the features. One line on each of the six drawings, and the first muzzle sheet proves it.'
+  }),
+  Object.freeze({
+    id: 'closed-eyes-have-no-pupil', about: 'eyes',
+    question: 'Joyeux is drawn shut: two upward arcs, no pupil. The gaze part requires leftPupil and rightPupil, and eyeOpen closes an eye that is already closed.',
+    proposal: 'Either it names no `parts.gaze` at all — a face wearing it simply has no gaze, and lookX/lookY move nothing — or it draws a pupil hidden behind the arc. The first is honest and the second keeps a face switchable back to an open eye without losing its gaze rig. Decide on the eyes sheet, not here.'
   }),
   Object.freeze({
     id: 'ears-on-top', about: 'ears',
-    question: 'Every shipped ear pair sits at the side of the skull at y 118. All four animal pairs sit on top of it, so their reference box centre is far above the `ears` anchor.',
+    question: 'Every shipped ear pair sits at the side of the skull at y 118. All eight on the sheet sit on top of it, so their reference box centre is far above the `ears` anchor.',
     proposal: 'The offset from the anchor is what a fit keeps, so this should work; the fit matrix across Round, Narrow, Wide and Square is what proves it. If it does not, `head.top` is the anchor to try.'
   }),
   Object.freeze({
+    id: 'rabbit-ears-height', about: 'ears',
+    question: 'Lapin grandes are taller than the head is high. A reference box that tall makes its centre sit well above the skull, and the artboard has 60 units of headroom above y 0 — a hat needs 42 of them.',
+    proposal: 'Check the box against the artboard on the ears sheet before drawing the other seven. If the ears do not fit the frame, the pair is drawn shorter rather than the frame being changed.'
+  }),
+  Object.freeze({
     id: 'ear-draw-order', about: 'ears',
-    question: 'Shipped ears are painted behind the skull, so half of each shows. Ears on top of the head want to be in front of it, or the skull covers them.',
-    proposal: 'Check on the first sheet; `behind` is the field, and it is per-asset.'
+    question: 'Shipped ears are painted behind the skull, so half of each shows. Ears on top of the head want to be in front of it, or the skull covers them — except the folded dog pair, which reads better tucked behind.',
+    proposal: 'Per-asset, and `behind` is the field. The sheet shows inner ears painted, so the pair is in front for seven of the eight; try the dog both ways.'
   }),
   Object.freeze({
     id: 'accessory-turn-profiles', about: 'muzzles',
-    question: 'An accessory that says nothing about the 2.5D turn does not turn well. Glasses, the hat and the earrings each declare a `turn` profile; a muzzle and a pair of whiskers will need one too.',
+    question: 'An accessory that says nothing about the 2.5D turn does not turn well. Glasses, the hat and the earrings each declare a `turn` profile; the six muzzles and the four sets of whiskers will need one too, and so will the ears.',
     proposal: 'A muzzle projects forward, so a high `depth` with `narrow`, like the moustache\'s 0.88. Whiskers sweep with it. Written when the drawings exist, never before.'
   }),
   Object.freeze({
     id: 'pad-colour-token', about: 'palettes',
-    question: 'The muzzle pad and the inner ear need a colour that is not the fur. `skinShadow` is the only existing token that fits, and it is also what shades the head.',
-    proposal: 'Use `skinShadow` and see whether one colour for both reads. Adding a token is a change to the palette contract and is out of scope here; if the sheet proves it necessary, MASC-10B adds it with the evidence.'
+    question: 'The muzzle pad and the inner ear need a colour that is not the fur. The sheet paints both a pale cream against the coat, and `skinShadow` is the only existing token that fits — which is also what shades the head.',
+    proposal: 'Use `skinShadow` and see whether one colour reads for both. Adding a token changes the palette contract and is out of scope here; if the sheet proves it necessary, MASC-10B adds it with the evidence. The rabbit\'s pink nose is the other case: `accessorySecondary` can carry it.'
   }),
   Object.freeze({
-    id: 'alert-cat', about: 'eyes',
-    question: 'Almond eyes with a vertical pupil — an alert cat — is the fourth combination and nobody needs it yet.',
-    proposal: 'Leave it undrawn. It is one more eye set whenever a recipe asks, not a decision to take now.'
+    id: 'head-fur-edge', about: 'heads',
+    question: 'The six heads are drawn with a tufted fur edge rather than a smooth outline. The head is what the 2.5D turn measures the face\'s scale from, and what a clip is cut from.',
+    proposal: 'Check on the heads sheet that a tufted silhouette still measures a sensible reference box, and that the eye-socket clips a library eye set brings still sit inside it.'
   }),
   Object.freeze({
-    id: 'animal-head-necessity', about: 'heads',
-    question: 'head.round and head.narrow may already carry these four species.',
-    proposal: 'The heads sheet compares them side by side first. Two drawings are saved if they do.'
+    id: 'catalogue-pieces', about: 'eyes',
+    question: 'Seven of the forty-five are named by no recipe: two eye expressions, a worried brow, two ear pairs, a second feline muzzle and a wide happy mouth.',
+    proposal: 'They stay. A parts library exists to be combined, and the sheet says so in its own header — these are the pieces an author reaches for. They are marked `catalogue` so nobody reads them as an oversight.'
   })
 ]);
 
@@ -586,10 +529,15 @@ export function duplicateConcerns(assets = PILOT_ASSETS) {
   return out;
 }
 
+/** The pieces no recipe names: an author's own choice of expression or species. */
+export const catalogueAssets = () => PILOT_ASSETS.filter((item) => item.catalogue);
+
 /** The pilot in one line, for the report and for a test to hold it to. */
 export const pilotSummary = () => ({
   drawings: pilotAssets({ standalone: true }).length,
   planned: PILOT_ASSETS.length,
+  claimed: pilotAssets({ standalone: true }).filter((item) => !item.catalogue).length,
+  catalogue: catalogueAssets().length,
   reused: [...new Set(PILOT_PRESETS.flatMap(presetAssetIds).filter((id) => !byId.has(id)))].length,
   presets: PILOT_PRESETS.length,
   groups: Object.fromEntries(PILOT_REVIEW_GROUPS.map((group) => [group, pilotAssets({ group }).length]))

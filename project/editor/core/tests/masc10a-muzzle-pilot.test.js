@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import {
   PILOT_ASSETS, PILOT_ID, PILOT_MORPHOLOGY, PILOT_OPEN_QUESTIONS, PILOT_PALETTES, PILOT_PRESETS,
   PILOT_REUSE, PILOT_REUSE_VERDICTS, PILOT_REVIEW_GROUPS, PILOT_SPECIES, PILOT_STATUSES, PILOT_STYLE,
-  duplicateConcerns, pilotAsset, pilotAssets, pilotAssetsForSlot, pilotAssetsForSpecies, pilotPreset,
-  pilotReuse, pilotSummary, presetAssetIds, presetCoverage
+  PILOT_SHEET, catalogueAssets, duplicateConcerns, pilotAsset, pilotAssets, pilotAssetsForSlot,
+  pilotAssetsForSpecies, pilotPreset, pilotReuse, pilotSummary, presetAssetIds, presetCoverage
 } from '../face-library/pilots/muzzle-soft-cartoon.js';
 import { FACE_PART_LIBRARY } from '../face-library/face-part-registry.js';
 import { BUILTIN_FACE_PARTS } from '../face-library/builtin/index.js';
@@ -50,7 +50,8 @@ test('the pilot says which morphology and which style it is for', () => {
   assert.equal(PILOT_MORPHOLOGY, 'muzzle');
   assert.ok(faceMorphology(PILOT_MORPHOLOGY), 'and it is a kind of face that exists');
   assert.equal(PILOT_STYLE, FACE_BASE_STYLE_ID, 'the style the library is drawn in: no -soft-cartoon twins');
-  assert.deepEqual([...PILOT_SPECIES], ['cat', 'dog', 'fox', 'bear']);
+  assert.equal(PILOT_SHEET, 'Soft Cartoon — Face Parts V1');
+  assert.deepEqual([...PILOT_SPECIES], ['cat', 'dog', 'fox', 'bear', 'rabbit', 'wolf']);
   for (const species of PILOT_SPECIES) {
     assert.equal(FACE_MORPHOLOGY_IDS.includes(species), false, `${species} is a preset inside muzzle, never a morphology`);
   }
@@ -80,6 +81,10 @@ test('every planned drawing is for muzzle faces, mounts somewhere a face has, an
     assert.ok(PILOT_STATUSES.includes(item.status));
     assert.equal(item.priority, 'pilot');
   }
+  // Every drawing carries the sheet's own caption, so the planche and the
+  // manifest are the same list read two ways.
+  assert.equal(pilotAsset('accessory.muzzle-rodent-small').sheetLabel, 'Rongeur petit');
+  assert.equal(pilotAsset('nose.button-tiny').sheetLabel, 'Minuscule bouton');
   // The muzzle and the whiskers take the anchor MASC-09 proposed for them.
   for (const item of [...pilotAssetsForSlot('muzzle'), ...pilotAssetsForSlot('whiskers')]) {
     assert.equal(item.mountPoint, 'nose.center', `${item.id} starts at the nose, as MASC-09's candidate table says`);
@@ -108,8 +113,9 @@ test('a planned drawing says what it is for, how it differs, and where it is rev
     assert.ok(item.direction.length > 10, `${item.id} tells an artist what to draw`);
     assert.ok(PILOT_REVIEW_GROUPS.includes(item.reviewGroup), `${item.id} is reviewed with something`);
     assert.ok(Number.isInteger(item.reviewOrder), `${item.id} has a place in the order`);
-    assert.ok(item.species.length, `${item.id} is wanted by somebody`);
-    for (const species of item.species) assert.ok(PILOT_SPECIES.includes(species), `${species} is one of the four`);
+    assert.ok(item.sheetLabel, `${item.id} says which drawing on the sheet it is`);
+    assert.ok(item.species.length || item.catalogue, `${item.id} is wanted by somebody, or is a catalogue piece`);
+    for (const species of item.species) assert.ok(PILOT_SPECIES.includes(species), `${species} is one of the six`);
   }
   // The order is stable and total: a sheet drawn twice is the same sheet.
   const orders = PILOT_ASSETS.map((item) => item.reviewOrder);
@@ -122,8 +128,8 @@ test('a planned drawing says what it is for, how it differs, and where it is rev
 
 /* ── Four recipes, not four libraries ──────────────────────────────────── */
 
-test('Cat, Dog, Fox and Bear are four recipes over shared drawings', () => {
-  assert.deepEqual(PILOT_PRESETS.map((item) => item.id), ['cat', 'dog', 'fox', 'bear']);
+test('the six species are recipes over shared drawings, not six libraries', () => {
+  assert.deepEqual(PILOT_PRESETS.map((item) => item.id), ['cat', 'dog', 'fox', 'bear', 'rabbit', 'wolf']);
   for (const species of PILOT_SPECIES) assert.ok(pilotPreset(species), `${species} exists`);
   for (const preset of PILOT_PRESETS) {
     assert.equal(preset.morphology, 'muzzle');
@@ -133,16 +139,18 @@ test('Cat, Dog, Fox and Bear are four recipes over shared drawings', () => {
     for (const name of preset.alternatePalettes) assert.ok(PILOT_PALETTES[name], `${name} exists`);
     for (const tag of preset.tags) assert.match(tag, FACE_TAG);
   }
-  // The whole point: a drawing used by more than one species, and no species
+  // The whole point: drawings used by more than one species, and no species
   // owning a private copy of a shared piece.
   const shared = drawings.filter((item) => item.species.length > 1).map((item) => item.id);
-  assert.ok(shared.includes('head.animal-round'), 'one head dresses the cat, the dog and the bear');
+  assert.ok(shared.includes('eyes.animal-almond-alert'), 'one pair of eyes dresses the fox and the wolf');
   assert.ok(shared.includes('nose.triangle-small'), 'one nose dresses the cat and the fox');
-  assert.ok(shared.includes('mouth.animal-smile'), 'one mouth dresses the cat and the fox');
-  // Nineteen drawings for four animals, and none of them named for a species
-  // it is not actually for.
-  assert.equal(drawings.length, 19);
-  assert.ok(drawings.length < PILOT_SPECIES.length * 8, 'four independent libraries would be far more');
+  assert.ok(shared.includes('accessory.muzzle-canine-medium'), 'one muzzle dresses the dog and the wolf');
+  assert.ok(shared.length >= 6, `${shared.length} drawings are shared between species`);
+  // Forty-five drawings, of which thirty-eight are claimed by a recipe: six
+  // species over eight slots would be forty-eight if each owned its own.
+  assert.equal(drawings.length, 45);
+  assert.equal(drawings.filter((item) => !item.catalogue).length, 38);
+  assert.ok(38 < PILOT_SPECIES.length * 8, 'six independent libraries would be more');
 });
 
 test('every recipe dresses a whole face, and the pupils come with the eyes', () => {
@@ -158,7 +166,7 @@ test('every recipe dresses a whole face, and the pupils come with the eyes', () 
   assert.equal(presetCoverage('dog').whiskers, null, 'a dog has no whiskers');
   assert.equal(presetCoverage('bear').whiskers, null, 'nor a bear');
   assert.ok(presetCoverage('cat').whiskers, 'a cat does');
-  assert.equal(pilotAssets({ slot: 'whiskers' }).length, 2, 'and "none" is not a third drawing');
+  assert.equal(pilotAssets({ slot: 'whiskers' }).length, 4, 'four sets of whiskers, and "none" is not a fifth drawing');
   // No preset may name a pupils part -- the eye set brings them -- so the
   // promise is kept through the eye set and checked there.
   for (const preset of PILOT_PRESETS) {
@@ -191,11 +199,20 @@ test('no recipe names a drawing that will not exist', () => {
   }
 });
 
-test('every planned drawing is wanted by a recipe: nothing is drawn for nobody', () => {
+test('every planned drawing is wanted by a recipe, or is a catalogue piece that says so', () => {
   const named = new Set(PILOT_PRESETS.flatMap(presetAssetIds));
   for (const item of drawings) {
-    assert.ok(named.has(item.id), `${item.id} is named by a recipe`);
+    assert.ok(named.has(item.id) || item.catalogue, `${item.id} is named by a recipe or marked catalogue`);
+    if (item.catalogue) {
+      assert.equal(named.has(item.id), false, `${item.id} is catalogue, so no recipe names it`);
+      assert.ok(item.notes.length > 10, `${item.id} says why it is in the catalogue`);
+      assert.deepEqual([...item.species], [], 'a catalogue piece belongs to no species');
+    }
   }
+  // The catalogue is the seven the sheet draws beyond the six recipes: a parts
+  // library exists to be combined, and its own header says so.
+  assert.deepEqual(catalogueAssets().map((item) => item.id),
+    ['eyes.animal-sleepy', 'eyes.animal-happy', 'eyebrows.animal-worried', 'ears.small-round', 'ears.tufted', 'accessory.muzzle-feline-rounded', 'mouth.animal-happy-curve']);
   // The pupils are the exception, and say so rather than being missing.
   for (const item of pilotAssets({ group: 'pupils' })) {
     assert.equal(named.has(item.id), false);
@@ -206,7 +223,7 @@ test('every planned drawing is wanted by a recipe: nothing is drawn for nobody',
 
 /* ── The audit, and the discipline that keeps the count down ───────────── */
 
-test('the shipped library was audited, and the four reuses are real', () => {
+test('the shipped library was audited, and the sheet drawing its own moved four verdicts', () => {
   const verdicts = new Map(PILOT_REUSE.map((item) => [item.id, item.verdict]));
   assert.equal(verdicts.size, PILOT_REUSE.length, 'no drawing judged twice');
   for (const item of PILOT_REUSE) {
@@ -215,11 +232,19 @@ test('the shipped library was audited, and the four reuses are real', () => {
     assert.ok(item.why.length > 15, `${item.id} says why`);
   }
   assert.equal(PILOT_REUSE.length, 47, 'every shipped drawing was looked at');
-  const reused = PILOT_REUSE.filter((item) => item.verdict === 'reuse').map((item) => item.id);
-  assert.deepEqual(reused.sort(), ['eyebrows.thin', 'mouth.cartoon', 'mouth.small', 'nose.cartoon']);
-  // A reuse is only a reuse if somebody uses it.
+  // The sheet draws its own brow, its own noses and its own mouths, so nothing
+  // is reused outright any more: a recipe names only pilot drawings, and the
+  // four that were going to stand in are fallbacks rather than plans.
+  assert.deepEqual(PILOT_REUSE.filter((item) => item.verdict === 'reuse'), []);
+  for (const id of ['eyebrows.thin', 'nose.cartoon', 'mouth.small', 'mouth.cartoon']) {
+    assert.equal(pilotReuse(id).verdict, 'possible-reuse', `${id} is the fallback if a planned drawing is cut`);
+  }
+  // And what an animal may still wear is what the audit is worth now.
+  for (const id of ['accessory.glasses', 'accessory.hat', 'accessory.bow-tie']) {
+    assert.equal(pilotReuse(id).verdict, 'possible-reuse', `${id} is universal`);
+  }
   const named = new Set(PILOT_PRESETS.flatMap(presetAssetIds));
-  for (const id of reused) assert.ok(named.has(id), `${id} is named by a recipe`);
+  for (const id of named) assert.ok(pilotAsset(id), `${id} is a pilot drawing: no recipe leans on a shipped one`);
 });
 
 test('two drawings in one slot for one species must say how they differ', () => {
@@ -239,6 +264,7 @@ test('two drawings in one slot for one species must say how they differ', () => 
 test('a ginger cat and a grey cat are one drawing and two palettes', () => {
   const cat = pilotPreset('cat');
   assert.equal(cat.palette, 'cat-ginger');
+  assert.equal(Object.keys(PILOT_PALETTES).length, 7, 'one a species, and two for the cat');
   assert.deepEqual([...cat.alternatePalettes], ['cat-grey']);
   // No drawing is named for a colour.
   for (const item of PILOT_ASSETS) {
@@ -262,7 +288,11 @@ test('a ginger cat and a grey cat are one drawing and two palettes', () => {
 /* ── What the drawings still have to settle ────────────────────────────── */
 
 test('what is still open is written down, and the turn profiles nobody may guess are marked', () => {
-  assert.ok(PILOT_OPEN_QUESTIONS.length >= 5);
+  assert.ok(PILOT_OPEN_QUESTIONS.length >= 8);
+  // The sheet settled the worst of it: a muzzle is drawn without a nose or a
+  // mouth, so what is left is the order rather than the shape.
+  assert.ok(PILOT_OPEN_QUESTIONS.some((item) => item.id === 'muzzle-draw-order'));
+  assert.ok(PILOT_OPEN_QUESTIONS.some((item) => item.id === 'closed-eyes-have-no-pupil'), 'the happy eyes are drawn shut and have no pupil to move');
   for (const item of PILOT_OPEN_QUESTIONS) {
     assert.ok(item.id && item.about && item.question.length > 20 && item.proposal.length > 20, `${item.id} states a question and a proposal`);
     assert.ok([...PILOT_REVIEW_GROUPS, 'palettes'].includes(item.about), `${item.about} is something the pilot draws`);
@@ -284,17 +314,21 @@ test('what is still open is written down, and the turn profiles nobody may guess
 
 test('the manifest can be read the ways MASC-10B will read it', () => {
   assert.deepEqual(pilotSummary(), {
-    drawings: 19, planned: 21, reused: 4, presets: 4,
-    groups: { heads: 2, eyes: 3, pupils: 2, brows: 1, ears: 4, muzzles: 4, noses: 2, mouths: 1, whiskers: 2 }
+    drawings: 45, planned: 47, claimed: 38, catalogue: 7, reused: 0, presets: 6,
+    groups: { heads: 6, eyes: 6, pupils: 2, brows: 5, ears: 8, muzzles: 6, noses: 5, mouths: 5, whiskers: 4 }
   });
-  assert.deepEqual(pilotAssetsForSlot('ears').map((item) => item.id), ['ears.cat-pointed', 'ears.fox-large-pointed', 'ears.dog-folded', 'ears.bear-round']);
+  // The eight sections of the sheet, in its own order.
+  assert.deepEqual(PILOT_REVIEW_GROUPS.map((group) => pilotAssets({ group }).length), [6, 6, 2, 5, 8, 6, 5, 5, 4]);
+  assert.deepEqual(pilotAssetsForSlot('ears').map((item) => item.sheetLabel),
+    ['Chat pointues', 'Renard grandes pointues', 'Chien tombantes', 'Ours rondes', 'Lapin grandes', 'Loup pointues', 'Petites rondes', 'Avec touffes']);
   assert.deepEqual(pilotAssetsForSpecies('bear').map((item) => item.id),
-    ['head.animal-round', 'eyes.cartoon-large', 'pupils.round', 'ears.bear-round', 'accessory.muzzle-bear-broad', 'nose.broad-bear']);
+    ['head.animal-wide', 'eyes.animal-small-cute', 'pupils.round', 'eyebrows.animal-thick', 'ears.bear-round', 'accessory.muzzle-bear-broad', 'nose.bear-broad', 'mouth.animal-neutral']);
   assert.deepEqual(pilotAssets({ status: 'approved' }), [], 'nothing is approved: nothing is drawn');
   assert.equal(pilotAssets({ status: 'needs-art' }).length, PILOT_ASSETS.length);
   assert.equal(pilotAsset('nope'), null);
   assert.equal(pilotReuse('nope'), null);
   assert.equal(pilotAsset('ears.cat-pointed').slot, 'ears');
+  assert.deepEqual(catalogueAssets().length, 7);
   // Frozen all the way down: a manifest a reader could edit is a manifest
   // that disagrees with the sheet drawn from it.
   assert.ok(Object.isFrozen(PILOT_ASSETS) && Object.isFrozen(PILOT_ASSETS[0]) && Object.isFrozen(PILOT_ASSETS[0].tags));
