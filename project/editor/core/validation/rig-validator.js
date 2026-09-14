@@ -72,7 +72,12 @@ export function validateRig(state) {
     if (!CURVES.includes(settings.easing)) issues.push(`Transition setting "${key}": unsupported easing "${settings.easing}".`);
   });
   for(const [partId,part] of Object.entries(state.semanticParts||{})){
-    for(const [role,elementId] of Object.entries(part.roles||{}))if(!state.elements?.[elementId])issues.push(`Semantic part "${partId}": role "${role}" references missing element "${elementId}".`);
+    // A role whose drawing is gone is the one problem in this loop a person
+    // actually meets -- they deleted a drawing in Artwork -- so it is raised in
+    // `validate-project.js`, where an issue can carry the part, the role and a
+    // remedy that takes the role off. This file's own standard, stated below
+    // for the pose grid, is that a message is written for someone building a
+    // mascot; "role \"leftEye\" references missing element \"eyeLeft\"" never was.
     for(const control of part.controls||[])if(!state.params?.[control])issues.push(`Semantic part "${partId}": control "${control}" references an unknown parameter.`);
     for(const [control,driver] of Object.entries(part.controlDrivers||{})){
       if(!state.params?.[control])issues.push(`Semantic part "${partId}": driver "${control}" references an unknown parameter.`);

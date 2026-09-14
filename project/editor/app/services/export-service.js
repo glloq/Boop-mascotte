@@ -23,7 +23,9 @@ export function createExportService({
   // Where a fix lands once the task is open: a Face Setup section, the Timeline
   // footer, or the folded States & behaviors editor. Each used to be named by
   // validation and opened by nobody.
-  focusPanel = () => {}, showTimeline = () => {}, openAuthorEditor = () => {}
+  focusPanel = () => {}, showTimeline = () => {}, openAuthorEditor = () => {},
+  // What a remedy runs, and the way back out of it.
+  repair = null, undo = () => {}
 } = {}) {
   // Two readings on purpose, kept exactly as the editor had them. The cache is
   // keyed on the document domain revisions and ignores its argument, so both
@@ -66,9 +68,24 @@ export function createExportService({
     routeToFix({ task: issue.fix.workspace || 'artwork', target: { kind: 'diagnostic', diagnosticId: issue.id } }, () => issue);
   };
 
+  /**
+   * Do the repair rather than open the screen where it could be done.
+   *
+   * A *Fix* is navigation; a remedy is the work itself. Today there is one:
+   * a role whose drawing was deleted, where taking the role off is the whole
+   * repair (audit §4.2). It is offered with Undo, like any other edit.
+   */
+  const repairProblem = (item) => {
+    const remedy = item?.remedy;
+    if (remedy?.kind !== 'clear-role' || !repair) return false;
+    if (!repair.clearRole(remedy.partId, remedy.role)) return false;
+    setStatus(`${item.target?.entity || remedy.partId}: the ${remedy.roleLabel || remedy.role} role is off.`, 'info', { action: { label: 'Undo', run: () => undo?.() } });
+    return true;
+  };
+
   const showProblems = () => {
     const issues = stateIssues();
-    renderProblems(readiness(), issues, fixProblem, goToReadiness);
+    renderProblems(readiness(), issues, fixProblem, goToReadiness, repairProblem);
   };
 
   // Opening Export is the arrival, so Back to Export goes away first. The panel

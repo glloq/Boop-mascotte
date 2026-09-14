@@ -272,6 +272,45 @@ par le fil d'Ariane), l'autre le miroir et l'undo unique.
 affirmait `pupilRight.x === 0` après un glissement — le défaut de l'audit §2.2,
 écrit comme une intention.
 
+### Les messages de validation (PR UI-05)
+
+Supprimer un dessin dans Artwork laisse `semanticParts[*].roles` pointer sur un
+élément qui n'existe plus. Le validateur disait :
+
+> Semantic part "eyes": role "leftEye" references missing element "eyeLeft".
+
+Vrai, inactionnable, et écrit pour quelqu'un qui lit le schéma. Le seul bouton
+ouvrait un écran : il restait à trouver *Clear*, sur le bon rôle, sur la bonne
+partie. Il dit désormais :
+
+> Eyes: nothing is drawn for its left eye any more. Pick another drawing for it,
+> or take the role off.
+
+| Ce qui a changé | Où |
+| --- | --- |
+| Le contrôle remonte là où un problème a une cible et un remède | `validate-project.js` (`orphanRoleIssues`) |
+| Un *remède* à côté du *Fix* : la réparation, pas l'endroit | `issue-guidance.js` (`describeRemedy`) |
+| Deux boutons dans Project check | `shell/overlays.js` |
+| Le remède branché sur `assignRole(partId, role, null)`, avec Annuler | `app/services/export-service.js` |
+
+**Corrigé au passage, et c'était un défaut de ce travail-ci.** Le toast du remède
+disparaît immédiatement : la passe de validation déclenchée par la réparation
+elle-même écrivait son résumé par-dessus, et l'offre *Annuler* partait avant
+qu'on puisse la prendre. Deux causes :
+
+- le garde-fou de `setStatus` ne protégeait que les messages *info*
+  (`routine && tone === 'info'`), alors que le résumé est un *warn* — un message
+  que l'auteur vient de provoquer prime sur le battement de cœur, quel qu'en
+  soit le ton ;
+- le câblage du service perdait le troisième argument
+  (`setStatus:(message,tone)=>shell.setStatus(message,tone)`), donc **aucune**
+  action du service n'a jamais eu son bouton.
+
+**Prouvé par** un test unitaire sur le message pur et l'absence de mots de
+schéma, et une spec dans `ux16-export-readiness` qui suit le parcours entier :
+le dessin supprimé, la phrase, les deux boutons, la réparation, le toast avec
+*Annuler*, et le problème qui ne revient pas.
+
 ### Rendu global
 
 | Ce qui a changé | Où |

@@ -49,6 +49,7 @@ import { artworkScopeMarkup, describeArtworkScope } from '../ui/artwork-scope.js
 import { deformBenchMarkup, describeDeformation } from '../ui/advanced-tools.js';
 import { artworkIdAt, createCanvasMenu } from '../ui/canvas-menu.js';
 import { actionRefusal, deleteConfirmation, deleteMessage, gestureDepth, matchPieceKey, pieceActionsFor, takesGestures } from '../ui/piece-actions.js';
+import { createSemanticRigCommands } from '../rig-editor/semantic-parts/semantic-rig-commands.js';
 import { createSelectionActions } from '../ui/selection-actions.js';
 import { describeStage } from '../ui/preview-stage.js';
 import { findSemanticPartByRole } from '../rig-editor/semantic-parts/part-model.js';
@@ -696,7 +697,9 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // Readiness deep links, Problems and Export share one vocabulary -- a section,
   // an issue, and the `fix` context an issue names -- so they are one service
   // (app/services/export-service.js, VNX-02). main.js keeps the wiring only.
-  const exportService=createExportService({store,exporter,validationCache,readiness:taskReadiness,navigate:route=>taskRouter.navigate(route),updateContext:context=>editorContext.update(context),setStatus:(message,tone)=>shell.setStatus(message,tone),showProblems:(readiness,issues,onFix,onGo)=>shell.showProblems(readiness,issues,onFix,onGo),setReturnToExport:visible=>shell.setReturnToExport(visible),focusPanel:id=>shell.focusPanel(id),showTimeline:()=>{shell.showTimeline();timeline.requestRender();},openAuthorEditor:()=>{states.render();shell.openAuthorEditor();}});
+  const exportService=createExportService({store,exporter,validationCache,readiness:taskReadiness,navigate:route=>taskRouter.navigate(route),updateContext:context=>editorContext.update(context),setStatus:(message,tone,options)=>shell.setStatus(message,tone,options),showProblems:(readiness,issues,onFix,onGo,onRepair)=>shell.showProblems(readiness,issues,onFix,onGo,onRepair),setReturnToExport:visible=>shell.setReturnToExport(visible),focusPanel:id=>shell.focusPanel(id),showTimeline:()=>{shell.showTimeline();timeline.requestRender();},openAuthorEditor:()=>{states.render();shell.openAuthorEditor();},
+    // The repairs Project check can perform rather than navigate to (audit §4.2).
+    repair:{clearRole:(partId,role)=>Boolean(createSemanticRigCommands(store,history).assignRole(partId,role,null))},undo:()=>undo()});
   /**
    * What the mascot is being tested against: a ground, and a size
    * (`ui/preview-stage.js`).
