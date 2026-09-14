@@ -1126,8 +1126,11 @@ test('@critical New Character is the one-minute path: the builder with the prese
   await expect(page.locator('[data-home] [data-template-id]'), 'the mascot as it comes is still beside it').toHaveCount(1);
   const started = Date.now();
 
-  // The card lands in the Character Builder, the presets open, and says what to do.
+  // The card opens the three screens (ux48-create-wizard.spec.js); *Skip and
+  // just start* is this path, unchanged -- the template, the presets open, and
+  // the sentence saying what to do.
   await card.click();
+  await page.locator('#create-wizard [data-wizard-skip]').click();
   await expect(page.locator('#app.has-project[data-workspace="character"]')).toHaveCount(1);
   await expect(page.locator('[data-home]')).toBeHidden();
   await expect(page.locator('#part-browser[data-part-ready="true"][data-part-active="presets"]')).toBeVisible();

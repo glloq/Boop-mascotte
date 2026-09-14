@@ -22,7 +22,7 @@
  */
 import { createArtworkCommands } from '../../core/commands/artwork-commands.js';
 import { facePartThumbnail } from '../../core/face-library/face-part-artwork.js';
-import { presetThumbnail } from '../../core/face-library/face-presets.js';
+import { FACE_PALETTES, presetThumbnail } from '../../core/face-library/face-presets.js';
 import { describeFacePartCapabilities } from '../../core/face-library/face-part-model.js';
 import { assetsFor, availableMorphologies, describeRestylePlan, morphologiesOfFace, presetsFor, restylePlan } from '../../core/face-library/compatibility.js';
 import { FACE_MORPHOLOGY_IDS, FACE_SLOT_IDS, assetSlot, assetSupportsMorphology, faceMorphology, faceSlot } from '../../core/face-library/face-morphologies.js';
@@ -863,6 +863,32 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     return true;
   }
 
+  /**
+   * A whole named palette on the face, as one undo step (audit §5).
+   *
+   * `retint` above is one token and a colour picker, which is the right shape
+   * for changing your mind about the hair. It is the wrong shape for "make it
+   * warm", which is twelve tokens and no picker at all — so this is that, run
+   * over the same command. The nesting is deliberate: `beginTransaction`
+   * returns false to the inner calls, so twelve retints are one undo.
+   *
+   * A face is only painted in the tokens it actually uses: a palette naming a
+   * colour for hair nobody drew paints nothing, and says so by counting zero
+   * rather than by failing.
+   */
+  function usePalette(id) {
+    const colours = FACE_PALETTES[id];
+    if (!colours || !facePartCommands?.retint) return false;
+    const tokens = (facePartCommands.palette()?.tokens || []).filter((entry) => colours[entry.token] && String(colours[entry.token]).toLowerCase() !== String(entry.colour).toLowerCase());
+    if (!tokens.length) return false;
+    const opened = history?.beginTransaction?.() === true;
+    let painted = 0;
+    try { for (const entry of tokens) if (facePartCommands.retint(entry.token, colours[entry.token]).ok) painted += 1; }
+    finally { if (opened) history.commitTransaction(); }
+    render();
+    return painted > 0;
+  }
+
   /* ── Reset (roadmap phase 29) ────────────────────────────────────────────
    *
    * Position: a library instance back where its fit put it, at the size the
@@ -1367,6 +1393,9 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     describePiece,
     removePiece,
     useFacePreset,
+    usePalette,
+    /** Browse another kind of face: the morphology row's own press, for the wizard. */
+    useType: chooseType,
     resetFacePreset,
     saveFacePreset,
     /** The builder as plain data, for the browser-test seam. */

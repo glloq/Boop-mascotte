@@ -35,6 +35,7 @@ import { createEditorContext } from '../ui/editor-context.js';
 import { lifecycleDiagnostics } from '../core/diagnostics/lifecycle-diagnostics.js';
 import { DOCUMENT_RENDER_PLAN, SESSION_RENDER_PLAN, createRenderPlan } from '../core/state/render-plan.js';
 import { createHandArtwork } from './hand-artwork.js';
+import { createWizardHost } from '../ui/character-builder/create-wizard.js';
 import { createWorkspaceManager } from './workspace-manager.js';
 import { createDesignWorkspace } from './workspaces/design.js';
 import { createRigWorkspace } from './workspaces/rig.js';
@@ -624,7 +625,36 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     shell.setStatus('Pick a preset, then swap any part for another style. The hands and Preview are one press away.');
     return true;
   };
-  shell.bindNewCharacter(newCharacter);
+
+  /**
+   * The wizard's three answers, built (audit §5, ui/character-builder/create-wizard.js).
+   *
+   * Every line is a press the editor already has: the same template load, then
+   * the morphology row's own press, the preset press and the palette. Nothing
+   * here knows how a preset goes on — which is why an assistant cannot drift
+   * from what the panels do.
+   */
+  const makeCharacter = async (plan) => {
+    if (!(await projectService.loadTemplate('basic', { mode: 'design.face' }))) return false;
+    if (plan.kind) characterBuilder.useType(plan.kind);
+    if (plan.preset) characterBuilder.useFacePreset(plan.preset);
+    if (plan.palette) characterBuilder.usePalette(plan.palette);
+    characterBuilder.openCategory('presets');
+    // What it made, and that none of it is a decision: the wizard's whole
+    // promise is that every screen asked something changeable.
+    const made = [plan.preset ? 'A preset is on' : plan.kindLabel ? `Design is offering ${plan.kindLabel.toLowerCase()} parts` : 'The mascot as it comes', plan.palette ? 'painted in your colours' : ''].filter(Boolean).join(', ');
+    shell.setStatus(`${made}. Every part is still yours to change: press a card to swap one.`);
+    return true;
+  };
+
+  const createWizard = createWizardHost(shell.wizardEl, {
+    library: facePartCommands.library,
+    presets: facePartCommands.presets,
+    onFinish: (plan) => { makeCharacter(plan); },
+    // Skip is the path New Character was before there was a wizard, unchanged.
+    onSkip: () => { newCharacter(); }
+  });
+  shell.bindNewCharacter(() => createWizard.open());
 
   /** The boxes a preset part is fitted to: the eyes it belongs on, or the head. */
   const featureBoxes=(document_)=>{
@@ -885,7 +915,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   commandRegistry.register({id:'action:problems',title:'Project check (Problems)',group:'Actions',keywords:['readiness','validate','problems','check'],run:()=>exportService.showProblems()});
   commandRegistry.register({id:'action:save',title:'Save Project',group:'Actions',keywords:['download','json','project'],enabled:needsProject,run:()=>saveProject()});
   commandRegistry.register({id:'action:new',title:'New Project',group:'Actions',keywords:['home','templates','start'],run:()=>shell.showHome({focus:'new'})});
-  commandRegistry.register({id:'action:new-character',title:'New Character',group:'Actions',keywords:['character','preset','builder','face','start','new'],run:()=>{newCharacter();}});
+  commandRegistry.register({id:'action:new-character',title:'New Character',group:'Actions',keywords:['character','preset','builder','face','start','new','wizard'],run:()=>{createWizard.open();}});
   commandRegistry.register({id:'action:undo',title:'Undo',group:'Actions',shortcut:'Ctrl+Z',enabled:(context)=>context.history.canUndo?{ok:true}:{ok:false,reason:'Nothing to undo.'},run:()=>undo()});
   commandRegistry.register({id:'action:redo',title:'Redo',group:'Actions',shortcut:'Ctrl+Y',enabled:(context)=>context.history.canRedo?{ok:true}:{ok:false,reason:'Nothing to redo.'},run:()=>redo()});
   // No navigation any more: the reset works where the author is standing, so
@@ -980,6 +1010,12 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
 
   // Escape closes the topmost surface first (UX-21): menu, palette, help, popovers (focus returns to their opener), drawer, sheet, Home, Focus Preview.
   const closeTopSurface=()=>{
+    // First, because a modal dialog is the topmost surface by definition. It
+    // has to be *in* this chain rather than left to the browser: the handler
+    // below runs before a `<dialog>`'s own cancel, so Escape over the wizard
+    // used to close Home *behind* it and leave the wizard standing on a blank
+    // editor (audit §5).
+    if(createWizard.isOpen()){createWizard.close();return true;}
     if(canvasMenu.close())return true;
     if(canvas.cancelGizmoDrag?.())return true;
     // A half-drawn shape goes before the tool does: Escape twice leaves both.

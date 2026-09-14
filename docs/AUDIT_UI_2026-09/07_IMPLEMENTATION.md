@@ -524,6 +524,71 @@ différentes sous un même point et vérifie que ça boucle, l'autre part d'une
 position **hors** grille — le cas qui vaut la peine — et vérifie que le dessin y
 arrive.
 
+### L'assistant de création, en trois écrans ([04](04_RECOMMANDATIONS.md) §5)
+
+La bibliothèque contient **vingt-deux presets et cinq genres de visage**, et
+l'accueil n'en montrait aucun : *New Character* chargeait le modèle et ouvrait le
+panneau des presets dans une colonne de 300 px. Toute l'offre de la bibliothèque
+était donc quelque chose qu'on trouvait en faisant défiler un panneau.
+
+```text
+1/3  Quel genre de personnage ?   une personne · un chat · un hibou · un robot
+2/3  Choisissez-en un — tout reste échangeable après
+3/3  Les couleurs
+       ↓
+     Design ▸ Face, le panneau des presets ouvert
+```
+
+**Il choisit, il ne reconstruit pas.** L'argument contre un assistant est déjà
+écrit dans `type-browser.js` : « an author who came in through a preset has
+already made a face, and a Type press that rebuilt it would throw their work
+away ». Celui-ci ne tourne **que depuis Home**, avant qu'il y ait un travail à
+perdre, et chaque écran demande quelque chose que l'éditeur change ensuite d'une
+pression.
+
+**Choisir, c'est aussi avancer** sur les deux premiers écrans. C'est tout ce que
+l'assistant achète : les presets sont à deux pressions de Home au lieu de
+quatre. *Next* reste pour qui veut le genre du modèle, et *Back* défait l'un
+comme l'autre — le raccourci n'est jamais un piège.
+
+**L'emblème d'un genre est un visage de la bibliothèque.** Les têtes ne servent
+à rien comme emblème — les cinq genres portent `head.round` — et un emoji serait
+un glyphe de plus à défaire au passage des icônes. Donc l'emblème d'« animal »
+est le visage entier d'un chat, tiré du même `presetsFor` que l'écran 2. Le
+monstre, que personne n'a encore dessiné de corne, n'a pas d'image et dit ce
+qu'il attend.
+
+**Aucune commande nouvelle.** Chaque ligne du chemin de sortie est une pression
+que l'éditeur avait déjà : `loadTemplate('basic', { mode: 'design.face' })`,
+puis `useType`, `useFacePreset`, `usePalette`, `openCategory('presets')`.
+`usePalette` est le seul ajout, et c'est `facePartCommands.retint` appelé douze
+fois dans une transaction — l'imbrication est voulue, `beginTransaction` répond
+`false` aux appels internes, donc douze teintes font **un** undo.
+
+#### Deux choses que la spécification ne pouvait pas savoir
+
+**La case « ajouter une paire de mains » ne pouvait rien faire.** Le seul modèle
+dont une nouvelle mascotte part **livre déjà une paire riggée avec ses huit
+gestes dessinés**, et `drawHandPair` refuse net sur un document qui a des mains
+(`app/hand-artwork.js`). La case aurait été un non-opérant. L'écran 3 le dit en
+une ligne à la place : on se demande bel et bien si elle aura des mains, et la
+réponse honnête est « elle en a déjà ». C'est le test qui l'a montré, pas une
+lecture du code : l'assertion « la case décochée, donc pas de mains » a échoué
+avec deux mains et seize dessins.
+
+**Échap fermait Home *derrière* l'assistant.** `closeTopSurface` tourne avant le
+`cancel` d'un `<dialog>`, et il descendait sa chaîne jusqu'à `shell.isHomeOpen()`
+— donc Échap fermait l'accueil et laissait l'assistant debout sur un éditeur
+vide. Un dialogue modal est la surface la plus haute par définition : il est
+maintenant **premier** dans la chaîne.
+
+**Prouvé par** sept tests unitaires (le modèle, les trois écrans en markup, et
+l'absence de case à cocher) et six specs dans `ux48-create-wizard` : le chemin
+complet avec la mesure de ce qui atterrit sur la mascotte, chaque écran quitté
+sans y répondre, *Skip* qui est exactement le chemin d'avant, Échap qui ferme
+l'assistant et pas Home, le clavier, et — celui qui compte — trois écrans de
+choix sur une mascotte déjà ouverte qui **n'écrivent rien**.
+
 ### Rendu global
 
 | Ce qui a changé | Où |
@@ -545,7 +610,6 @@ avec la référence de l'audit.
 | **P2** | Colonnes redimensionnables | §10.1 |
 | **P2** | Guides visuels à l'alignement (la ligne « centré sur l'axe ») | §5 |
 | **P2** | Les libellés français de l'éditeur simple | §7.3 |
-| **P2** | Assistant de création en trois écrans | [04](04_RECOMMANDATIONS.md) §5 |
 | **P3** | Migration complète du CSS hors d'`index.html` | [06](06_PLAN_PR.md) P3-1 |
 | **P3** | Jeu d'icônes cohérent à la place des glyphes unicode | P3-4 |
 
@@ -555,7 +619,7 @@ avec la référence de l'audit.
 
 | Suite | État |
 | --- | --- |
-| `npm test` (unitaires) | **2 085 passent** |
+| `npm test` (unitaires) | **2 097 passent** |
 | `npm run build` | propre |
 | Suite navigateur complète (hors `@visual`) | lancée entièrement, pas seulement `@critical` |
 

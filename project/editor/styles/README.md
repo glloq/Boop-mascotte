@@ -26,10 +26,18 @@ One directory, one file per region, and a token layer under all of it.
 | --- | --- | --- |
 | `tokens.css` | the palette, spacing, radii, lift, type, motion | **in place** |
 | `gestures.css` | the selection action bar and the actionable toast | **in place** |
-| `shell.css` | topbar, navigation, columns, dock | to do |
+| `library.css` | the planche of drawings, the presets, the roster, the trail | **in place** |
+| `preview.css` | Preview and what it folds away | **in place** |
+| `behavior.css` | Reactions and the motions that never run | **in place** |
+| `shell.css` | the left column's structure tools, the folds, the chevrons | **partly**: the rest is still in `index.html` |
+| `wizard.css` | the three screens of *New mascot* | **in place** |
 | `panels.css` | the left column's panels and the inspector | to do |
 | `canvas.css` | the canvas, its bars, the overlays | to do |
 | `overlays.css` | Home, popovers, dialogs, sheets | to do |
+
+Every file after `gestures.css` was written under rule 2 below — a new
+component, with selectors nothing else declares — rather than migrated out of a
+block. The three still marked *to do* are the migration proper.
 
 Two rules keep it safe:
 

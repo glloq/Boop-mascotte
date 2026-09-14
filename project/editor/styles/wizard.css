@@ -1,0 +1,164 @@
+/**
+ * New mascot, in three screens (docs/AUDIT_UI_2026-09/04_RECOMMANDATIONS.md §5).
+ *
+ * The library holds twenty-two presets and five kinds of face, and Home used to
+ * show neither: *New Character* landed in the builder with a row of cards in a
+ * 300 px column, so the library's whole offer was something you found by
+ * scrolling a panel. Here it is the screen — cards at a size you can tell two
+ * faces apart at, three questions, and a way past all of them.
+ *
+ * Every card below is the library's card with more room: same ground, same
+ * border, same picture, same "chosen" ring. A person who meets a preset here
+ * and then meets it again in Design ▸ Face is meeting the same object.
+ */
+
+.create-wizard {
+  width: min(620px, calc(100vw - 32px));
+  padding: 0;
+  color: var(--ux-text);
+  background: var(--ux-raised);
+  border: 1px solid var(--ux-border-popover);
+  border-radius: var(--ux-radius-4);
+  box-shadow: var(--ux-lift-3);
+}
+
+.create-wizard::backdrop { background: #000a; }
+
+.wizard { display: grid; gap: var(--ux-gap-3); padding: var(--ux-gap-4); margin: 0; }
+
+/* ── The title bar: what this is, and how far along it is ─────────────────── */
+
+.wizard-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--ux-gap-2);
+  padding-bottom: var(--ux-gap-2);
+  border-bottom: 1px solid var(--ux-border);
+}
+
+.wizard-head h2 { margin: 0; font-size: var(--ux-size-heading); color: var(--ux-brand); }
+
+/* Three screens is short enough to say as a number rather than draw as dots. */
+.wizard-count {
+  font-size: var(--ux-size-label);
+  letter-spacing: var(--ux-track-label);
+  color: var(--ux-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The question, and it is where focus lands on every screen -- so its ring has
+   to hug the words rather than stretch the width of the dialog and read as a
+   text field. */
+.wizard h3 { justify-self: start; margin: 0; font-size: var(--ux-size-control); }
+.wizard h3:focus-visible { outline: 2px solid var(--ux-focus); outline-offset: 3px; border-radius: 3px; }
+.wizard > p.small { margin: -6px 0 0; color: var(--ux-faint); font-size: var(--ux-size-small); }
+
+/* ── The cards ────────────────────────────────────────────────────────────── */
+
+.wizard-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: var(--ux-gap-2);
+  align-content: start;
+  /* Twenty-two presets is more than a dialog's worth. The grid scrolls; the
+     question above it and the buttons below it do not move. */
+  max-height: 46vh;
+  overflow: auto;
+}
+
+.wizard-card {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: var(--ux-gap-1);
+  min-height: 62px;
+  padding: var(--ux-gap-2);
+  text-align: center;
+  background: var(--ux-surface);
+  border: 1px solid var(--ux-border);
+  border-radius: var(--ux-radius-3);
+}
+
+/* The editor's buttons fill with the accent on hover, which on a card of six
+   reads as "this is the one you picked". A card lifts its line instead, and
+   keeps its ground. */
+.wizard-card:hover:not(:disabled) { background: var(--ux-surface); border-color: var(--ux-border-soft); }
+.wizard-card b { font-size: var(--ux-size-control); font-weight: 600; color: var(--ux-text); }
+
+/* A kind nobody has drawn a horn for is offered *and* says what it wants,
+   rather than being missing from a row of four (compatibility.js). */
+.wizard-card:disabled { opacity: .5; }
+.wizard-card small { font-size: var(--ux-size-label); line-height: 1.3; color: var(--ux-dim); }
+
+/* Chosen reads as the library's chosen: a ring, not a fill -- and it has to
+   beat the hover above, or the card under the pointer looks chosen too. */
+.wizard-card-on,
+.wizard-card-on:hover:not(:disabled) {
+  background: var(--ux-surface);
+  border-color: var(--ux-focus);
+  box-shadow: inset 0 0 0 1px var(--ux-focus);
+}
+
+.wizard-card-on b { color: var(--ux-text-strong); }
+
+.wizard-thumb {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--ux-thumb-ground);
+  border-radius: var(--ux-radius-1);
+  overflow: hidden;
+}
+
+.wizard-thumb svg { width: 100%; height: 100%; }
+
+/* A palette is a look, so it is shown as one: skin, hair and pupil as a strip,
+   which is the three tokens a face reads as its colour at a glance. */
+.wizard-swatches {
+  display: flex;
+  width: 100%;
+  height: 34px;
+  border-radius: var(--ux-radius-1);
+  overflow: hidden;
+}
+
+.wizard-swatches i { flex: 1; }
+
+/* What comes with the mascot anyway. The audit put a checkbox here; the one
+   template a new mascot starts from already ships a rigged pair, so this is the
+   same information without a control that does nothing. */
+.wizard-note {
+  margin: 0;
+  font-size: var(--ux-size-small);
+  line-height: 1.45;
+  color: var(--ux-faint);
+}
+
+.wizard-note b { color: var(--ux-muted); font-weight: 600; }
+
+/* ── Out ──────────────────────────────────────────────────────────────────── */
+
+.wizard-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--ux-gap-2);
+  padding-top: var(--ux-gap-2);
+  border-top: 1px solid var(--ux-border);
+}
+
+/* Skip sits away from the pair that moves you through, on the far side: it is
+   the way out, not the way back. */
+.wizard-actions [data-wizard-skip] { margin-right: auto; }
+.wizard-actions [data-wizard-next] { background: var(--ux-accent); border-color: var(--ux-accent-line); color: var(--ux-text-strong); }
+.wizard-actions [data-wizard-next]:hover { background: var(--ux-accent-hover); }
+
+/* Narrow: the grid finds its own column count, so only the frame has to give.
+   The buttons wrap rather than shrink -- a Skip too small to read is worse than
+   a Skip on its own line. */
+@media (max-width: 560px) {
+  .wizard { padding: var(--ux-gap-3); }
+  .wizard-actions { flex-wrap: wrap; }
+  .wizard-cards { max-height: 40vh; }
+}
