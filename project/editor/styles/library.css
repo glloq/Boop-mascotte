@@ -286,3 +286,36 @@
 
 /* Touch has no hover, so the star is simply always there. */
 #app:not([data-layout=desktop]) .part-style-favourite { opacity: 1; min-width: 24px; min-height: 24px; }
+
+/**
+ * Every piece of the mascot, by role (audit §1.3).
+ *
+ * Face hides the SVG layer tree — a hundred and thirty rows opening on the
+ * fingers of the left hand — and hiding it left no list of the mascot at all on
+ * the screen that builds one. This is the list a person would draw instead: the
+ * parts the face wears, in the order it wears them, each a press from being in
+ * hand.
+ */
+.part-roster {
+  display: grid;
+  gap: var(--ux-gap-2);
+  margin-bottom: var(--ux-gap-3);
+}
+
+.part-roster-row {
+  display: grid;
+  gap: 2px;
+}
+
+.part-roster-row > small {
+  color: var(--ux-faint);
+  font-size: var(--ux-size-label);
+  letter-spacing: var(--ux-track-label);
+  text-transform: uppercase;
+}
+
+.part-roster-pieces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ux-gap-1);
+}

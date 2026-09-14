@@ -1781,3 +1781,37 @@ test('@critical a starred drawing comes first in its row, and a used one is reme
   await page.locator(`[data-part-favourite="${fourth}"]`).click();
   await expect.poll(async () => (await ids())[0]).toBe(last);
 });
+
+/**
+ * Every piece of the mascot, by role (audit §1.3).
+ *
+ * Face hides the SVG layer tree, and rightly: it is a hundred and thirty rows
+ * opening on the fingers of the left hand. But hiding it left *no* list of the
+ * mascot on the screen that builds one — no way to see what it is made of, and
+ * no way back to a piece the canvas would not give you.
+ */
+test('@critical Advanced lists every piece by role, and a press puts one in hand', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  await page.locator('[data-part-category="mouth"]').click();
+
+  // Under Advanced: it is a way *back* to a piece, not a thing to do to the one
+  // already in hand.
+  await expect(page.locator('[data-part-roster]'), 'shut until asked for').toBeHidden();
+  await inspector(page).locator('details').filter({ hasText: 'Advanced' }).first().locator('summary').first().click();
+  const roster = page.locator('[data-part-roster]');
+  await expect(roster).toBeVisible();
+
+  // By role, not by layer: the rows are the parts a face wears.
+  const rows = await page.locator('[data-part-roster-row]').evaluateAll((nodes) => nodes.map((node) => node.dataset.partRosterRow));
+  expect(rows).toContain('eyes');
+  expect(rows).toContain('mouth');
+  expect(rows).not.toContain('faceRoot');
+  expect(await page.locator('.part-roster-pieces .chip').count()).toBeGreaterThan(10);
+
+  // And a press puts that piece in hand, which is the way back the canvas
+  // would not give you.
+  await page.locator('.part-roster-pieces [data-roster-piece="eyeLeft"]').click();
+  await expect.poll(() => session(page).then((s) => s.id)).toBe('eyeLeft');
+});

@@ -459,6 +459,31 @@ workspace » avec `aria-pressed="true"`. La nav prévient désormais la barre de
 projet à chaque changement (`onSimpleMode`), donc les deux ne peuvent plus
 dériver — personne n'a à se souvenir de demander.
 
+### Toutes les pièces, par rôle (§1.3)
+
+Face cache l'arbre des calques SVG, et à raison : cent trente lignes qui
+s'ouvrent sur les doigts de la main gauche. Mais le cacher ne laissait **aucune**
+liste de la mascotte sur l'écran qui la construit — aucun moyen de voir de quoi
+elle est faite, ni de revenir à une pièce que le canvas refuse de donner.
+
+| Ce qui a changé | Où |
+| --- | --- |
+| `roster` : les parties dans l'ordre où le visage les porte | `character-builder.js` |
+| Une pastille par pièce, disant si elle est cachée ou verrouillée | `part-inspector.js`, `styles/library.css` |
+
+Sous *Avancé*, parce que c'est un chemin de **retour** vers une pièce et non une
+chose à faire à celle qu'on tient. Par rôle et non par calque : les rangées sont
+les parties qu'un visage porte, pas les nœuds d'un SVG.
+
+**Corrigé en écrivant la spec** : les pastilles réutilisaient `data-part-piece`,
+qui désignait déjà la rangée de la catégorie ouverte. Deux listes sous un même
+nom, c'est un sélecteur que personne ne peut viser — deux specs existantes sont
+tombées sur une violation de mode strict. Le roster a son propre attribut.
+
+**Prouvé par** une spec dans `ux45-character-builder` : fermé jusqu'à ce qu'on le
+demande, des rangées par rôle (`eyes`, `mouth`, et pas `faceRoot`), et une
+pression qui met la pièce en main.
+
 ### Rendu global
 
 | Ce qui a changé | Où |
@@ -479,7 +504,6 @@ avec la référence de l'audit.
 | --- | --- | --- |
 | **P2** | Colonnes redimensionnables | §10.1 |
 | **P2** | Magnétisme et guides au déplacement ; sélection derrière (Alt+clic) | §5 |
-| **P2** | Liste des pièces **par rôle** sous *Avancé* dans Face | §1.3 |
 | **P2** | Les libellés français de l'éditeur simple | §7.3 |
 | **P2** | Assistant de création en trois écrans | [04](04_RECOMMANDATIONS.md) §5 |
 | **P3** | Migration complète du CSS hors d'`index.html` | [06](06_PLAN_PR.md) P3-1 |

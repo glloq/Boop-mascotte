@@ -392,6 +392,22 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
         nodeKind: canvas.elementKind?.(id) || document.elements[id]?.meta?.nodeType || null,
         locked: locked(instance),
         instance: instance !== id ? { id: instance, label: nameOf(instance) } : null,
+        // Every piece of the mascot, by role rather than by SVG layer (audit
+        // §1.3). Face hides the layer tree — rightly, it is a hundred and thirty
+        // rows opening on the fingers of the left hand — and that left no list
+        // of the mascot at all on the screen that builds it. This is the list a
+        // person would draw: the parts, in the order the face wears them, each
+        // saying whether it is hidden or locked.
+        roster: model().categories
+          .filter((row) => row.pieces?.length)
+          .map((row) => ({
+            id: row.id,
+            label: row.label,
+            pieces: row.pieces.map((item) => {
+              const described = describePiece(item.id) || {};
+              return { id: item.id, label: item.label, visible: described.visible !== false, locked: Boolean(described.locked), current: item.id === id };
+            })
+          })),
         // Where this piece sits — but only once a double-click has stepped
         // inside one, which is the case the trail exists to explain. A piece a
         // plain click would have selected is already the subject of the panel,
