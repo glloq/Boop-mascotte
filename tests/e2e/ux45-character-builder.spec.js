@@ -1363,8 +1363,15 @@ test('@critical the builder is walked without a mouse: the arrow keys move along
   await expect(cards.last()).toBeFocused();
   await page.keyboard.press('Home');
   await expect(cards.first()).toBeFocused();
+  // Tab walks the cards and the one control that belongs to each: a drawing,
+  // then its star, then the next drawing. The arrows above walk the drawings
+  // alone, which is why a row of twenty-four heads is still four presses wide
+  // — and the star keeps a keyboard door, which is the reason it is a stop at
+  // all (audit §8.3).
   await page.keyboard.press('Tab');
-  await expect(cards.nth(1), 'Tab still walks the cards').toBeFocused();
+  await expect(page.locator('[data-part-styles="mouth"] [data-part-favourite]').first(), 'the star of the card in hand').toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(cards.nth(1), 'and then the next card').toBeFocused();
 
   const chips = page.locator('#part-browser [data-part-piece]');
   await chips.first().focus();
@@ -1718,4 +1725,46 @@ test('Look says it has nothing to offer rather than showing an empty box', async
   // And the looks themselves stay listed: what they are is still worth reading,
   // and the door reopens the moment a library part lands on the face.
   await expect(look.locator('option[value="soft-cartoon"]')).toHaveAttribute('disabled', '');
+});
+
+/**
+ * The library remembers what you reach for (audit §8.3).
+ *
+ * A hundred and fifty drawings, and no memory at all: the mouth you picked for
+ * the last three mascots sat as far down the row as one you had never used.
+ *
+ * Sorted inside the row rather than piled into a "Favourites" block above it —
+ * the row is already a grid the eye scans, and a block would cost a hundred
+ * pixels of a column this work has spent its time shortening.
+ */
+test('@critical a starred drawing comes first in its row, and a used one is remembered', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  await page.locator('[data-part-category="mouth"]').click();
+
+  const ids = () => page.locator('[data-part-styles="mouth"] [data-face-part]').evaluateAll((nodes) => nodes.map((node) => node.dataset.facePart));
+  const before = await ids();
+  expect(before.length).toBeGreaterThan(3);
+
+  // Every card has a star, and starring the fourth sends it to the front.
+  const fourth = before[3];
+  await page.locator(`[data-part-favourite="${fourth}"]`).click();
+  await expect.poll(async () => (await ids())[0]).toBe(fourth);
+  await expect(page.locator(`[data-part-favourite="${fourth}"]`)).toHaveAttribute('aria-pressed', 'true');
+
+  // Using one remembers it: behind the starred drawing, ahead of the rest.
+  const last = before.at(-1);
+  await page.locator(`[data-face-part="${last}"]`).click();
+  await expect.poll(async () => (await ids()).slice(0, 2)).toEqual([fourth, last]);
+
+  // A preference, not project data: it is kept in this browser and never
+  // travels with a save.
+  const stored = JSON.parse(await page.evaluate(() => localStorage.getItem('boop.libraryUse.v1')));
+  expect(stored).toEqual({ recent: [last], favourite: [fourth] });
+  expect(await page.evaluate(() => JSON.stringify(window.__BOOP_E2E__.document()))).not.toContain('libraryUse');
+
+  // And the star comes off again.
+  await page.locator(`[data-part-favourite="${fourth}"]`).click();
+  await expect.poll(async () => (await ids())[0]).toBe(last);
 });

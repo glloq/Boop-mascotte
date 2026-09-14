@@ -366,6 +366,42 @@ juste en dessous : *où* une main se trouve est un mouvement.
 look, une presse, la paire gréée, l'écran inchangé, un seul undo, et la porte de
 Rig toujours là.
 
+### Favoris et récents (§8.3)
+
+Cent cinquante dessins, et aucune mémoire : la bouche choisie pour les trois
+dernières mascottes était aussi loin dans la rangée qu'une jamais utilisée.
+
+| Ce qui a changé | Où |
+| --- | --- |
+| Deux listes pures et testées, dans `localStorage` | **nouveau** `ui/character-builder/library-memory.js` |
+| Une étoile sur chaque carte, au survol ou au focus | `part-browser.js`, `styles/library.css` |
+| L'ordre d'une rangée : étoilés, puis récents, puis la bibliothèque | `library-memory.js` (`orderByMemory`) |
+| Utiliser un dessin le retient (huit au plus) | `character-builder.js` (`useStyle`) |
+
+**Trier dans la rangée plutôt qu'ajouter un bloc « Favoris » au-dessus.** La
+rangée est déjà une planche que l'œil balaie, et un bloc aurait coûté cent
+pixels d'une colonne que ce travail a passé son temps à raccourcir. Les dessins
+qu'on utilise remontent dans la rangée qu'on regarde déjà.
+
+**Une préférence, jamais une donnée de projet** : ces listes disent ce que *cet
+auteur* attrape, pas de quoi *cette mascotte* est faite. Elles ne touchent pas
+le document et ne voyagent pas avec un enregistrement. Un navigateur dont le
+stockage est coupé fonctionne sans mémoire, et `write` renvoie ce qu'un lecteur
+verra vraiment plutôt que ce qu'on voulait écrire — c'est un test unitaire qui
+l'a exigé.
+
+**Le coût, dit franchement.** L'étoile est un second bouton par carte, donc Tab
+fait désormais dessin → son étoile → dessin suivant. Les flèches, elles, ne
+parcourent que les dessins (`ring-keys.js` écarte l'étoile de la bague), donc
+une rangée de vingt-quatre têtes reste à quatre pressions de large. L'autre
+option était une étoile hors de l'ordre de tabulation : une capacité sans porte
+clavier, ce qui est exclu.
+
+**Prouvé par** quatre tests unitaires (l'ordre, la limite de huit, le
+dédoublonnage, le stockage coupé) et une spec dans `ux45-character-builder` qui
+étoile, utilise, lit `localStorage`, vérifie que le document n'en sait rien, et
+retire l'étoile.
+
 ### Rendu global
 
 | Ce qui a changé | Où |
@@ -379,14 +415,11 @@ Rig toujours là.
 
 ## ⏳ Reste à faire
 
-Par ordre de valeur, avec la référence de l'audit.
+**Tous les P1 sont faits.** Ce qui suit est ce qui reste, par ordre de valeur,
+avec la référence de l'audit.
 
 | Priorité | Tâche | Référence |
 | --- | --- | --- |
-| **P1** | Clic = la pièce, double-clic = dedans, fil d'Ariane de sélection | [02](02_PROBLEMES.md) §2.1 · PR **UI-03** |
-| **P1** | Le gizmo agit sur la partie, et miroite la paire liée comme les champs | §2.2 · PR **UI-04** |
-| **P1** | Messages de validation en langage utilisateur, avec un *Fix* | §4.2 · PR **UI-05** |
-| **P2** | Favoris et récents dans la bibliothèque | §8.3 |
 | **P2** | Colonnes redimensionnables ; aligner/centrer hors d'Artwork | §10.1, §5 |
 | **P2** | Magnétisme et guides au déplacement ; zoom sur la sélection ; isoler exposé | §5 |
 | **P2** | Liste des pièces **par rôle** sous *Avancé* dans Face | §1.3 |

@@ -32,6 +32,7 @@ import { selectMany } from '../../core/state/selection.js';
 import { elementDisplayName } from '../../rig-editor/semantic-parts/face-roles.js';
 import { findSemanticPartByRole } from '../../rig-editor/semantic-parts/part-model.js';
 import { activePiece, characterSnapshot, deriveCharacterParts, instanceNodes, instanceRootOf, mirrorTransformPatch, pairLabel, pairOf, pairSpacing, paletteOfPaints, pieceTransform, resolveActiveCategory, roleLabel, scalePatch, spacingPatch } from './character-model.js';
+import { orderByMemory, readLibraryMemory, rememberUse, toggleFavourite } from './library-memory.js';
 import { boxInMountSpace } from '../../core/face-library/face-layout.js';
 import { deriveVisualRows, rowInstallTarget } from './visual-rows.js';
 import { createPartBrowser } from './part-browser.js';
@@ -122,6 +123,14 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
    * what is on the mascot.
    */
   let showAll = false;
+  /**
+   * What this author reaches for (audit §8.3).
+   *
+   * A preference, never project data: it says what somebody keeps using, not
+   * what this mascot is made of, so it does not travel with a save.
+   */
+  const memoryStore = (() => { try { return globalThis.localStorage || null; } catch { return null; } })();
+  let memory = readLibraryMemory(memoryStore);
   /** Which pairs are edited as one; every pair is, until its box is unticked. */
   const unlinked = new Set();
   // What the author has typed into "Save as a library part" so far: the
@@ -224,7 +233,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     const otherKind = (asset) => (showAll && kind && !assetSupportsMorphology(asset, kind)
       ? (asset.morphologies || []).map((id) => faceMorphology(id)?.label).filter(Boolean).join(' · ') || 'another kind'
       : '');
-    return offered.map((asset) => {
+    return orderByMemory(offered, memory).map((asset) => {
       const on = wornPart(row, asset);
       const removes = row.multiple && on ? on.partId : null;
       // Which press the card would make is which plan says whether it can be
@@ -235,6 +244,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
       const { controls, missing } = describeFacePartCapabilities(asset);
       return {
         id: asset.id, name: asset.name, description: asset.description || '', thumbnail: facePartThumbnail(asset),
+        favourite: memory.favourite.includes(asset.id),
         current: Boolean(on), removes, available: plan.ok, reason: plan.ok ? '' : plan.reason, limited: missing, joins: Boolean(row.multiple && !row.dedicated), custom: asset.origin === 'custom', pack: asset.pack || null, otherKind: otherKind(asset),
         // Every movement of the category, carried or not: what the card's title says (roadmap phase 26).
         animation: controls.map((control) => ({ control, carried: !missing.includes(control) }))
@@ -338,7 +348,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
       types: typesOf(), faceStyles: faceStylesOf(),
       palette: paletteOf(category), facePresets: facePresetsOf(category),
       hands: describeHands(document), presets: CHARACTER_PRESETS,
-      query, showAll, libraryCount: facePartCommands?.library?.cards?.().length || 0, hits: searchHits(rows)
+      query, showAll, memory, libraryCount: facePartCommands?.library?.cards?.().length || 0, hits: searchHits(rows)
     };
   };
 
@@ -1191,6 +1201,13 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
    * replacing whatever is at the same one. Either way one press is one undo
    * step, because either way it is one command.
    */
+  /** Star a drawing, or take the star off: it comes first in its row either way. */
+  function favourite(assetId) {
+    memory = toggleFavourite(memoryStore, assetId);
+    render();
+    return true;
+  }
+
   function useStyle(assetId) {
     if (!facePartCommands) return false;
     const asset = facePartCommands.library.get(assetId);
@@ -1215,6 +1232,8 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     const result = facePartCommands.replace(row.categoryId, assetId, rowInstallTarget(row));
     if (!result.ok) { onStatus(`Could not use ${asset?.name || assetId}: ${result.reason}`, 'error'); return false; }
     chosen = row.id;
+    // Used, so it comes back near the top of this row next time (audit §8.3).
+    memory = rememberUse(memoryStore, assetId);
     // The new part is what is in hand now, every piece of it -- or, where a
     // face wears several, the one that just went on.
     const pieces = row.multiple ? [result.rootId] : model().categories.find((item) => item.id === row.id)?.pieces.map((piece) => piece.id) || [];
@@ -1259,7 +1278,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     for (const [type, handler] of [['dragenter', enter], ['dragover', over], ['dragleave', leave], ['drop', drop]]) { dropHost.addEventListener(type, handler); dropListeners.push([type, handler]); }
   }
 
-  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onType: chooseType, onFaceStyle: restyleFace, onStyle: useStyle, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onSearch: search, onShowAll: setShowAll, onRoute: route, onAdvanced: advanced, onHandStyle: useHandStyle, onStyleForget: forgetPart });
+  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onType: chooseType, onFaceStyle: restyleFace, onStyle: useStyle, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onSearch: search, onShowAll: setShowAll, onFavourite: favourite, onRoute: route, onAdvanced: advanced, onHandStyle: useHandStyle, onStyleForget: forgetPart });
   /**
    * Browse another kind of face. Nothing on the mascot moves: what changes is
    * what Design offers, which is the whole point of the row (MASC-05).
@@ -1308,6 +1327,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
 
   return {
     render,
+    favourite,
     resolvePiece,
     containsPiece,
     pieceTrail,

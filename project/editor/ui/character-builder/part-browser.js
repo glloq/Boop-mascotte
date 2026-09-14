@@ -106,7 +106,10 @@ function styles(category, list, showAll = false) {
     // The × is a picture, not a word: a card that comes off is named for what
     // the press does, so nothing reads it out as "On times".
     const label = style.removes ? ` aria-label="${esc(`Take ${style.name} off`)}"` : '';
-    return `<button type="button" class="part-style${style.current ? ' part-style-current' : ''}" data-face-part="${esc(style.id)}" aria-pressed="${style.current}"${style.available ? '' : ' disabled'}${label} title="${esc(title)}"${drag}><span class="part-style-thumb" aria-hidden="true">${style.thumbnail}</span><span class="part-style-name">${esc(style.name)}</span>${badge}</button>`;
+    // The star is a sibling of the card, not a child: a button inside a button
+    // is not markup a browser will give you (audit §8.3).
+    const star = `<button type="button" class="part-style-favourite${style.favourite ? ' is-favourite' : ''}" data-part-favourite="${esc(style.id)}" aria-pressed="${Boolean(style.favourite)}" title="${style.favourite ? 'Starred: it comes first in this row' : 'Star it, so it comes first in this row'}" aria-label="${style.favourite ? 'Unstar' : 'Star'} ${esc(style.name)}"><span aria-hidden="true">${style.favourite ? '★' : '☆'}</span></button>`;
+    return `<span class="part-style-slot"><button type="button" class="part-style${style.current ? ' part-style-current' : ''}" data-face-part="${esc(style.id)}" aria-pressed="${style.current}"${style.available ? '' : ' disabled'}${label} title="${esc(title)}"${drag}><span class="part-style-thumb" aria-hidden="true">${style.thumbnail}</span><span class="part-style-name">${esc(style.name)}</span>${badge}</button>${star}</span>`;
   }).join('');
   // The author's own parts can be forgotten; a face wearing one keeps its drawing.
   const own = list.filter((style) => style.custom);
@@ -198,9 +201,10 @@ function markup(model, view) {
  * @param {(route: string) => void} [options.onRoute]
  * @param {(query: string) => void} [options.onSearch]  what to look for in the library
  * @param {(on: boolean) => void} [options.onShowAll]  offer the library past this kind of face
+ * @param {(assetId: string) => void} [options.onFavourite]  star a drawing, or take the star off
  * @param {(where: string) => void} [options.onAdvanced]
  */
-export function createPartBrowser(host, { view = () => ({ categories: [], hands: [], presets: [] }), onCategory = () => {}, onPiece = () => {}, onPreset = () => {}, onType = () => {}, onFaceStyle = () => {}, onStyle = () => {}, onToken = () => {}, onFacePreset = () => {}, onPresetReset = () => {}, onPresetSave = () => {}, onPresetForget = () => {}, onRoute = () => {}, onAdvanced = () => {}, onHandStyle = () => {}, onStyleForget = () => {}, onSearch = () => {}, onShowAll = () => {} } = {}) {
+export function createPartBrowser(host, { view = () => ({ categories: [], hands: [], presets: [] }), onCategory = () => {}, onPiece = () => {}, onPreset = () => {}, onType = () => {}, onFaceStyle = () => {}, onStyle = () => {}, onToken = () => {}, onFacePreset = () => {}, onPresetReset = () => {}, onPresetSave = () => {}, onPresetForget = () => {}, onRoute = () => {}, onAdvanced = () => {}, onHandStyle = () => {}, onStyleForget = () => {}, onSearch = () => {}, onShowAll = () => {}, onFavourite = () => {} } = {}) {
   if (!host) throw new Error('Missing required UI element: #part-browser');
   const component = createComponent({
     host,
@@ -254,12 +258,13 @@ export function createPartBrowser(host, { view = () => ({ categories: [], hands:
         if (!button) return;
         if (button.dataset?.partSearchClear !== undefined) { onSearch(''); return; }
         if (button.dataset?.presetSave !== undefined) return;
-        const { partCategory, partPiece, characterPreset, faceType, faceStyle, facePart, faceToken, facePreset, presetReset, presetForget, characterRoute, characterAdvanced, handStyle, facePartForget } = button.dataset || {};
+        const { partCategory, partPiece, characterPreset, faceType, faceStyle, facePart, partFavourite, faceToken, facePreset, presetReset, presetForget, characterRoute, characterAdvanced, handStyle, facePartForget } = button.dataset || {};
         if (partCategory) onCategory(partCategory);
         else if (partPiece) onPiece(partPiece);
         else if (characterPreset) onPreset(characterPreset);
         else if (faceType) { if (!button.disabled) onType(faceType); }
         else if (faceStyle) { if (!button.disabled) onFaceStyle(faceStyle); }
+        else if (partFavourite) onFavourite(partFavourite);
         else if (facePart) { if (!button.disabled) onStyle(facePart); }
         else if (faceToken) onToken(faceToken);
         else if (facePreset) { if (!button.disabled) onFacePreset(facePreset); }
@@ -300,7 +305,7 @@ export function createPartBrowser(host, { view = () => ({ categories: [], hands:
     libraryCount: current.libraryCount || 0,
     hits: current.hits ? Object.entries(current.hits).map(([id, n]) => `${id}=${n}`).join(',') : '',
     signature: current.categories.map((category) => `${category.id}:${category.status}:${category.pieces.map((piece) => `${piece.id}=${piece.label}`).join(',')}`).join('|'),
-    styles: (current.styles || []).map((style) => `${style.id}:${style.name}:${style.current ? 1 : 0}:${style.available ? 1 : 0}:${style.custom ? 1 : 0}:${style.pack || ''}:${style.removes || ''}:${style.otherKind || ''}`).join('|'),
+    styles: (current.styles || []).map((style) => `${style.id}:${style.name}:${style.current ? 1 : 0}:${style.available ? 1 : 0}:${style.custom ? 1 : 0}:${style.pack || ''}:${style.removes || ''}:${style.otherKind || ''}:${style.favourite ? 1 : 0}`).join('|'),
     palette: (current.palette?.tokens || []).map((entry) => `${entry.token}=${entry.colour}:${entry.uses.length}`).join('|'),
     types: (current.types?.types || []).map((type) => `${type.id}:${type.current ? 1 : 0}:${type.available ? 1 : 0}`).join('|'),
     faceStyles: current.faceStyles ? `${current.faceStyles.loaded ? 1 : 0}:${current.faceStyles.notice || ''}:${(current.faceStyles.styles || []).map((style) => `${style.id}=${style.restyled}/${style.total}`).join(',')}` : '',

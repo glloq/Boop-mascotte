@@ -237,3 +237,52 @@
 
 .part-trail > button:hover,
 .part-trail > button:focus-visible { color: var(--ux-text); text-decoration: underline; }
+
+/**
+ * The star on a drawing (audit §8.3).
+ *
+ * A hundred and fifty drawings, and no memory at all: the mouth you picked for
+ * the last three mascots sat as far down the row as one you have never used.
+ * Starring a drawing sends it to the front of its own row — sorted inside the
+ * row rather than piled into a "Favourites" block above it, because the row is
+ * already a grid the eye scans and a block would cost a hundred pixels of a
+ * column this work has spent its time shortening.
+ *
+ * The star sits over the card as a sibling, not a child: a button inside a
+ * button is not markup a browser will give you.
+ */
+.part-style-list .part-style-slot {
+  position: relative;
+  display: grid;
+}
+
+.part-style-list .part-style-slot > .part-style { height: 100%; }
+
+.part-style-favourite {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 0;
+  padding: 1px 3px;
+  line-height: 1;
+  font-size: 12px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--ux-faint);
+  /* Out of the way until wanted: a row of a hundred and fifty stars would be a
+     row of stars rather than a row of drawings. A starred one always shows,
+     because that is the whole point of having starred it. */
+  opacity: 0;
+  transition: opacity var(--ux-ease);
+}
+
+.part-style-slot:hover .part-style-favourite,
+.part-style-favourite:focus-visible,
+.part-style-favourite.is-favourite { opacity: 1; }
+
+.part-style-favourite.is-favourite { color: var(--ux-warn-line); }
+
+.part-style-favourite:hover { color: var(--ux-text-strong); background: transparent; }
+
+/* Touch has no hover, so the star is simply always there. */
+#app:not([data-layout=desktop]) .part-style-favourite { opacity: 1; min-width: 24px; min-height: 24px; }
