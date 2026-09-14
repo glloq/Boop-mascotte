@@ -224,6 +224,54 @@ hors de la carte, la recette toujours dans son `title` — et mesure la hauteur 
 et par `ux12-motion-studio`, dont l'assertion sur *Uses* lit désormais le
 `title`.
 
+### Le clic, le gizmo et la paire (PR UI-03 / UI-04)
+
+Un œil du template est un groupe de sept formes. Cliquer sur l'œil
+sélectionnait `glintLeft` — un reflet de deux pixels, affiché
+« Left eye glint » — et quelqu'un qui appuyait ensuite sur `Suppr` effaçait un
+reflet au lieu d'un œil.
+
+Et les trois façons de déplacer une pièce n'étaient pas d'accord :
+
+| Geste | Cible, avant | Miroir de la paire, avant |
+| --- | --- | --- |
+| Champs *X / Y / Taille* | la partie entière | **oui** |
+| Gizmo au canvas | la forme sélectionnée | non |
+| Flèches du clavier | la forme sélectionnée | non |
+
+Une personne cochait « éditer les deux yeux » (coché par défaut), glissait l'œil
+gauche, et seul l'œil gauche bougeait ; puis tapait un nombre, et les deux
+bougeaient.
+
+| Ce qui a changé | Où |
+| --- | --- |
+| Un seul point d'accroche : `resolve` · `contains` · `commit` | `svg-editor/svg-canvas.js` (`setPieceModel`) |
+| Le clic remonte à la pièce **nommée** la plus proche | `character-builder.js` (`resolvePiece`) |
+| Le double-clic descend, `Échap` remonte d'un niveau | `svg-canvas.js`, `app/editor-app.js` |
+| Le gizmo **et** les flèches écrivent par `writeTransforms` | `character-builder.js` (`commitTransform`) |
+| Le fil d'Ariane : `Face › Left eye › Left eye glint` | `part-inspector.js`, `styles/library.css` |
+
+**Une règle pour deux sortes de visage.** La pièce qu'un clic désigne est la plus
+proche chose *qui a un nom* en remontant l'arbre : sur un visage de
+bibliothèque, l'instance que l'ajustement a posée ; sur le template, l'élément
+qu'une partie sémantique appelle `leftEye`. Elle s'arrête au premier nom, ce qui
+est la raison pour laquelle cliquer un œil ne sélectionne pas la tête : `faceRoot`
+a un nom aussi, et il est plus haut. Une pupille garde le sien — la partie Gaze
+la nomme — donc le milieu d'un œil est bien une pupille.
+
+Le modèle n'est branché que sur la moitié `simple` de `GESTURE_SURFACES`
+(Design ▸ Face, Design ▸ Hands) : Artwork **est** l'éditeur vectoriel, et Rig
+assigne des rôles à des éléments nommés. Les deux veulent la forme sous le
+pointeur, et les deux reçoivent `null`.
+
+**Prouvé par** deux specs dans `ux45-character-builder` — l'une lit les deux
+moitiés (la pièce au clic, chaque forme toujours atteignable au double-clic et
+par le fil d'Ariane), l'autre le miroir et l'undo unique.
+
+**Une assertion obsolète retirée**, la troisième de cette suite : `ux45`
+affirmait `pupilRight.x === 0` après un glissement — le défaut de l'audit §2.2,
+écrit comme une intention.
+
 ### Rendu global
 
 | Ce qui a changé | Où |

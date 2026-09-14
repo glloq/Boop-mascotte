@@ -164,7 +164,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // it is not (docs/STILL_WHILE_DESIGNING.md): the service owns which workspaces
   // those are, this only tells it which one is open. Session-only in both
   // directions -- no document is read and none is written.
-  shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);editorContext.update({workspace});syncPuppetHandles();syncArtboard();syncSelectionActions();if(workspace!=='animate')timeline?.stopPlayback();previewService.holdStill(workspace);});
+  shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);syncPieceModel(workspace);editorContext.update({workspace});syncPuppetHandles();syncArtboard();syncSelectionActions();if(workspace!=='animate')timeline?.stopPlayback();previewService.holdStill(workspace);});
   shell.bindPuppetToggle(()=>syncPuppetHandles());
   shell.bindCanvasView((action)=>action==='fit'?canvas.fitToCanvas():action==='reset'?canvas.resetView():canvas.zoomView(action==='in'?1.1:1/1.1));
   // The wheel zooms too, so the readout has to follow the canvas, not the
@@ -245,6 +245,23 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     runPieceAction: (action, id) => runPieceAction(action, id, { from: 'inspector' })
   });
   const { characterBuilder, handStates, facePartCommands } = design.panels;
+
+  /**
+   * Teach the canvas what a piece is, on the surfaces that have pieces.
+   *
+   * The canvas knows SVG elements; it does not know that seven of them are one
+   * eye. Design ▸ Face and Design ▸ Hands are where a person handles a mascot,
+   * and they are exactly the `simple` half of the table the gestures already
+   * read (`ui/piece-actions.js`) — so this cannot drift from it. Artwork is the
+   * vector editor and Rig assigns roles to named elements: both want the shape
+   * under the pointer, and both get null.
+   */
+  const syncPieceModel = (workspace) => canvas.setPieceModel(gestureDepth(workspace) === 'simple' ? {
+    resolve: (id) => characterBuilder.resolvePiece(id),
+    contains: (root, id) => characterBuilder.containsPiece(root, id),
+    commit: (id, transform) => characterBuilder.commitTransform(id, transform)
+  } : null);
+  syncPieceModel(shell.getWorkspace());
 
   /* ── One piece, one set of gestures, every surface ─────────────────────────
    *
@@ -950,6 +967,10 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     // inspector then says "Pick a part on the left, or click the mascot", the
     // bar of actions goes, and the gizmo with it — which is what Escape means
     // in every editor and what it did nowhere here.
+    // Out of the piece before out of the selection: a double-click stepped
+    // inside an eye to reach its pupil, and Escape is how you come back up a
+    // level before it is how you let go (audit §2.1).
+    if(canvas.insidePiece?.()){const root=canvas.insidePiece();canvas.leavePiece();canvas.selectMany([root]);return true;}
     if(store.getSession().selectedId||(store.getSession().selectedIds||[]).length){canvas.selectMany([]);return true;}
     return false;
   };

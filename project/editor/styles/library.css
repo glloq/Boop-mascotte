@@ -203,3 +203,37 @@
 .part-show-all input { margin: 0; }
 .part-show-all small { color: var(--ux-dim); }
 .part-style-badge.part-style-other { background: var(--ux-surface); color: var(--ux-muted); }
+
+/**
+ * Where the piece in hand sits: `Head › Left eye › Left eye glint`.
+ *
+ * A click on the canvas used to select the deepest shape, so pointing at an eye
+ * selected its two-pixel reflection. One click now selects the piece a person
+ * would name and a double-click steps inside it — and this is what makes
+ * stepping inside somewhere you can see rather than somewhere you end up. Every
+ * step but the last is a button, so it is also the way back out
+ * (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §2.1).
+ */
+.part-trail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 2px;
+  margin: var(--ux-gap-1) 0 0;
+  font-size: var(--ux-size-label);
+  color: var(--ux-faint);
+}
+
+.part-trail > span[aria-hidden] { color: var(--ux-border-strong); }
+
+/* The piece itself reads as a place, not as a link to where you already are. */
+.part-trail > span[aria-current] { color: var(--ux-text); font-weight: 600; }
+
+.part-trail > button {
+  font-size: inherit;
+  color: var(--ux-muted);
+  text-decoration: none;
+}
+
+.part-trail > button:hover,
+.part-trail > button:focus-visible { color: var(--ux-text); text-decoration: underline; }

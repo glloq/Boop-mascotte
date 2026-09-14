@@ -86,6 +86,54 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
   });
   let loadedMarkup = '';
   let workspace = 'create';
+  /**
+   * What a click means on a surface where a person handles a mascot (audit
+   * §2.1, §2.2).
+   *
+   * The canvas knows about SVG elements; it does not know that seven of them
+   * are one eye. So it asks: `resolve(id)` gives the piece a person would name,
+   * `contains(root, id)` says what is drawn inside one, and `commit(id, t)`
+   * writes a gesture the way the inspector's fields write it — which is what
+   * makes a drag mirror a linked pair.
+   *
+   * Unset on Artwork, which *is* the vector editor: there a click means the
+   * shape under the pointer, and always did.
+   */
+  let pieces = null;
+  /** The piece a double-click has stepped inside, so clicks reach its shapes. */
+  let insidePiece = null;
+
+  /** The id a plain click selects: the piece, or a shape inside the one entered. */
+  const clickTarget = (id) => {
+    if (!pieces?.resolve) return id;
+    if (insidePiece && pieces.contains?.(insidePiece, id)) return id;
+    insidePiece = null;
+    return pieces.resolve(id) || id;
+  };
+
+  /**
+   * The deepest element of the document under an event, if any.
+   *
+   * Two passes, because the second click of a double-click lands on the gizmo:
+   * once something is selected its overlay covers the artwork, so walking up
+   * from `event.target` finds no drawing at all. The fallback asks the document
+   * what is under the pointer and skips the chrome on top of it.
+   */
+  const elementUnder = (event) => {
+    const elements = store.getDocument().elements || {};
+    for (let node = event.target; node && node !== container; node = node.parentNode) {
+      const id = node.getAttribute?.('id');
+      if (id && elements[id]) return id;
+    }
+    for (const hit of document.elementsFromPoint?.(event.clientX, event.clientY) || []) {
+      if (!container.contains(hit)) continue;
+      for (let node = hit; node && node !== container; node = node.parentNode) {
+        const id = node.getAttribute?.('id');
+        if (id && elements[id]) return id;
+      }
+    }
+    return null;
+  };
   // Where a piece is picked, framed and dragged: Artwork, and the Character
   // Builder, which is Artwork's selection with the drawing tools put away
   // (docs/CHARACTER_BUILDER.md). Drawing itself stays Artwork's alone.
@@ -1006,7 +1054,11 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       const elements = store.getDocument().elements || {};
       for (let node = event.target; node && node !== container; node = node.parentNode) {
         const id = node.getAttribute?.('id');
-        if (id && elements[id]) return id === selectedId;
+        // A press on a shape *inside* the selected piece is a press on the
+        // piece: the eye is selected and the pointer is on its reflection, and
+        // dragging is what a person expects. Without this the new click rule
+        // would select an eye nobody could then move (audit §2.1).
+        if (id && elements[id]) return id === selectedId || Boolean(pieces?.contains?.(selectedId, id));
       }
       return true;
     },
@@ -1029,6 +1081,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       const id = drag.id;
       documentModel.getNode(id)?.setAttribute('transform', transformString(transform));
       documentModel.captureAuthoringNode(id);
+      // On a mascot surface the gesture goes where a typed field goes, so a
+      // linked pair follows a drag exactly as it follows a number (audit §2.2).
+      if (pieces?.commit?.(id, finiteTransform(transform))) return;
       const current = store.getDocument();
       commands.syncSvg({
         elements: { ...current.elements, [id]: { ...(current.elements[id] || {}), baseTransform: finiteTransform(transform) } },
@@ -1127,7 +1182,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       }
       // Shift (or Ctrl/Cmd) adds a piece to the selection, or takes it back out.
       const extend = editing() && activeTool === 'select' && Boolean(event.shiftKey || event.ctrlKey || event.metaKey);
-      store.mutateSession(['selectedId', 'selectedIds'], state => { Object.assign(state, extend ? toggleSelected(state, element.id()) : selectOnly(element.id())); });
+      const picked = extend ? element.id() : clickTarget(element.id());
+      store.mutateSession(['selectedId', 'selectedIds'], state => { Object.assign(state, extend ? toggleSelected(state, picked) : selectOnly(picked)); });
     });
     element.on('dragstart resizestart', (event) => { if (store.getDocument().layerMetadata[element.id()]?.locked) event.preventDefault(); });
     element.on('dragend resize', () => {
@@ -2882,6 +2938,26 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     drawTools.pointerUp(event);
   });
 
+  /**
+   * Double-click steps inside a piece (audit §2.1).
+   *
+   * One click selects the eye; two select the shape under the pointer and stay
+   * there, so the next click reaches its neighbours rather than jumping back
+   * out. Clicking anything outside leaves again, and so does Escape. This is
+   * the pattern every drawing tool has had for thirty years, and the reason it
+   * is worth having is that a click can then mean the obvious thing.
+   */
+  container.addEventListener('dblclick', (event) => {
+    if (!pieces?.resolve || activeTool !== 'select' || rigTool || !editing()) return;
+    const deep = elementUnder(event);
+    if (!deep) return;
+    const root = pieces.resolve(deep) || deep;
+    if (root === deep) return;
+    insidePiece = root;
+    event.preventDefault();
+    store.mutateSession(['selectedId', 'selectedIds'], (state) => { Object.assign(state, selectOnly(deep)); });
+  });
+
   container.addEventListener('dblclick', (event) => {
     // A double-click on the outline is how a point is added, which is what the
     // Node tool was missing: it could move the points a shape already had and
@@ -3114,8 +3190,22 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     serializeCurrentSvg() { return commitDocument(false); },
     getTree() { return previewOrder.authored(() => documentModel.getTree()); },
     getWarnings() { return [...documentModel.warnings]; },
+    /**
+     * Teach the canvas what a piece is, on the surfaces that have them.
+     *
+     * `{ resolve, contains, commit }` — see the declaration of `pieces`. Passing
+     * nothing takes it back to being a vector editor, which is what Artwork is.
+     */
+    setPieceModel(model) { pieces = model || null; insidePiece = null; },
+    /** Which piece a double-click has stepped inside, if any. */
+    insidePiece: () => insidePiece,
+    /** Step back out; `true` if there was anywhere to come out of. */
+    leavePiece() { if (!insidePiece) return false; insidePiece = null; return true; },
     setWorkspace(next) {
       workspace=next;
+      // Stepping inside a piece is where the pointer is, not a preference: a
+      // change of screen comes back out.
+      insidePiece = null;
       if (next !== 'create') setEditScope(null);
       // The vector tools belong to Artwork (`docs/VECTOR_EDITING.md`, and the
       // shortcuts declare them scoped to it). Leaving that task puts the canvas
@@ -3640,7 +3730,12 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       const element = store.getDocument().elements[id]; if (!element) return false;
       if (store.getDocument().layerMetadata[id]?.locked) return false;
       const base = element.baseTransform || {};
-      commands.setTransform(id, { x: (Number(base.x) || 0) + dx, y: (Number(base.y) || 0) + dy }, { source: 'canvas' });
+      const next = { x: (Number(base.x) || 0) + dx, y: (Number(base.y) || 0) + dy };
+      // The arrows are the third way to move a piece, so they take the same
+      // path as the gizmo and the fields: on a mascot surface a linked pair
+      // follows them too (audit §2.2).
+      if (pieces?.commit?.(id, next)) return true;
+      commands.setTransform(id, next, { source: 'canvas' });
       api.applyElementTransform(id, store.getDocument().elements[id]);
       return true;
     },

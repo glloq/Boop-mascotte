@@ -244,7 +244,11 @@ test('@critical a part is dragged and nudged on the canvas in the builder, one u
   await expect.poll(async () => (await baseOf(page, 'pupilLeft')).x).toBe(0);
   expect(await baseOf(page, 'pupilRight')).toMatchObject({ x: 0, y: 0 });
 
-  // A click picks one of them; the gizmo frames it, and a drag moves it alone.
+  // A click picks one of them, the gizmo frames it, and a drag moves the pair:
+  // every pair is linked until its box is unticked, and this assertion used to
+  // read `pupilRight.x === 0` — the defect the audit names, written down as
+  // intent. Dragging one side moved one side; typing a number moved both
+  // (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §2.2). One path now.
   await page.mouse.click(press.x, press.y);
   await expect.poll(() => session(page)).toEqual({ id: 'pupilLeft', ids: ['pupilLeft'] });
   await expect(page.locator('[data-gizmo-part="outline"]'), 'the gizmo frames the part').toHaveCount(1);
@@ -253,11 +257,15 @@ test('@critical a part is dragged and nudged on the canvas in the builder, one u
   const moved = await baseOf(page, 'pupilLeft');
   expect(moved.x).toBeGreaterThan(0);
   expect(moved.y).toBeGreaterThan(0);
-  expect((await baseOf(page, 'pupilRight')).x).toBe(0);
+  const peer = await baseOf(page, 'pupilRight');
+  expect(peer.x, 'the linked pair mirrors the drag').toBeCloseTo(-moved.x, 3);
+  expect(peer.y, 'and shares the vertical move').toBeCloseTo(moved.y, 3);
   await expect(inspector(page).locator('[data-part-transform="x"]')).not.toHaveValue('0');
+  // One gesture, one undo step — for both sides of the pair.
   await page.keyboard.press('Control+z');
   await expect.poll(async () => (await baseOf(page, 'pupilLeft')).x).toBe(0);
   expect((await baseOf(page, 'pupilLeft')).y).toBe(0);
+  expect((await baseOf(page, 'pupilRight')).x).toBe(0);
 
   // The arrow keys nudge the part, as they do in Artwork.
   await page.locator('#canvas').focus();
@@ -1609,4 +1617,83 @@ test('@critical Style redraws the parts drawn in it, keeps every other one, and 
   await page.keyboard.press('Control+z');
   await expect.poll(async () => (await character(page)).categories.find((item) => item.id === 'mouth')?.assetId).toBe('mouth.small');
   expect((await checkpoint(page)).history.undo).toBe(before.history.undo);
+});
+
+/**
+ * A click means the piece; a double-click steps inside it (audit §2.1).
+ *
+ * An eye of the template is a group of seven shapes, so pointing at an eye
+ * selected `glintLeft` — a two-pixel reflection, shown as "Left eye glint". A
+ * person who then pressed Delete removed a highlight instead of an eye.
+ *
+ * Both halves are asserted, because the fold could hide the shapes for good:
+ * the piece is what a click selects, and every shape inside it is still
+ * reachable — by a double-click, and by the trail on the way back out.
+ */
+test('@critical a click selects the piece a person would name, and a double-click steps inside it', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  const centre = await page.locator('#canvas svg svg #glintLeft').boundingBox();
+  const on = { x: centre.x + centre.width / 2, y: centre.y + centre.height / 2 };
+
+  await page.mouse.click(on.x, on.y);
+  await expect.poll(() => session(page).then((s) => s.id), { timeout: 3000 }).toBe('eyeLeft');
+  // No trail: the eye is what a click selects, so saying where it sits would
+  // be a line that adds nothing.
+  await expect(inspector(page).locator('.part-trail')).toHaveCount(0);
+
+  await page.mouse.dblclick(on.x, on.y);
+  await expect.poll(() => session(page).then((s) => s.id), { timeout: 3000 }).toBe('glintLeft');
+  const trail = inspector(page).locator('.part-trail');
+  await expect(trail).toContainText('Left eye');
+  await expect(trail).toContainText('Left eye glint');
+
+  // Inside, the next click reaches its neighbours rather than jumping back out.
+  await page.mouse.click(on.x, on.y);
+  await expect.poll(() => session(page).then((s) => s.id)).toBe('glintLeft');
+
+  // Escape comes back up a level before it lets go, and the trail's own steps
+  // are the other way out.
+  await page.keyboard.press('Escape');
+  await expect.poll(() => session(page).then((s) => s.id)).toBe('eyeLeft');
+});
+
+/**
+ * The gizmo, the arrows and the fields write the same thing (audit §2.2).
+ *
+ * The fields moved `instanceRootOf(...)` and mirrored a linked pair; the gizmo
+ * moved `selectedId` and mirrored nothing. An author ticked "edit both eyes" —
+ * ticked by default — dragged the left eye, and only the left eye moved; then
+ * typed a number and both moved. One path now.
+ */
+test('@critical a drag mirrors a linked pair exactly as a typed number does, in one undo step', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  // Pressed on the reflection, which nothing names, so the click means the eye
+  // it is drawn inside. (The middle of an eye is its pupil, and a pupil *is*
+  // named — by the Gaze part — so a click there means the pupil, rightly.)
+  const glint = await page.locator('#canvas svg svg #glintLeft').boundingBox();
+  const on = { x: glint.x + glint.width / 2, y: glint.y + glint.height / 2 };
+  await page.mouse.click(on.x, on.y);
+  await expect.poll(() => session(page).then((s) => s.id)).toBe('eyeLeft');
+
+  await dragBy(page, on, 18, 8);
+  const moved = await page.evaluate(() => { const d = window.__BOOP_E2E__.document(); return { left: d.elements.eyeLeft.baseTransform, right: d.elements.eyeRight.baseTransform }; });
+  expect(moved.left.x, 'the eye moved').toBeGreaterThan(1);
+  // Mirrored: the pair moves apart and together, not sideways as one.
+  expect(moved.right.x, 'the pair mirrors the drag').toBeCloseTo(-moved.left.x, 3);
+  expect(moved.right.y, 'and shares the vertical move').toBeCloseTo(moved.left.y, 3);
+
+  // One gesture, one undo step: both eyes go back together.
+  await page.locator('#undo').click();
+  await expect.poll(async () => (await page.evaluate(() => window.__BOOP_E2E__.document().elements.eyeLeft.baseTransform.x))).toBe(0);
+  expect(await page.evaluate(() => window.__BOOP_E2E__.document().elements.eyeRight.baseTransform.x)).toBe(0);
+
+  // And the arrows are the third door onto the same path.
+  await page.mouse.click(on.x, on.y);
+  await page.locator('#canvas').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(async () => (await page.evaluate(() => window.__BOOP_E2E__.document().elements.eyeRight.baseTransform.x))).toBeLessThan(0);
 });

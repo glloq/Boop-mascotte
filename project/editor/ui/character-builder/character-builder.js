@@ -382,6 +382,11 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
         nodeKind: canvas.elementKind?.(id) || document.elements[id]?.meta?.nodeType || null,
         locked: locked(instance),
         instance: instance !== id ? { id: instance, label: nameOf(instance) } : null,
+        // Where this piece sits — but only once a double-click has stepped
+        // inside one, which is the case the trail exists to explain. A piece a
+        // plain click would have selected is already the subject of the panel,
+        // and a breadcrumb over it would be a line saying nothing (audit §2.1).
+        trail: resolvePiece(id) === id ? [] : pieceTrail(id),
         removable: Boolean(piece?.removable),
         custom: Boolean(piece?.custom), from: piece?.from || '',
         library: Boolean(part?.assetId && part.assetRoot === instance && facePartCommands?.repaint),
@@ -484,6 +489,93 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     try { for (const [id, patch] of all) { commands.setTransform(id, patch, { source: 'character-builder' }); canvas.applyElementTransform(id, doc().elements[id]); } }
     finally { if (all.length > 1) history.commitTransaction?.(); }
     return true;
+  }
+
+  /** Every element some part names by a role: the pieces that have a name. */
+  const namedPieces = () => {
+    const out = new Set();
+    for (const part of Object.values(doc().semanticParts || {})) {
+      for (const element of Object.values(part.roles || {})) if (element) out.add(element);
+    }
+    return out;
+  };
+
+  /**
+   * Which piece a click on the canvas means (audit §2.1).
+   *
+   * An eye of the template is a group of seven shapes, so clicking the eye
+   * selected `glintLeft` — a two-pixel highlight, shown as "Left eye glint" —
+   * and a person who then pressed Delete would have removed a reflection
+   * instead of an eye. A person pointing at an eye means the eye.
+   *
+   * Two kinds of face, one rule: the nearest thing up the tree that **has a
+   * name**. On a library face that is the instance the fit placed; on the
+   * template it is the element a semantic part calls `leftEye`. Whichever comes
+   * first walking up, because both are the same question asked of two ways of
+   * building a face.
+   *
+   * It stops at the first hit rather than climbing to the top, which is why
+   * clicking an eye does not select the head: `faceRoot` is named too, and it
+   * is further up.
+   */
+  function resolvePiece(id) {
+    if (!id) return id;
+    const named = namedPieces(), parents = model().parents || {}, instances = model().instances || {};
+    const seen = new Set();
+    for (let at = id; at && !seen.has(at); at = parents[at]) {
+      seen.add(at);
+      if (named.has(at)) return at;
+      if (instances[at]) return instanceRootOf(model(), at);
+    }
+    return instanceRootOf(model(), id);
+  }
+
+  /** Whether `id` is drawn inside `root` — what a double-click descends into. */
+  function containsPiece(root, id) {
+    if (!root || !id || root === id) return false;
+    const parents = model().parents || {}, detached = model().detached || {};
+    if ((detached[root] || []).includes(id)) return true;
+    const seen = new Set();
+    for (let at = parents[id]; at && !seen.has(at); at = parents[at]) {
+      seen.add(at);
+      if (at === root) return true;
+    }
+    return false;
+  }
+
+  /** What a piece is called, for the trail that says where a click landed. */
+  const pieceTrail = (id) => {
+    const parents = model().parents || {}, named = namedPieces(), seen = new Set(), trail = [];
+    for (let at = id; at && !seen.has(at); at = parents[at]) {
+      seen.add(at);
+      if (named.has(at) || at === id) trail.unshift({ id: at, label: nameOf(at) });
+    }
+    return trail;
+  };
+
+  /**
+   * A canvas gesture, written the way the inspector's fields write (audit §2.2).
+   *
+   * The fields moved `instanceRootOf(...)` and mirrored a linked pair; the
+   * gizmo moved `selectedId` and mirrored nothing. So an author ticked "edit
+   * both eyes" (ticked by default), dragged the left eye, and only the left eye
+   * moved — then typed a number and both moved. One path now, and the pair
+   * follows a drag exactly as it follows a number.
+   *
+   * A pivot is a point in one drawing's own coordinates, so it is the only
+   * channel that is never mirrored: the peer keeps its own.
+   */
+  function commitTransform(pieceId, transform = {}) {
+    const id = instanceRootOf(model(), pieceId);
+    if (!doc().elements?.[id] || locked(id)) return false;
+    const patch = {};
+    for (const key of ['x', 'y', 'rotation', 'scaleX', 'scaleY', 'pivotX', 'pivotY']) {
+      if (Number.isFinite(Number(transform[key]))) patch[key] = Number(transform[key]);
+    }
+    if (!Object.keys(patch).length) return false;
+    const peer = linkedPeer(pieceId);
+    const { pivotX, pivotY, ...shared } = patch;
+    return writeTransforms(peer ? [[id, patch], [peer, mirrorTransformPatch(shared)]] : [[id, patch]]);
   }
 
   function moveBy(pieceId, key, value) {
@@ -1216,6 +1308,10 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
 
   return {
     render,
+    resolvePiece,
+    containsPiece,
+    pieceTrail,
+    commitTransform,
     openCategory: chooseCategory,
     openReplace,
     selectPiece: choosePiece,

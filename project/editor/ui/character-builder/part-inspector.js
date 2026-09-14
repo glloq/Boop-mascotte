@@ -45,6 +45,23 @@ const number = (value, digits = 2) => { const rounded = Math.round(Number(value)
 /** How many swatches a piece shows before the rest fold into a count. */
 export const PALETTE_LIMIT = 16;
 
+/**
+ * Where the piece in hand sits: `Head › Left eye › Left eye glint`.
+ *
+ * A click selects the piece a person would name, and a double-click steps
+ * inside it (audit §2.1). A trail is what makes stepping inside somewhere you
+ * can see — and each step before the last is the way back out, because it is a
+ * button that selects it.
+ */
+function partTrail(piece) {
+  const trail = piece.trail || [];
+  if (trail.length < 2) return '';
+  const step = (entry, last) => (last
+    ? `<span aria-current="true">${esc(entry.label)}</span>`
+    : `<button type="button" class="link" data-part-piece="${esc(entry.id)}" title="Select ${esc(entry.label)}">${esc(entry.label)}</button>`);
+  return `<nav class="part-trail" data-part-trail="${trail.length}" aria-label="Where this piece sits">${trail.map((entry, index) => step(entry, index === trail.length - 1)).join('<span aria-hidden="true"> › </span>')}</nav>`;
+}
+
 function subject(model) {
   const name = model.category?.label || 'Artwork';
   const badge = model.piece?.partName ? `<span class="semantic-badge">${esc(model.piece.partName)}</span>` : (model.kind === 'piece' ? '<span class="small">No face part uses this piece</span>' : '');
@@ -208,7 +225,7 @@ function markup(model, sections) {
     id: 'advanced', level: 'advanced', title: 'Advanced', hint: 'shape, reset, rig', open: sections.has('advanced', false),
     body: `${shape(piece)}<p class="small">The same piece, with every control: the movements it plays in Face Setup, and its bindings and appearance in the Artwork inspector.</p><div class="action-row">${piece.partId ? '<button type="button" class="secondary" data-character-route="face-part">Face part setup</button>' : ''}<button type="button" class="secondary" data-character-route="artwork">Artwork inspector</button></div>`
   });
-  return `${subject(model)}<p class="small" data-part-piece-name>${esc(piece.label)}${piece.roleLabel && piece.roleLabel !== piece.label ? ` · ${esc(piece.roleLabel)}` : ''}</p>${pieceActions(model.actions)}${pieceChips(model)}${customNote(piece)}${transformFields(piece)}${piece.hand ? handPlacementMarkup(piece.hand) : ''}${palette(piece)}${more}${advanced}${saveForm(piece, sections)}`;
+  return `${subject(model)}${partTrail(piece)}<p class="small" data-part-piece-name>${esc(piece.label)}${piece.roleLabel && piece.roleLabel !== piece.label ? ` · ${esc(piece.roleLabel)}` : ''}</p>${pieceActions(model.actions)}${pieceChips(model)}${customNote(piece)}${transformFields(piece)}${piece.hand ? handPlacementMarkup(piece.hand) : ''}${palette(piece)}${more}${advanced}${saveForm(piece, sections)}`;
 }
 
 /**
