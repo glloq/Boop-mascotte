@@ -311,6 +311,34 @@ schéma, et une spec dans `ux16-export-readiness` qui suit le parcours entier :
 le dessin supprimé, la phrase, les deux boutons, la réparation, le toast avec
 *Annuler*, et le problème qui ne revient pas.
 
+### La bibliothèque et les presets — ce qui restait de §8 (PR UI-06)
+
+**Rien à faire, et il faut le dire.** La ligne « les 22 presets visibles d'un
+coup » du plan était fausse sur deux points, vérifiés en mesurant :
+
+- il y a **six** presets de look, pas vingt-deux, et les six sont déjà visibles
+  d'un coup — une grille de vignettes carrées de 117 px, deux par ligne dans la
+  colonne de 300 px, chacune avec sa vraie image ;
+- §8.1 (la planche) et §8.2 (la recherche) ont été faits dans la passe
+  Design ▸ Face.
+
+Ce qui restait de §8 est §8.3 (favoris et récents), resté en P2.
+
+**Un défaut trouvé en mesurant, lui bien réel.** Sur le visage du template, où
+aucune pièce ne vient de la bibliothèque, le sélecteur *Look* n'avait qu'une
+option, **désactivée** : un `<select>` dont toutes les options le sont ne
+sélectionne rien et dessine une boîte vide. Le contrôle se lisait comme cassé
+plutôt que comme « pas encore ».
+
+| Ce qui a changé | Où |
+| --- | --- |
+| Une option de tête, sélectionnée : « No look to apply yet » | `style-browser.js` |
+| Les looks restent listés, désactivés — ce qu'ils sont vaut d'être lu | idem |
+
+**Prouvé par** une spec dans `ux45-character-builder` : quelque chose est
+sélectionné, la boîte a des mots, et la porte se rouvre dès qu'une pièce de
+bibliothèque arrive sur le visage.
+
 ### Rendu global
 
 | Ce qui a changé | Où |
@@ -330,7 +358,6 @@ Par ordre de valeur, avec la référence de l'audit.
 | --- | --- | --- |
 | **P1** | Clic = la pièce, double-clic = dedans, fil d'Ariane de sélection | [02](02_PROBLEMES.md) §2.1 · PR **UI-03** |
 | **P1** | Le gizmo agit sur la partie, et miroite la paire liée comme les champs | §2.2 · PR **UI-04** |
-| **P1** | Les 22 presets visibles d'un coup, avec des chips de genre facultatives | §8 · PR **UI-06** |
 | **P1** | Messages de validation en langage utilisateur, avec un *Fix* | §4.2 · PR **UI-05** |
 | **P1** | Les mains dessinées depuis Design, sans aller-retour vers Rig | §1 (op. 11) |
 | **P2** | Favoris et récents dans la bibliothèque | §8.3 |

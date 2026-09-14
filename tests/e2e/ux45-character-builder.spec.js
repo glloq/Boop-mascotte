@@ -1697,3 +1697,25 @@ test('@critical a drag mirrors a linked pair exactly as a typed number does, in 
   await page.keyboard.press('ArrowRight');
   await expect.poll(async () => (await page.evaluate(() => window.__BOOP_E2E__.document().elements.eyeRight.baseTransform.x))).toBeLessThan(0);
 });
+
+/**
+ * A `<select>` whose every option is disabled selects nothing and draws an
+ * empty box. On the template face — where no part comes from the library yet —
+ * *Look* was a control with nothing written in it at all, which reads as broken
+ * rather than as "not yet".
+ */
+test('Look says it has nothing to offer rather than showing an empty box', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  await page.locator('[data-part-category="presets"]').click();
+
+  const look = page.locator('[data-face-style]');
+  await expect(look).toBeVisible();
+  // Something is chosen, so the box has words in it.
+  expect(await look.evaluate((node) => node.selectedIndex)).toBeGreaterThanOrEqual(0);
+  await expect(look).toContainText('No look to apply yet');
+  // And the looks themselves stay listed: what they are is still worth reading,
+  // and the door reopens the moment a library part lands on the face.
+  await expect(look.locator('option[value="soft-cartoon"]')).toHaveAttribute('disabled', '');
+});

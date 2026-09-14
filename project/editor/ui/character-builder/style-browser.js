@@ -66,7 +66,16 @@ export function styleSelectMarkup(view = {}) {
     // *unavailable* is disabled, and the note is what says which is which.
     return `<option value="${esc(style.id)}"${state === 'current' ? ' selected' : ''}${state === 'unavailable' ? ' disabled' : ''} data-style-state="${state}" title="${esc(TITLE[state](style))}">${esc(style.label)} — ${esc(NOTE[state](style))}</option>`;
   }).join('');
+  // A `<select>` whose every option is disabled selects nothing and draws an
+  // empty box: on the template face, where no part comes from the library, Look
+  // was a control with nothing written in it at all. A placeholder says the
+  // state instead, and is the option that is selected — the looks stay listed
+  // under it, disabled, because what they are is still worth reading.
+  const nothingToPick = styles.every((style) => faceStyleState(style) === 'unavailable');
+  const placeholder = nothingToPick
+    ? `<option value="" selected disabled data-style-state="none">No look to apply yet</option>`
+    : '';
   return `<label class="face-setting" data-face-setting="style"><span>Look</span>
-    <select data-face-style aria-label="What look the face is drawn in" title="Redraws the parts somebody has drawn in this look, and leaves the rest exactly as they are. One undo step.">${options}</select>
+    <select data-face-style aria-label="What look the face is drawn in"${nothingToPick ? ' data-style-empty="true"' : ''} title="Redraws the parts somebody has drawn in this look, and leaves the rest exactly as they are. One undo step.">${placeholder}${options}</select>
   </label>${view.notice ? `<p class="face-pick-notice" data-tone="info" data-style-notice>${esc(view.notice)}</p>` : ''}`;
 }
