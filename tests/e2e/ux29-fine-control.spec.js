@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openAdvanced, openFreshEditor, openTask, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
+import { openAdvanced, openFreshEditor, openRigBench, openTask, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const effective = (page, name) => page.evaluate((key) => window.__BOOP_E2E__.effectiveParams()[key], name);
@@ -33,6 +33,9 @@ test('a live control can be typed, not only dragged', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await openTask(page, 'preview');
+  // The eighteen live sliders are the rig bench, folded under "Test the rig"
+  // (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §11).
+  await openRigBench(page);
 
   const field = page.locator('[data-preview-output="lookX"]');
   await expect(field).toHaveAttribute('type', 'number');

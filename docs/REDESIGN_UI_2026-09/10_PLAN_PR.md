@@ -100,6 +100,15 @@ ceux de la bibliothèque de pièces, et les deux champs ajoutés sont optionnels
 
 ### UI-REDESIGN-01 — Design system et composants de base
 
+> **↩︎ Remplacé par la couche de `main` (#144).** La même sortie du CSS a été
+> livrée en parallèle, avec le vocabulaire `--ux-*` et une stratégie additive :
+> `styles/{tokens,gestures,library,preview,behavior,shell}.css`, le `<link>`
+> avant les blocs `<style>`, et un bloc migré en étant supprimé puis réécrit.
+> Les points ③ et ④ ci-dessous — l'inversion de la hiérarchie des boutons — ne
+> sont donc **pas** faits : dans la couche en place, un `button` nu est déjà le
+> bleu primaire et `.secondary` est le bouton calme. Cette fiche reste comme
+> trace du raisonnement ; l'état courant est dans `project/editor/styles/README.md`.
+
 | | |
 | --- | --- |
 | **Objectif** | Sortir le CSS de `index.html`, créer les jetons, redéfinir les boutons en quatre niveaux, créer modale, tiroir, infobulle, badge, état vide, toast. Aucun changement de comportement. |

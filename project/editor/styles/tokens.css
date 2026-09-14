@@ -1,129 +1,96 @@
-/*
- * The jetons (UI-REDESIGN-01, docs/REDESIGN_UI_2026-09/07_DESIGN_SYSTEM.md).
+/**
+ * The editor's palette, spacing and type, as tokens.
  *
- * One file, and one rule that makes it worth having: **a module never chooses a
- * value, it chooses a token**. Before this the editor declared 247 distinct hex
- * colours across 620 literal values, 17 border radii and 20 font sizes, against
- * 11 variables — so no palette, no scale, and no way to move anything without
- * finding every copy of it.
+ * `project/editor/index.html` carries 107 KB of CSS across thirty-five inline
+ * `<style>` blocks and **247 distinct hex values** against eleven `--ux-*`
+ * tokens — so "the same blue" is fourteen different blues, and a change to the
+ * panel background is a find-and-replace across a file nobody can read. This
+ * is the layer that ends that.
  *
- * Contrast is not a matter of taste here: every text/background pair below is
- * checked by `core/tests/design-tokens.test.js`, which fails the build if one
- * drops under 4.5:1 (text) or 3:1 (control boundaries and large text).
+ * It is deliberately additive. Every `--ux-*` token the existing blocks already
+ * read keeps its exact value, and the new names below are the vocabulary the
+ * migration moves to, one component at a time. The link to this file sits
+ * *before* the inline blocks in `<head>`, so anything they declare still wins
+ * and adopting this layer can never change a pixel by itself.
  *
- * The `--ux-*` block at the end is the bridge. Those eleven names are read 111
- * times by `surfaces.css`, the stylesheet as it was; mapping them onto the new
- * palette is what lets the redesign reach the whole editor without editing a
- * thousand declarations first. They are deprecated: nothing new should use one.
+ * The scale is not invented: every value is one already in the file, picked as
+ * the one that appears most. `#79adff` (33 uses) is the focus and selection
+ * blue, `#aebbd0` (21) the muted text, `#285fce` (16) the pressed state,
+ * `#40506b` (14) the popover border.
  */
-:root{
-  /* ── Surfaces: four levels, with a luminance gap you can actually see ───── */
-  --bp-bg:            #0a1020;  /* the page behind everything */
-  --bp-surface:       #131c33;  /* panels, rail, drawer, popovers */
-  --bp-raised:        #1c2846;  /* cards, fields, secondary buttons */
-  --bp-raised-hover:  #24325a;  /* a card under the pointer */
+:root {
+  /* ── Ground and surfaces ─────────────────────────────────────────────── */
+  --ux-canvas-void: #080d18;     /* behind everything */
+  --ux-surface: #121c30;         /* a panel */
+  --ux-raised: #101a2d;          /* a popover, a menu, a card on a panel */
+  --ux-sunk: #0b1322;            /* a well: the timeline viewport, a code area */
+  --ux-bar: #11182a;             /* the project bar and the dock */
+  /* A drawing is shown on the paper it was drawn for, not on the panel: a
+     black outline on a dark ground is not a preview of anything. */
+  --ux-thumb-ground: #ffffff;
 
-  /* ── Lines ─────────────────────────────────────────────────────────────────
-   * Two, and they answer two different questions. `--bp-border` separates
-   * regions and is deliberately quiet. `--bp-border-strong` is the *edge of a
-   * control*, which WCAG asks to reach 3:1 against its background — it does
-   * (3.75 on surface, 3.23 on raised).                                       */
-  --bp-border:        #2a3654;
-  --bp-border-strong: #6076a8;
+  /* ── Ink ─────────────────────────────────────────────────────────────── */
+  --ux-text: #e5e7eb;
+  --ux-text-strong: #ffffff;
+  --ux-muted: #b8c6dc;
+  --ux-faint: #8da4c5;           /* a hint, a count, a unit */
+  --ux-dim: #7f92b3;             /* the quietest legible text */
 
-  /* ── Text ──────────────────────────────────────────────────────────────── */
-  --bp-text:          #e8edf7;  /* 14.4:1 on surface */
-  --bp-text-muted:    #9aa9c4;  /*  7.1:1 on surface — still a reading colour */
-  --bp-text-faint:    #6b7a96;  /*  3.9:1 — large text and decoration only */
+  /* ── Lines ───────────────────────────────────────────────────────────── */
+  --ux-border: #2b3a55;
+  --ux-border-strong: #33425d;
+  --ux-border-soft: #3b4c68;
+  --ux-border-popover: #40506b;
 
-  /* ── Accent: one family, five steps, and each one has a single job ───────── */
-  --bp-accent-tint:   #1d2f5c;  /* the ground of a selected thing */
-  --bp-accent:        #3b6fe0;  /* a primary fill — white on it is 4.6:1 */
-  --bp-accent-hover:  #4c80f0;
-  --bp-accent-ring:   #7aa7ff;  /* the keyboard focus ring, and nothing else */
-  --bp-accent-text:   #7aa7ff;  /* accent-coloured text on a dark ground */
+  /* ── Accent: one blue, four jobs ─────────────────────────────────────── */
+  --ux-accent: #245ed4;          /* a primary button */
+  --ux-accent-hover: #285fce;    /* pressed, or active */
+  --ux-accent-line: #3974eb;     /* its border */
+  --ux-accent-bright: #5c8df2;   /* the border of an active tab */
+  --ux-focus: #79adff;           /* focus, selection, the gizmo */
+  --ux-brand: #8bb6ff;           /* the wordmark, and a heading that carries it */
 
-  /* ── Semantic ──────────────────────────────────────────────────────────── */
-  --bp-danger:        #e4606c;
-  --bp-danger-tint:   #3a1b22;
-  --bp-warn:          #f0c368;
-  --bp-warn-tint:     #382c14;
-  --bp-success:       #56cf95;
-  --bp-success-tint:  #16362a;
+  /* ── Meaning. Never the accent: a state is not a button. ─────────────── */
+  --ux-success: #bce8cd;
+  --ux-success-line: #6ee7a8;
+  --ux-warn: #f3c76b;
+  --ux-warn-text: #fde68a;
+  --ux-warn-line: #f0c08a;
+  --ux-danger: #f0909f;
+  --ux-danger-bg: #4a1d29;
 
-  /* ── Thumbnails: the one light ground in the editor ──────────────────────
-   * Not #fff. Pure white against a blue-night panel vibrates, and the library
-   * is a grid of a hundred of them.                                          */
-  --bp-thumb-bg:      #eef2f8;
-  --bp-thumb-border:  #cdd7e6;
+  /* ── Space. A four-step scale; anything between is a decision nobody made. */
+  --ux-gap-1: 4px;
+  --ux-gap-2: 8px;
+  --ux-gap-3: 12px;
+  --ux-gap-4: 18px;
 
-  /* ── Type: six sizes, against twenty ─────────────────────────────────────
-   * 157 of the old stylesheet's 180 font-size declarations were 13px or less,
-   * which left no size contrast to build a hierarchy out of.                 */
-  --bp-font: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --bp-text-xs:  12px; --bp-lh-xs:  16px;  /* meta, counters, badges */
-  --bp-text-sm:  13px; --bp-lh-sm:  18px;  /* the body of the interface */
-  --bp-text-md:  15px; --bp-lh-md:  22px;  /* control labels, cards */
-  --bp-text-lg:  18px; --bp-lh-lg:  24px;  /* panel titles */
-  --bp-text-xl:  24px; --bp-lh-xl:  30px;  /* screen titles */
-  --bp-text-2xl: 40px; --bp-lh-2xl: 46px;  /* the Home hero, alone */
-  --bp-weight-regular: 400;
-  --bp-weight-medium:  550;
-  --bp-weight-bold:    680;
+  /* ── Shape ───────────────────────────────────────────────────────────── */
+  --ux-radius-1: 5px;            /* a chip, a swatch */
+  --ux-radius-2: 7px;            /* a button, a field */
+  --ux-radius-3: 10px;           /* a card, a popover */
+  --ux-radius-4: 14px;           /* a sheet */
 
-  /* ── Space: a 4px scale ────────────────────────────────────────────────── */
-  --bp-space-1:  4px; --bp-space-2:  8px; --bp-space-3: 12px; --bp-space-4: 16px;
-  --bp-space-5: 24px; --bp-space-6: 32px; --bp-space-7: 48px;
+  /* ── Lift. Three depths, so a card cannot borrow a dialog's shadow. ──── */
+  --ux-lift-1: 0 2px 6px #0004;
+  --ux-lift-2: 0 8px 22px #0006;
+  --ux-lift-3: 0 14px 38px #0008;
 
-  /* ── Radius: five, against seventeen ─────────────────────────────────────
-   * 1 2 3 → sm · 5 6 7 8 9 → md · 10 12 14 → lg · 99 999 → pill             */
-  --bp-radius-sm:   6px;
-  --bp-radius-md:  10px;
-  --bp-radius-lg:  14px;
-  --bp-radius-xl:  20px;
-  --bp-radius-pill: 999px;
+  /* ── Type ────────────────────────────────────────────────────────────── */
+  --ux-font: Inter, system-ui, sans-serif;
+  --ux-mono: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --ux-size-label: 11px;         /* an uppercase section label */
+  --ux-size-small: 11.5px;       /* a hint under a control */
+  --ux-size-body: 12px;          /* the editor's own body size */
+  --ux-size-control: 13px;
+  --ux-size-heading: 15px;
+  --ux-track-label: .06em;       /* the letter-spacing uppercase labels need */
 
-  /* ── Scrim: what a modal or a drawer puts between itself and the page ──── */
-  --bp-scrim: #06090fa0;
-
-  /* ── Elevation ─────────────────────────────────────────────────────────── */
-  --bp-shadow-1: 0 1px 2px #00000040;
-  --bp-shadow-2: 0 6px 16px #00000059;
-  --bp-shadow-3: 0 18px 48px #00000073;
-
-  /* ── Motion ────────────────────────────────────────────────────────────── */
-  --bp-ease: cubic-bezier(.2,.8,.3,1);
-  --bp-duration-fast: 120ms;
-  --bp-duration-base: 180ms;
-  --bp-duration-slow: 260ms;
-
-  /* ── Controls ──────────────────────────────────────────────────────────── */
-  --bp-control-sm: 28px;
-  --bp-control:    36px;
-  --bp-control-lg: 48px;
-  --bp-touch:      44px;  /* the smallest a finger may be asked to hit */
+  /* ── Motion ──────────────────────────────────────────────────────────── */
+  --ux-quick: .12s;
+  --ux-ease: .2s;
 }
 
-@media (prefers-reduced-motion: reduce){
-  :root{--bp-duration-fast:0ms;--bp-duration-base:0ms;--bp-duration-slow:0ms}
-}
-
-/*
- * The bridge. Deprecated: `surfaces.css` reads these, nothing new should.
- * `--ux-accent` was the odd one out — used once, declared nowhere, and falling
- * back to a cyan (#6cf) that appears in no other part of the interface.
- */
-:root{
-  --ux-text:          var(--bp-text);
-  --ux-muted:         var(--bp-text-muted);
-  --ux-surface:       var(--bp-surface);
-  --ux-raised:        var(--bp-raised);
-  --ux-border:        var(--bp-border);
-  --ux-border-strong: var(--bp-border-strong);
-  --ux-border-soft:   var(--bp-border-strong);
-  --ux-focus:         var(--bp-accent-ring);
-  --ux-accent:        var(--bp-accent-ring);
-  --ux-warn:          var(--bp-warn);
-  --ux-warn-text:     var(--bp-warn);
-  --ux-success:       var(--bp-success);
+@media (prefers-reduced-motion: reduce) {
+  :root { --ux-quick: 0s; --ux-ease: 0s; }
 }

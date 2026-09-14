@@ -59,12 +59,18 @@ test('@critical a workspace shows its own screens, keeps the one already open, a
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
 
-  // Every screen of the open workspace is visible; the ones belonging to the
-  // other three are not competing for the same row.
+  // Every screen of the open workspace is reachable; the ones belonging to the
+  // other three are not competing for the same row. The screens a workspace
+  // marks advanced sit behind a chevron rather than in the row, so a Bézier
+  // node editor no longer stands beside *Face* at the same level
+  // (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §7.2) -- folded, never removed.
   await workspace(page, 'rig').click();
-  for (const mode of ['rig.assign', 'rig.controls', 'rig.head2d', 'rig.deform']) {
+  for (const mode of ['rig.assign', 'rig.controls', 'rig.head2d']) {
     await expect(screenTab(page, mode), `${mode} is unreachable from its own workspace`).toBeVisible();
   }
+  await expect(screenTab(page, 'rig.deform'), 'Deform is an expert screen and starts folded').toBeHidden();
+  await page.locator('[data-stage-more="rig"]').click();
+  await expect(screenTab(page, 'rig.deform'), 'the chevron is the door Deform keeps').toBeVisible();
   await expect(screenTab(page, 'design.hands')).toBeHidden();
   // And all four questions stay on offer from anywhere, which is what stops the
   // second level becoming a gate.
@@ -96,7 +102,7 @@ test('a workspace says how ready its screens are, and navigating it writes nothi
   await expect(workspace(page, 'rig')).toHaveAttribute('aria-label', /^Rig workspace/);
 
   for (const id of ['animate', 'behavior', 'rig', 'design']) await workspace(page, id).click();
-  for (const mode of ['design.face', 'design.hands', 'design.artwork']) await screenTab(page, mode).click();
+  for (const mode of ['design.face', 'design.hands', 'design.artwork']) await goToMode(page, mode);
 
   const after = await page.evaluate(() => ({
     revision: window.__BOOP_E2E__.documentRevisions().persistent,

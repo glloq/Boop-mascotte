@@ -47,7 +47,7 @@ import { mascotCharacters, mascotTypeLabel, mascotTypes } from './wizard-model.j
  */
 export const wizardMarkup = () => `<section class="wizard" data-wizard hidden aria-label="New mascot">
   <header class="wizard-bar">
-    <button type="button" class="btn-ghost" data-wizard-back>← <span data-wizard-back-label>Cancel</span></button>
+    <button type="button" class="link" data-wizard-back>← <span data-wizard-back-label>Cancel</span></button>
     <p class="wizard-name">New mascot</p>
     <ol class="wizard-dots" data-wizard-dots aria-hidden="true"></ol>
   </header>
@@ -58,21 +58,21 @@ export const wizardMarkup = () => `<section class="wizard" data-wizard hidden ar
 export function typeStepMarkup(types = []) {
   if (!types.length) {
     return `<div class="wizard-step"><h1 id="wizard-heading" tabindex="-1">Nothing is drawn yet</h1>
-      <p class="bp-empty-title">A face pack brings the drawings a kind of mascot is made of.</p>
+      <p class="screen-empty">A face pack brings the drawings a kind of mascot is made of.</p>
       <p class="wizard-otherwise"><button type="button" class="secondary" data-wizard-other="blank">Start from a blank drawing</button>
         <button type="button" class="secondary" data-wizard-other="import">Import an SVG</button></p></div>`;
   }
-  const cards = types.map((type) => `<button type="button" class="bp-card wizard-type" data-wizard-type="${esc(type.id)}" title="${esc(type.description)}">
+  const cards = types.map((type) => `<button type="button" class="screen-card wizard-type" data-wizard-type="${esc(type.id)}" title="${esc(type.description)}">
       <span class="wizard-type-art" aria-hidden="true">${type.thumbnail}</span>
-      <span class="bp-card-title wizard-type-name">${esc(type.label)}</span>
-      <small class="bp-card-note">${type.count} character${type.count === 1 ? '' : 's'}</small>
+      <span class="screen-card-title wizard-type-name">${esc(type.label)}</span>
+      <small class="screen-card-note">${type.count} character${type.count === 1 ? '' : 's'}</small>
     </button>`).join('');
   return `<div class="wizard-step wizard-step-type">
     <h1 id="wizard-heading" tabindex="-1">What kind of mascot do you want to make?</h1>
     <div class="wizard-types" role="group" aria-label="Kinds of mascot">${cards}</div>
     <p class="wizard-otherwise">Otherwise:
-      <button type="button" class="btn-ghost" data-wizard-other="blank">Start from a blank drawing</button> ·
-      <button type="button" class="btn-ghost" data-wizard-other="import">Import an SVG</button></p>
+      <button type="button" class="link" data-wizard-other="blank">Start from a blank drawing</button> ·
+      <button type="button" class="link" data-wizard-other="import">Import an SVG</button></p>
   </div>`;
 }
 
@@ -90,16 +90,16 @@ export function typeStepMarkup(types = []) {
  */
 export function characterStepMarkup({ type = '', characters = [], selected = null } = {}) {
   const current = characters.find((item) => item.id === selected) || characters[0] || null;
-  const cards = characters.map((item) => `<button type="button" class="bp-card wizard-character" data-wizard-character="${esc(item.id)}" aria-pressed="${item.id === current?.id}" title="${esc(item.description || item.name)}">
+  const cards = characters.map((item) => `<button type="button" class="screen-card wizard-character" data-wizard-character="${esc(item.id)}" aria-pressed="${item.id === current?.id}" title="${esc(item.description || item.name)}">
       <span class="wizard-character-art" aria-hidden="true">${item.thumbnail}</span>
-      <span class="bp-card-title wizard-character-name">${esc(item.name)}</span>
+      <span class="screen-card-title wizard-character-name">${esc(item.name)}</span>
     </button>`).join('');
   return `<div class="wizard-step wizard-step-character">
     <div class="wizard-choices">
-      <p class="bp-eyebrow">${esc(mascotTypeLabel(type))}</p>
+      <p class="screen-eyebrow">${esc(mascotTypeLabel(type))}</p>
       <h1 id="wizard-heading" tabindex="-1">Which one?</h1>
       <div class="wizard-characters" role="group" aria-label="Characters">${cards}</div>
-      <button type="button" class="btn-ghost wizard-surprise" data-wizard-surprise>⤺ Surprise me</button>
+      <button type="button" class="link wizard-surprise" data-wizard-surprise>⤺ Surprise me</button>
     </div>
     <div class="wizard-preview">
       <div class="wizard-preview-art" data-wizard-preview aria-hidden="true">${current?.thumbnail || ''}</div>

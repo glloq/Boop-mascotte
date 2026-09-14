@@ -153,7 +153,19 @@ export const MODE_ALIASES = Object.freeze({
 
 const TARGET_KINDS = new Set(['artwork-element', 'semantic-part', 'semantic-control', 'expression', 'reaction', 'animation-clip', 'timeline-track', 'timeline-key', 'state', 'diagnostic']);
 
-export const DEFAULT_MODE = 'design.artwork';
+/**
+ * Where the editor opens.
+ *
+ * It was `design.artwork` — the vector editor, nine drawing tools — so a
+ * template loaded from Home, a project opened, or a face generated all landed
+ * somebody who wanted a mascot in front of a Pen and a Bézier node tool. Only
+ * *New Character* passed `design.face` explicitly, and it was the one path
+ * that did (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §1.5).
+ *
+ * Importing an SVG still lands on Artwork, and should: that is the one case
+ * where the author arrives holding a drawing to work on.
+ */
+export const DEFAULT_MODE = 'design.face';
 
 /** A mode id, whatever it was called when the caller learned it. */
 export function normalizeMode(value, fallback = DEFAULT_MODE) {

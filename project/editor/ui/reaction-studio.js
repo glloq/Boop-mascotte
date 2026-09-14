@@ -375,8 +375,15 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
     // A motion that nothing runs never reaches the exported mascot, however
     // finished it is: an arrangement is editor-only, so a reaction is the only
     // way out of Animate. Choosing a when and pressing Run is that way.
+    //
+    // Folded, because the template ships thirty motions and none of them has a
+    // reaction yet: open, this one list measured 2624 px of a 5543 px column --
+    // half of Behavior ▸ Reactions was a scolding about work nobody had
+    // started. The count in the summary is the whole message; the list behind
+    // it is the same list, with the same when-and-Run on every row
+    // (docs/AUDIT_UI_2026-09/07_IMPLEMENTATION.md).
     const motions = derived.motions.length
-      ? `<section class="runs-when-motions" data-runs-when-motions="${derived.motions.length}"><h4>Motions that never run<small>${derived.motions.length}</small></h4><p class="small">A motion plays in the exported mascot only when something runs it. Pick a when and it becomes a reaction.</p>${derived.motions.map((clip) => `<article class="preset-card" data-motion-card="${esc(clip.id)}"><div><b>${esc(clip.name)}</b><small>Nothing runs it yet.</small></div><div class="automatic-actions"><select data-motion-when="${esc(clip.id)}" aria-label="When ${esc(clip.name)} runs">${whenOptions('idle')}</select><button type="button" data-motion-run="${esc(clip.id)}" aria-label="Run ${esc(clip.name)}">Run it</button></div></article>`).join('')}</section>`
+      ? `<details class="runs-when-motions" data-runs-when-motions="${derived.motions.length}"><summary><span class="setup-title">Motions that never run</span><span class="setup-summary">${derived.motions.length}</span></summary><p class="small">A motion plays in the exported mascot only when something runs it. Pick a when and it becomes a reaction.</p>${derived.motions.map((clip) => `<article class="preset-card" data-motion-card="${esc(clip.id)}"><div><b>${esc(clip.name)}</b><small>Nothing runs it yet.</small></div><div class="automatic-actions"><select data-motion-when="${esc(clip.id)}" aria-label="When ${esc(clip.name)} runs">${whenOptions('idle')}</select><button type="button" data-motion-run="${esc(clip.id)}" aria-label="Run ${esc(clip.name)}">Run it</button></div></article>`).join('')}</details>`
       : '';
     // A reaction whose trigger this build cannot run is reported, never filed
     // under a when it does not have (V3-09, VNX-39).

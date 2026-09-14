@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToMode, openFreshEditor, openSetupSection, startBasicFace, startBuiltFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, openRigBench, openSetupSection, startBasicFace, startBuiltFace } from './editor-helpers.js';
 
 /**
  * Pose chips (docs/DIRECT_CONTROLS.md): one press per named place on a part's
@@ -40,6 +40,7 @@ test('@critical one press poses a part, in Face Setup and in Preview', async ({ 
 
   // The same chips reach the same movements from Preview.
   await goToMode(page, 'preview');
+  await openRigBench(page);
   await page.locator('#preview-panel [data-pose-chip="mouth:grin"]').click();
   const grinning = await params(page);
   expect(grinning.smile).toBeGreaterThan(0);
@@ -137,6 +138,7 @@ test('every part of the face can be posed from one row of chips', async ({ page 
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await goToMode(page, 'preview');
+  await openRigBench(page);
   const live = page.locator('[data-preview-section="live"]');
   // Nose, jaw, hair and ears used to have no controls at all, so no chips.
   for (const part of ['head', 'eyes', 'gaze', 'eyebrows', 'nose', 'mouth', 'jaw', 'hair', 'ears']) {

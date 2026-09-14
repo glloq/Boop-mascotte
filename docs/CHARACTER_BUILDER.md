@@ -34,17 +34,28 @@ selection.
 
 ```text
 ┌ Character ────────────┬────────────────────────┬ Part Inspector ───────────┐
-│ ★ Presets             │                        │ Eyes              [Eyes]  │
-│ ◯ Head       Face     │                        │ [Left eye] [Right eye]    │
-│ ◉ Eyes  ◄  Left · Right                        │ Position   X [ ]  Y [ ]   │
-│    [Left eye][Right eye]     the canvas        │ Size/turn  Scale  Rotation│
-│ • Pupils              │   (the existing one)   │ Colours    ■ ■ ■          │
-│ ◠ Eyelids   …         │                        │ Shape      [✎ Edit Shape] │
-│ ✋ Hands               │                        │ ▸ Advanced                │
+│ Kind [Human ▾] Look[▾]│                        │ Eyes              [Eyes]  │
+│ 🔍 [ search        ]  │                        │ Left eye · Left eye       │
+│ ★ Presets             │     ┌ ─ ─ ─ ─ ┐        │ ⧉ ⇄ ⇋ ↑ ↓ 🗑              │
+│ ◯ Head       Face     │     │selection│        │ [Left eye] [Right eye]    │
+│ ◉ Eyes  ◄  Left · Right     └ ─ ─ ─ ─ ┘        │ Position   X [ ]  Y [ ]   │
+│    [Left eye][Right eye]   ⧉ ⇄ ⇋ ↑ ↓ 🗑        │ Size/turn  Scale  Rotation│
+│    ┌──┐┌──┐┌──┐       │   (the existing canvas)│ Colours    ■ ■ ■          │
+│    └──┘└──┘└──┘       │                        │ ▸ More      symmetry      │
+│ • Pupils   ◠ Eyelids… │                        │ ▸ Advanced  shape, reset  │
+│ ◐ Colours  ✋ Hands    │                        │             the rig       │
 │ ── ADVANCED ──────────│                        │                           │
 │ [Artwork] [Face Setup]│                        │                           │
 └───────────────────────┴────────────────────────┴───────────────────────────┘
 ```
+
+**Kind** and **Look** are settings over the list rather than rows in it, and
+**Colours** is a footer: neither of the first two is a part of a face — Kind
+says of itself that it changes nothing on the mascot — and they were the second
+and third things read in a panel whose subject is the face
+(`docs/AUDIT_UI_2026-09/02_PROBLEMES.md` §1.4). The library is a grid of
+thumbnails with a search over it; **the six actions** are the same six the
+canvas bar and the right-click menu offer (`ui/piece-actions.js`).
 
 - **A press on a category selects every piece that plays it** — both eyes,
   the fringe, the crown and the back of the hair — on the canvas and in the
@@ -143,10 +154,18 @@ selection.
   marked *On ×*, titled *Press to take it off*, named *Take Glasses off* for
   a screen reader -- and a card at a mount point that is already worn still
   replaces what is there. Either press is one command and one undo step; the
-  piece in hand keeps its **Remove** in the inspector
+  piece in hand is taken off with **Delete**, like any other piece
   (`docs/FACE_PART_LIBRARY.md`, "Several at once").
-- The arrow keys nudge the part, and G · E · K · A pick the gizmo modes, as in
-  Artwork. Delete, copy, paste, group and the drawing tools stay Artwork's.
+- **The gestures of a piece are the same on every surface that edits one**
+  (`ui/piece-actions.js`): Delete, Ctrl+D, Ctrl+C/V, Ctrl+A, `]`/`[`, the
+  arrow keys, the gizmo modes and the right-click menu. They used to be
+  Artwork's alone, so the screen built for somebody who does not know what an
+  SVG is had no way to take a pair of eyes off a face
+  (`docs/AUDIT_UI_2026-09/02_PROBLEMES.md` §1). Only the **drawing tools**
+  stay Artwork's: `V N P L R O S T H` in Design ▸ Face would put a beginner
+  into the Pen with no way back. Delete here goes through
+  `facePartCommands.remove`, which takes the roles and the movements with the
+  drawing.
 
 ## The one-minute path
 
@@ -239,16 +258,21 @@ means on a duck exactly what it means on a person. Nothing named `muzzle`,
 A cat's column reads:
 
 ```text
-Presets · Type · Style · Colours
+Kind [Muzzle ▾]   Look [Soft Cartoon ▾]      ← the header, not rows
+Presets
 Head · Eyes · Pupils · Brows · Ears · Muzzle · Nose · Mouth · Whiskers · Hair · Accessories
-Hands
+Colours · Hands
 ```
 
 The order is the morphology's own; a row that is only there because the mascot
 is wearing something in it comes after. Which rows are shown is the MASC-07
 filter, per row rather than per category: the kind of face, plus every row with
-a piece on the mascot in it, plus the row that is open. Changing Type never
-hides the only door to a part somebody has already put on.
+a piece on the mascot in it, plus the row that is open. Changing Kind never
+hides the only door to a part somebody has already put on — and **Show every
+drawing**, under the grid, lifts the filter altogether, marking each card with
+the kind it was drawn for. The filter is the right default and was the only
+behaviour: putting a beak on a human face was impossible to *find*, though the
+library could always do it (`docs/AUDIT_UI_2026-09/02_PROBLEMES.md` §9.2).
 
 **Which row a part is in** is read from the asset it was installed from —
 `part.assetId` → `library.get` → `assetSlot` — so a click on a whisker opens
@@ -326,7 +350,7 @@ sits beside it, session-only for the same reason.
 | Scale | the same command with `scaleX` and `scaleY`, signs kept |
 | a swatch | `history.beginTransaction()`, `canvas.setAppearance()` per use, `history.commitTransaction()` |
 | Colours → a token | `createFacePartCommands(...).retint(token, colour)`: the same, over every use of the colour on the face |
-| Remove (an accessory, facial hair), or a press on the card of one being worn | `createFacePartCommands(...).remove(partId)`: the artwork off the canvas, references scrubbed, the part dropped -- with anything hanging inside it -- one undo step |
+| Delete on any piece, or a press on the card of one being worn | `createFacePartCommands(...).remove(partId)`: the artwork off the canvas, references scrubbed, the part dropped -- with anything hanging inside it -- one undo step |
 | Edit Shape | `taskRouter.navigate({ task: 'artwork', target: { kind: 'artwork-element', id } })`, `canvas.setEditScope(id)`, then the Node tool for a path; `#return-character` navigates back with the piece as the target |
 | Advanced → Artwork | the same route without the tool |
 | Advanced → Face Setup | `{ task: 'face-setup', target: { kind: 'semantic-part', id } }`, or the checklist when nothing is in hand |

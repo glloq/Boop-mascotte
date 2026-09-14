@@ -13,7 +13,7 @@
  */
 import {
   gizmoModel, hitTestGizmo, beginGizmoDrag, updateGizmoDrag, cancelGizmoDrag,
-  GIZMO_MODES, GIZMO_SHORTCUTS, CORNER_HANDLES, EDGE_HANDLES
+  GIZMO_MODES, GIZMO_SHORTCUTS, GIZMO_ALIASES, CORNER_HANDLES, EDGE_HANDLES
 } from './gizmo-geometry.js';
 import { createSelectionOverlay, cursorForHandle } from './selection-overlay.js';
 
@@ -31,8 +31,11 @@ const SCALE_HANDLES = new Set([...CORNER_HANDLES, ...EDGE_HANDLES]);
  *        Whether a press inside the box should drag the selection. Handles are
  *        always the gizmo's; the body is not, when the press lands on other
  *        artwork the author is more likely trying to select.
+ * @param {() => boolean} [options.aliasKeys]
+ *        Whether `R` `S` `P` may also pick a mode. True on a surface with no
+ *        drawing tools, where those letters mean nothing else (`GIZMO_ALIASES`).
  */
-export function createTransformGizmo({ layer, surface, getTarget, onPreview, onCommit, toCanvas, canDragBody = () => true }) {
+export function createTransformGizmo({ layer, surface, getTarget, onPreview, onCommit, toCanvas, canDragBody = () => true, aliasKeys = () => false }) {
   const overlay = createSelectionOverlay(layer);
   let mode = 'move';
   let drag = null;
@@ -121,7 +124,10 @@ export function createTransformGizmo({ layer, surface, getTarget, onPreview, onC
   function onKeyDown(event) {
     if (event.key === 'Escape') return cancel();
     if (event.metaKey || event.ctrlKey || event.altKey) return false;
-    const next = GIZMO_SHORTCUTS[String(event.key).toLowerCase()];
+    // The familiar letters too, but only where no drawing tool has claimed
+    // them: the caller says whether this surface has any (`aliasKeys`).
+    const key = String(event.key).toLowerCase();
+    const next = GIZMO_SHORTCUTS[key] || (aliasKeys() ? GIZMO_ALIASES[key] : undefined);
     if (!next || drag) return false;
     mode = next;
     render();

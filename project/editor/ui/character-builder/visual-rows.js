@@ -39,6 +39,18 @@ import { FACE_SLOTS, FACE_SLOT_IDS, faceMorphology, faceSlot } from '../../core/
 import { wornPartSlot } from '../../core/face-library/compatibility.js';
 import { CHARACTER_CATEGORIES } from './character-model.js';
 
+/**
+ * The two rows that are not rows: what kind of face this is, and what look it
+ * is drawn in.
+ *
+ * Neither is a part of the face, and both were listed above the head. *Type*
+ * says of itself that it "changes nothing on the mascot" — it decides what the
+ * library offers — and *Style* is a reading of how much of the library could
+ * redraw what is there. They are settings over the list, drawn as two chips in
+ * the panel's header, and this is the table that keeps them out of it.
+ */
+export const HEADER_KINDS = Object.freeze(['type', 'style']);
+
 /** The glyph and the hint for the slots that are not one of the eleven categories. */
 const SLOT_GLYPHS = Object.freeze({ muzzle: '▽', whiskers: '⋙', beak: '◣', horns: '⋏', crest: '♜', antenna: '⑂', panels: '▤' });
 const SLOT_HINTS = Object.freeze({
@@ -134,8 +146,19 @@ export function deriveVisualRows(model, { document = {}, library = null, morphol
 
   const order = slotOrder(morphology);
   const rows = [];
-  for (const category of model?.categories || []) if (category.kind && category.kind !== 'hands') rows.push({ ...category, slot: null, categoryId: null, dedicated: false });
+  // Presets first, then the parts of the face, then its colours, then the
+  // hands (MASC-08B and the audit's §1.4). What changed: *Type* and *Style*
+  // are no longer rows at all. They were the second and third things in a
+  // panel whose subject is the face — above the head — and neither is a part
+  // of it: Type decides what the library *offers* and says so ("it changes
+  // nothing on the mascot"), and Style is a count of what the library could
+  // redraw. Both belong over the list rather than in it, and `HEADER_KINDS`
+  // is what takes them out (`ui/character-builder/part-browser.js` draws
+  // them). Colours moved to the end for the same reason in reverse: it acts
+  // on the whole face, so it reads as a footer and not as the fourth part.
+  for (const category of model?.categories || []) if (category.kind === 'presets') rows.push({ ...category, slot: null, categoryId: null, dedicated: false });
   for (const id of order) { const row = faceSlot(id) ? partRow(FACE_SLOTS[id]) : null; if (row) rows.push(row); }
+  for (const category of model?.categories || []) if (category.kind === 'palette') rows.push({ ...category, slot: null, categoryId: null, dedicated: false });
   for (const category of model?.categories || []) if (category.kind === 'hands') rows.push({ ...category, slot: null, categoryId: null, dedicated: false });
 
   for (const row of rows) {

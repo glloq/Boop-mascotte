@@ -74,13 +74,13 @@ export function homeSurfaceMarkup(options = {}) {
       <button type="button" class="secondary btn-lg" data-home-action="open">Open a project</button>
     </div>
     <p class="home-otherwise">Otherwise:
-      <button type="button" class="btn-ghost" data-template-id="basic" title="The cartoon face this editor comes with, ready to change">Start from the ready-made face</button> ·
-      <button type="button" class="btn-ghost" data-home-action="import">Import an SVG</button></p>
+      <button type="button" class="link" data-template-id="basic" title="The cartoon face this editor comes with, ready to change">Start from the ready-made face</button> ·
+      <button type="button" class="link" data-home-action="import">Import an SVG</button></p>
     <section class="home-recovery" aria-labelledby="home-continue" data-recovery-status="none">
-      <h2 id="home-continue" class="bp-eyebrow">Continue</h2><div data-recovery-content></div>
+      <h2 id="home-continue" class="screen-eyebrow">Continue</h2><div data-recovery-content></div>
     </section>
     ${examples.length ? `<p class="home-examples" data-home-examples>Or try an example:
-      ${examples.map((example) => `<button type="button" class="btn-ghost" data-home-example="${esc(example.id)}">${esc(example.label)}</button>`).join(' · ')}</p>` : ''}
+      ${examples.map((example) => `<button type="button" class="link" data-home-example="${esc(example.id)}">${esc(example.label)}</button>`).join(' · ')}</p>` : ''}
     <button type="button" class="secondary home-back" data-home-action="back" hidden>Back to current project</button>
   </div></section>`;
 }
@@ -97,11 +97,11 @@ export function renderHomeRecovery(container, recovery) {
   const content = container.querySelector('[data-recovery-content]');
   if (recovery.status === 'available') {
     const when = recovery.savedAt ? new Date(recovery.savedAt).toLocaleString() : '';
-    content.innerHTML = `<button type="button" class="bp-card home-draft" data-home-action="recover">
-      <span class="bp-card-title">Unsaved draft</span>
-      <small class="bp-card-note">${when ? `Saved ${esc(when)}. ` : ''}Kept in this browser only.</small></button>`;
+    content.innerHTML = `<button type="button" class="screen-card home-draft" data-home-action="recover">
+      <span class="screen-card-title">Unsaved draft</span>
+      <small class="screen-card-note">${when ? `Saved ${esc(when)}. ` : ''}Kept in this browser only.</small></button>`;
   } else if (recovery.status === 'invalid') {
-    content.innerHTML = `<p role="alert" class="bp-card-note">This local draft could not be read. Your current project was not changed.</p>
+    content.innerHTML = `<p role="alert" class="screen-card-note">This local draft could not be read. Your current project was not changed.</p>
       <button type="button" class="secondary" data-home-action="discard-recovery">Discard local draft</button>`;
   } else content.innerHTML = '';
 }

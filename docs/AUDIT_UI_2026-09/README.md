@@ -21,6 +21,7 @@ outils et la divulgation progressive.
 | [04_RECOMMANDATIONS.md](04_RECOMMANDATIONS.md) | Les recommandations détaillées : bibliothèque, compatibilité, disclosure, rendu, assistant, menus, raccourcis, responsive, comparaison logiciels, fonctions manquantes | §5, §6, §10, §12, §13, §15 → §19 |
 | [05_ARCHITECTURE_CIBLE.md](05_ARCHITECTURE_CIBLE.md) | L'architecture UI cible et les wireframes texte | §21, §22 |
 | [06_PLAN_PR.md](06_PLAN_PR.md) | La priorisation P0 → P3 et le plan de PR, fichier par fichier | §23, §24 |
+| [07_IMPLEMENTATION.md](07_IMPLEMENTATION.md) | Ce qui est déjà implémenté, ce qui reste, et ce que les tests disent | — |
 
 ## Le verdict en trois lignes
 

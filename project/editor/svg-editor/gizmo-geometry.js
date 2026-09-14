@@ -23,13 +23,26 @@ import { applyElementTransform, unrotateElementPoint, inverseElementTransform, a
 
 export const GIZMO_MODES = Object.freeze(['move', 'rotate', 'scale', 'pivot']);
 
-/** G / R / S / P, and Escape to cancel — the shortcuts the toolbar mirrors. */
 /**
- * Mode keys that stay clear of the vector tools (V N P L R O T H): R is the
- * Rectangle and P the Pen, and the shape just drawn is always selected, so
- * sharing those letters meant the second rectangle rotated the first.
+ * Mode keys that stay clear of the vector tools (V N P L R O S T H): R is the
+ * Rectangle, S the Polygon and P the Pen, and the shape just drawn is always
+ * selected, so sharing those letters meant the second rectangle rotated the
+ * first. They work on every surface.
  */
 export const GIZMO_SHORTCUTS = Object.freeze({ g: 'move', e: 'rotate', k: 'scale', a: 'pivot' });
+
+/**
+ * And the letters every other 2D and 3D editor uses, where nothing has claimed
+ * them (`GESTURE_SURFACES` in `ui/piece-actions.js` decides where that is).
+ *
+ * Design ▸ Face has no drawing tools — a beginner does not need a Pen to swap
+ * a pair of eyes — so `R`, `S` and `P` mean nothing there, and somebody
+ * arriving from Blender, Figma or Illustrator finds the keys they already know.
+ * In Artwork they stay the Rectangle, the Polygon and the Pen, because that is
+ * what they are there. The same key never does two things on one screen; it
+ * does one thing on a screen where it was doing nothing.
+ */
+export const GIZMO_ALIASES = Object.freeze({ g: 'move', r: 'rotate', s: 'scale', p: 'pivot' });
 
 export const CORNER_HANDLES = Object.freeze(['nw', 'ne', 'se', 'sw']);
 export const EDGE_HANDLES = Object.freeze(['n', 'e', 's', 'w']);

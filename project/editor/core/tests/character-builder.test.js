@@ -17,6 +17,7 @@ const { artworkIds } = await import('../face-library/face-part-model.js');
 const { PART_DRAG_TYPE } = await import('../../ui/character-builder/part-drag.js');
 const { describeHands } = await import('../../ui/character-builder/hand-placement-panel.js');
 const { handStyleIds } = await import('../hands/hand-style-art.js');
+const { assetSlot } = await import('../face-library/face-morphologies.js');
 
 /**
  * The Character Builder shell (docs/CHARACTER_BUILDER.md, PR 1).
@@ -683,27 +684,94 @@ test('a face wears several accessories: one per mount point, each its own piece,
   assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.hat" aria-pressed="true"/);
   assert.match(ui.browserHost.innerHTML, /data-face-part="accessory.earring" aria-pressed="false" title="Add Left earring/);
   assert.match(ui.browserHost.innerHTML, /data-part-piece="accessory-glasses" aria-pressed="false"[^>]*>Glasses</);
-  // Remove takes one off, as one undo step; the other stays.
-  assert.match(ui.inspectorHost.innerHTML, /<button type="button" class="secondary" data-part-remove aria-label="Remove Hat">Remove<\/button>/);
-  ui.pressInspector({ partRemove: '' });
+  // Delete takes one off, as one undo step; the other stays. It was a *Remove*
+  // button under a heading called "Shape" that only accessories and facial hair
+  // ever got; it is the 🗑 of the six now, on every piece
+  // (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §6.2).
+  assert.match(ui.inspectorHost.innerHTML, /data-piece-action="delete"/);
+  assert.equal(ui.inspectorHost.innerHTML.includes('data-part-remove'), false);
+  assert.deepEqual(ui.builder.removePiece('accessory-hat'), { done: true, label: 'Hat', hosted: 0 });
   assert.equal('accessory-hat' in ui.store.getDocument().elements, false);
   assert.ok(ui.store.getDocument().elements['accessory-glasses'], 'the glasses stay');
   assert.deepEqual(ui.session(), { selectedId: null, selectedIds: [] });
-  assert.equal(ui.statuses.at(-1), 'Hat is off. Undo puts it back.');
   assert.deepEqual(ui.builder.snapshot().categories.find((item) => item.id === 'accessory').pieces, ['accessory-glasses']);
   ui.history.undo();
   ui.builder.render();
   assert.ok(ui.store.getDocument().elements['accessory-hat'], 'one undo, and the hat is back');
   assert.deepEqual(ui.builder.snapshot().categories.find((item) => item.id === 'accessory').pieces, ['accessory-glasses', 'accessory-hat']);
-  // A part that is not an accessory has no Remove.
+  // There is no *Remove* button at all any more. It was the one way to take a
+  // part off the face, it lived under a heading called "Shape", and it appeared
+  // only for the categories that hold several — so the inspector for a pair of
+  // eyes offered nothing (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §6.2). Delete
+  // does it for every piece now, through `removePiece`, which takes the roles
+  // and the movements with the drawing.
   ui.press({ partCategory: 'nose' });
   assert.equal(ui.inspectorHost.innerHTML.includes('data-part-remove'), false);
-  assert.equal(ui.builder.removePart('nose'), false);
+  assert.match(ui.inspectorHost.innerHTML, /data-piece-action="delete"/, 'and the row of actions offers it');
   // Facial hair the same way: a moustache and a beard together.
   ui.press({ partCategory: 'facialHair' });
   ui.press({ facePart: 'facialhair.moustache' });
   ui.press({ facePart: 'facialhair.beard' });
   assert.deepEqual(ui.builder.snapshot().categories.find((item) => item.id === 'facialHair').pieces, ['facial-hair-moustache', 'facial-hair-beard']);
+});
+
+/**
+ * Delete, as the simple surface means it (`removePiece`).
+ *
+ * The question it answers is the one `canvas.delete` gets wrong in Artwork: a
+ * shape may be one of a library part's drawings, and taking it away then means
+ * taking the *part* off — its artwork, its roles and its movements together.
+ * Deleting the shape alone is what leaves "role leftEye references missing
+ * element eyeLeft" in Project check.
+ */
+test('Delete resolves a piece up to the library part it is drawn inside, and says what it took', () => {
+  const ui = harness();
+  ui.press({ partCategory: 'accessory' });
+  ui.press({ facePart: 'accessory.glasses' });
+  const root = Object.values(ui.store.getDocument().semanticParts).find((part) => part.assetId === 'accessory.glasses').assetRoot;
+
+  // What it is, before anything is done to it.
+  const described = ui.builder.describePiece(root);
+  assert.equal(described.library, true, 'its drawing came from the library');
+  assert.equal(described.row, true, 'and the library has cards for its row');
+  assert.ok(described.partId, 'so there is a part to take off');
+  assert.equal(described.locked, false);
+
+  // A shape *inside* the drawing resolves to the same part: an author who
+  // clicked a lens means the glasses, and deleting the lens alone would leave
+  // the part pointing at artwork that is gone.
+  const inside = Object.keys(ui.store.getDocument().elements).find((id) => id !== root && id.startsWith('accessory-glasses'));
+  if (inside) assert.equal(ui.builder.describePiece(inside).partId, described.partId);
+
+  const removed = ui.builder.removePiece(root);
+  assert.equal(removed.done, true);
+  assert.equal(removed.label, 'Glasses');
+  assert.equal(Object.values(ui.store.getDocument().semanticParts).some((part) => part.assetId === 'accessory.glasses'), false);
+  // Nothing is left naming artwork that is gone.
+  for (const part of Object.values(ui.store.getDocument().semanticParts)) {
+    for (const [role, element] of Object.entries(part.roles || {})) {
+      assert.ok(ui.store.getDocument().elements[element], `${part.id}.${role} points at ${element}, which is not there`);
+    }
+  }
+  ui.history.undo();
+  assert.equal(Object.values(ui.store.getDocument().semanticParts).some((part) => part.assetId === 'accessory.glasses'), true, 'one undo puts it back');
+});
+
+test('a piece that is not the library\'s is the caller\'s to delete, and says so rather than guessing', () => {
+  const ui = harness();
+  // The template's own mouth: a part of the face, drawn by whoever drew the
+  // template rather than installed from the library.
+  const described = ui.builder.describePiece('mouth');
+  assert.equal(described.row, true, 'the library has mouths to offer for it');
+  assert.equal(described.library, false, 'but this one is not one of them');
+  assert.equal(described.partId, null);
+  // So `removePiece` does nothing and does not claim to: the canvas deletes
+  // the artwork, which is the right answer for a shape no part owns the
+  // drawing of.
+  assert.deepEqual(ui.builder.removePiece('mouth'), { done: false, label: 'Mouth', hosted: 0 });
+  assert.ok(ui.store.getDocument().elements.mouth, 'and it is still there');
+  // A piece that is not on the mascot at all is refused with a reason.
+  assert.match(ui.builder.removePiece('nothing-here').reason, /not on the mascot/);
 });
 
 test('a card of a category a face wears several of is a toggle: it says which way it will go, and each press is one undo step', () => {
@@ -1307,4 +1375,37 @@ test('a drawing that restyles another is no card of its own, and the card it res
   // And the card puts its own drawing on, which is a change of look the author asked for.
   ui.press({ facePart: 'mouth.wide' });
   assert.equal(ui.store.getDocument().semanticParts.mouth.assetId, 'mouth.wide');
+});
+
+/**
+ * UI-REDESIGN-04 — a row the library cannot fill is not a line.
+ *
+ * A slot the mascot wears nothing in is an *offer*, and an offer the library
+ * cannot honour is a line an author opens onto nothing, above rows that do
+ * something. So a slot with no drawing behind it is not listed, and it appears
+ * by itself the day somebody draws one — read from the library rather than
+ * from a table anyone has to remember to edit.
+ *
+ * The rule is deliberately narrow: it never touches a row the mascot is
+ * *wearing* something in. `Pupils` and `Eyelids` have no drawing in the whole
+ * library and stay on the list, because the template draws both — and hiding
+ * the only door to a part somebody already has on is exactly the failure this
+ * filter layer exists to prevent.
+ */
+test('a slot the library cannot fill is not offered, and one the mascot wears always is', () => {
+  const ui = harness();
+  const rows = () => [...ui.browserHost.innerHTML.matchAll(/data-part-category-row="([a-zA-Z]+)"/g)].map((match) => match[1]);
+
+  // Worn, and with nothing drawn for either: both stay, and that is the rule.
+  assert.match(ui.browserHost.innerHTML, /data-part-category-row="pupils" data-part-status="ready"/);
+  assert.match(ui.browserHost.innerHTML, /data-part-category-row="eyelids" data-part-status="ready"/);
+  // Not worn, but drawn for: an offer the library can honour.
+  assert.match(ui.browserHost.innerHTML, /data-part-category-row="facialHair" data-part-status="missing"/);
+
+  // Take every facial-hair drawing back out and the offer goes with them,
+  // while the rows either side of it stay exactly where they were.
+  for (const asset of ui.library.list()) if (assetSlot(asset) === 'facialHair') ui.library.remove(asset.id);
+  ui.builder.render();
+  assert.ok(!rows().includes('facialHair'), 'a slot with nothing behind it is not a line');
+  assert.deepEqual(rows().filter((id) => ['hair', 'accessory', 'pupils', 'eyelids'].includes(id)), ['pupils', 'eyelids', 'hair', 'accessory'], 'and only that line');
 });

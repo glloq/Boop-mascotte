@@ -4,7 +4,7 @@ import { availableMorphologies } from '../face-library/compatibility.js';
 import { FACE_PART_LIBRARY, createFacePartRegistry } from '../face-library/face-part-registry.js';
 import { NARROWED } from './fixtures/face-packs.js';
 import { CHARACTER_CATEGORY_IDS, characterCategory } from '../../ui/character-builder/character-model.js';
-import { typeBrowserMarkup } from '../../ui/character-builder/type-browser.js';
+import { typeSelectMarkup, typeWaitingFor } from '../../ui/character-builder/type-browser.js';
 import { FACE_MORPHOLOGY_IDS, faceMorphology } from '../face-library/face-morphologies.js';
 
 /**
@@ -52,36 +52,30 @@ test('a kind of face is offered once the library can draw what makes it that kin
   assert.equal(availableMorphologies({ library }).find((type) => type.id === 'beak').available, false, 'and only that kind turned on');
 });
 
-/**
- * UI-REDESIGN-03 — a kind the library cannot draw is not offered.
- *
- * It used to be shown and disabled, with a note saying what it was waiting for.
- * The reasoning was that a visible missing option is a promise; in practice
- * `Monster` sat greyed out under "Nothing is drawn for its horns yet" in second
- * position of the panel that matters most, in front of every author, for every
- * session, and no author can draw the horns from that card. So it is not shown,
- * and it comes back on its own the day somebody draws them.
- */
-test('the Type row offers the kinds the library can draw, and nothing else', () => {
-  const markup = typeBrowserMarkup({
+test('the Kind setting offers every kind, and says what the ones it cannot offer are waiting for', () => {
+  // It was a row, second in a list whose subject is the parts of a face and
+  // above the head — a setting that announces it does nothing, read before
+  // anything that does (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §1.4). It is one
+  // `<select>` in the panel's header now, carrying the same three facts.
+  const markup = typeSelectMarkup({
     loaded: true,
     types: [
       { id: 'human', label: 'Human', description: 'A person.', available: true, missing: [], current: true },
       { id: 'muzzle', label: 'Animal', description: 'A cat, a dog.', available: false, missing: ['muzzle', 'whiskers'], current: false }
     ]
   });
-  assert.match(markup, /data-face-type="human"[^>]*aria-pressed="true"/);
-  assert.doesNotMatch(markup, /data-face-type="muzzle"/, 'a kind nobody has drawn for is not a card');
-  assert.doesNotMatch(markup, /Nothing is drawn/, 'and it does not explain itself either');
-  // A kind that *is* offered is named in the author's words, never in anatomy.
-  assert.doesNotMatch(markup, /Muzzle|Beak|Monster/);
-  // The sentence that makes the row safe to press.
-  assert.match(markup, /It changes nothing on the mascot/);
-  // Every kind waiting on a drawing is the one case that still needs a word:
-  // an empty panel is otherwise indistinguishable from a broken one.
-  assert.match(typeBrowserMarkup({}), /No kinds of mascot to choose from/);
-  assert.match(typeBrowserMarkup({ loaded: true, types: [{ id: 'monster', label: 'Creature', description: '', available: false, missing: ['horns'] }] }),
-    /No kinds of mascot to choose from/);
+  assert.match(markup, /<select data-face-type/);
+  assert.match(markup, /<option value="human" selected/);
+  assert.match(markup, /<option value="muzzle"[^>]*disabled/);
+  // The reason rides in the option and in the note, never only in a `title`:
+  // a tooltip is invisible to a finger.
+  assert.match(markup, /Animal — not drawn yet/);
+  assert.match(markup, /Nothing is drawn for its muzzle or its whiskers yet\./);
+  assert.equal(typeWaitingFor({ missing: [] }), '');
+  assert.equal(typeWaitingFor({ missing: ['beak', 'crest'] }), 'Nothing is drawn for its beak or its crest yet.');
+  // The sentence that makes it safe to change.
+  assert.match(typeSelectMarkup({ loaded: true, types: [{ id: 'human', label: 'Human', description: 'A person.', available: true, missing: [], current: true }] }), /changes nothing on the mascot/);
+  assert.equal(typeSelectMarkup({}), '', 'no kinds, no control');
 });
 
 /**

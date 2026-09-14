@@ -82,6 +82,9 @@ test('@critical a clip can be made, seen and taken back off', async ({ page }) =
 
   // Taking the cut off gives the shape back, which is how a cut is changed.
   await page.mouse.click(middle.x, middle.y, { button: 'right' });
+  // "Stop cutting it" names a rigging concept, so it sits under Advanced in
+  // the menu now (ui/piece-actions.js) rather than above Duplicate.
+  await page.locator('[data-canvas-menu-advanced] summary').click();
   await page.locator('[data-canvas-menu-action="release-clip"]').click();
   await expect.poll(() => page.evaluate(() => Object.keys(window.__BOOP_E2E__.document().elements))).toEqual(['rect-1', 'ellipse-1']);
   await expect(page.locator('#canvas #rect-1')).not.toHaveAttribute('clip-path', /url/);

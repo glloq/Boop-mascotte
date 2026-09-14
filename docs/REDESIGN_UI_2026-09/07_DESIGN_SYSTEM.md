@@ -1,5 +1,17 @@
 # 07 — Design system
 
+> **Note d'implémentation (post-#144).** Ce chapitre décrit le système tel qu'il
+> a été proposé — préfixe `--bp-*`, `base.css` / `components.css` / `surfaces.css`
+> remplaçant les blocs `<style>` de `index.html`. Pendant l'écriture de l'étude,
+> la PR #144 a livré la même sortie du CSS avec un vocabulaire `--ux-*` et une
+> stratégie **additive** : le `<link>` passe avant les blocs en ligne, donc
+> adopter la couche ne peut pas déplacer un pixel, et chaque bloc est migré en
+> étant supprimé puis réécrit. C'est cette couche-là qui est en place. Le
+> raisonnement ci-dessous (inventaire, hiérarchie des actions, contrastes,
+> composants) reste valable et a été transposé ; l'état courant et la marche à
+> suivre sont dans `project/editor/styles/README.md`. Lire les noms `--bp-*` de
+> ce chapitre comme des rôles, pas comme des identifiants.
+
 ## A. Le principe
 
 > **Un module ne choisit jamais une valeur. Il choisit un jeton.**

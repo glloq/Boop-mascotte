@@ -46,6 +46,10 @@ test('@critical dirty New Project supports Cancel, Discard, and Save then replac
   await openFreshEditor(page, { e2e: true });
   const dirtyProject = async () => {
     if (!await page.locator('#app').evaluate(el=>el.classList.contains('has-project'))) await startBasicFace(page);
+    // A template opens on Face now rather than in the vector editor
+    // (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §1.5), and the drawing tools are
+    // Artwork's alone.
+    await goToMode(page, 'design.artwork');
     await page.locator('[data-design-tool="rect"]').click();
     const canvas = await page.locator('#canvas').boundingBox();
     await page.mouse.move(canvas.x + canvas.width * .35, canvas.y + canvas.height * .35);
@@ -76,7 +80,10 @@ test('@critical dirty New Project supports Cancel, Discard, and Save then replac
   await page.getByRole('button', { name: 'Discard' }).click();
   await expect(page.locator('#canvas svg svg')).toBeVisible();
   await expect(page.locator('[data-home]')).toBeHidden();
-  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('design.artwork');
+  // A template opens on Face, where a mascot is dressed. It used to open in the
+  // vector editor, so *Mascot Face* from Home put somebody who wanted a mascot
+  // in front of a Pen (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §1.5).
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('design.face');
 
   await dirtyProject();
   await requestNew();

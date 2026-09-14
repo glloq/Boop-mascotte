@@ -1,0 +1,103 @@
+/**
+ * The stage: what the mascot is shown on, and how big.
+ *
+ * The canvas paints a dark blue radial gradient and draws the mascot at six
+ * hundred pixels, which is the one context an exported mascot will never be
+ * in. These are the two checks that were missing — a ground, and a size
+ * somebody can name (`ui/preview-stage.js`).
+ *
+ * Both are view only. The root carries `data-preview-ground` and
+ * `--preview-size`, the stylesheet does the painting, and nothing re-renders
+ * the artwork: a ground change is one repaint, not a reload.
+ */
+
+/* ── The grounds ─────────────────────────────────────────────────────────── */
+
+/* Only in Preview: the editor's own canvas keeps the ground it has, because
+   there the gradient is chrome that says "this is the editor". */
+#app[data-workspace=preview] #canvas {
+  background: var(--preview-ground, radial-gradient(circle at top, #263959, #0e1627));
+  transition: background var(--ux-ease);
+}
+
+/* The honest one for an exported SVG: transparency is what the file has, and a
+   checkerboard is how every graphics tool has drawn it for thirty years. */
+#app[data-preview-ground=checker] {
+  --preview-ground:
+    repeating-conic-gradient(#d8dde6 0% 25%, #eef1f6 0% 50%) 50% / 18px 18px;
+}
+
+#app[data-preview-ground=light] { --preview-ground: #f6f7fa; }
+#app[data-preview-ground=dark] { --preview-ground: #10131a; }
+/* A strong background, for a mascot that has to hold against one. Not the
+   editor's accent: this is a page the mascot might sit on, not a control. */
+#app[data-preview-ground=colour] { --preview-ground: #2f6f5e; }
+
+/* ── The size ────────────────────────────────────────────────────────────── */
+
+/*
+ * A size is a box the mascot is drawn inside, centred on the canvas, so 32 px
+ * is 32 px of screen whatever the artwork's units are — the point of the check
+ * is what a reader's eye gets, not what the viewBox says.
+ */
+#app[data-preview-sized=true][data-workspace=preview] #canvas > svg {
+  width: var(--preview-size);
+  height: var(--preview-size);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  /* A drawing shown at 32 px must be *drawn* at 32 px, not scaled down from a
+     bitmap: SVG does this for free, and this only says so. */
+  image-rendering: auto;
+}
+
+/* Somewhere to judge it against, at the small sizes where the whole question
+   is whether it holds its shape. */
+#app[data-preview-sized=true][data-workspace=preview] #canvas::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--preview-size);
+  height: var(--preview-size);
+  transform: translate(-50%, -50%);
+  outline: 1px dashed color-mix(in srgb, var(--ux-faint) 55%, transparent);
+  outline-offset: 6px;
+  pointer-events: none;
+}
+
+/* ── The panel's own block ───────────────────────────────────────────────── */
+
+.preview-stage {
+  display: grid;
+  gap: var(--ux-gap-1);
+  padding-bottom: var(--ux-gap-3);
+  margin-bottom: var(--ux-gap-2);
+  border-bottom: 1px solid var(--ux-border);
+}
+
+.preview-stage h3 {
+  margin: var(--ux-gap-2) 0 0;
+  font-size: var(--ux-size-label);
+  letter-spacing: var(--ux-track-label);
+  text-transform: uppercase;
+  color: var(--ux-faint);
+}
+
+.preview-stage h3:first-child { margin-top: 0; }
+
+.preview-stage [data-preview-stage-warning] {
+  margin: var(--ux-gap-2) 0 0;
+  padding: var(--ux-gap-2);
+  border-left: 3px solid var(--ux-warn-line);
+  border-radius: 0 var(--ux-radius-1) var(--ux-radius-1) 0;
+  background: color-mix(in srgb, var(--ux-warn-line) 12%, transparent);
+  color: var(--ux-warn-text);
+}
+
+/* The rig bench is one disclosure at the bottom rather than five sections at
+   the top: an event simulator and eighteen sliders are testing the rig, and a
+   person building a character wants them last. */
+.preview-advanced > summary { color: var(--ux-faint); }
+.preview-advanced > summary small { margin-left: var(--ux-gap-2); }

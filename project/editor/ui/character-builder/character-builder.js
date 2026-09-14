@@ -44,6 +44,7 @@ import { FACE_MOUNT_POINTS, FACE_PART_CATEGORIES, artworkIds, assetTags, facePar
 import { elementSpan } from '../../core/face-library/face-part-artwork.js';
 import { CHARACTER_PRESETS, characterPreset } from './preset-browser.js';
 import { carriesPart, parsePartDrag, readPartDrag } from './part-drag.js';
+import { pieceActionsFor } from '../piece-actions.js';
 
 /** Where a route button in either panel goes. */
 const ROUTES = Object.freeze({
@@ -68,8 +69,9 @@ const ROUTES = Object.freeze({
  * @param {(kind: string) => any} [deps.loadTemplate]    the project service's template loader
  * @param {object} [deps.facePartCommands]  `createFacePartCommands`: the library, `plan` and `replace`
  * @param {(message: string, tone?: string) => void} [deps.onStatus]
+ * @param {(action: string, id: string) => void} [deps.runPieceAction]  app/editor-app.js's one runner
  */
-export function createCharacterBuilder({ browserHost, inspectorHost, store, history, canvas, dropHost = null, isActive = () => true, navigate = () => {}, setDesignTool = () => {}, openColour = null, loadTemplate = () => false, drawHandStyle = () => false, revealInspector = () => false, facePartCommands = null, onStatus = () => {} } = {}) {
+export function createCharacterBuilder({ browserHost, inspectorHost, store, history, canvas, dropHost = null, isActive = () => true, navigate = () => {}, setDesignTool = () => {}, openColour = null, loadTemplate = () => false, drawHandStyle = () => false, revealInspector = () => false, facePartCommands = null, onStatus = () => {}, runPieceAction = () => {} } = {}) {
   if (!browserHost || !inspectorHost) throw new Error('Missing required UI element: #part-browser and #part-inspector');
   const commands = createArtworkCommands(store, history);
   const handCommands = createHandCommands(store, history);
@@ -96,13 +98,30 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
    * presses one, and the face's own parts answer until then.
    */
   let morphology = null;
-  /* What the open row's library is showing: what was typed into it, and whether
-   * the author asked past the kind of mascot they chose (UI-REDESIGN-04). Both
-   * are session, never document: a search is not something a project remembers. */
-  let libraryQuery = '';
-  let libraryShowAll = false;
   /** What the last restyle did, shown under the cards until the author leaves the row. */
   let styleNotice = '';
+  /**
+   * What the author is looking for in the library.
+   *
+   * A hundred and fifty drawings and no way to look for one (the audit's
+   * §8.2). Session-only, like `chosen` and `morphology`: it decides what is
+   * *listed*, never what is on the mascot, so it is not a project fact.
+   * Matching is over the name, the description and the **tags** — which every
+   * asset has carried since MASC-02 and nothing had ever read.
+   */
+  let query = '';
+  /**
+   * Whether the library is offered whole, past the kind of face (MASC-07, and
+   * the audit's §9.2).
+   *
+   * The filter is right and should stay the default: a person making a human
+   * face has no use for four kinds of antenna. But it was **total** — the six
+   * muzzles, six beaks, six crests and four antennae were simply absent, with
+   * no way to see them — and putting a beak on a human face is a perfectly
+   * reasonable thing to want. Session-only: it changes what is listed, never
+   * what is on the mascot.
+   */
+  let showAll = false;
   /** Which pairs are edited as one; every pair is, until its box is unticked. */
   const unlinked = new Set();
   // What the author has typed into "Save as a library part" so far: the
@@ -113,6 +132,36 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   const select = (ids, primary = null) => store.mutateSession(['selectedId', 'selectedIds'], (state) => { Object.assign(state, selectMany(ids, primary)); });
   const locked = (id) => Boolean(doc().layerMetadata?.[id]?.locked);
   const nameOf = (id) => elementDisplayName(doc(), id);
+  /** Whether a piece is shown. Visibility is a `display` attribute on the node, which the tree reports. */
+  const layerVisible = (items, id) => { for (const item of items || []) { if (item.id === id) return item.visible !== false; const found = layerVisible(item.children, id); if (found !== null) return found; } return null; };
+
+  /**
+   * Whether a drawing answers what the author typed.
+   *
+   * Every word has to be found somewhere, so "cat eye" finds the drawing
+   * tagged both and not every drawing tagged either. The name, the description
+   * and the tags, which is everything an author could reasonably have in mind
+   * when they type — the id is deliberately not searched: `eyes.round-large`
+   * would make "round" match things whose *name* says nothing of the sort.
+   */
+  function matchesQuery(asset) {
+    const wanted = query.trim().toLowerCase();
+    if (!wanted) return true;
+    const haystack = `${asset?.name || ''} ${asset?.description || ''} ${assetTags(asset).join(' ')}`.toLowerCase();
+    return wanted.split(/\s+/).every((word) => haystack.includes(word));
+  }
+
+  /** Which rows have anything left to show once a search has narrowed them. */
+  function searchHits(rows) {
+    if (!query.trim() || !facePartCommands) return null;
+    const hits = {};
+    for (const row of rows) {
+      if (!row.part) continue;
+      hits[row.id] = assetsFor({ library: facePartCommands.library, morphology: showAll ? null : activeMorphology(), slot: row.id })
+        .filter((item) => matchesQuery(item.card)).length;
+    }
+    return hits;
+  }
 
   /** What both panels read: the categories, and the one that is showing. */
   function current() {
@@ -165,11 +214,20 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     // is decided by `asset.category`, exactly as before, so the layer above the
     // library cannot change what the rig gets. That is why the row hands one id
     // to `assetsFor` and another to `plan`.
-    const offered = assetsFor({
-      library: facePartCommands.library, morphology: activeMorphology(), slot: row.id,
-      query: libraryQuery, includeIncompatible: libraryShowAll, affinity: characterTags()
-    });
-    return offered.map(({ card: asset, compatible, affinity }) => {
+    const kind = activeMorphology();
+    // `affinity` orders and never filters: the drawings that share the
+    // character's own words come first, and a face wearing no preset gets the
+    // library's own order back (UI-REDESIGN-04).
+    const offered = assetsFor({ library: facePartCommands.library, morphology: showAll ? null : kind, slot: row.id, affinity: characterTags() })
+      .map((item) => item.card)
+      .filter((asset) => matchesQuery(asset));
+    // With the filter lifted, a card that is not this kind's says so: the
+    // offer stays honest rather than silently mixing a duck's bill into a
+    // list of human mouths.
+    const otherKind = (asset) => (showAll && kind && !assetSupportsMorphology(asset, kind)
+      ? (asset.morphologies || []).map((id) => faceMorphology(id)?.label).filter(Boolean).join(' · ') || 'another kind'
+      : '');
+    return offered.map((asset) => {
       const on = wornPart(row, asset);
       const removes = row.multiple && on ? on.partId : null;
       // Which press the card would make is which plan says whether it can be
@@ -180,10 +238,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
       const { controls, missing } = describeFacePartCapabilities(asset);
       return {
         id: asset.id, name: asset.name, description: asset.description || '', thumbnail: facePartThumbnail(asset),
-        current: Boolean(on), removes, available: plan.ok, reason: plan.ok ? '' : plan.reason, limited: missing, joins: Boolean(row.multiple && !row.dedicated), custom: asset.origin === 'custom', pack: asset.pack || null,
-        // What the kind of mascot would have hidden, and how much of the
-        // character's own vocabulary the drawing shares (UI-REDESIGN-04).
-        compatible, affinity,
+        current: Boolean(on), removes, available: plan.ok, reason: plan.ok ? '' : plan.reason, limited: missing, joins: Boolean(row.multiple && !row.dedicated), custom: asset.origin === 'custom', pack: asset.pack || null, otherKind: otherKind(asset),
         // Every movement of the category, carried or not: what the card's title says (roadmap phase 26).
         animation: controls.map((control) => ({ control, carried: !missing.includes(control) }))
       };
@@ -208,31 +263,6 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   }
 
   /**
-   * What the open row's library is showing, for its header: how many drawings
-   * are on offer, how many the kind of mascot is holding back, and what was
-   * typed to get here.
-   */
-  function libraryOf(row, styles) {
-    if (!facePartCommands || !row?.part) return null;
-    const everything = assetsFor({
-      library: facePartCommands.library, morphology: activeMorphology(), slot: row.id,
-      query: libraryQuery, includeIncompatible: true
-    });
-    const hidden = everything.filter((item) => !item.compatible).length;
-    return {
-      label: row.label,
-      count: styles.length,
-      // What pressing "show everything" would add; zero means there is nothing
-      // behind the door, and a door with nothing behind it is not offered.
-      hidden: libraryShowAll ? 0 : hidden,
-      query: libraryQuery,
-      showAll: libraryShowAll,
-      // A search that found nothing is the one empty state this row can have.
-      searching: Boolean(libraryQuery)
-    };
-  }
-
-  /**
    * The kind of face being browsed: what an author pressed, or what the face's
    * own drawings say.
    *
@@ -248,8 +278,8 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   }
 
   /** The five kinds, each with what it is waiting for, when the Type row is open. */
-  function typesOf(category) {
-    if (category?.kind !== 'type' || !facePartCommands) return null;
+  function typesOf() {
+    if (!facePartCommands) return null;
     const current = activeMorphology();
     return {
       loaded: Boolean(doc().svgMarkup),
@@ -266,8 +296,8 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
    * style with fifty drawings and none of the nine this face wears would
    * redraw nothing, and a card saying "50 drawings" would be a card that lies.
    */
-  function faceStylesOf(category) {
-    if (category?.kind !== 'style' || !facePartCommands) return null;
+  function faceStylesOf() {
+    if (!facePartCommands) return null;
     const library = facePartCommands.library, document = doc();
     return {
       loaded: Boolean(document.svgMarkup),
@@ -313,8 +343,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
    */
   function rowsFor(rows, active) {
     const slots = new Set(faceMorphology(activeMorphology())?.slots || []);
-    const named = rows.map((row) => (row.kind === 'type' ? { ...row, summary: summariseType() } : row));
-    if (!slots.size) return named;
+    if (!slots.size) return rows;
     // A row is worth a line if it is a choice of its own (`kind`), if the
     // mascot is wearing something in it, if it is the one open — or if this
     // kind of mascot has a slot for it *and the library can fill it*. That last
@@ -322,7 +351,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     // face that nobody has drawn a single piece for, so on a face not already
     // wearing them the row was a line that could never do anything.
     const drawn = slotsWithDrawings();
-    return named.filter((row) => row.kind || row.pieces.length || row.id === active || (slots.has(row.id) && drawn.has(row.id)));
+    return rows.filter((row) => row.kind || row.pieces.length || row.id === active || (slots.has(row.id) && drawn.has(row.id)));
   }
 
   /**
@@ -341,37 +370,19 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     return filled;
   }
 
-  /**
-   * What the Type row says without being opened: the kind Design is offering
-   * for, and how many ready-made characters that is.
-   *
-   * It used to read "Coming with the part library" — the fall-through for a row
-   * with no semantic part behind it — which is neither true nor about Type, and
-   * was shown to an author who had just chosen a kind in the wizard.
-   *
-   * Memoised, because the row is drawn on every document notification and the
-   * answer costs a walk of the whole library (five kinds × their slots × 150
-   * drawings) plus one of the presets. The key is what could change it: the
-   * kind, and the size of each shelf — a part or a pack arriving is what makes
-   * a count go up, and `size` is a Map's own count rather than a list to build.
-   */
-  let typeSummary = { key: null, text: '' };
-  function summariseType() {
-    const current = activeMorphology();
-    const key = `${current}:${facePartCommands?.library?.size ?? 0}:${facePartCommands?.presets?.size ?? 0}`;
-    if (typeSummary.key === key) return typeSummary.text;
-    const type = availableMorphologies({ library: facePartCommands?.library }).find((item) => item.id === current);
-    const characters = type && facePartCommands ? presetsFor({ presets: facePartCommands.presets, library: facePartCommands.library, morphology: current }).length : 0;
-    const text = !type ? 'Which kind of mascot this is'
-      : characters ? `${type.label} · ${characters} ready-made` : type.label;
-    typeSummary = { key, text };
-    return text;
-  }
-
   const browserView = () => {
     const { document, state, parts, active, category } = current();
-    const styles = stylesOf(category);
-    return { loaded: Boolean(document.svgMarkup), active, selectedId: state.selectedId, categories: rowsFor(parts.categories, active), styles, library: libraryOf(category, styles), types: typesOf(category), faceStyles: faceStylesOf(category), palette: paletteOf(category), facePresets: facePresetsOf(category), hands: describeHands(document), presets: CHARACTER_PRESETS };
+    const rows = rowsFor(parts.categories, active);
+    return {
+      loaded: Boolean(document.svgMarkup), active, selectedId: state.selectedId,
+      categories: rows, styles: stylesOf(category),
+      // The two settings over the list are drawn on every render, so they are
+      // read on every render rather than only when their row was open.
+      types: typesOf(), faceStyles: faceStylesOf(),
+      palette: paletteOf(category), facePresets: facePresetsOf(category),
+      hands: describeHands(document), presets: CHARACTER_PRESETS,
+      query, showAll, libraryCount: facePartCommands?.library?.cards?.().length || 0, hits: searchHits(rows)
+    };
   };
 
   /** A category as the inspector shows it, with the library style its part came from. */
@@ -403,6 +414,10 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     const pair = category && piece ? pairOf(document, category, piece.id) : null;
     return {
       loaded, kind: 'piece',
+      // The six gestures this piece offers, as the canvas bar and the menu
+      // offer them (`ui/piece-actions.js`). Design ▸ Face is a simple surface,
+      // so the rigging entries are never among them.
+      actions: pieceActionsFor(describePiece(id) || {}, 'simple'),
       category: category ? describeCategory(category) : null,
       pieces: category ? category.pieces.map((item) => ({ id: item.id, label: item.label })) : [],
       piece: {
@@ -427,46 +442,48 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
 
   /* ── What a press does ─────────────────────────────────────────────────── */
 
-  /** What an author typed into the open row's library. Session only. */
-  function searchLibrary(text) {
-    const next = String(text ?? '');
-    if (next === libraryQuery) return false;
-    libraryQuery = next;
-    render();
-    return true;
-  }
-
-  /**
-   * Past the kind of mascot, and back (§6 of the brief).
-   *
-   * The escape hatch is what lets somebody put animal ears on a person on
-   * purpose. It is deliberately per-row and per-session: guiding is the default,
-   * and an author who opened the door once has not asked for it to stay open.
-   */
-  function showEverything(on) {
-    const next = Boolean(on);
-    if (next === libraryShowAll) return false;
-    libraryShowAll = next;
-    render();
-    return true;
-  }
-
   function chooseCategory(id) {
     const category = model().categories.find((item) => item.id === id);
     if (!category) return false;
     // What the last restyle did belongs to the row it happened in: leaving it
     // and coming back should not read as though it has just happened again.
     if (id !== 'style') styleNotice = '';
-    // And so do the search and the escape hatch (UI-REDESIGN-04): both are
-    // about *this* row's drawings. Leaving the hatch open across rows would
-    // make the expert mode the mode, which is the one thing it must not be.
-    if (id !== chosen) { libraryQuery = ''; libraryShowAll = false; }
     chosen = id;
     const ids = category.pieces.map((piece) => piece.id);
     // A category with pieces selects them all; one without takes the selection
     // away, so the inspector shows the category and not the last thing picked.
     if (ids.length) select(ids);
     else if (session().selectedId) select([]);
+    render();
+    return true;
+  }
+
+  /**
+   * Look for a drawing.
+   *
+   * Typing opens the first row that still has something in it, so the answer
+   * is on screen rather than behind a press: a search whose results are all
+   * inside collapsed rows has not found anything as far as the author is
+   * concerned. Clearing it leaves the row where it is.
+   */
+  function search(value) {
+    const next = String(value ?? '');
+    if (next === query) return false;
+    query = next;
+    if (query.trim()) {
+      const hits = searchHits(model().categories) || {};
+      const first = model().categories.find((row) => hits[row.id] > 0);
+      if (first) chosen = first.id;
+    }
+    render();
+    return true;
+  }
+
+  /** Offer the library whole, or only what this kind of face is made of. */
+  function setShowAll(on) {
+    const next = Boolean(on);
+    if (next === showAll) return false;
+    showAll = next;
     render();
     return true;
   }
@@ -595,12 +612,129 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     return true;
   }
 
-  /** The inspector's Remove, on the piece in hand. */
-  function removePart(pieceId) {
-    const { category } = current();
-    const piece = category?.pieces.find((item) => item.id === pieceId);
-    if (!piece?.removable) return false;
-    return takeOff(category, piece.partId, piece.label);
+  /**
+   * Open the library on the row this piece lives in (`Replace` in the menu and
+   * on the canvas bar).
+   *
+   * Replacing a part used to mean knowing which of eighteen rows it was in and
+   * finding that row in the column: there was no path at all from the thing
+   * selected to the drawings that could take its place. This is that path, and
+   * it is the row's own — not the semantic category's, so pressing Replace on a
+   * muzzle opens Muzzle rather than Accessories (MASC-08B).
+   */
+  function openReplace(id) {
+    const row = model().owners?.[instanceRootOf(model(), id)] || model().owners?.[id];
+    if (!row) { onStatus('This piece is not one of the face parts, so the library has nothing to swap it for.', 'warn'); return false; }
+    chooseCategory(row);
+    revealInspector();
+    return true;
+  }
+
+  /**
+   * What the piece in hand *is*, for the gestures that act on any piece
+   * (`ui/piece-actions.js`).
+   *
+   * The builder is the only thing that can answer the question Delete turns
+   * on: a shape may be one of a library part's drawings, in which case taking
+   * it away means taking the **part** off the face — the artwork, its roles,
+   * its movements and whatever hangs on it, in one step — or it may be a shape
+   * somebody drew, in which case it is just artwork. Reading a face part off
+   * the element id is what `findSemanticPartByRole` does and it is not enough:
+   * a pupil inside a library pair of eyes belongs to the *gaze* part and its
+   * drawing belongs to the eyes.
+   *
+   * @returns {{ id, label, partId, partLabel, library, locked, visible, roles, hosted }|null}
+   */
+  function describePiece(id) {
+    const document = doc();
+    if (!id || !document.elements?.[id]) return null;
+    const parts = model();
+    const root = instanceRootOf(parts, id);
+    const byRole = findSemanticPartByRole(document, id);
+    /*
+     * The library part whose **drawing** this piece is inside.
+     *
+     * Not the part that names it in a role, and not the row it is listed
+     * under: a pupil drawn inside a library pair of eyes is the *gaze* part's
+     * by role and the *Pupils* row's by listing, and neither of those can be
+     * taken off the face on its own — the gaze part has no artwork of its own
+     * to remove, it names shapes that belong to the eyes.
+     *
+     * So this walks up from the piece to the nearest element some part calls
+     * its `assetRoot`, which is the only thing `facePartCommands.remove` can
+     * act on. Deleting a pupil therefore offers to take the eyes off, and
+     * `deleteConfirmation` asks first because the eyes carry several
+     * movements — rather than deleting the pupil's shape and leaving
+     * `gaze.roles.leftPupil` pointing at nothing, which is the failure the
+     * audit found in Artwork (02_PROBLEMES.md §4.2).
+     */
+    const rootOwner = Object.entries(document.semanticParts || {});
+    let libraryRoot = null, partId = null;
+    for (let walk = root, seen = new Set(); walk && !seen.has(walk); walk = parts.parents?.[walk]) {
+      seen.add(walk);
+      const found = rootOwner.find(([, candidate]) => candidate?.assetRoot === walk && candidate?.assetId);
+      if (found) { libraryRoot = walk; partId = found[0]; break; }
+    }
+    const part = partId ? document.semanticParts[partId] : null;
+    const rowId = parts.owners?.[libraryRoot || root] || parts.owners?.[id] || null;
+    const row = rowId ? parts.categories.find((item) => item.id === rowId) : null;
+    // How much of the rig stops working if this goes: every role, in every
+    // part, that names this piece or anything drawn inside it. It is what
+    // decides whether a delete is worth a question first
+    // (`deleteConfirmation`) -- a pair of library eyes carries eight roles
+    // across three parts, and taking it off is not the same kind of act as
+    // taking off a pair of glasses.
+    const anchor = libraryRoot || root;
+    const inside = new Set([anchor, ...instanceNodes(parts, anchor)]);
+    // `instanceNodes` names the root and what it paints behind the face; the
+    // roles live on the shapes *inside* it, so the subtree is what counts.
+    const collect = (items) => { for (const item of items || []) { if (inside.has(item.id)) gather(item); else collect(item.children); } };
+    const gather = (item) => { inside.add(item.id); for (const child of item.children || []) gather(child); };
+    collect(document.layers);
+    let roles = 0;
+    for (const candidate of Object.values(document.semanticParts || {})) {
+      for (const element of Object.values(candidate.roles || {})) if (element === id || inside.has(element)) roles += 1;
+    }
+    return {
+      id, label: nameOf(libraryRoot || root),
+      partId, partLabel: part?.name || byRole?.name || null,
+      // Two different questions: `row` is "the library lists drawings for this
+      // slot", `library` is "this drawing is one of them".
+      row: Boolean(row?.part),
+      library: Boolean(partId),
+      locked: locked(libraryRoot || root),
+      visible: layerVisible(document.layers, libraryRoot || root) !== false,
+      roles,
+      // What hangs *on* this part: a badge on a hood, a lens in a frame
+      // (docs/FACE_PART_LIBRARY.md, "Hosted on a part"). It comes off with it.
+      hosted: partId ? Object.values(document.semanticParts || {}).filter((candidate) => candidate?.assetHost?.partId === partId).length : 0
+    };
+  }
+
+  /**
+   * Delete, as the simple surface means it.
+   *
+   * A library part comes **off the face**: `facePartCommands.remove` takes its
+   * artwork, its roles and its movements together and leaves no dangling
+   * reference — which is exactly what `canvas.delete` in Artwork does not do,
+   * and why deleting an eye there ends with "role leftEye references missing
+   * element eyeLeft" in Project check. Anything else is artwork, and the caller
+   * deletes it; saying so rather than doing it keeps one delete path for the
+   * canvas and one for the library.
+   *
+   * @returns {{ done: boolean, label: string, hosted: number, reason?: string }}
+   */
+  function removePiece(id) {
+    const piece = describePiece(id);
+    if (!piece) return { done: false, label: '', hosted: 0, reason: 'That piece is not on the mascot.' };
+    if (piece.locked) return { done: false, label: piece.label, hosted: 0, reason: 'This piece is locked. Unlock it first.' };
+    if (!piece.partId || !facePartCommands?.remove) return { done: false, label: piece.label, hosted: piece.hosted };
+    const result = facePartCommands.remove(piece.partId);
+    if (!result.ok) return { done: false, label: piece.label, hosted: piece.hosted, reason: result.reason };
+    chosen = model().owners?.[id] || chosen;
+    select([]);
+    render();
+    return { done: true, label: piece.label, hosted: result.hosted?.length || 0 };
   }
 
   /** Edit both sides as one, or each on its own. Remembered for the session, never written to the project. */
@@ -1076,13 +1210,17 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     for (const [type, handler] of [['dragenter', enter], ['dragover', over], ['dragleave', leave], ['drop', drop]]) { dropHost.addEventListener(type, handler); dropListeners.push([type, handler]); }
   }
 
-  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onType: chooseType, onFaceStyle: restyleFace, onStyle: useStyle, onSearch: searchLibrary, onShowAll: showEverything, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onRoute: route, onAdvanced: advanced, onHandStyle: useHandStyle, onStyleForget: forgetPart });
+  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onType: chooseType, onFaceStyle: restyleFace, onStyle: useStyle, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onSearch: search, onShowAll: setShowAll, onRoute: route, onAdvanced: advanced, onHandStyle: useHandStyle, onStyleForget: forgetPart });
   /**
    * Browse another kind of face. Nothing on the mascot moves: what changes is
    * what Design offers, which is the whole point of the row (MASC-05).
    */
   function chooseType(id) {
     const type = availableMorphologies({ library: facePartCommands?.library }).find((item) => item.id === id);
+    // A kind nobody has drawn for is refused here rather than only disabled in
+    // the markup: a `<select>` can be set past a disabled option by script, and
+    // the model is where that has to stop. `part-browser.js` puts the control
+    // back from what this leaves true.
     if (!type?.available) return;
     morphology = id;
     render();
@@ -1111,7 +1249,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     onStatus(`${styleNotice} Undo puts the face back as it was.`, result.ok ? 'info' : 'warn');
   }
 
-  const inspector = createPartInspector(inspectorHost, { view: inspectorView, onTransform: moveBy, onScale: resize, onSpacing: setSpacing, onLinked: setLinked, onPiece: choosePiece, onColour: recolour, onToken: retint, onEditShape: editShape, onRemove: removePart, onRoute: route, onHandDepth: setHandDepth, onHandMirror: mirrorHandPlacement, onHandDrawingEdit: editHandDrawing, onHandDrawingRestore: restoreHandDrawing, onSaveDraft: saveDraft, onSavePart: savePart, onReset: resetPart });
+  const inspector = createPartInspector(inspectorHost, { view: inspectorView, onAction: runPieceAction, onTransform: moveBy, onScale: resize, onSpacing: setSpacing, onLinked: setLinked, onPiece: choosePiece, onColour: recolour, onToken: retint, onEditShape: editShape, onRoute: route, onHandDepth: setHandDepth, onHandMirror: mirrorHandPlacement, onHandDrawingEdit: editHandDrawing, onHandDrawingRestore: restoreHandDrawing, onSaveDraft: saveDraft, onSavePart: savePart, onReset: resetPart });
 
   function render() {
     const drewBrowser = browser.render();
@@ -1128,8 +1266,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
      * so the builder opens already offering the right parts and characters.
      */
     setType: chooseType,
-    searchLibrary,
-    showEverything,
+    openReplace,
     selectPiece: choosePiece,
     editShape,
     setHandDepth,
@@ -1143,7 +1280,9 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     useStyle,
     setLinked,
     retint,
-    removePart,
+    /** What the piece in hand is, and Delete as the simple surface means it (ui/piece-actions.js). */
+    describePiece,
+    removePiece,
     useFacePreset,
     resetFacePreset,
     saveFacePreset,

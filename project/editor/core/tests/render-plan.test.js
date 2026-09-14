@@ -65,8 +65,10 @@ test('the session plan is separate, because selection never makes a project dirt
   assert.deepEqual(Object.keys(SESSION_RENDER_PLAN), ['selectedId', 'selectedIds']);
   const ran = [];
   const plan = createRenderPlan(Object.fromEntries(RENDER_TARGETS.map((name) => [name, () => ran.push(name)])));
-  assert.deepEqual(plan.run('selectedId', SESSION_RENDER_PLAN), ['canvasSelection', 'layers', 'inspector', 'rigPanel', 'headPose', 'toolOptions', 'holdingPanel', 'characterBuilder']);
-  assert.deepEqual(plan.run('selectedIds', SESSION_RENDER_PLAN), ['canvasSelection', 'layers', 'inspector', 'toolOptions', 'characterBuilder']);
+  // `selectionActions` is last in both: the bar is placed from the selection's
+  // box on screen, so it has to run after the canvas has moved the selection.
+  assert.deepEqual(plan.run('selectedId', SESSION_RENDER_PLAN), ['canvasSelection', 'layers', 'inspector', 'rigPanel', 'headPose', 'toolOptions', 'holdingPanel', 'characterBuilder', 'selectionActions']);
+  assert.deepEqual(plan.run('selectedIds', SESSION_RENDER_PLAN), ['canvasSelection', 'layers', 'inspector', 'toolOptions', 'characterBuilder', 'selectionActions']);
 });
 
 test('the fan-out is now measurable, which is the point of writing it down', () => {
@@ -82,7 +84,10 @@ test('the fan-out is now measurable, which is the point of writing it down', () 
     // the layers, the parts and the hands: four domains, one more each. The
     // hand workshop (docs/HAND_STYLES.md) follows two of them: it reports which
     // gestures are on a hand and what each hand rests on.
-    artwork: 10, layers: 6, rig: 14, stateMachine: 3, semanticRig: 6, rigHandles: 2,
+    // And the bar of actions on the selection follows the artwork and the
+    // layers: it is anchored to a box, so a piece that moved, grew or went away
+    // leaves it pointing at where the piece was (ui/selection-actions.js).
+    artwork: 11, layers: 7, rig: 14, stateMachine: 3, semanticRig: 6, rigHandles: 2,
     animation: 4, arrangement: 1, keyforms: 6, constraints: 3, hands: 4, hierarchy: 1, expressions: 3, reactions: 2
   });
   // A domain that redraws nothing is a domain whose edits are invisible until

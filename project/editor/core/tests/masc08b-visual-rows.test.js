@@ -5,7 +5,7 @@ import { installStubDom, clickTarget } from './helpers/stub-dom.js';
 installStubDom();
 
 const { createCharacterBuilder } = await import('../../ui/character-builder/character-builder.js');
-const { deriveVisualRows, partRowIndex, rowInstallTarget, slotOrder } = await import('../../ui/character-builder/visual-rows.js');
+const { HEADER_KINDS, deriveVisualRows, partRowIndex, rowInstallTarget, slotOrder } = await import('../../ui/character-builder/visual-rows.js');
 const { deriveCharacterParts } = await import('../../ui/character-builder/character-model.js');
 const { wornPartSlot } = await import('../face-library/compatibility.js');
 const { createEditorStore } = await import('../state/editor-store.js');
@@ -145,8 +145,14 @@ test('the rows follow the kind of face, and never hide one the mascot is wearing
   // The order is the morphology's own, then everything else: Muzzle sits
   // between Ears and Nose on a cat, as the roadmap draws it.
   assert.deepEqual(slotOrder('muzzle').slice(0, 11), ['head', 'eyes', 'pupils', 'eyebrows', 'ears', 'muzzle', 'nose', 'mouth', 'whiskers', 'hair', 'accessory']);
-  assert.deepEqual(rowsOf(document, library, 'muzzle').categories.map((item) => item.id).slice(0, 4), ['presets', 'type', 'style', 'palette']);
-  assert.equal(rowsOf(document, library, 'muzzle').categories.at(-1).id, 'hands');
+  // Presets, then the parts of the face. Type and Style are not rows at all
+  // any more (`HEADER_KINDS`): neither is a part of the face, and both were
+  // listed above the head. Colours acts on the whole face, so it reads as a
+  // footer rather than as the fourth part.
+  const ids = rowsOf(document, library, 'muzzle').categories.map((item) => item.id);
+  assert.deepEqual(ids.slice(0, 4), ['presets', 'head', 'eyes', 'pupils']);
+  for (const kind of HEADER_KINDS) assert.ok(!ids.includes(kind), `${kind} is a header setting, not a row`);
+  assert.deepEqual(ids.slice(-2), ['palette', 'hands']);
 
   // Browsed as a person, the Muzzle row is not one of human's -- and it is
   // still there, because the mascot is wearing one (MASC-07, per row).

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { styleBrowserMarkup } from '../../ui/character-builder/style-browser.js';
+import { styleSelectMarkup } from '../../ui/character-builder/style-browser.js';
 import { describeRestylePlan, restylePlan } from '../face-library/compatibility.js';
 import { createFacePartRegistry } from '../face-library/face-part-registry.js';
 import { CHARACTER_CATEGORY_IDS, characterCategory } from '../../ui/character-builder/character-model.js';
@@ -26,26 +26,30 @@ const wearing = (pairs) => ({
   semanticParts: Object.fromEntries(pairs.map(([type, assetId, root], index) => [`p${index}`, { id: `p${index}`, type, assetId, assetRoot: root }]))
 });
 
-test('the card says how much of this face a style can redraw, before it is pressed', () => {
-  const markup = styleBrowserMarkup({
+test('the option says how much of this face a look can redraw, before it is chosen', () => {
+  // A row before, third in a list of the parts of a face and not a part of one:
+  // it is a reading of the whole (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §1.4).
+  // One `<select>` in the header, carrying the same four states.
+  const markup = styleSelectMarkup({
     loaded: true,
     styles: [
-      { id: 'soft-cartoon', label: 'Soft Cartoon', description: 'Rounded.', restyled: 7, total: 9 },
-      { id: 'woodcut', label: 'Woodcut', description: 'Carved.', restyled: 0, total: 9 },
-      { id: 'flat', label: 'Flat', description: 'Flat.', restyled: 0, total: 0 }
+      { id: 'soft-cartoon', label: 'Soft Cartoon', description: 'Rounded.', restyled: 7, total: 9, already: 0, kept: 2 },
+      { id: 'woodcut', label: 'Woodcut', description: 'Carved.', restyled: 0, total: 9, already: 0, kept: 9 },
+      { id: 'flat', label: 'Flat', description: 'Flat.', restyled: 0, total: 0, already: 0, kept: 0 }
     ]
   });
-  assert.match(markup, /7 of 9 library parts can be redrawn/);
+  assert.match(markup, /<select data-face-style/);
+  assert.match(markup, /7 of 9 can be redrawn, 2 stay as they are/);
   // Two different nothings, said differently: a style nobody has drawn in, and
-  // a face with nothing from the library on it at all. A card that conflated
-  // them would send an author looking for the wrong missing thing.
-  assert.match(markup, /Nothing on this face is drawn this way yet/);
-  assert.match(markup, /Nothing on this face comes from the library yet/);
-  assert.match(markup, /data-face-style="woodcut"[^>]*disabled/);
-  assert.match(markup, /data-face-style="soft-cartoon"(?![^>]*disabled)/);
-  // And the promise the row is making, in the row.
+  // a face with nothing from the library on it at all. An option that
+  // conflated them would send an author looking for the wrong missing thing.
+  assert.match(markup, /nothing on this face is drawn this way yet/);
+  assert.match(markup, /nothing on this face comes from the library yet/);
+  assert.match(markup, /<option value="woodcut"[^>]*disabled/);
+  assert.match(markup, /<option value="soft-cartoon"(?![^>]*disabled)/);
+  // And the promise it is making, on the control.
   assert.match(markup, /leaves the rest exactly as they are/);
-  assert.match(styleBrowserMarkup({ loaded: false }), /Start from a face before choosing a style/);
+  assert.equal(styleSelectMarkup({ loaded: false }), '', 'no face, no control');
 });
 
 test('a restyle counts both halves, and the sentence never reports only the good one', () => {

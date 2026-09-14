@@ -34,67 +34,29 @@ export { presetMorphology } from './face-presets.js';
  * is chosen, and a caller that conflated them would show one name and install
  * another.
  *
- * Three of the arguments are the ones UI-REDESIGN-04 added, and each obeys a
- * rule the interface depends on:
+ * `affinity` is the one argument UI-REDESIGN-04 added, and it **sorts** rather
+ * than filters: the drawings that share the words a character is made of come
+ * first, and everything else follows in the library's own order. A suggestion
+ * that hid the rest would be a filter wearing a suggestion's name.
  *
- * ```text
- * query               narrows by what an author typed: name, description, tags
- * includeIncompatible shows the kinds this face is not — and NEVER widens the
- *                     slot, so asking for eyes returns eyes, never beaks
- * affinity            SORTS by the words a character is made of. It never
- *                     filters: a suggestion that hid the rest would be a
- *                     filter wearing a suggestion's name
- * ```
- *
- * @param {{ library?, morphology?: string|null, style?: string, slot?: string|null,
- *           query?: string, includeIncompatible?: boolean, affinity?: string[] }} [request]
- * @returns {{ card, drawing, restyled: boolean, compatible: boolean, affinity: number }[]}
- *   ordered by affinity where one was asked for, and in the library's own order
- *   otherwise; `compatible` is what the card would have been filtered on, so a
- *   listing showing everything can still say which drawings are out of kind.
+ * @param {{ library?, morphology?: string|null, style?: string, slot?: string|null, affinity?: string[] }} [request]
+ * @returns {{ card: object, drawing: object, restyled: boolean, affinity: number }[]}
  */
-export function assetsFor({
-  library = FACE_PART_LIBRARY, morphology = null, style = '', slot = null,
-  query = '', includeIncompatible = false, affinity = []
-} = {}) {
+export function assetsFor({ library = FACE_PART_LIBRARY, morphology = null, style = '', slot = null, affinity = [] } = {}) {
   const wanted = faceSlot(slot);
-  const terms = searchTerms(query);
   const wish = new Set(assetTags({ tags: affinity }));
   const found = library.cards()
     .filter((card) => (!wanted || assetSlot(card) === wanted.id))
-    .map((card) => ({ card, compatible: !morphology || assetSupportsMorphology(card, morphology) }))
-    .filter((entry) => (includeIncompatible || entry.compatible))
-    .filter((entry) => matchesSearch(entry.card, terms))
-    .map(({ card, compatible }) => {
+    .filter((card) => (!morphology || assetSupportsMorphology(card, morphology)))
+    .map((card) => {
       const drawing = library.get(styledAsset(card.id, style, library)) || card;
-      return { card, drawing, restyled: drawing.id !== card.id, compatible, affinity: sharedTags(card, wish) };
+      return { card, drawing, restyled: drawing.id !== card.id, affinity: sharedTags(card, wish) };
     });
   // A stable sort, so drawings of equal standing stay in the order the library
   // registered them: an author who learns where a card is should find it there.
   return wish.size ? found.map((entry, at) => ({ entry, at }))
     .sort((one, other) => (other.entry.affinity - one.entry.affinity) || (one.at - other.at))
     .map(({ entry }) => entry) : found;
-}
-
-/**
- * What an author typed, as terms: `Cat, pointed` becomes `['cat', 'pointed']`.
- *
- * Split on anything that is not a word so a comma, a slash or two spaces all
- * work, because a search field is not a place to teach syntax.
- */
-export const searchTerms = (text) => String(text ?? '').toLowerCase().split(/[^\p{L}\p{N}-]+/u).filter(Boolean);
-
-/**
- * Whether a drawing answers to every term — **every**, not any.
- *
- * Two words narrow rather than widen: `cat pointed` means the pointed cat ears
- * and not every cat plus every pointed thing, which is what somebody typing a
- * second word is asking for.
- */
-export function matchesSearch(card, terms) {
-  if (!terms.length) return true;
-  const haystack = [card?.name, card?.description, card?.id, ...assetTags(card)].join(' ').toLowerCase();
-  return terms.every((term) => haystack.includes(term));
 }
 
 /** How many of a character's words a drawing shares. Zero is not a reason to hide it. */

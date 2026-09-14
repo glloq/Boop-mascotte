@@ -16,27 +16,34 @@ export const SHORTCUTS = Object.freeze([
   // and `event.key` is not 'r' under Option on a Mac, so the physical key is
   // matched as well -- the same belt and braces `play` uses with `event.code`.
   Object.freeze({ id: 'reset-mascot', keys: 'Ctrl/Cmd + Alt + R', label: 'Reset the mascot: the live pose and every preview-only change, on any tab', scope: 'Global', match: (event) => meta(event) && event.altKey && (key(event) === 'r' || event.code === 'KeyR') }),
-  Object.freeze({ id: 'escape', keys: 'Esc', label: 'Close the topmost surface (menu, palette, popover, drawer or sheet), then cancel a canvas mode', scope: 'Global', match: (event) => event.key === 'Escape' }),
+  Object.freeze({ id: 'escape', keys: 'Esc', label: 'Close the topmost surface (menu, palette, popover, drawer or sheet), then cancel a canvas mode, then drop the selection', scope: 'Global', match: (event) => event.key === 'Escape' }),
   Object.freeze({ id: 'play', keys: 'Space', label: 'Play or pause the active animation', scope: 'Animate', match: (event) => event.code === 'Space' }),
   Object.freeze({ id: 'timeline-seek', keys: 'Home / End', label: 'Seek to the start or the end (Timeline focused)', scope: 'Timeline', match: null }),
   Object.freeze({ id: 'timeline-keys', keys: 'Delete, Ctrl/Cmd + C / V / D', label: 'Delete, copy, paste or duplicate selected keys (Timeline focused)', scope: 'Timeline', match: null }),
-  Object.freeze({ id: 'design-tools', keys: 'V · N · P · L · R · O · S · T · H', label: 'Select, Node, Pen, Line, Rectangle, Ellipse, Polygon/Star, Text, Hand tools (Artwork)', scope: 'Artwork', match: null }),
+  Object.freeze({ id: 'design-tools', keys: 'V · N · P · L · R · O · S · T · H', label: 'Select, Node, Pen, Line, Rectangle, Ellipse, Polygon/Star, Text, Hand tools (Artwork only)', scope: 'Artwork', match: null }),
   Object.freeze({ id: 'draw-modifiers', keys: 'Shift · Alt', label: 'While drawing: Shift keeps a line to 45°, squares a rectangle or a polygon\'s rotation; Alt draws a shape from its centre; Backspace removes the last pen point, Enter finishes', scope: 'Artwork', match: null }),
-  Object.freeze({ id: 'multi-select', keys: 'Shift + click · drag on empty canvas', label: 'Select several pieces: Shift+click adds one, a drag on empty canvas selects what it surrounds; dragging any of them moves them all (Artwork, Select tool)', scope: 'Artwork', match: null }),
-  Object.freeze({ id: 'select-all', keys: 'Ctrl/Cmd + A', label: 'Select every piece at the top of the artwork (Artwork)', scope: 'Artwork', match: (event) => meta(event) && !event.shiftKey && key(event) === 'a' }),
+  Object.freeze({ id: 'multi-select', keys: 'Shift + click · drag on empty canvas', label: 'Select several pieces: Shift+click adds one, a drag on empty canvas selects what it surrounds; dragging any of them moves them all', scope: 'Piece', match: null }),
+  Object.freeze({ id: 'select-all', keys: 'Ctrl/Cmd + A', label: 'Select every piece at the top of the drawing', scope: 'Piece', match: (event) => meta(event) && !event.shiftKey && key(event) === 'a' }),
   Object.freeze({ id: 'group', keys: 'Ctrl/Cmd + G', label: 'Group the selected pieces (Artwork)', scope: 'Artwork', match: (event) => meta(event) && !event.shiftKey && key(event) === 'g' }),
   Object.freeze({ id: 'ungroup', keys: 'Ctrl/Cmd + Shift + G', label: 'Ungroup the selected group (Artwork)', scope: 'Artwork', match: (event) => meta(event) && event.shiftKey && key(event) === 'g' }),
-  Object.freeze({ id: 'gizmo-modes', keys: 'G · E · K · A', label: 'Move, Rotate, Scale, Pivot (anchor) on the selected artwork (Artwork and Character, Select tool)', scope: 'Artwork', match: null }),
-  Object.freeze({ id: 'gizmo-cancel', keys: 'Esc', label: 'Cancel a transform in progress and restore the previous position', scope: 'Artwork', match: null }),
-  Object.freeze({ id: 'artwork-nudge', keys: 'Arrow keys, Shift + arrows', label: 'Move the selected artwork by 1 unit, or 10 (Artwork and Character, Select tool)', scope: 'Artwork', match: null }),
-  Object.freeze({ id: 'artwork-clipboard', keys: 'Ctrl/Cmd + C / V / D, Delete', label: 'Copy, paste, duplicate or delete the selected artwork (Artwork)', scope: 'Artwork', match: null }),
-  Object.freeze({ id: 'artwork-menu', keys: 'Shift + F10 or the Menu key', label: 'Open the edit menu of the selected artwork (Artwork, Face Setup)', scope: 'Artwork', match: null }),
+  Object.freeze({ id: 'gizmo-modes', keys: 'G · E · K · A', label: 'Move, Rotate, Scale, Pivot (anchor) on the selected piece', scope: 'Piece', match: null }),
+  // The letters every other editor uses, offered where no drawing tool has
+  // claimed them — which is every editing surface except Artwork
+  // (`GIZMO_ALIASES` in svg-editor/gizmo-geometry.js).
+  Object.freeze({ id: 'gizmo-aliases', keys: 'G · R · S · P', label: 'The same four, outside Artwork, where R S P are not the Rectangle, the Polygon and the Pen', scope: 'Piece', match: null }),
+  Object.freeze({ id: 'gizmo-cancel', keys: 'Esc', label: 'Cancel a transform in progress and restore the previous position', scope: 'Piece', match: null }),
+  Object.freeze({ id: 'artwork-nudge', keys: 'Arrow keys, Shift + arrows', label: 'Move the selected piece by 1 unit, or 10', scope: 'Piece', match: null }),
+  Object.freeze({ id: 'piece-delete', keys: 'Delete', label: 'Delete the selected piece. A library part comes off the face with its movements; the toast offers Undo', scope: 'Piece', match: null }),
+  Object.freeze({ id: 'piece-duplicate', keys: 'Ctrl/Cmd + D', label: 'Duplicate the selected piece', scope: 'Piece', match: null }),
+  Object.freeze({ id: 'piece-clipboard', keys: 'Ctrl/Cmd + C / V', label: 'Copy the selected piece, and paste a copy in front of the original', scope: 'Piece', match: null }),
+  Object.freeze({ id: 'piece-depth', keys: '] · [ · Ctrl/Cmd + Shift + ] / [', label: 'Bring forward, send backward, bring to front, send to back', scope: 'Piece', match: null }),
+  Object.freeze({ id: 'piece-menu', keys: 'Shift + F10 or the Menu key', label: 'Open the edit menu of the selected piece', scope: 'Piece', match: null }),
   Object.freeze({ id: 'pen-finish', keys: 'Enter · double-click', label: 'Close the shape being drawn with the Pen', scope: 'Artwork', match: null }),
   Object.freeze({ id: 'canvas-wheel', keys: 'Wheel · Ctrl/Cmd + wheel', label: 'Pan the canvas, or zoom it about the pointer', scope: 'Artwork', match: null }),
   Object.freeze({ id: 'pad-arrows', keys: 'Arrow keys', label: 'Nudge a test pad or a slider (Preview / Face Setup)', scope: 'Preview', match: null })
 ]);
 
-export const SHORTCUT_SCOPES = Object.freeze(['Global', 'Artwork', 'Animate', 'Timeline', 'Preview']);
+export const SHORTCUT_SCOPES = Object.freeze(['Global', 'Piece', 'Artwork', 'Animate', 'Timeline', 'Preview']);
 
 /** Is the event typing into a text field? Global character shortcuts stay out of the way there. */
 export const isTextTarget = (target) => Boolean(target && typeof target.matches === 'function' && (target.matches('input:not([type=checkbox]):not([type=range]):not([type=file]), textarea, select') || target.isContentEditable));

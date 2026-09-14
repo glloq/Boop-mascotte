@@ -1,0 +1,114 @@
+/**
+ * The two surfaces that carry a gesture: the bar on the selection, and the
+ * toast that offers to take it back.
+ *
+ * Both are new, so every selector here is new — nothing in the thirty-five
+ * inline blocks of `index.html` can collide with them, whatever order the
+ * browser ends up applying them in.
+ */
+
+/* ── The six actions, on the piece ───────────────────────────────────────── */
+
+.selection-actions {
+  position: absolute;
+  z-index: 12; /* over the gizmo overlay (10) and under the canvas menu (20) */
+  display: flex;
+  gap: var(--ux-gap-1);
+  padding: var(--ux-gap-1);
+  background: color-mix(in srgb, var(--ux-raised) 92%, transparent);
+  border: 1px solid var(--ux-border-popover);
+  border-radius: var(--ux-radius-3);
+  box-shadow: var(--ux-lift-2);
+  /* It floats over artwork, so it must never be the thing a drag starts on. */
+  backdrop-filter: blur(3px);
+}
+
+.selection-actions[hidden] { display: none !important; }
+
+.selection-actions button {
+  min-width: 30px;
+  min-height: 28px;
+  padding: var(--ux-gap-1) var(--ux-gap-2);
+  font-size: 14px;
+  line-height: 1;
+  background: transparent;
+  border-color: transparent;
+  border-radius: var(--ux-radius-2);
+}
+
+.selection-actions button:hover,
+.selection-actions button:focus-visible {
+  background: var(--ux-accent-hover);
+  border-color: var(--ux-accent-bright);
+}
+
+/* Delete is the one press here that takes something away. It is not red until
+   it is reached for: a permanently red button in a row of six reads as an
+   error state, and this bar appears every time anything is selected. */
+.selection-actions button.danger:hover,
+.selection-actions button.danger:focus-visible {
+  background: var(--ux-danger-bg);
+  border-color: var(--ux-danger);
+  color: var(--ux-text-strong);
+}
+
+/* A separator before Delete, so the destructive press is not adjacent to
+   "Send backward" by accident. */
+.selection-actions button.danger {
+  margin-left: var(--ux-gap-1);
+  box-shadow: -5px 0 0 -4px var(--ux-border-popover);
+}
+
+/* Touch: the same six, at a reachable size. */
+#app:not([data-layout=desktop]) .selection-actions button {
+  min-width: 40px;
+  min-height: 40px;
+  font-size: 16px;
+}
+
+/* ── The toast, when it carries a button ─────────────────────────────────── */
+
+/* The base `.toast` is `pointer-events:none`, which is right for a message and
+   wrong for an offer. Only the actionable one takes the pointer. */
+.toast[data-actionable] {
+  display: flex;
+  align-items: center;
+  gap: var(--ux-gap-3);
+  padding: 6px 6px 6px 14px;
+  pointer-events: auto;
+  border-color: var(--ux-border-popover);
+  box-shadow: var(--ux-lift-2);
+}
+
+.toast[data-actionable] [data-toast-message] {
+  /* A deleted part can have a long name; the message wraps rather than pushing
+     the button off the end of the bar. */
+  min-width: 0;
+  max-width: 46ch;
+}
+
+.toast[data-actionable] button {
+  flex: none;
+  padding: 6px 12px;
+  font-weight: 600;
+  background: var(--ux-accent);
+  border-color: var(--ux-accent-line);
+  border-radius: var(--ux-radius-2);
+}
+
+.toast[data-actionable] button:hover,
+.toast[data-actionable] button:focus-visible {
+  background: var(--ux-accent-hover);
+  border-color: var(--ux-accent-bright);
+}
+
+#app:not([data-layout=desktop]) .toast[data-actionable] {
+  /* On a phone the toast is the only way back: full width, thumb-sized. */
+  left: var(--ux-gap-3);
+  right: var(--ux-gap-3);
+  transform: none;
+  max-width: none;
+}
+
+#app:not([data-layout=desktop]) .toast[data-actionable].visible { transform: none; }
+#app:not([data-layout=desktop]) .toast[data-actionable] button { min-height: 40px; }

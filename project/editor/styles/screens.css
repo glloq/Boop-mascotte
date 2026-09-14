@@ -1,11 +1,53 @@
 /*
- * The surfaces the redesign rebuilt: Home, the new-mascot wizard, and the head
- * of a row's library (UI-REDESIGN-02, 03, 04).
+ * The two surfaces the redesign added: Home and the new-mascot wizard
+ * (UI-REDESIGN-02 and 03).
  *
- * Kept apart from `components.css` because these are *places*, not parts: a
- * component is reused everywhere, and these two are each used once. Both are
- * built only out of tokens, so they move with the palette like everything else.
+ * A file per region, in the `--ux-*` vocabulary, with selectors nothing else
+ * declares — the two rules `styles/README.md` sets for anything written here
+ * from the start. These are *places* rather than components: each is used once,
+ * so the three shapes they share (a pick-a-thing card, a section label, an
+ * empty state) are declared here beside them rather than promoted to a layer
+ * nothing else would read.
+ *
+ * The buttons are the editor's own: a bare `button` is already the blue
+ * primary, `.secondary` the quiet one beside it, `.link` the underlined text
+ * action. Only the size of a first-run action is new, and that is `.btn-lg`.
  */
+
+/* ══ The three shapes Home and the wizard share ════════════════════════════ */
+/*
+ * A card an author presses to choose something: a picture, a name, a note. It
+ * is a `button` — so it is keyboard-reachable, it answers Enter, and it is in
+ * the row's arrow-key ring — and it undoes the primary blue, which is for the
+ * one action a screen wants rather than for every option on it.
+ */
+.screen-card{
+  display: grid;
+  gap: var(--ux-gap-1);
+  padding: var(--ux-gap-3);
+  text-align: left;
+  background: var(--ux-raised);
+  border: 1px solid var(--ux-border-strong);
+  border-radius: var(--ux-radius-3);
+  color: var(--ux-text);
+}
+.screen-card:hover{background:var(--ux-surface);border-color:var(--ux-border-popover)}
+.screen-card[aria-pressed=true]{border-color:var(--ux-accent-bright);background:var(--ux-surface)}
+.screen-card-title{font-size:var(--ux-size-control);font-weight:600;color:var(--ux-text-strong)}
+.screen-card-note{font-size:var(--ux-size-small);color:var(--ux-faint)}
+/* The label over a section: read as a heading, sized as a hint. */
+.screen-eyebrow{
+  margin: 0;
+  font-size: var(--ux-size-label);
+  font-weight: 700;
+  letter-spacing: var(--ux-track-label);
+  text-transform: uppercase;
+  color: var(--ux-faint);
+}
+.screen-empty{margin:0;color:var(--ux-muted);font-size:var(--ux-size-control)}
+/* A first-run action is pressed once, by somebody who has never seen the
+ * editor: it is worth more than the 24px a panel button gets. */
+.btn-lg{min-height:38px;padding:0 var(--ux-gap-4);font-size:var(--ux-size-control)}
 
 /* ══ Home ══════════════════════════════════════════════════════════════════ */
 .home-surface{
@@ -13,8 +55,8 @@
   z-index: 80;
   inset: 56px 0 0;
   overflow: auto;
-  background: radial-gradient(120% 80% at 50% -10%, var(--bp-surface), var(--bp-bg) 70%);
-  padding: var(--bp-space-7) var(--bp-space-4);
+  background: radial-gradient(120% 80% at 50% -10%, var(--ux-surface), var(--ux-canvas-void) 70%);
+  padding: 48px var(--ux-gap-4);
 }
 .home-surface[hidden]{display:none}
 .home-panel{
@@ -23,68 +65,66 @@
   display: grid;
   justify-items: center;
   text-align: center;
-  gap: var(--bp-space-3);
+  gap: var(--ux-gap-3);
 }
 .home-brand{
   margin: 0;
-  font-size: var(--bp-text-sm);
-  font-weight: var(--bp-weight-bold);
+  font-size: var(--ux-size-label);
+  font-weight: 700;
   letter-spacing: .22em;
-  color: var(--bp-accent-text);
+  color: var(--ux-brand);
 }
 /* The mascot, drawn from the library's own preset. */
-.home-hero{width:200px;height:200px;margin:var(--bp-space-2) 0}
+.home-hero{width:200px;height:200px;margin:var(--ux-gap-2) 0}
 /* The hero floats: the library's thumbnails carry a white plate of their own,
  * which is right in a grid of a hundred of them and wrong for one at 200px. */
 .home-hero svg{width:100%;height:100%;background:transparent}
-.home-panel h1{margin:0;max-width:24ch}
+.home-panel h1{margin:0;max-width:24ch;font-size:26px;line-height:1.2;color:var(--ux-text-strong)}
 .home-lede{
   margin: 0;
   max-width: 46ch;
-  font-size: var(--bp-text-md);
-  line-height: var(--bp-lh-md);
-  color: var(--bp-text-muted);
+  font-size: var(--ux-size-control);
+  line-height: 1.5;
+  color: var(--ux-muted);
 }
 .home-actions{
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: var(--bp-space-3);
-  margin-top: var(--bp-space-4);
+  gap: var(--ux-gap-3);
+  margin-top: var(--ux-gap-4);
 }
-.home-start{font-size:var(--bp-text-lg)}
 .home-otherwise,.home-examples{
   margin: 0;
-  font-size: var(--bp-text-sm);
-  color: var(--bp-text-muted);
+  font-size: var(--ux-size-small);
+  color: var(--ux-muted);
 }
-.home-otherwise .btn-ghost,.home-examples .btn-ghost{min-height:var(--bp-control-sm);padding:0 var(--bp-space-2)}
 
 /*
  * Continue: present only when there is something to continue. A section whose
  * whole content is the word "no" is not an empty state, it is noise on the one
  * run where the impression matters.
  */
-.home-recovery{margin-top:var(--bp-space-5);width:100%;max-width:320px;display:grid;gap:var(--bp-space-2)}
+.home-recovery{margin-top:28px;width:100%;max-width:320px;display:grid;gap:var(--ux-gap-2)}
 .home-recovery[data-recovery-status=none]{display:none}
-.home-draft{text-align:center;align-items:center}
-.home-back{margin-top:var(--bp-space-5)}
+.home-draft{text-align:center;justify-items:center}
+.home-back{margin-top:28px}
 
 @media (max-width:700px){
-  .home-surface{inset:56px 0 0;padding:var(--bp-space-5) var(--bp-space-4)}
+  .home-surface{padding:28px var(--ux-gap-4)}
   .home-hero{width:140px;height:140px}
+  .home-panel h1{font-size:21px}
   .home-actions{flex-direction:column;align-self:stretch;width:100%}
-  .home-actions>.btn-lg,.home-actions>.primary,.home-actions>.secondary{width:100%}
+  .home-actions>button{width:100%}
 }
 
 /* ══ The new-mascot wizard ═════════════════════════════════════════════════
- * Above Home (85 against 80): cancelling the first step goes back to the page
- * it was opened from rather than to a blank editor.
- */
-/*
- * Above the project bar, not under it (z-index 95 against the bar's 90).
- * Choosing a mascot is a flow with its own way out; leaving Export and Project
- * check pressable over it would offer a project that does not exist yet.
+ *
+ * Above the project bar, not under it (z-index 95 against the bar's 90, and
+ * Home's 80). Choosing a mascot is a flow with its own way out; leaving Export
+ * and Project check pressable over it would offer a project that does not exist
+ * yet, and cancelling the first step goes back to the page it was opened from
+ * rather than to a blank editor.
  */
 .wizard{
   position: fixed;
@@ -92,21 +132,22 @@
   inset: 0;
   display: grid;
   grid-template-rows: 56px minmax(0,1fr);
-  background: var(--bp-bg);
+  background: var(--ux-canvas-void);
+  color: var(--ux-text);
 }
 .wizard[hidden]{display:none}
 .wizard-bar{
   display: flex;
   align-items: center;
-  gap: var(--bp-space-3);
-  padding: 0 var(--bp-space-4);
-  border-bottom: 1px solid var(--bp-border);
-  background: var(--bp-surface);
+  gap: var(--ux-gap-3);
+  padding: 0 var(--ux-gap-4);
+  border-bottom: 1px solid var(--ux-border);
+  background: var(--ux-bar);
 }
-.wizard-name{flex:1;margin:0;text-align:center;font-size:var(--bp-text-sm);color:var(--bp-text-muted)}
-.wizard-dots{display:flex;gap:var(--bp-space-1);margin:0;padding:0;list-style:none}
-.wizard-dot{width:8px;height:8px;border-radius:var(--bp-radius-pill);background:var(--bp-border-strong)}
-.wizard-dot-current{background:var(--bp-accent)}
+.wizard-name{flex:1;margin:0;text-align:center;font-size:var(--ux-size-small);color:var(--ux-muted)}
+.wizard-dots{display:flex;gap:var(--ux-gap-1);margin:0;padding:0;list-style:none}
+.wizard-dot{width:8px;height:8px;border-radius:999px;background:var(--ux-border-popover)}
+.wizard-dot-current{background:var(--ux-focus)}
 .wizard-body{overflow:auto;min-height:0;display:grid;align-content:center}
 /*
  * `justify-items: stretch` and not `center`: a centred grid item is sized to
@@ -118,36 +159,36 @@
   display: grid;
   justify-items: stretch;
   text-align: center;
-  gap: var(--bp-space-5);
-  padding: var(--bp-space-6) var(--bp-space-4);
+  gap: 28px;
+  padding: 36px var(--ux-gap-4);
   width: 100%;
   max-width: 1100px;
   margin: 0 auto;
 }
-.wizard-step h1{font-size:var(--bp-text-xl);line-height:var(--bp-lh-xl);outline:none;justify-self:center}
-.wizard-otherwise{margin:0;font-size:var(--bp-text-sm);color:var(--bp-text-muted)}
+.wizard-step h1{margin:0;font-size:26px;line-height:1.2;color:var(--ux-text-strong);outline:none;justify-self:center}
+.wizard-otherwise{margin:0;font-size:var(--ux-size-small);color:var(--ux-muted)}
 
 /* Step one — the kinds. */
 .wizard-types{
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: var(--bp-space-4);
+  gap: var(--ux-gap-4);
   width: 100%;
   max-width: 1000px;
   margin: 0 auto;
 }
-.wizard-type{align-items:center;text-align:center;padding:var(--bp-space-4);gap:var(--bp-space-1)}
+.wizard-type{justify-items:center;text-align:center;padding:var(--ux-gap-4)}
 .wizard-type-art{
   display: grid;
   place-items: center;
   width: 100%;
   aspect-ratio: 1;
-  border-radius: var(--bp-radius-lg);
-  background: var(--bp-thumb-bg);
-  margin-bottom: var(--bp-space-2);
+  border-radius: var(--ux-radius-3);
+  background: var(--ux-thumb-ground);
+  margin-bottom: var(--ux-gap-2);
 }
 .wizard-type-art svg{width:86%;height:86%;background:transparent}
-.wizard-type-name{font-size:var(--bp-text-lg)}
+.wizard-type-name{font-size:var(--ux-size-heading)}
 
 /*
  * Step two — the characters on the left, the result on the right.
@@ -159,46 +200,47 @@
   grid-template-columns: minmax(280px, 34%) minmax(0, 1fr);
   align-items: start;
   justify-items: stretch;
-  gap: var(--bp-space-6);
+  gap: 36px;
   max-width: 1200px;
   width: 100%;
 }
-.wizard-choices{display:grid;gap:var(--bp-space-3);justify-items:start;text-align:left}
+.wizard-choices{display:grid;gap:var(--ux-gap-3);justify-items:start;text-align:left}
 .wizard-step-character h1{justify-self:start}
 .wizard-characters{
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: var(--bp-space-3);
+  gap: var(--ux-gap-3);
   width: 100%;
 }
-.wizard-character{align-items:center;text-align:center;padding:var(--bp-space-2);gap:var(--bp-space-1)}
+.wizard-character{justify-items:center;text-align:center;padding:var(--ux-gap-2)}
 .wizard-character-art{
   display: grid;
   place-items: center;
   width: 100%;
   aspect-ratio: 1;
-  border-radius: var(--bp-radius-md);
-  background: var(--bp-thumb-bg);
+  border-radius: var(--ux-radius-2);
+  background: var(--ux-thumb-ground);
 }
 .wizard-character-art svg{width:92%;height:92%;background:transparent}
-.wizard-preview{display:grid;justify-items:center;gap:var(--bp-space-3);position:sticky;top:var(--bp-space-4)}
+.wizard-preview{display:grid;justify-items:center;gap:var(--ux-gap-3);position:sticky;top:var(--ux-gap-4)}
 .wizard-preview-art{
   display: grid;
   place-items: center;
   width: 100%;
   max-width: 420px;
   aspect-ratio: 1;
-  border-radius: var(--bp-radius-xl);
-  background: var(--bp-thumb-bg);
+  border-radius: var(--ux-radius-4);
+  background: var(--ux-thumb-ground);
 }
 .wizard-preview-art svg{width:88%;height:88%;background:transparent}
-.wizard-preview-name{margin:0;font-size:var(--bp-text-lg);font-weight:var(--bp-weight-medium)}
+.wizard-preview-name{margin:0;font-size:var(--ux-size-heading);font-weight:600;color:var(--ux-text-strong)}
 
 @media (max-width:900px){
   /* Centred content taller than the viewport hides its own top: on a phone the
    * preview sits above the grid, and centring pushed it off the screen. */
   .wizard-body{align-content:start}
-  .wizard-step{padding:var(--bp-space-5) var(--bp-space-4);gap:var(--bp-space-4)}
+  .wizard-step{padding:28px var(--ux-gap-4);gap:var(--ux-gap-4)}
+  .wizard-step h1{font-size:21px}
   .wizard-step-character{grid-template-columns:1fr}
   .wizard-preview{position:static;order:-1}
   .wizard-preview-art{max-width:260px}
@@ -225,36 +267,3 @@
 #app.home-open #save-project-top,
 #app.home-open #export-top,
 #app.home-open #save-state{display:none}
-
-/* ══ The head of a row's library (UI-REDESIGN-04) ═══════════════════════════
- *
- * How many drawings a row holds, a search over their names, descriptions and
- * tags, and the way past the kind of mascot — which names what it would do
- * ("+10 more" / "Compatible only") rather than asking anyone to read a state.
- */
-.part-library-head{
-  display: flex;
-  align-items: center;
-  gap: var(--bp-space-2);
-  flex-wrap: wrap;
-  margin-bottom: var(--bp-space-1);
-}
-.part-styles-count{color:var(--bp-text-muted);font-size:var(--bp-text-xs);flex:1 1 auto}
-/* The field takes a line of its own: sharing one with the count and the hatch
- * left it about 150px wide in a 300px column, which is not a search field. */
-.part-search{order:1;flex:1 1 100%;min-width:0}
-.part-search input{
-  width: 100%;
-  min-height: var(--bp-control-sm);
-  padding: 0 var(--bp-space-2);
-  border: 1px solid var(--bp-border-strong);
-  border-radius: var(--bp-radius-sm);
-  background: var(--bp-raised);
-  color: var(--bp-text);
-  font: inherit;
-  font-size: var(--bp-text-xs);
-}
-.part-search input::placeholder{color:var(--bp-text-faint)}
-/* A drawing on offer only because the hatch is open: from another kind of
- * mascot, and saying so before it is pressed. */
-.part-style-badge.part-style-other{background:var(--bp-raised-hover);color:var(--bp-text-muted)}

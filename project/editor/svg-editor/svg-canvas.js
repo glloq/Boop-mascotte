@@ -37,6 +37,29 @@ import { convertNode, movePathControl, pathControls, smoothNode } from '../core/
 import { DRAW_TOOLS, createDrawTools } from './draw-tools.js';
 import { parsePath, serializePath } from '../../runtime/path-vector.js';
 
+/**
+ * A base transform as the seven numbers a frame compares, and as the attribute
+ * a node carries.
+ *
+ * One spelling, because two writers share that attribute: the author's own
+ * moves go through `applyElementTransform`, and every preview frame goes
+ * through `applyFrame`. They compare against the same cache, so they have to
+ * agree on what a transform *is*.
+ *
+ * A scale of 0 is a scale of 0, not a missing value: `|| 1` used to make a part
+ * the rig asked to collapse stay full size on the canvas while the exported
+ * runtime collapsed it.
+ */
+function transformValues(transform = {}) {
+  const at = (name, fallback) => { const value = transform[name]; return value == null || !Number.isFinite(Number(value)) ? fallback : Number(value); };
+  return [at('x', 0), at('y', 0), at('rotation', 0), at('scaleX', 1), at('scaleY', 1), at('pivotX', 0), at('pivotY', 0)];
+}
+
+function transformAttribute(transform = {}) {
+  const [x, y, rotation, scaleX, scaleY, pivotX, pivotY] = transformValues(transform);
+  return `translate(${x} ${y}) rotate(${rotation} ${pivotX} ${pivotY}) translate(${pivotX} ${pivotY}) scale(${scaleX} ${scaleY}) translate(${-pivotX} ${-pivotY})`;
+}
+
 // SVG.js 2.x `transform()` extracts `{x, y, rotation, scaleX, scaleY}`; the 3.x names are kept as a fallback.
 // Group artwork is moved through its transform (not cx/cy), so a pose must read it or a dragged group calibrates to zero.
 function parseTransform(element) {
@@ -973,6 +996,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       gizmoLayer.setAttribute('transform', `matrix(${local.a} ${local.b} ${local.c} ${local.d} ${local.e} ${local.f})`);
       return item;
     },
+    // `R` `S` `P` also pick a mode on a surface with no drawing tools to
+    // collide with — which is every editing surface except Artwork.
+    aliasKeys: () => workspace !== 'create',
     // Nested mascot parts overlap: pressing inside the head's box but on the
     // mouth means "select the mouth", not "drag the head". Handles are always
     // the gizmo's; the body only when the press is on the selection's own art.
@@ -3420,6 +3446,12 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     },
     /** Everything selected, the piece in hand last. */
     getSelection() { return [...selectedIds]; },
+    /**
+     * Where a piece is on screen, for the chrome that has to sit next to it
+     * (`ui/selection-actions.js`). Client coordinates, which is what a
+     * `position:absolute` bar inside the canvas container needs.
+     */
+    clientBox(id) { return clientBoxOf(id); },
     /** Select several pieces at once; the last one is in hand. */
     selectMany(ids) { store.mutateSession(['selectedId', 'selectedIds'], (state) => { Object.assign(state, selectMany(ids.filter((item) => documentModel.getNode(item)))); }); return selectedIds.length; },
     /** Every unlocked, visible piece at the top of the artwork (Ctrl/Cmd+A). */
@@ -3693,15 +3725,26 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       for (const [id, item] of Object.entries(frame.frames || {})) if (item?.depthBand) bands[id] = item.depthBand;
       if (previewOrder.draw(bands)) diagnostics.increment('canvas.domWrites');
     },
+    /**
+     * The author's own move, painted straight onto the piece.
+     *
+     * It records what it painted in `lastApplied`, and that is not bookkeeping:
+     * `applyFrame` skips a write when the frame matches what it believes the
+     * node carries, and this writes the same attribute behind its back. An
+     * undo restored the document, the next frame computed the resting
+     * transform, the cache still said "resting" from before the drag -- so
+     * nothing was written and the piece stayed where the drag had left it. The
+     * numbers said one thing and the mascot showed another.
+     *
+     * `matrix: null` for the same reason: a channel transform replaces any
+     * composed matrix the node was carrying, so claiming it still has one
+     * would skip the next matrix write too.
+     */
     applyElementTransform(id, element) {
       const node = wrapperFor(id); if (!node || store.getDocument().layerMetadata[id]?.locked) return;
-      const transform = element.baseTransform || element;
-      // A scale of 0 is a scale of 0, not a missing value: `|| 1` used to make a
-      // part the rig asked to collapse stay full size on the canvas while the
-      // exported runtime collapsed it.
-      const at = (name, fallback) => { const value = transform[name]; return value == null || !Number.isFinite(Number(value)) ? fallback : Number(value); };
-      const [x, y, rotation, scaleX, scaleY, pivotX, pivotY] = [at('x', 0), at('y', 0), at('rotation', 0), at('scaleX', 1), at('scaleY', 1), at('pivotX', 0), at('pivotY', 0)];
-      node.attr('transform', `translate(${x} ${y}) rotate(${rotation} ${pivotX} ${pivotY}) translate(${pivotX} ${pivotY}) scale(${scaleX} ${scaleY}) translate(${-pivotX} ${-pivotY})`);
+      const values = transformValues(element.baseTransform || element);
+      node.attr('transform', transformAttribute(element.baseTransform || element));
+      lastApplied.set(node.node, { ...(lastApplied.get(node.node) || {}), transform: values, matrix: null });
       documentModel.captureAuthoringNode(id);
     },
     applyPathData(id, d) { const node = wrapperFor(id); if (node?.type !== 'path') return; node.attr('d', d); documentModel.captureAuthoringNode(id); commitDocument(); },

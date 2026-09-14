@@ -67,11 +67,31 @@ rend cette question évidente.
 
 | PR | État | Où |
 | --- | --- | --- |
-| **UI-REDESIGN-01** — Design system | ✅ **livré** | `project/editor/styles/` · `core/tests/design-tokens.test.js` |
+| **UI-REDESIGN-01** — Design system | ↩︎ **remplacé** | `styles/tokens.css` · `styles/README.md` (voir ci-dessous) |
 | **UI-REDESIGN-02** — Nouvelle Home | ✅ **livré** | `ui/home-surface.js` · `styles/screens.css` |
 | **UI-REDESIGN-03** — Type puis Personnage | ✅ **livré** | `ui/new-mascot/` · `core/face-library/face-morphologies.js` |
-| **UI-REDESIGN-04** — Filtrage sur toutes les surfaces | ✅ **livré** | `core/face-library/compatibility.js` · `ui/character-builder/` |
+| **UI-REDESIGN-04** — Filtrage sur toutes les surfaces | ✅ **livré** (en partie via `main`) | `core/face-library/compatibility.js` · `ui/character-builder/` |
 | UI-REDESIGN-05 → 10 | à faire | — |
+
+**UI-REDESIGN-01 a été remplacé par la couche de `main`.** Pendant l'écriture de
+cette étude, la PR #144 a mené le même audit en parallèle et a livré sa propre
+sortie du CSS de `index.html` : `styles/tokens.css` (onze tokens `--ux-*` déjà
+lus par les blocs existants, étendus en un vocabulaire complet), plus
+`gestures.css`, `library.css`, `preview.css`, `behavior.css` et `shell.css`. Sa
+règle est **additive** — le lien `<link>` passe *avant* les blocs `<style>`, donc
+adopter la couche ne peut pas déplacer un pixel — là où la mienne (`base.css`,
+`components.css`, `surfaces.css`, tokens `--bp-*`) remplaçait les blocs et
+inversait la hiérarchie des boutons. Deux systèmes ne peuvent pas cohabiter : le
+mien est retiré, `screens.css` est réécrit en `--ux-*`, et la migration décrite
+dans [07_DESIGN_SYSTEM.md](07_DESIGN_SYSTEM.md) continue dans
+`project/editor/styles/README.md`.
+
+**UI-REDESIGN-04, ce que `main` a livré et ce qui reste de cette branche.** La
+recherche (champ dans l'en-tête du panneau, comptage par ligne, `Show every
+drawing` pour passer outre le type) vient de `main` ; de cette branche restent le
+**tri par affinité** — les dessins qui partagent le vocabulaire du personnage en
+cours passent devant, sans que rien n'ait été écrit ligne par ligne — et le
+retrait des lignes qu'aucun dessin ne peut remplir.
 
 **Non livré de la PR 02** : les *projets récents* (`core/state/recent-projects.js`).
 Le modèle proposé en [02_HOME.md](02_HOME.md) §E tient toujours ; la Home livrée

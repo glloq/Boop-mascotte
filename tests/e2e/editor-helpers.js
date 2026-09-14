@@ -21,7 +21,18 @@ export async function goToMode(page, mode) {
   if (await page.locator(`#app[data-mode="${mode}"]`).count()) return;
   const workspace = mode.includes('.') ? mode.split('.')[0] : null;
   if (workspace) await page.locator(`.stage-tab[data-stage="${workspace}"]`).click();
-  await page.locator(`.workspace-tab[data-mode="${mode}"]`).click();
+  // The screens a workspace marks advanced — Artwork, Deform, Timeline, States
+  // — sit behind a chevron rather than in the row, so a Bézier node editor no
+  // longer stands beside *Face* at the same level
+  // (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §7.2). The product opens the chevron
+  // for any route that lands on one; a spec that presses the tab opens it the
+  // way a person would.
+  const tab = page.locator(`.workspace-tab[data-mode="${mode}"]`);
+  if (workspace && !(await tab.isVisible())) {
+    const chevron = page.locator(`[data-stage-more="${workspace}"]`);
+    if (await chevron.count()) await chevron.click();
+  }
+  await tab.click();
   await expect(page.locator(`#app[data-mode="${mode}"]`), `The editor did not open "${mode}"`).toHaveCount(1);
 }
 /**
@@ -35,6 +46,20 @@ export const TASK_MODES = {
   reactions: 'behavior.reactions', automatic: 'behavior.automatic', preview: 'preview'
 };
 export const openTask = (page, task) => goToMode(page, TASK_MODES[task] || task);
+
+/**
+ * Open "What works on this screen".
+ *
+ * It was a bare phone glyph in the project bar, beside Undo and Save — a
+ * permanent control for a question asked once a session. It moved into the
+ * `•••` menu under its own words
+ * (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §7.1), so reaching it is two presses,
+ * which is what a person does.
+ */
+export async function openCapabilitySheet(page) {
+  await page.locator('details.file-menu > summary').click();
+  await page.locator('#capability-toggle').click();
+}
 
 /** The panels a screen mounts, for the specs that assert the composition. */
 export async function goToWorkspace(page, surface) {
@@ -66,6 +91,22 @@ export async function openSetupSection(page, id) {
 }
 export async function goToAnimate(page) { await goToMode(page, 'animate.motions'); await openTimeline(page); }
 export const goToPreview = page => goToMode(page, 'preview');
+
+/**
+ * Open Preview's rig bench: the live sliders, the pose chips, the hands, the
+ * poses and the automatic behaviours.
+ *
+ * They were Preview's *first* five sections and they are testing the rig, not
+ * the mascot — a person building a character wants them last and folded
+ * (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §11). Everything that reaches for one
+ * of them opens the disclosure first.
+ */
+export async function openRigBench(page) {
+  const bench = page.locator('[data-preview-section="advanced"]');
+  await expect(bench).toBeVisible();
+  if (!(await bench.evaluate((node) => node.open))) await bench.locator('> summary').click();
+  await expect(bench.locator('[data-preview-section="live"]')).toBeVisible();
+}
 /** Behavior's three screens: reactions, the automatic behaviours, the states. */
 export const goToReactions = page => goToMode(page, 'behavior.reactions');
 export const goToAutomatic = page => goToMode(page, 'behavior.automatic');
