@@ -255,6 +255,19 @@
  * check, Save Project, Undo, Redo and the four workspaces in front of somebody
  * who has no project yet. On Home the bar is the brand and the menu.
  */
+/*
+ * A closed menu has no box while Home is showing.
+ *
+ * The ••• popover is `position:absolute; right:260px` against its own summary —
+ * an offset that assumes the button sits at the far right of the bar, which it
+ * does everywhere except here: taking Export, Save Project and the rest away
+ * moves the summary to the left of the bar, and 260px to the left of *that* is
+ * off the screen. A closed `<details>` keeps its layout box (Chromium's
+ * `content-visibility:hidden` preserves layout state), so the box overflowed
+ * even though nothing was painted. Scoped to Home because the offset is right
+ * everywhere else, and pressing ••• still opens it here: `[open]` drops the rule.
+ */
+#app.home-open details.file-menu:not([open]) .menu-popover{display:none}
 /* `.project-actions .capability-toggle` is `display:inline-flex!important`, so
  * this one has to answer in kind rather than lose to a rule about layout. */
 #app.home-open #capability-toggle{display:none!important}
