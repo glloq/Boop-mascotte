@@ -80,3 +80,35 @@ test('warnings never block the export but each one deep-links to its item', asyn
   await expect(panel.locator('[data-export-headline]')).toContainText('Ready to export');
   await expect(panel.locator('[data-export-headline]')).not.toContainText('warning');
 });
+
+/**
+ * Project check repairs what it can, instead of only pointing at it (audit §4.2).
+ *
+ * Deleting a drawing in Artwork leaves the rig pointing at an element that no
+ * longer exists. The message was `Semantic part "eyes": role "leftEye"
+ * references missing element "eyeLeft".` and the only button opened a screen:
+ * the author still had to find Clear, on the right role, on the right part.
+ */
+test('@critical a part that has lost its drawing says so plainly, and the repair is one press', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await page.evaluate(() => window.__BOOP_E2E__.mutate((state) => { delete state.elements.eyeLeft; }));
+
+  await page.locator('#validate').click();
+  const card = page.locator('#problems-panel .manager-card').filter({ hasText: 'left eye' }).first();
+  await expect(card).toContainText('Eyes: nothing is drawn for its left eye any more.');
+  await expect(card, 'no schema words reach the author').not.toContainText('references missing element');
+  // Two buttons, and they mean different things: one opens the screen where
+  // another drawing could be picked, the other does the repair.
+  await expect(card.getByRole('button', { name: 'Fix' })).toBeVisible();
+
+  await card.getByRole('button', { name: 'Take the left eye role off' }).click();
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.document().semanticParts.eyes?.roles?.leftEye ?? null)).toBe(null);
+  // Said in words, with the way back out — and the validation pass that follows
+  // does not wipe the offer before it can be taken.
+  await expect(page.locator('#toast')).toContainText('the left eye role is off');
+  await expect(page.locator('#toast [data-toast-action]')).toHaveText('Undo');
+
+  await page.locator('#validate').click();
+  await expect(page.locator('#problems-panel .manager-card').filter({ hasText: 'nothing is drawn for its left eye' })).toHaveCount(0);
+});

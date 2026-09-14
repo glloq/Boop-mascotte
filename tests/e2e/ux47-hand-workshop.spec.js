@@ -216,3 +216,42 @@ test('@critical Edit SVG opens one state of one hand, says which, and comes back
   await expect(page.locator('#app')).toHaveAttribute('data-mode', 'design.hands');
   await expect(page.locator('#artwork-scope')).toBeHidden();
 });
+
+/**
+ * The pair is drawn where the hands are designed (audit §16, operation 11).
+ *
+ * It used to be three actions: *Draw a pair of hands…* on this screen was a
+ * route to Rig ▸ Controls, where a second button actually drew them. A trip
+ * through the screen about *where a hand is* to answer *what a hand looks
+ * like* — and the look, which has to be chosen before they are drawn, was only
+ * offered at the far end.
+ */
+test('@critical a pair of hands is drawn from Design, in one press and one undo step', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  // A generated face has no hands; the template ships them.
+  await page.evaluate(() => window.__BOOP_E2E__.openProject.face({ head: 'circle', eyes: 'oval', mouth: 'smile' }));
+  await expect(page.locator('#app.has-project')).toHaveCount(1);
+  await goToMode(page, 'design.hands');
+  expect(await page.evaluate(() => Object.keys(window.__BOOP_E2E__.document().hands || {}))).toEqual([]);
+
+  // One button for one gesture: hands arrive as a pair, so there is not one
+  // per hand.
+  const draw = page.locator('[data-hand-states-draw]');
+  await expect(draw).toHaveCount(1);
+  // And the look is chosen here, because choosing it afterwards means drawing
+  // them again.
+  await expect(page.locator('[data-hand-states-look]')).toHaveCount(1);
+
+  await draw.click();
+  await expect.poll(() => page.evaluate(() => { const h = window.__BOOP_E2E__.document().hands || {}; return Boolean(h.left?.element && h.right?.element); })).toBe(true);
+  // Without leaving the screen.
+  await expect(page.locator('#app')).toHaveAttribute('data-mode', 'design.hands');
+  await expect(page.locator('[data-hand-set-notice]')).toContainText('Two hands drawn and rigged');
+
+  // One undo step takes the pair and its rig back together.
+  await page.locator('#undo').click();
+  await expect.poll(() => page.evaluate(() => { const h = window.__BOOP_E2E__.document().hands || {}; return Boolean(h.left?.element || h.right?.element); })).toBe(false);
+
+  // Where a hand sits is still Rig's, and keeps its door.
+  await expect(page.locator('[data-hand-states-route="hand-setup"]').first()).toBeVisible();
+});

@@ -45,6 +45,46 @@ const number = (value, digits = 2) => { const rounded = Math.round(Number(value)
 /** How many swatches a piece shows before the rest fold into a count. */
 export const PALETTE_LIMIT = 16;
 
+/**
+ * Where the piece in hand sits: `Head › Left eye › Left eye glint`.
+ *
+ * A click selects the piece a person would name, and a double-click steps
+ * inside it (audit §2.1). A trail is what makes stepping inside somewhere you
+ * can see — and each step before the last is the way back out, because it is a
+ * button that selects it.
+ */
+function partTrail(piece) {
+  const trail = piece.trail || [];
+  if (trail.length < 2) return '';
+  const step = (entry, last) => (last
+    ? `<span aria-current="true">${esc(entry.label)}</span>`
+    : `<button type="button" class="link" data-part-piece="${esc(entry.id)}" title="Select ${esc(entry.label)}">${esc(entry.label)}</button>`);
+  return `<nav class="part-trail" data-part-trail="${trail.length}" aria-label="Where this piece sits">${trail.map((entry, index) => step(entry, index === trail.length - 1)).join('<span aria-hidden="true"> › </span>')}</nav>`;
+}
+
+/**
+ * Every piece of the mascot, by role (audit §1.3).
+ *
+ * Face hides the SVG layer tree, and rightly: it is a hundred and thirty rows
+ * opening on the fingers of the left hand. But hiding it left *no* list of the
+ * mascot on the screen that builds one — no way to see what it is made of, and
+ * no way back to a piece the canvas would not give you.
+ *
+ * This is the list somebody would draw instead: the parts the face wears, in
+ * the order it wears them, each saying whether it is hidden or locked, and each
+ * a press away from being in hand. Under *Advanced*, because it is a way *back*
+ * to a piece rather than a thing to do to the one already in hand.
+ */
+function roster(model) {
+  const rows = model.piece?.roster || [];
+  if (!rows.length) return '';
+  const mark = (piece) => (piece.locked ? ' 🔒' : piece.visible ? '' : ' ○');
+  const title = (piece) => (piece.locked ? `${piece.label}: locked` : piece.visible ? `Work on ${piece.label}` : `${piece.label}: hidden on the mascot`);
+  const chip = (piece) => `<button type="button" class="chip${piece.current ? ' chip-active' : ''}" data-roster-piece="${esc(piece.id)}" aria-pressed="${piece.current}" title="${esc(title(piece))}">${esc(piece.label)}${mark(piece)}</button>`;
+  const row = (entry) => `<div class="part-roster-row" data-part-roster-row="${esc(entry.id)}"><small>${esc(entry.label)}</small><div class="part-roster-pieces">${entry.pieces.map(chip).join('')}</div></div>`;
+  return `<div class="part-roster" data-part-roster="${rows.length}">${rows.map(row).join('')}</div>`;
+}
+
 function subject(model) {
   const name = model.category?.label || 'Artwork';
   const badge = model.piece?.partName ? `<span class="semantic-badge">${esc(model.piece.partName)}</span>` : (model.kind === 'piece' ? '<span class="small">No face part uses this piece</span>' : '');
@@ -205,10 +245,10 @@ function markup(model, sections) {
     body: pairFields(piece)
   });
   const advanced = disclosureSection({
-    id: 'advanced', level: 'advanced', title: 'Advanced', hint: 'shape, reset, rig', open: sections.has('advanced', false),
-    body: `${shape(piece)}<p class="small">The same piece, with every control: the movements it plays in Face Setup, and its bindings and appearance in the Artwork inspector.</p><div class="action-row">${piece.partId ? '<button type="button" class="secondary" data-character-route="face-part">Face part setup</button>' : ''}<button type="button" class="secondary" data-character-route="artwork">Artwork inspector</button></div>`
+    id: 'advanced', level: 'advanced', title: 'Advanced', hint: 'every piece, shape, reset, rig', open: sections.has('advanced', false),
+    body: `${roster(model)}${shape(piece)}<p class="small">The same piece, with every control: the movements it plays in Face Setup, and its bindings and appearance in the Artwork inspector.</p><div class="action-row">${piece.partId ? '<button type="button" class="secondary" data-character-route="face-part">Face part setup</button>' : ''}<button type="button" class="secondary" data-character-route="artwork">Artwork inspector</button></div>`
   });
-  return `${subject(model)}<p class="small" data-part-piece-name>${esc(piece.label)}${piece.roleLabel && piece.roleLabel !== piece.label ? ` · ${esc(piece.roleLabel)}` : ''}</p>${pieceActions(model.actions)}${pieceChips(model)}${customNote(piece)}${transformFields(piece)}${piece.hand ? handPlacementMarkup(piece.hand) : ''}${palette(piece)}${more}${advanced}${saveForm(piece, sections)}`;
+  return `${subject(model)}${partTrail(piece)}<p class="small" data-part-piece-name>${esc(piece.label)}${piece.roleLabel && piece.roleLabel !== piece.label ? ` · ${esc(piece.roleLabel)}` : ''}</p>${pieceActions(model.actions)}${pieceChips(model)}${customNote(piece)}${transformFields(piece)}${piece.hand ? handPlacementMarkup(piece.hand) : ''}${palette(piece)}${more}${advanced}${saveForm(piece, sections)}`;
 }
 
 /**
@@ -288,9 +328,13 @@ export function createPartInspector(host, { view = () => ({ loaded: false, kind:
       listen(host, 'click', (event) => {
         const button = event.target?.closest?.('button');
         if (!button) return;
-        const { partPiece, partColour, faceToken, partEditShape, characterRoute, handMirror, handDrawingEdit, handDrawingRestore, partReset, pieceAction } = button.dataset || {};
+        const { partPiece, rosterPiece, partColour, faceToken, partEditShape, characterRoute, handMirror, handDrawingEdit, handDrawingRestore, partReset, pieceAction } = button.dataset || {};
         if (pieceAction) onAction(pieceAction, pieceId());
         else if (partPiece) onPiece(partPiece);
+        // The roster names a piece of any row, not of the one that is open, so it
+        // carries its own attribute -- two lists with one name is a selector
+        // nobody can aim (audit §1.3).
+        else if (rosterPiece) onPiece(rosterPiece);
         else if (partColour) onColour(pieceId(), partColour);
         else if (faceToken) onToken(faceToken);
         else if (partEditShape !== undefined) onEditShape(pieceId());

@@ -3,8 +3,8 @@ import { reactionIssues } from '../reactions/reaction-model.js';
 
 export const VALIDATION_DOMAINS = Object.freeze(['artwork', 'rig', 'animation', 'states', 'behaviors', 'expressions', 'reactions', 'poses', 'hands', 'hierarchy', 'export']);
 
-const issue = (id, severity, domain, message, target = null, fix = null) =>
-  Object.freeze({ id, severity, domain, message, target, fix, blocking: severity === 'error' });
+const issue = (id, severity, domain, message, target = null, fix = null, remedy = null) =>
+  Object.freeze({ id, severity, domain, message, target, fix, remedy, blocking: severity === 'error' });
 
 function domainFor(message) {
   if (/^(Left|Right) hand/i.test(message)) return 'hands';
@@ -31,6 +31,40 @@ function fixFor(domain, message) {
 
 const stableKey = value => encodeURIComponent(String(value).replace(/\s+/g, '-'));
 
+/** `leftEye` → `left eye`: a role said the way a person would say it. */
+const roleWords = (role) => String(role || '').replace(/([A-Z])/g, ' $1').toLowerCase().trim();
+
+/**
+ * A part whose drawing is gone (audit §4.2).
+ *
+ * Deleting a drawing in Artwork leaves `semanticParts[*].roles` pointing at an
+ * element that no longer exists. The schema validator said
+ *
+ *     Semantic part "eyes": role "leftEye" references missing element "eyeLeft".
+ *
+ * which is true, unactionable, and written for somebody reading the schema. It
+ * is raised here instead, because here an issue can carry the part and the role
+ * — and therefore a **remedy**: taking the role off is a thing the editor can
+ * do, not a place it can send you.
+ */
+function orphanRoleIssues(state) {
+  const out = [];
+  for (const [partId, part] of Object.entries(state?.semanticParts || {})) {
+    const name = part?.name || partId;
+    for (const [role, elementId] of Object.entries(part?.roles || {})) {
+      if (!elementId || state?.elements?.[elementId]) continue;
+      out.push(issue(
+        `rig.${stableKey(partId)}.orphan-role.${stableKey(role)}`, 'error', 'rig',
+        `${name}: nothing is drawn for its ${roleWords(role)} any more. Pick another drawing for it, or take the role off.`,
+        { entity: name, partId, role, elementId },
+        { workspace: 'rig', rigTask: 'setup', activeSemanticPartId: partId },
+        { kind: 'clear-role', partId, role, roleLabel: roleWords(role), label: `Take the ${roleWords(role)} role off` }
+      ));
+    }
+  }
+  return out;
+}
+
 /** Pure, canonical V1 validation. It never normalizes or writes project data. */
 export function validateProject(state) {
   const issues = [];
@@ -42,6 +76,7 @@ export function validateProject(state) {
     const entity=message.match(/^(?:Animation clip|Pose|Shape key|Warp|Left hand|Right hand|Group|State|Behavior|Element|Transition(?: setting| source| target)?)\s+"?([^":]+)"?/)?.[1]||'project';
     issues.push(issue(`${domain}.${stableKey(entity)}.${stableKey(message)}`, 'error', domain, message, { entity }, fixFor(domain, message)));
   });
+  for (const item of orphanRoleIssues(state)) issues.push(item);
   const names=Object.keys(state?.states||{}),configured=Object.keys(state?.transitions||{});
   if(names.length>1&&configured.length){const initial=state.activeState,seen=new Set([initial]),queue=[initial];while(queue.length){for(const target of state.transitions?.[queue.shift()]||[])if(!seen.has(target)){seen.add(target);queue.push(target);}}
     for(const name of names)if(!seen.has(name))issues.push(issue(`state.${stableKey(name)}.unreachable`,'warning','states',`"${name}" cannot be reached from initial State "${initial}".`,{stateId:name},{workspace:'animate',authorMode:'states',activeStateId:name}));

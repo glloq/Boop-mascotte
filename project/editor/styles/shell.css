@@ -98,3 +98,17 @@
 }
 
 #app[data-mode="design.artwork"] .structure-tools { margin-top: var(--ux-gap-3); }
+
+/**
+ * The simple editor: Design and Preview (audit §7.3).
+ *
+ * For somebody who came to dress a character, three of the four questions are
+ * about rigging, animating and reacting — real work, and off-topic. There was
+ * no setting that folded them, so the answer to "which of these do I need?" was
+ * "read all four and find out".
+ *
+ * Folded, never removed. The search, *Advanced tools* and every deep link still
+ * route there, and arriving brings the full set back (`workspace-nav.js`) — so
+ * this rule can never strand a screen (UIR-00).
+ */
+.stage-group[data-folded] { display: none; }

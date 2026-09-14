@@ -32,6 +32,7 @@ import { selectMany } from '../../core/state/selection.js';
 import { elementDisplayName } from '../../rig-editor/semantic-parts/face-roles.js';
 import { findSemanticPartByRole } from '../../rig-editor/semantic-parts/part-model.js';
 import { activePiece, characterSnapshot, deriveCharacterParts, instanceNodes, instanceRootOf, mirrorTransformPatch, pairLabel, pairOf, pairSpacing, paletteOfPaints, pieceTransform, resolveActiveCategory, roleLabel, scalePatch, spacingPatch } from './character-model.js';
+import { orderByMemory, readLibraryMemory, rememberUse, toggleFavourite } from './library-memory.js';
 import { boxInMountSpace } from '../../core/face-library/face-layout.js';
 import { deriveVisualRows, rowInstallTarget } from './visual-rows.js';
 import { createPartBrowser } from './part-browser.js';
@@ -122,6 +123,14 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
    * what is on the mascot.
    */
   let showAll = false;
+  /**
+   * What this author reaches for (audit §8.3).
+   *
+   * A preference, never project data: it says what somebody keeps using, not
+   * what this mascot is made of, so it does not travel with a save.
+   */
+  const memoryStore = (() => { try { return globalThis.localStorage || null; } catch { return null; } })();
+  let memory = readLibraryMemory(memoryStore);
   /** Which pairs are edited as one; every pair is, until its box is unticked. */
   const unlinked = new Set();
   // What the author has typed into "Save as a library part" so far: the
@@ -227,7 +236,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     const otherKind = (asset) => (showAll && kind && !assetSupportsMorphology(asset, kind)
       ? (asset.morphologies || []).map((id) => faceMorphology(id)?.label).filter(Boolean).join(' · ') || 'another kind'
       : '');
-    return offered.map((asset) => {
+    return orderByMemory(offered, memory).map((asset) => {
       const on = wornPart(row, asset);
       const removes = row.multiple && on ? on.partId : null;
       // Which press the card would make is which plan says whether it can be
@@ -238,6 +247,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
       const { controls, missing } = describeFacePartCapabilities(asset);
       return {
         id: asset.id, name: asset.name, description: asset.description || '', thumbnail: facePartThumbnail(asset),
+        favourite: memory.favourite.includes(asset.id),
         current: Boolean(on), removes, available: plan.ok, reason: plan.ok ? '' : plan.reason, limited: missing, joins: Boolean(row.multiple && !row.dedicated), custom: asset.origin === 'custom', pack: asset.pack || null, otherKind: otherKind(asset),
         // Every movement of the category, carried or not: what the card's title says (roadmap phase 26).
         animation: controls.map((control) => ({ control, carried: !missing.includes(control) }))
@@ -381,7 +391,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
       types: typesOf(), faceStyles: faceStylesOf(),
       palette: paletteOf(category), facePresets: facePresetsOf(category),
       hands: describeHands(document), presets: CHARACTER_PRESETS,
-      query, showAll, libraryCount: facePartCommands?.library?.cards?.().length || 0, hits: searchHits(rows)
+      query, showAll, memory, libraryCount: facePartCommands?.library?.cards?.().length || 0, hits: searchHits(rows)
     };
   };
 
@@ -425,6 +435,27 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
         nodeKind: canvas.elementKind?.(id) || document.elements[id]?.meta?.nodeType || null,
         locked: locked(instance),
         instance: instance !== id ? { id: instance, label: nameOf(instance) } : null,
+        // Every piece of the mascot, by role rather than by SVG layer (audit
+        // §1.3). Face hides the layer tree — rightly, it is a hundred and thirty
+        // rows opening on the fingers of the left hand — and that left no list
+        // of the mascot at all on the screen that builds it. This is the list a
+        // person would draw: the parts, in the order the face wears them, each
+        // saying whether it is hidden or locked.
+        roster: model().categories
+          .filter((row) => row.pieces?.length)
+          .map((row) => ({
+            id: row.id,
+            label: row.label,
+            pieces: row.pieces.map((item) => {
+              const described = describePiece(item.id) || {};
+              return { id: item.id, label: item.label, visible: described.visible !== false, locked: Boolean(described.locked), current: item.id === id };
+            })
+          })),
+        // Where this piece sits — but only once a double-click has stepped
+        // inside one, which is the case the trail exists to explain. A piece a
+        // plain click would have selected is already the subject of the panel,
+        // and a breadcrumb over it would be a line saying nothing (audit §2.1).
+        trail: resolvePiece(id) === id ? [] : pieceTrail(id),
         removable: Boolean(piece?.removable),
         custom: Boolean(piece?.custom), from: piece?.from || '',
         library: Boolean(part?.assetId && part.assetRoot === instance && facePartCommands?.repaint),
@@ -527,6 +558,93 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     try { for (const [id, patch] of all) { commands.setTransform(id, patch, { source: 'character-builder' }); canvas.applyElementTransform(id, doc().elements[id]); } }
     finally { if (all.length > 1) history.commitTransaction?.(); }
     return true;
+  }
+
+  /** Every element some part names by a role: the pieces that have a name. */
+  const namedPieces = () => {
+    const out = new Set();
+    for (const part of Object.values(doc().semanticParts || {})) {
+      for (const element of Object.values(part.roles || {})) if (element) out.add(element);
+    }
+    return out;
+  };
+
+  /**
+   * Which piece a click on the canvas means (audit §2.1).
+   *
+   * An eye of the template is a group of seven shapes, so clicking the eye
+   * selected `glintLeft` — a two-pixel highlight, shown as "Left eye glint" —
+   * and a person who then pressed Delete would have removed a reflection
+   * instead of an eye. A person pointing at an eye means the eye.
+   *
+   * Two kinds of face, one rule: the nearest thing up the tree that **has a
+   * name**. On a library face that is the instance the fit placed; on the
+   * template it is the element a semantic part calls `leftEye`. Whichever comes
+   * first walking up, because both are the same question asked of two ways of
+   * building a face.
+   *
+   * It stops at the first hit rather than climbing to the top, which is why
+   * clicking an eye does not select the head: `faceRoot` is named too, and it
+   * is further up.
+   */
+  function resolvePiece(id) {
+    if (!id) return id;
+    const named = namedPieces(), parents = model().parents || {}, instances = model().instances || {};
+    const seen = new Set();
+    for (let at = id; at && !seen.has(at); at = parents[at]) {
+      seen.add(at);
+      if (named.has(at)) return at;
+      if (instances[at]) return instanceRootOf(model(), at);
+    }
+    return instanceRootOf(model(), id);
+  }
+
+  /** Whether `id` is drawn inside `root` — what a double-click descends into. */
+  function containsPiece(root, id) {
+    if (!root || !id || root === id) return false;
+    const parents = model().parents || {}, detached = model().detached || {};
+    if ((detached[root] || []).includes(id)) return true;
+    const seen = new Set();
+    for (let at = parents[id]; at && !seen.has(at); at = parents[at]) {
+      seen.add(at);
+      if (at === root) return true;
+    }
+    return false;
+  }
+
+  /** What a piece is called, for the trail that says where a click landed. */
+  const pieceTrail = (id) => {
+    const parents = model().parents || {}, named = namedPieces(), seen = new Set(), trail = [];
+    for (let at = id; at && !seen.has(at); at = parents[at]) {
+      seen.add(at);
+      if (named.has(at) || at === id) trail.unshift({ id: at, label: nameOf(at) });
+    }
+    return trail;
+  };
+
+  /**
+   * A canvas gesture, written the way the inspector's fields write (audit §2.2).
+   *
+   * The fields moved `instanceRootOf(...)` and mirrored a linked pair; the
+   * gizmo moved `selectedId` and mirrored nothing. So an author ticked "edit
+   * both eyes" (ticked by default), dragged the left eye, and only the left eye
+   * moved — then typed a number and both moved. One path now, and the pair
+   * follows a drag exactly as it follows a number.
+   *
+   * A pivot is a point in one drawing's own coordinates, so it is the only
+   * channel that is never mirrored: the peer keeps its own.
+   */
+  function commitTransform(pieceId, transform = {}) {
+    const id = instanceRootOf(model(), pieceId);
+    if (!doc().elements?.[id] || locked(id)) return false;
+    const patch = {};
+    for (const key of ['x', 'y', 'rotation', 'scaleX', 'scaleY', 'pivotX', 'pivotY']) {
+      if (Number.isFinite(Number(transform[key]))) patch[key] = Number(transform[key]);
+    }
+    if (!Object.keys(patch).length) return false;
+    const peer = linkedPeer(pieceId);
+    const { pivotX, pivotY, ...shared } = patch;
+    return writeTransforms(peer ? [[id, patch], [peer, mirrorTransformPatch(shared)]] : [[id, patch]]);
   }
 
   function moveBy(pieceId, key, value) {
@@ -1142,6 +1260,13 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
    * replacing whatever is at the same one. Either way one press is one undo
    * step, because either way it is one command.
    */
+  /** Star a drawing, or take the star off: it comes first in its row either way. */
+  function favourite(assetId) {
+    memory = toggleFavourite(memoryStore, assetId);
+    render();
+    return true;
+  }
+
   function useStyle(assetId) {
     if (!facePartCommands) return false;
     const asset = facePartCommands.library.get(assetId);
@@ -1166,6 +1291,8 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     const result = facePartCommands.replace(row.categoryId, assetId, rowInstallTarget(row));
     if (!result.ok) { onStatus(`Could not use ${asset?.name || assetId}: ${result.reason}`, 'error'); return false; }
     chosen = row.id;
+    // Used, so it comes back near the top of this row next time (audit §8.3).
+    memory = rememberUse(memoryStore, assetId);
     // The new part is what is in hand now, every piece of it -- or, where a
     // face wears several, the one that just went on.
     const pieces = row.multiple ? [result.rootId] : model().categories.find((item) => item.id === row.id)?.pieces.map((piece) => piece.id) || [];
@@ -1210,7 +1337,7 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     for (const [type, handler] of [['dragenter', enter], ['dragover', over], ['dragleave', leave], ['drop', drop]]) { dropHost.addEventListener(type, handler); dropListeners.push([type, handler]); }
   }
 
-  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onType: chooseType, onFaceStyle: restyleFace, onStyle: useStyle, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onSearch: search, onShowAll: setShowAll, onRoute: route, onAdvanced: advanced, onHandStyle: useHandStyle, onStyleForget: forgetPart });
+  const browser = createPartBrowser(browserHost, { view: browserView, onCategory: chooseCategory, onPiece: choosePiece, onPreset: usePreset, onType: chooseType, onFaceStyle: restyleFace, onStyle: useStyle, onToken: retint, onFacePreset: useFacePreset, onPresetReset: resetFacePreset, onPresetSave: saveFacePreset, onPresetForget: forgetFacePreset, onSearch: search, onShowAll: setShowAll, onFavourite: favourite, onRoute: route, onAdvanced: advanced, onHandStyle: useHandStyle, onStyleForget: forgetPart });
   /**
    * Browse another kind of face. Nothing on the mascot moves: what changes is
    * what Design offers, which is the whole point of the row (MASC-05).
@@ -1259,6 +1386,11 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
 
   return {
     render,
+    favourite,
+    resolvePiece,
+    containsPiece,
+    pieceTrail,
+    commitTransform,
     openCategory: chooseCategory,
     /**
      * Browse another kind of mascot. Public since UI-REDESIGN-03: the new-mascot

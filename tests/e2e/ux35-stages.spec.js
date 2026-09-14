@@ -153,3 +153,47 @@ test('@critical every screen shows its own subject and nobody else\'s', async ({
     }
   }
 });
+
+/**
+ * The simple editor (audit §7.3).
+ *
+ * For somebody who came to dress a character, three of the four questions are
+ * about rigging, animating and reacting — real work, and off-topic. There was
+ * no setting that folded them, so the answer to "which of these do I need?" was
+ * "read all four and find out".
+ *
+ * Folded, never removed. That is the half this spec spends most of its lines
+ * on: the search still routes there, and arriving brings the full set back —
+ * because a screen nobody can see is not a screen a deep link can reach.
+ */
+test('@critical the simple editor folds three workspaces away, and any route there brings them back', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  const shown = () => page.locator('.stage-tab').evaluateAll((nodes) => nodes.filter((node) => node.offsetParent !== null).map((node) => node.dataset.stage));
+  expect(await shown()).toEqual(['design', 'rig', 'animate', 'behavior']);
+
+  // Off by default: folding three questions for everybody who already has a
+  // project is a product decision, not a tidy-up.
+  await page.locator('details.file-menu > summary').click();
+  const toggle = page.locator('#simple-mode-toggle');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(toggle).toContainText('Simple editor');
+  await toggle.click();
+
+  await expect.poll(shown).toEqual(['design']);
+  // Preview is not a workspace and never folds: it is how you look at the thing.
+  await expect(page.locator('.global-tab')).toBeVisible();
+  // And the toast says where the other three went, rather than leaving it a
+  // mystery that three buttons vanished.
+  await expect(page.locator('#toast')).toContainText('still reachable');
+
+  // A route outside the simple set brings the full set back and lands.
+  await page.evaluate(() => window.__BOOP_E2E__.navigate({ mode: 'rig.controls' }));
+  await expect(page.locator('#app')).toHaveAttribute('data-mode', 'rig.controls');
+  await expect.poll(shown).toEqual(['design', 'rig', 'animate', 'behavior']);
+
+  // The label now offers the way back in, and says which way that is.
+  await page.locator('details.file-menu > summary').click();
+  await expect(page.locator('#simple-mode-toggle')).toContainText('Simple editor');
+  await expect(page.locator('#simple-mode-toggle')).toHaveAttribute('aria-pressed', 'false');
+});

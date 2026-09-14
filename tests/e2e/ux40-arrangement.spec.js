@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToAnimate, openFreshEditor, startBasicFace } from './editor-helpers.js';
+import { goToAnimate, goToMode, openFreshEditor, startBasicFace } from './editor-helpers.js';
 
 /**
  * Several clips at once (VNX-29, docs/VNEXT_ROADMAP.md).
@@ -89,4 +89,52 @@ test('@critical an arrangement plays, and it is the engine that was always able 
 
   await page.locator('button[data-action="stop-arrangement"]').click();
   await expect(page.locator('button[data-action="play-arrangement"]')).toBeVisible();
+});
+
+/**
+ * Three things the canvas could do and would not offer (audit §5).
+ *
+ * *Isolate* existed and was unreachable on the surface built for people who do
+ * not know what an SVG is; *Align* lived behind `workspace === 'create'`, so it
+ * was missing exactly where pieces are placed by eye; and there was no way to
+ * get close to the piece in hand except by wheeling towards it and hoping.
+ */
+test('@critical Face lines pieces up, zooms to them, and can isolate one', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await goToMode(page, 'design.face');
+
+  // Align, where pieces are placed by eye — and only align: making two pieces
+  // one SVG group, or cutting one to the shape of another, restructures a
+  // drawing the rig is bound to, so both stay in the vector editor.
+  await page.locator('[data-part-category="pupils"]').click();
+  await expect.poll(() => page.evaluate(() => (window.__BOOP_E2E__.session().selectedIds || []).length)).toBe(2);
+  const arrange = page.locator('.tool-arrange');
+  await expect(arrange).toBeVisible();
+  await expect(arrange.getByRole('button', { name: 'Middle' })).toBeVisible();
+  await expect(arrange.getByRole('button', { name: 'Group' })).toHaveCount(0);
+  await expect(arrange.getByRole('button', { name: 'Cut to top' })).toHaveCount(0);
+  // The nine drawing tools stay in Artwork.
+  await expect(page.locator('.design-toolbar')).toBeHidden();
+
+  // Zoom to what is in hand, offered only while there is something in hand.
+  const zoom = page.locator('.canvas-toolbar [data-zoom="selection"]');
+  await expect(zoom).toBeVisible();
+  const before = await page.evaluate(() => window.__BOOP_E2E__.panView(0, 0).scale);
+  await zoom.click();
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.panView(0, 0).scale)).toBeGreaterThan(before);
+
+  // Isolate is a `more` action, so on this surface it is one press further
+  // down rather than absent — the whole point of folding instead of dropping.
+  // Back to the whole mascot before pointing at a two-pixel reflection: the
+  // zoom above left the view filled with a pair of pupils.
+  await page.locator('.canvas-toolbar [data-zoom="fit"]').click();
+  await page.waitForTimeout(200);
+  const glint = await page.locator('#canvas svg svg #glintLeft').boundingBox();
+  const on = { x: glint.x + glint.width / 2, y: glint.y + glint.height / 2 };
+  await page.mouse.click(on.x, on.y);
+  await page.mouse.click(on.x, on.y, { button: 'right' });
+  await expect(page.locator('[data-canvas-menu-advanced]')).toBeVisible();
+  await page.locator('[data-canvas-menu-advanced] summary').click();
+  await expect(page.locator('[data-canvas-menu-action="isolate"]')).toBeVisible();
 });

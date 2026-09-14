@@ -113,7 +113,8 @@ export const takesGestures = (surface) => Boolean(GESTURE_SURFACES[String(surfac
 /** How deep a surface's menu goes: `simple` hides the rigging entries. */
 export const gestureDepth = (surface) => GESTURE_SURFACES[String(surface ?? '')] || null;
 
-const LEVEL_RANK = Object.freeze({ simple: 0, more: 1, advanced: 2 });
+/** How deep a surface reads before it folds the rest away. */
+export const LEVEL_RANK = Object.freeze({ simple: 0, more: 1, advanced: 2 });
 
 /**
  * The actions this piece offers, in catalogue order, each already carrying the

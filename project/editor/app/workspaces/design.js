@@ -9,6 +9,7 @@
 import { createCharacterBuilder } from '../../ui/character-builder/character-builder.js';
 import { createFacePartCommands } from '../../core/face-library/face-part-commands.js';
 import { createHandStatesPanel } from '../../ui/hands/hand-states.js';
+import { HAND_LOOKS } from '../../core/hands/hand-style-art.js';
 import { createHandCommands } from '../../core/hands/hand-commands.js';
 import { createHandStateCommands } from '../../core/hands/hand-state-commands.js';
 import { handStateElementId } from '../../core/hands/hand-state-model.js';
@@ -21,9 +22,13 @@ import { addHandGesture, gestureFromFile, gestureIdFromName, handSetFromFile, ha
  * @param {(name: string, text: string) => void} deps.download
  * @param {(action: string, id: string) => void} deps.runPieceAction  app/editor-app.js
  */
+const HAND_LOOK_LIST = Object.freeze(Object.values(HAND_LOOKS).map((look) => Object.freeze({ id: look.id, name: look.name })));
+
 export function createDesignWorkspace({
   store, history, shell, canvas, editorContext, navigate, setStatus,
   revealInspector, setDesignTool, openColour, loadTemplate, applyPreview, drawHandStyle, download,
+  // The pair, drawn where the hands are designed (audit §16, op. 11).
+  drawHandPair,
   runPieceAction
 }) {
   const facePartCommands = createFacePartCommands(store, history, canvas, { presetStorage: (() => { try { return globalThis.localStorage || null; } catch { return null; } })(), onInstalled: () => applyPreview() });
@@ -60,6 +65,12 @@ export function createDesignWorkspace({
   };
   const handStates = createHandStatesPanel(shell.handStatesEl, {
     document: () => store.getDocument(),
+    // Drawing a pair used to be three actions: a route to Rig ▸ Controls and a
+    // second button there. What a hand looks like is Design's question; where it
+    // sits is Rig's, and that route stays below (audit §16, op. 11).
+    onDrawPair: drawHandPair ? (look) => afterHandState(drawHandPair(look),
+      'Two hands drawn and rigged, with a state for every drawing in the set. Pick one, or set where they sit in Rig › Controls.') : null,
+    looks: () => HAND_LOOK_LIST,
     // Where a hand is *drawn from* is here; where it *is* is Rig ▸ Controls (§16).
     onRoute: (name) => navigate(name === 'character' ? { mode: 'design.face' } : { mode: 'rig.controls', focus: 'hand-setup' }),
     onUse: (side, id) => afterHandState(createHandCommands(store, history).setStyles(side, { showing: id }),

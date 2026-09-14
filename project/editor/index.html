@@ -282,7 +282,7 @@
 .canvas-grid{fill:none;stroke:#7f92b3;stroke-width:1;opacity:.28}
 #app[data-canvas-tool=pen] #canvas,#app[data-canvas-tool=line] #canvas,#app[data-canvas-tool=rect] #canvas,#app[data-canvas-tool=ellipse] #canvas,#app[data-canvas-tool=polygon] #canvas{cursor:crosshair}
 #app[data-canvas-tool=text] #canvas{cursor:text}
-#app:not([data-workspace=create]) .tool-options,#app:not(.has-project) .tool-options{display:none}
+/* The options bar belongs to every surface that edits a piece, not to the vector editor alone: lining two pupils up is wanted in Design ▸ Face, where they are placed by eye, and this rule was why it could not be. It is its own element, so this brings the bar without bringing the nine drawing tools with it (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §5). */#app:not([data-workspace=create]):not([data-workspace=character]):not([data-workspace=hands]):not([data-workspace=rig]) .tool-options,#app:not(.has-project) .tool-options{display:none}
 #app[data-layout=mobile] .tool-options{display:none}
 @media(max-width:700px){.tool-options{max-width:100%}}
 </style>

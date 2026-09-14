@@ -28,9 +28,14 @@ export function readUiPreferences(storage = globalThis.localStorage) {
       // Which workspaces have their advanced screens revealed. Somebody who
       // has opened Artwork once is somebody who wants it, and asking again on
       // every visit would be a worse tax than the clutter the fold removes.
-      expertNav: saved.expertNav && typeof saved.expertNav === 'object' ? saved.expertNav : {}
+      expertNav: saved.expertNav && typeof saved.expertNav === 'object' ? saved.expertNav : {},
+      // Whether the three rigging workspaces are folded away (audit §7.3).
+      // Off by default: folding three questions for everybody who already has
+      // a project is a product decision, not a tidy-up, so it is a choice
+      // somebody makes rather than one made for them.
+      simpleMode: Boolean(saved.simpleMode)
     };
-  } catch { return { mode: DEFAULT_MODE, workspace: modeToSurface(DEFAULT_MODE), leftCollapsed: false, rightCollapsed: false, timelineCollapsed: true, hintsDismissed: {}, puppetHidden: false, openSections: {}, expertNav: {} }; }
+  } catch { return { mode: DEFAULT_MODE, workspace: modeToSurface(DEFAULT_MODE), leftCollapsed: false, rightCollapsed: false, timelineCollapsed: true, hintsDismissed: {}, puppetHidden: false, openSections: {}, expertNav: {}, simpleMode: false }; }
 }
 
 export function writeUiPreferences(preferences, storage = globalThis.localStorage) {

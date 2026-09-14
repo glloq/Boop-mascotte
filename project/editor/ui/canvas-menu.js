@@ -1,3 +1,4 @@
+import { LEVEL_RANK } from './piece-actions.js';
 import { esc } from './escape-html.js';
 
 /** The deepest piece of artwork under a pointer, or null for the background. */
@@ -41,7 +42,9 @@ function findLayer(items, id) {
 export function createCanvasMenu(host, {
   getState = () => ({}), getPart = () => null, getClip = () => null, select = () => {}, onAction = () => {}, onClose = () => {},
   /** The actions this piece offers, from `pieceActionsFor`. */
-  getActions = () => []
+  getActions = () => [],
+  // How deep this surface's menu reads before it folds (`ui/piece-actions.js`).
+  depth = () => 'advanced'
 } = {}) {
   let openId = null;
   const node = document.createElement('div');
@@ -109,11 +112,21 @@ export function createCanvasMenu(host, {
       return true;
     }
     const button = (item) => `<button type="button" data-canvas-menu-action="${esc(item.id)}"${item.danger ? ' class="danger"' : ''}>${item.glyph ? `<span class="canvas-menu-glyph" aria-hidden="true">${item.glyph}</span>` : ''}<span data-canvas-menu-label>${esc(item.label)}</span>${item.keys ? `<kbd>${esc(item.keys)}</kbd>` : ''}${item.hint ? `<small>${esc(item.hint)}</small>` : ''}</button>`;
-    // The everyday actions are the menu; the ones that name a rigging concept
-    // fold into a disclosure under them, so the first thing read is Duplicate
-    // and not "Convert to a path".
-    const everyday = offered.filter((item) => item.level !== 'advanced');
-    const expert = offered.filter((item) => item.level === 'advanced');
+    // The everyday actions are the menu; the rest fold into a disclosure under
+    // them, so the first thing read is Duplicate and not "Convert to a path".
+    //
+    // Where the fold falls is the **surface's** depth, not a fixed level. In
+    // Artwork, *Isolate* and *Send to back* are everyday and only the rigging
+    // words fold; in Design ▸ Face the six simple gestures are the menu and
+    // everything else — including Isolate, which the audit wanted exposed and
+    // which the simple depth had been dropping on the floor — is one press
+    // further down rather than absent (audit §5).
+    // Never past `more`: the actions that name a rigging concept fold on every
+    // surface, Artwork included, because that is what keeps *Duplicate* the
+    // first thing read rather than *Convert to a path*.
+    const ceiling = Math.min(LEVEL_RANK[depth()] ?? LEVEL_RANK.advanced, LEVEL_RANK.more);
+    const everyday = offered.filter((item) => (LEVEL_RANK[item.level] ?? 9) <= ceiling);
+    const expert = offered.filter((item) => (LEVEL_RANK[item.level] ?? 9) > ceiling);
     node.setAttribute('aria-label', `Edit ${name}`);
     node.innerHTML = `<div class="canvas-menu-head">
         <label class="small" for="canvas-menu-name">Name</label>

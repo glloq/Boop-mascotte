@@ -38,7 +38,12 @@ export function ringTarget(count, index, key) {
 export function ringOf(button) {
   const ring = button?.closest?.('[role="group"],[role="list"]');
   if (!ring) return null;
-  const selector = ring.classList?.contains?.('part-browser') ? '.part-category-button:not([disabled])' : 'button:not([disabled])';
+  // The star on a drawing is not a stop on the ring: the arrows walk the
+  // drawings, and the star of the card you are on is a Tab away, which is
+  // where a control that belongs *to* the focused thing belongs (audit §8.3).
+  const selector = ring.classList?.contains?.('part-browser')
+    ? '.part-category-button:not([disabled])'
+    : 'button:not([disabled]):not(.part-style-favourite)';
   const buttons = Array.from(ring.querySelectorAll?.(selector) || []);
   const index = buttons.indexOf(button);
   return index < 0 ? null : { buttons, index };

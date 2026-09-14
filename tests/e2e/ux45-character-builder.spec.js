@@ -68,7 +68,13 @@ test('@critical the Character Builder is a screen of Design: parts, the canvas, 
   await expect(page.locator('.character-tools')).toBeVisible();
   await expect(page.locator('.structure-tools')).toBeHidden();
   await expect(page.locator('.design-toolbar')).toBeHidden();
-  await expect(page.locator('#tool-options')).toBeHidden();
+  // The options bar is here now, and carries only what lines pieces up: Align
+  // and Spread travel to every surface that edits a piece, while Group and
+  // Cut — which restructure the drawing a rig is bound to — stay in the vector
+  // editor (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §5). What is gone from here
+  // is the *drawing* chrome, which is what this assertion was ever about.
+  await expect(page.locator('#tool-options [data-draw-option]')).toHaveCount(0);
+  await expect(page.locator('#tool-options').getByRole('button', { name: 'Group' })).toHaveCount(0);
   // Sixteen rows: the eleven parts, the hands, and the four questions above
   // them — Presets, Type (MASC-05), Style (MASC-06) and Colours.
   // Fourteen rows: Presets, the eleven parts a human face has, Colours and
@@ -244,7 +250,11 @@ test('@critical a part is dragged and nudged on the canvas in the builder, one u
   await expect.poll(async () => (await baseOf(page, 'pupilLeft')).x).toBe(0);
   expect(await baseOf(page, 'pupilRight')).toMatchObject({ x: 0, y: 0 });
 
-  // A click picks one of them; the gizmo frames it, and a drag moves it alone.
+  // A click picks one of them, the gizmo frames it, and a drag moves the pair:
+  // every pair is linked until its box is unticked, and this assertion used to
+  // read `pupilRight.x === 0` — the defect the audit names, written down as
+  // intent. Dragging one side moved one side; typing a number moved both
+  // (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §2.2). One path now.
   await page.mouse.click(press.x, press.y);
   await expect.poll(() => session(page)).toEqual({ id: 'pupilLeft', ids: ['pupilLeft'] });
   await expect(page.locator('[data-gizmo-part="outline"]'), 'the gizmo frames the part').toHaveCount(1);
@@ -253,11 +263,15 @@ test('@critical a part is dragged and nudged on the canvas in the builder, one u
   const moved = await baseOf(page, 'pupilLeft');
   expect(moved.x).toBeGreaterThan(0);
   expect(moved.y).toBeGreaterThan(0);
-  expect((await baseOf(page, 'pupilRight')).x).toBe(0);
+  const peer = await baseOf(page, 'pupilRight');
+  expect(peer.x, 'the linked pair mirrors the drag').toBeCloseTo(-moved.x, 3);
+  expect(peer.y, 'and shares the vertical move').toBeCloseTo(moved.y, 3);
   await expect(inspector(page).locator('[data-part-transform="x"]')).not.toHaveValue('0');
+  // One gesture, one undo step — for both sides of the pair.
   await page.keyboard.press('Control+z');
   await expect.poll(async () => (await baseOf(page, 'pupilLeft')).x).toBe(0);
   expect((await baseOf(page, 'pupilLeft')).y).toBe(0);
+  expect((await baseOf(page, 'pupilRight')).x).toBe(0);
 
   // The arrow keys nudge the part, as they do in Artwork.
   await page.locator('#canvas').focus();
@@ -422,13 +436,20 @@ test('@critical the six actions ride on the selection, and the menu opens on the
   await page.locator('#toast[data-actionable] [data-toast-action]').click();
   await expect.poll(async () => Object.keys((await page.evaluate(() => window.__BOOP_E2E__.document())).elements).length).toBe(before);
 
-  // And the right-click menu, which this screen never had. It is the simple
-  // one: nothing in it names a rigging concept.
+  // And the right-click menu, which this screen never had. Nothing that names a
+  // rigging concept is *read* here: the menu folds at this surface's depth, so
+  // the six simple gestures are the menu and everything else — Isolate
+  // included, which the audit wanted exposed and which the simple depth used
+  // to drop on the floor — is one press further down rather than absent.
   await page.locator('#canvas #mouth').click({ button: 'right' });
   await expect(page.locator('[data-canvas-menu]')).toBeVisible();
-  await expect(page.locator('[data-canvas-menu-advanced]')).toHaveCount(0);
-  await expect(page.locator('[data-canvas-menu-action="points"]')).toHaveCount(0);
   await expect(page.locator('[data-canvas-menu-action="delete"]')).toBeVisible();
+  const folded = page.locator('[data-canvas-menu-advanced]');
+  await expect(folded).toBeVisible();
+  expect(await folded.evaluate((node) => node.open), 'shut until asked for').toBe(false);
+  await expect(page.locator('.canvas-menu-actions').first().locator('[data-canvas-menu-action="points"]')).toHaveCount(0);
+  await folded.locator('summary').click();
+  await expect(page.locator('[data-canvas-menu-advanced] [data-canvas-menu-action="isolate"]')).toBeVisible();
   await page.keyboard.press('Escape');
 
   // The bar goes away with the selection.
@@ -1363,8 +1384,15 @@ test('@critical the builder is walked without a mouse: the arrow keys move along
   await expect(cards.last()).toBeFocused();
   await page.keyboard.press('Home');
   await expect(cards.first()).toBeFocused();
+  // Tab walks the cards and the one control that belongs to each: a drawing,
+  // then its star, then the next drawing. The arrows above walk the drawings
+  // alone, which is why a row of twenty-four heads is still four presses wide
+  // — and the star keeps a keyboard door, which is the reason it is a stop at
+  // all (audit §8.3).
   await page.keyboard.press('Tab');
-  await expect(cards.nth(1), 'Tab still walks the cards').toBeFocused();
+  await expect(page.locator('[data-part-styles="mouth"] [data-part-favourite]').first(), 'the star of the card in hand').toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(cards.nth(1), 'and then the next card').toBeFocused();
 
   const chips = page.locator('#part-browser [data-part-piece]');
   await chips.first().focus();
@@ -1623,4 +1651,181 @@ test('@critical Style redraws the parts drawn in it, keeps every other one, and 
   await page.keyboard.press('Control+z');
   await expect.poll(async () => (await character(page)).categories.find((item) => item.id === 'mouth')?.assetId).toBe('mouth.small');
   expect((await checkpoint(page)).history.undo).toBe(before.history.undo);
+});
+
+/**
+ * A click means the piece; a double-click steps inside it (audit §2.1).
+ *
+ * An eye of the template is a group of seven shapes, so pointing at an eye
+ * selected `glintLeft` — a two-pixel reflection, shown as "Left eye glint". A
+ * person who then pressed Delete removed a highlight instead of an eye.
+ *
+ * Both halves are asserted, because the fold could hide the shapes for good:
+ * the piece is what a click selects, and every shape inside it is still
+ * reachable — by a double-click, and by the trail on the way back out.
+ */
+test('@critical a click selects the piece a person would name, and a double-click steps inside it', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  const centre = await page.locator('#canvas svg svg #glintLeft').boundingBox();
+  const on = { x: centre.x + centre.width / 2, y: centre.y + centre.height / 2 };
+
+  await page.mouse.click(on.x, on.y);
+  await expect.poll(() => session(page).then((s) => s.id), { timeout: 3000 }).toBe('eyeLeft');
+  // No trail: the eye is what a click selects, so saying where it sits would
+  // be a line that adds nothing.
+  await expect(inspector(page).locator('.part-trail')).toHaveCount(0);
+
+  await page.mouse.dblclick(on.x, on.y);
+  await expect.poll(() => session(page).then((s) => s.id), { timeout: 3000 }).toBe('glintLeft');
+  const trail = inspector(page).locator('.part-trail');
+  await expect(trail).toContainText('Left eye');
+  await expect(trail).toContainText('Left eye glint');
+
+  // Inside, the next click reaches its neighbours rather than jumping back out.
+  await page.mouse.click(on.x, on.y);
+  await expect.poll(() => session(page).then((s) => s.id)).toBe('glintLeft');
+
+  // Escape comes back up a level before it lets go, and the trail's own steps
+  // are the other way out.
+  await page.keyboard.press('Escape');
+  await expect.poll(() => session(page).then((s) => s.id)).toBe('eyeLeft');
+});
+
+/**
+ * The gizmo, the arrows and the fields write the same thing (audit §2.2).
+ *
+ * The fields moved `instanceRootOf(...)` and mirrored a linked pair; the gizmo
+ * moved `selectedId` and mirrored nothing. An author ticked "edit both eyes" —
+ * ticked by default — dragged the left eye, and only the left eye moved; then
+ * typed a number and both moved. One path now.
+ */
+test('@critical a drag mirrors a linked pair exactly as a typed number does, in one undo step', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  // Pressed on the reflection, which nothing names, so the click means the eye
+  // it is drawn inside. (The middle of an eye is its pupil, and a pupil *is*
+  // named — by the Gaze part — so a click there means the pupil, rightly.)
+  const glint = await page.locator('#canvas svg svg #glintLeft').boundingBox();
+  const on = { x: glint.x + glint.width / 2, y: glint.y + glint.height / 2 };
+  await page.mouse.click(on.x, on.y);
+  await expect.poll(() => session(page).then((s) => s.id)).toBe('eyeLeft');
+
+  await dragBy(page, on, 18, 8);
+  const moved = await page.evaluate(() => { const d = window.__BOOP_E2E__.document(); return { left: d.elements.eyeLeft.baseTransform, right: d.elements.eyeRight.baseTransform }; });
+  expect(moved.left.x, 'the eye moved').toBeGreaterThan(1);
+  // Mirrored: the pair moves apart and together, not sideways as one.
+  expect(moved.right.x, 'the pair mirrors the drag').toBeCloseTo(-moved.left.x, 3);
+  expect(moved.right.y, 'and shares the vertical move').toBeCloseTo(moved.left.y, 3);
+
+  // One gesture, one undo step: both eyes go back together.
+  await page.locator('#undo').click();
+  await expect.poll(async () => (await page.evaluate(() => window.__BOOP_E2E__.document().elements.eyeLeft.baseTransform.x))).toBe(0);
+  expect(await page.evaluate(() => window.__BOOP_E2E__.document().elements.eyeRight.baseTransform.x)).toBe(0);
+
+  // And the arrows are the third door onto the same path.
+  await page.mouse.click(on.x, on.y);
+  await page.locator('#canvas').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(async () => (await page.evaluate(() => window.__BOOP_E2E__.document().elements.eyeRight.baseTransform.x))).toBeLessThan(0);
+});
+
+/**
+ * A `<select>` whose every option is disabled selects nothing and draws an
+ * empty box. On the template face — where no part comes from the library yet —
+ * *Look* was a control with nothing written in it at all, which reads as broken
+ * rather than as "not yet".
+ */
+test('Look says it has nothing to offer rather than showing an empty box', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  await page.locator('[data-part-category="presets"]').click();
+
+  const look = page.locator('[data-face-style]');
+  await expect(look).toBeVisible();
+  // Something is chosen, so the box has words in it.
+  expect(await look.evaluate((node) => node.selectedIndex)).toBeGreaterThanOrEqual(0);
+  await expect(look).toContainText('No look to apply yet');
+  // And the looks themselves stay listed: what they are is still worth reading,
+  // and the door reopens the moment a library part lands on the face.
+  await expect(look.locator('option[value="soft-cartoon"]')).toHaveAttribute('disabled', '');
+});
+
+/**
+ * The library remembers what you reach for (audit §8.3).
+ *
+ * A hundred and fifty drawings, and no memory at all: the mouth you picked for
+ * the last three mascots sat as far down the row as one you had never used.
+ *
+ * Sorted inside the row rather than piled into a "Favourites" block above it —
+ * the row is already a grid the eye scans, and a block would cost a hundred
+ * pixels of a column this work has spent its time shortening.
+ */
+test('@critical a starred drawing comes first in its row, and a used one is remembered', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  await page.locator('[data-part-category="mouth"]').click();
+
+  const ids = () => page.locator('[data-part-styles="mouth"] [data-face-part]').evaluateAll((nodes) => nodes.map((node) => node.dataset.facePart));
+  const before = await ids();
+  expect(before.length).toBeGreaterThan(3);
+
+  // Every card has a star, and starring the fourth sends it to the front.
+  const fourth = before[3];
+  await page.locator(`[data-part-favourite="${fourth}"]`).click();
+  await expect.poll(async () => (await ids())[0]).toBe(fourth);
+  await expect(page.locator(`[data-part-favourite="${fourth}"]`)).toHaveAttribute('aria-pressed', 'true');
+
+  // Using one remembers it: behind the starred drawing, ahead of the rest.
+  const last = before.at(-1);
+  await page.locator(`[data-face-part="${last}"]`).click();
+  await expect.poll(async () => (await ids()).slice(0, 2)).toEqual([fourth, last]);
+
+  // A preference, not project data: it is kept in this browser and never
+  // travels with a save.
+  const stored = JSON.parse(await page.evaluate(() => localStorage.getItem('boop.libraryUse.v1')));
+  expect(stored).toEqual({ recent: [last], favourite: [fourth] });
+  expect(await page.evaluate(() => JSON.stringify(window.__BOOP_E2E__.document()))).not.toContain('libraryUse');
+
+  // And the star comes off again.
+  await page.locator(`[data-part-favourite="${fourth}"]`).click();
+  await expect.poll(async () => (await ids())[0]).toBe(last);
+});
+
+/**
+ * Every piece of the mascot, by role (audit §1.3).
+ *
+ * Face hides the SVG layer tree, and rightly: it is a hundred and thirty rows
+ * opening on the fingers of the left hand. But hiding it left *no* list of the
+ * mascot on the screen that builds one — no way to see what it is made of, and
+ * no way back to a piece the canvas would not give you.
+ */
+test('@critical Advanced lists every piece by role, and a press puts one in hand', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openCharacter(page);
+  await page.locator('[data-part-category="mouth"]').click();
+
+  // Under Advanced: it is a way *back* to a piece, not a thing to do to the one
+  // already in hand.
+  await expect(page.locator('[data-part-roster]'), 'shut until asked for').toBeHidden();
+  await inspector(page).locator('details').filter({ hasText: 'Advanced' }).first().locator('summary').first().click();
+  const roster = page.locator('[data-part-roster]');
+  await expect(roster).toBeVisible();
+
+  // By role, not by layer: the rows are the parts a face wears.
+  const rows = await page.locator('[data-part-roster-row]').evaluateAll((nodes) => nodes.map((node) => node.dataset.partRosterRow));
+  expect(rows).toContain('eyes');
+  expect(rows).toContain('mouth');
+  expect(rows).not.toContain('faceRoot');
+  expect(await page.locator('.part-roster-pieces .chip').count()).toBeGreaterThan(10);
+
+  // And a press puts that piece in hand, which is the way back the canvas
+  // would not give you.
+  await page.locator('.part-roster-pieces [data-roster-piece="eyeLeft"]').click();
+  await expect.poll(() => session(page).then((s) => s.id)).toBe('eyeLeft');
 });

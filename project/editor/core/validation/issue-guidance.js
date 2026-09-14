@@ -28,6 +28,26 @@ export function describeFix(issue) {
   };
 }
 
+/**
+ * A repair the editor can perform, as opposed to a place it can send you.
+ *
+ * A *Fix* opens the screen where the problem lives and leaves the work to the
+ * author. A *remedy* is the work: the one case today is a role whose drawing
+ * was deleted, where taking the role off is the whole repair and nobody should
+ * have to find the Clear button to do it (audit §4.2).
+ */
+export function describeRemedy(issue) {
+  const remedy = issue?.remedy;
+  if (!remedy?.kind) return { available: false, label: null, explanation: null };
+  return {
+    available: true,
+    label: remedy.label || 'Repair',
+    explanation: remedy.kind === 'clear-role'
+      ? 'Takes the role off the part. The drawing is already gone; this is what still points at it.'
+      : 'Applies the repair.'
+  };
+}
+
 /** Issues grouped by severity with the same shape everywhere. */
 export function summarizeIssues(issues = []) {
   const errors = issues.filter((issue) => issue.severity === 'error'), warnings = issues.filter((issue) => issue.severity === 'warning'), info = issues.filter((issue) => issue.severity === 'info');

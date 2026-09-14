@@ -224,6 +224,306 @@ hors de la carte, la recette toujours dans son `title` — et mesure la hauteur 
 et par `ux12-motion-studio`, dont l'assertion sur *Uses* lit désormais le
 `title`.
 
+### Le clic, le gizmo et la paire (PR UI-03 / UI-04)
+
+Un œil du template est un groupe de sept formes. Cliquer sur l'œil
+sélectionnait `glintLeft` — un reflet de deux pixels, affiché
+« Left eye glint » — et quelqu'un qui appuyait ensuite sur `Suppr` effaçait un
+reflet au lieu d'un œil.
+
+Et les trois façons de déplacer une pièce n'étaient pas d'accord :
+
+| Geste | Cible, avant | Miroir de la paire, avant |
+| --- | --- | --- |
+| Champs *X / Y / Taille* | la partie entière | **oui** |
+| Gizmo au canvas | la forme sélectionnée | non |
+| Flèches du clavier | la forme sélectionnée | non |
+
+Une personne cochait « éditer les deux yeux » (coché par défaut), glissait l'œil
+gauche, et seul l'œil gauche bougeait ; puis tapait un nombre, et les deux
+bougeaient.
+
+| Ce qui a changé | Où |
+| --- | --- |
+| Un seul point d'accroche : `resolve` · `contains` · `commit` | `svg-editor/svg-canvas.js` (`setPieceModel`) |
+| Le clic remonte à la pièce **nommée** la plus proche | `character-builder.js` (`resolvePiece`) |
+| Le double-clic descend, `Échap` remonte d'un niveau | `svg-canvas.js`, `app/editor-app.js` |
+| Le gizmo **et** les flèches écrivent par `writeTransforms` | `character-builder.js` (`commitTransform`) |
+| Le fil d'Ariane : `Face › Left eye › Left eye glint` | `part-inspector.js`, `styles/library.css` |
+
+**Une règle pour deux sortes de visage.** La pièce qu'un clic désigne est la plus
+proche chose *qui a un nom* en remontant l'arbre : sur un visage de
+bibliothèque, l'instance que l'ajustement a posée ; sur le template, l'élément
+qu'une partie sémantique appelle `leftEye`. Elle s'arrête au premier nom, ce qui
+est la raison pour laquelle cliquer un œil ne sélectionne pas la tête : `faceRoot`
+a un nom aussi, et il est plus haut. Une pupille garde le sien — la partie Gaze
+la nomme — donc le milieu d'un œil est bien une pupille.
+
+Le modèle n'est branché que sur la moitié `simple` de `GESTURE_SURFACES`
+(Design ▸ Face, Design ▸ Hands) : Artwork **est** l'éditeur vectoriel, et Rig
+assigne des rôles à des éléments nommés. Les deux veulent la forme sous le
+pointeur, et les deux reçoivent `null`.
+
+**Prouvé par** deux specs dans `ux45-character-builder` — l'une lit les deux
+moitiés (la pièce au clic, chaque forme toujours atteignable au double-clic et
+par le fil d'Ariane), l'autre le miroir et l'undo unique.
+
+**Une assertion obsolète retirée**, la troisième de cette suite : `ux45`
+affirmait `pupilRight.x === 0` après un glissement — le défaut de l'audit §2.2,
+écrit comme une intention.
+
+### Les messages de validation (PR UI-05)
+
+Supprimer un dessin dans Artwork laisse `semanticParts[*].roles` pointer sur un
+élément qui n'existe plus. Le validateur disait :
+
+> Semantic part "eyes": role "leftEye" references missing element "eyeLeft".
+
+Vrai, inactionnable, et écrit pour quelqu'un qui lit le schéma. Le seul bouton
+ouvrait un écran : il restait à trouver *Clear*, sur le bon rôle, sur la bonne
+partie. Il dit désormais :
+
+> Eyes: nothing is drawn for its left eye any more. Pick another drawing for it,
+> or take the role off.
+
+| Ce qui a changé | Où |
+| --- | --- |
+| Le contrôle remonte là où un problème a une cible et un remède | `validate-project.js` (`orphanRoleIssues`) |
+| Un *remède* à côté du *Fix* : la réparation, pas l'endroit | `issue-guidance.js` (`describeRemedy`) |
+| Deux boutons dans Project check | `shell/overlays.js` |
+| Le remède branché sur `assignRole(partId, role, null)`, avec Annuler | `app/services/export-service.js` |
+
+**Corrigé au passage, et c'était un défaut de ce travail-ci.** Le toast du remède
+disparaît immédiatement : la passe de validation déclenchée par la réparation
+elle-même écrivait son résumé par-dessus, et l'offre *Annuler* partait avant
+qu'on puisse la prendre. Deux causes :
+
+- le garde-fou de `setStatus` ne protégeait que les messages *info*
+  (`routine && tone === 'info'`), alors que le résumé est un *warn* — un message
+  que l'auteur vient de provoquer prime sur le battement de cœur, quel qu'en
+  soit le ton ;
+- le câblage du service perdait le troisième argument
+  (`setStatus:(message,tone)=>shell.setStatus(message,tone)`), donc **aucune**
+  action du service n'a jamais eu son bouton.
+
+**Prouvé par** un test unitaire sur le message pur et l'absence de mots de
+schéma, et une spec dans `ux16-export-readiness` qui suit le parcours entier :
+le dessin supprimé, la phrase, les deux boutons, la réparation, le toast avec
+*Annuler*, et le problème qui ne revient pas.
+
+### La bibliothèque et les presets — ce qui restait de §8 (PR UI-06)
+
+**Rien à faire, et il faut le dire.** La ligne « les 22 presets visibles d'un
+coup » du plan était fausse sur deux points, vérifiés en mesurant :
+
+- il y a **six** presets de look, pas vingt-deux, et les six sont déjà visibles
+  d'un coup — une grille de vignettes carrées de 117 px, deux par ligne dans la
+  colonne de 300 px, chacune avec sa vraie image ;
+- §8.1 (la planche) et §8.2 (la recherche) ont été faits dans la passe
+  Design ▸ Face.
+
+Ce qui restait de §8 est §8.3 (favoris et récents), resté en P2.
+
+**Un défaut trouvé en mesurant, lui bien réel.** Sur le visage du template, où
+aucune pièce ne vient de la bibliothèque, le sélecteur *Look* n'avait qu'une
+option, **désactivée** : un `<select>` dont toutes les options le sont ne
+sélectionne rien et dessine une boîte vide. Le contrôle se lisait comme cassé
+plutôt que comme « pas encore ».
+
+| Ce qui a changé | Où |
+| --- | --- |
+| Une option de tête, sélectionnée : « No look to apply yet » | `style-browser.js` |
+| Les looks restent listés, désactivés — ce qu'ils sont vaut d'être lu | idem |
+
+**Prouvé par** une spec dans `ux45-character-builder` : quelque chose est
+sélectionné, la boîte a des mots, et la porte se rouvre dès qu'une pièce de
+bibliothèque arrive sur le visage.
+
+### Les mains, dessinées depuis Design (opération 11)
+
+*Draw a pair of hands…*, sur l'écran des mains, était une **route** : elle
+emmenait dans Rig ▸ Controls, où un second bouton les dessinait vraiment.
+Trois actions pour la seule chose que cet écran existe pour faire, et un
+détour par l'écran de *où se trouve une main* pour répondre à *à quoi une main
+ressemble*. Le *look*, qui doit être choisi **avant** le tracé, n'était offert
+qu'au bout du voyage.
+
+| Ce qui a changé | Où |
+| --- | --- |
+| Le bouton dessine sur place, avec le choix du look | `ui/hands/hand-states.js` |
+| `drawHandPair` traversé jusqu'à Design | `app/editor-app.js`, `app/workspaces/design.js` |
+| Un seul bouton, pas un par main | `hand-states.js` (`nothingDrawnMarkup`) |
+
+**Une fois, pas une fois par main.** Les mains arrivent par paire, donc deux
+boutons identiques auraient été deux portes sur un seul geste — exactement la
+duplication que l'audit traque. Quand une seule main manque, sa section dit quoi
+faire de l'autre côté plutôt que d'offrir un tracé de paire impossible.
+
+**Trois actions → deux**, et le placement reste celui de Rig, avec sa porte
+juste en dessous : *où* une main se trouve est un mouvement.
+
+**Prouvé par** une spec dans `ux47-hand-workshop` : un bouton, un sélecteur de
+look, une presse, la paire gréée, l'écran inchangé, un seul undo, et la porte de
+Rig toujours là.
+
+### Favoris et récents (§8.3)
+
+Cent cinquante dessins, et aucune mémoire : la bouche choisie pour les trois
+dernières mascottes était aussi loin dans la rangée qu'une jamais utilisée.
+
+| Ce qui a changé | Où |
+| --- | --- |
+| Deux listes pures et testées, dans `localStorage` | **nouveau** `ui/character-builder/library-memory.js` |
+| Une étoile sur chaque carte, au survol ou au focus | `part-browser.js`, `styles/library.css` |
+| L'ordre d'une rangée : étoilés, puis récents, puis la bibliothèque | `library-memory.js` (`orderByMemory`) |
+| Utiliser un dessin le retient (huit au plus) | `character-builder.js` (`useStyle`) |
+
+**Trier dans la rangée plutôt qu'ajouter un bloc « Favoris » au-dessus.** La
+rangée est déjà une planche que l'œil balaie, et un bloc aurait coûté cent
+pixels d'une colonne que ce travail a passé son temps à raccourcir. Les dessins
+qu'on utilise remontent dans la rangée qu'on regarde déjà.
+
+**Une préférence, jamais une donnée de projet** : ces listes disent ce que *cet
+auteur* attrape, pas de quoi *cette mascotte* est faite. Elles ne touchent pas
+le document et ne voyagent pas avec un enregistrement. Un navigateur dont le
+stockage est coupé fonctionne sans mémoire, et `write` renvoie ce qu'un lecteur
+verra vraiment plutôt que ce qu'on voulait écrire — c'est un test unitaire qui
+l'a exigé.
+
+**Le coût, dit franchement.** L'étoile est un second bouton par carte, donc Tab
+fait désormais dessin → son étoile → dessin suivant. Les flèches, elles, ne
+parcourent que les dessins (`ring-keys.js` écarte l'étoile de la bague), donc
+une rangée de vingt-quatre têtes reste à quatre pressions de large. L'autre
+option était une étoile hors de l'ordre de tabulation : une capacité sans porte
+clavier, ce qui est exclu.
+
+**Prouvé par** quatre tests unitaires (l'ordre, la limite de huit, le
+dédoublonnage, le stockage coupé) et une spec dans `ux45-character-builder` qui
+étoile, utilise, lit `localStorage`, vérifie que le document n'en sait rien, et
+retire l'étoile.
+
+### Trois choses que le canvas savait faire et n'offrait pas (§5)
+
+| | Avant | Après |
+| --- | --- | --- |
+| *Isoler* | existe, mais de niveau `more` — donc **inatteignable** sur la surface faite pour ceux qui ne savent pas ce qu'est un SVG | sous *Advanced* du menu, une pression plus bas |
+| *Aligner / répartir* | derrière `workspace === 'create'` | dans Face, là où les pièces sont placées à l'œil |
+| *Zoom sur la sélection* | absent | un bouton à côté de *Fit*, et `Maj+F` |
+
+**Le menu plie au niveau de la surface, pas à un niveau fixe.** Dans Artwork,
+*Isoler* et *Vers l'arrière* sont du quotidien et seuls les mots de rigging se
+replient ; dans Design ▸ Face, les six gestes simples sont le menu et tout le
+reste est une pression plus bas. Le plafond ne dépasse jamais `more`, pour que
+*Dupliquer* reste la première chose lue plutôt que « Convertir en chemin ».
+
+**Ce qui ne voyage pas.** *Group* et *Cut to top* restructurent le dessin auquel
+un rig est lié : ils restent dans l'éditeur vectoriel. *Grid* et *Snap* placent
+les coins d'une forme qu'on dessine, et on ne dessine pas sur une mascotte —
+ils restent avec les outils qu'ils servent. (L'audit demande aussi le
+magnétisme **au déplacement** : c'est un autre travail, pas celui-ci.)
+
+**Prouvé par** une spec dans `ux40-arrangement` qui lit les trois, et **deux
+assertions réécrites** dans `ux45` : elles disaient « absent » là où la
+conception dit maintenant « replié ». Elles vérifient désormais le pli *et* la
+porte, ce qui est plus fort : le repli existe, il est fermé, rien de technique
+n'est lu, et *Isoler* est derrière.
+
+### L'éditeur simple (§7.3)
+
+Pour quelqu'un venu habiller un personnage, trois des quatre questions parlent
+de rigging, d'animation et de réactions : du vrai travail, et hors sujet. Aucun
+réglage ne les repliait, donc la réponse à « lesquelles me servent ? » était
+« lis les quatre et tu verras ».
+
+| Ce qui a changé | Où |
+| --- | --- |
+| `SIMPLE_WORKSPACES` et `isSimpleMode`, purs | `ui/task-router.js` |
+| Un bouton dans `•••` qui dit ce qu'il **donne**, pas où l'on est | `shell/topbar.js` |
+| La nav replie les groupes ; une règle CSS suffit | `shell/workspace-nav.js`, `styles/shell.css` |
+| Une préférence, pas une donnée de projet | `ui/workspace-state.js` (`simpleMode`) |
+
+**Replié, jamais retiré**, et c'est la moitié sur laquelle la spec passe le plus
+de lignes : la recherche, *Advanced tools* et tout lien profond y vont encore,
+et **arriver ramène les quatre** — parce qu'un écran que personne ne voit n'est
+pas un écran qu'un lien profond peut atteindre. Preview ne se replie jamais :
+ce n'est pas un espace, c'est la façon de regarder la chose.
+
+**Éteint par défaut**, et c'est délibéré : replier trois questions pour tout le
+monde qui a déjà un projet est une décision de produit, pas un rangement. Le
+réglage existe, une pression l'active, et le toast dit où sont passés les trois
+autres plutöt que de laisser trois boutons disparaître sans explication.
+
+**Corrigé pendant l'écriture de la spec.** L'étiquette du bouton pouvait mentir :
+quand un lien profond ramenait les quatre espaces, elle disait encore « Every
+workspace » avec `aria-pressed="true"`. La nav prévient désormais la barre de
+projet à chaque changement (`onSimpleMode`), donc les deux ne peuvent plus
+dériver — personne n'a à se souvenir de demander.
+
+### Toutes les pièces, par rôle (§1.3)
+
+Face cache l'arbre des calques SVG, et à raison : cent trente lignes qui
+s'ouvrent sur les doigts de la main gauche. Mais le cacher ne laissait **aucune**
+liste de la mascotte sur l'écran qui la construit — aucun moyen de voir de quoi
+elle est faite, ni de revenir à une pièce que le canvas refuse de donner.
+
+| Ce qui a changé | Où |
+| --- | --- |
+| `roster` : les parties dans l'ordre où le visage les porte | `character-builder.js` |
+| Une pastille par pièce, disant si elle est cachée ou verrouillée | `part-inspector.js`, `styles/library.css` |
+
+Sous *Avancé*, parce que c'est un chemin de **retour** vers une pièce et non une
+chose à faire à celle qu'on tient. Par rôle et non par calque : les rangées sont
+les parties qu'un visage porte, pas les nœuds d'un SVG.
+
+**Corrigé en écrivant la spec** : les pastilles réutilisaient `data-part-piece`,
+qui désignait déjà la rangée de la catégorie ouverte. Deux listes sous un même
+nom, c'est un sélecteur que personne ne peut viser — deux specs existantes sont
+tombées sur une violation de mode strict. Le roster a son propre attribut.
+
+**Prouvé par** une spec dans `ux45-character-builder` : fermé jusqu'à ce qu'on le
+demande, des rangées par rôle (`eyes`, `mouth`, et pas `faceRoot`), et une
+pression qui met la pièce en main.
+
+### Atteindre ce qui est derrière, et poser un déplacement sur la grille (§5)
+
+**Alt+clic.** Rien ne pouvait sélectionner une pièce sous une autre. Sur une
+mascotte ce n'est pas un cas limite : les cheveux sont dessinés sur la tête, les
+lunettes sur le visage, un reflet sur un œil — et depuis qu'un clic désigne la
+**pièce** plutôt que la forme la plus profonde, celle de devant est la seule
+qu'un pointeur peut nommer. Chaque Alt+clic au même endroit descend d'un cran et
+boucle en bas.
+
+Il est écouté en phase de **capture** sur le conteneur : une fois quelque chose
+sélectionné, l'overlay du gizmo couvre le dessin, donc un écouteur sur l'artwork
+ne voit jamais la pression — le gizmo la prend pour un glissement du corps.
+
+**Le magnétisme au déplacement.** La grille n'aidait que les outils de dessin :
+elle plaçait les coins d'une forme qu'on trace et ne faisait rien du tout à une
+forme qu'on déplace.
+
+Ce qui est magnétisé est **le coin de la boîte**, pas la distance parcourue : se
+déplacer par pas de grille depuis là où la pièce se trouvait la laisserait hors
+grille pour toujours — c'est la demi-mesure qui se lit comme un bug. Mesuré :
+une bouche à (87 ; 172,5) atterrit à (100 ; 180), puis (100 ; 190), puis
+(110 ; 190).
+
+**Et c'est la boîte du dessin, pas `drag.box`.** La boîte de sélection est
+rembourrée d'un demi-contour et grandie à une taille minimale pour qu'un trait
+fin reste attrapable : magnétiser *celle-là* laissait le dessin à une largeur de
+contour de la grille. C'est la première version que j'ai écrite, et une sonde a
+montré le résultat à 91,9 — un magnétisme qui *semble* marcher est pire que pas
+de magnétisme.
+
+Seulement un déplacement, et seulement là où la grille est : une rotation ou une
+mise à l'échelle n'a pas de coin sur lequel atterrir, et on ne dessine pas sur
+une mascotte — `tool-options.js` garde *Grid* et *Snap* avec les outils qu'ils
+servent.
+
+**Prouvé par** deux specs dans `ux25-canvas-editing` : l'une compte trois pièces
+différentes sous un même point et vérifie que ça boucle, l'autre part d'une
+position **hors** grille — le cas qui vaut la peine — et vérifie que le dessin y
+arrive.
+
 ### Rendu global
 
 | Ce qui a changé | Où |
@@ -237,20 +537,14 @@ et par `ux12-motion-studio`, dont l'assertion sur *Uses* lit désormais le
 
 ## ⏳ Reste à faire
 
-Par ordre de valeur, avec la référence de l'audit.
+**Tous les P1 sont faits.** Ce qui suit est ce qui reste, par ordre de valeur,
+avec la référence de l'audit.
 
 | Priorité | Tâche | Référence |
 | --- | --- | --- |
-| **P1** | Clic = la pièce, double-clic = dedans, fil d'Ariane de sélection | [02](02_PROBLEMES.md) §2.1 · PR **UI-03** |
-| **P1** | Le gizmo agit sur la partie, et miroite la paire liée comme les champs | §2.2 · PR **UI-04** |
-| **P1** | Les 22 presets visibles d'un coup, avec des chips de genre facultatives | §8 · PR **UI-06** |
-| **P1** | Messages de validation en langage utilisateur, avec un *Fix* | §4.2 · PR **UI-05** |
-| **P1** | Les mains dessinées depuis Design, sans aller-retour vers Rig | §1 (op. 11) |
-| **P2** | Favoris et récents dans la bibliothèque | §8.3 |
-| **P2** | Colonnes redimensionnables ; aligner/centrer hors d'Artwork | §10.1, §5 |
-| **P2** | Magnétisme et guides au déplacement ; zoom sur la sélection ; isoler exposé | §5 |
-| **P2** | Liste des pièces **par rôle** sous *Avancé* dans Face | §1.3 |
-| **P2** | Mode `Simple / Complet` et les libellés français | §7.3 |
+| **P2** | Colonnes redimensionnables | §10.1 |
+| **P2** | Guides visuels à l'alignement (la ligne « centré sur l'axe ») | §5 |
+| **P2** | Les libellés français de l'éditeur simple | §7.3 |
 | **P2** | Assistant de création en trois écrans | [04](04_RECOMMANDATIONS.md) §5 |
 | **P3** | Migration complète du CSS hors d'`index.html` | [06](06_PLAN_PR.md) P3-1 |
 | **P3** | Jeu d'icônes cohérent à la place des glyphes unicode | P3-4 |

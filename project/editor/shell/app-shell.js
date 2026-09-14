@@ -88,6 +88,8 @@ export function createAppShell(root) {
 
   const nav = createWorkspaceNav({
     root, preferences, savePreferences,
+    // The nav owns the fold; the project bar owns the label that offers it.
+    onSimpleMode: (on) => topbar.setSimpleModeLabel(on),
     // A screen whose subject is a dock or a disclosure arrives with it open:
     // landing on one folded shut is the failure the focus mechanism exists to
     // prevent.

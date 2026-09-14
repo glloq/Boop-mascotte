@@ -51,6 +51,7 @@ import { artworkScopeMarkup, describeArtworkScope } from '../ui/artwork-scope.js
 import { deformBenchMarkup, describeDeformation } from '../ui/advanced-tools.js';
 import { artworkIdAt, createCanvasMenu } from '../ui/canvas-menu.js';
 import { actionRefusal, deleteConfirmation, deleteMessage, gestureDepth, matchPieceKey, pieceActionsFor, takesGestures } from '../ui/piece-actions.js';
+import { createSemanticRigCommands } from '../rig-editor/semantic-parts/semantic-rig-commands.js';
 import { createSelectionActions } from '../ui/selection-actions.js';
 import { describeStage } from '../ui/preview-stage.js';
 import { findSemanticPartByRole } from '../rig-editor/semantic-parts/part-model.js';
@@ -98,6 +99,20 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   const LAYOUT_PREFERENCE='boop.layoutMode';
   const responsive=createResponsiveShell(document.getElementById('app'),{onChange:state=>{shell.setDrawerState(state.drawerOpen);globalThis.__boopLayoutChanged?.(state);},readPreference:()=>{try{return localStorage.getItem(LAYOUT_PREFERENCE)||'auto';}catch{return 'auto';}},writePreference:mode=>{try{localStorage.setItem(LAYOUT_PREFERENCE,mode);}catch{}}});
   const capabilitySheet=createCapabilitySheet(document.getElementById('capability-panel'),{layout:()=>responsive.snapshot(),onForce:mode=>{responsive.forceLayout(mode);shell.setStatus(mode==='desktop'?'Desktop layout on. Both panels are shown; nothing is gated.':'Automatic layout restored.');}});
+  /**
+   * Fold the three rigging workspaces away, or bring them back (audit §7.3).
+   *
+   * The nav does the folding and tells the project bar to relabel, so the two
+   * cannot drift: a route into a folded workspace unfolds, and the button that
+   * offers the fold says so without anybody here remembering to ask. This only
+   * says what happened.
+   */
+  shell.bindSimpleMode(() => {
+    const on = shell.setSimpleMode(!shell.isSimpleMode());
+    shell.setStatus(on
+      ? 'Simple editor: Design and Preview. Rig, Animate and Behavior are still reachable — the search and Advanced tools go there, and arriving brings them back.'
+      : 'Every workspace is back.', 'info');
+  });
   shell.bindCapabilities(()=>capabilitySheet.isOpen()?capabilitySheet.close():capabilitySheet.open());
   shell.bindDrawer(()=>responsive.toggleDrawer(),()=>responsive.closeDrawer());
   shell.bindSheet(detent=>responsive.setSheet(detent));
@@ -133,8 +148,17 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     openColour:(options)=>colourPicker.open(options),
     // Several pieces at once: the bar lines them up, spreads them, groups them
     // and cuts them to the shape in front (docs/VECTOR_EDITING.md).
-    selection:{ids:()=>(shell.getWorkspace()==='create'?store.getSession().selectedIds||[]:[]),align:(kind)=>canvas.alignSelection(kind),distribute:(axis)=>canvas.distributeSelection(axis),group:()=>canvas.groupMany(store.getSession().selectedIds||[]),
-      focused:()=>(shell.getWorkspace()==='create'?store.getSession().selectedId||null:null),
+    // Lining pieces up is not a vector-editor idea: two eyes that want the same
+    // height want it in Design ▸ Face too, and the bar lived behind
+    // `workspace === 'create'` so it was unreachable exactly where the pieces
+    // are placed by eye (audit §5). The gate is now "a surface that edits a
+    // piece at all", which is the table the gestures read; `#tool-options` is
+    // its own element, so this brings the arrange bar without bringing nine
+    // drawing tools with it.
+    selection:{ids:()=>(takesGestures(shell.getWorkspace())?store.getSession().selectedIds||[]:[]),align:(kind)=>canvas.alignSelection(kind),distribute:(axis)=>canvas.distributeSelection(axis),group:()=>canvas.groupMany(store.getSession().selectedIds||[]),
+      focused:()=>(takesGestures(shell.getWorkspace())?store.getSession().selectedId||null:null),
+      // Group and Cut restructure the drawing, so they stay in the vector editor.
+      vector:()=>shell.getWorkspace()==='create',
       clip:()=>{const result=canvas.setClip(store.getSession().selectedIds||[]);
         // The shape that did the cutting is out of the drawing now, so it is
         // out of the selection too: a selection naming a piece nobody can see
@@ -166,9 +190,9 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // it is not (docs/STILL_WHILE_DESIGNING.md): the service owns which workspaces
   // those are, this only tells it which one is open. Session-only in both
   // directions -- no document is read and none is written.
-  shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);editorContext.update({workspace});syncPuppetHandles();syncArtboard();syncSelectionActions();if(workspace!=='animate')timeline?.stopPlayback();previewService.holdStill(workspace);});
+  shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);syncPieceModel(workspace);editorContext.update({workspace});syncPuppetHandles();syncArtboard();syncSelectionActions();if(workspace!=='animate')timeline?.stopPlayback();previewService.holdStill(workspace);});
   shell.bindPuppetToggle(()=>syncPuppetHandles());
-  shell.bindCanvasView((action)=>action==='fit'?canvas.fitToCanvas():action==='reset'?canvas.resetView():canvas.zoomView(action==='in'?1.1:1/1.1));
+  shell.bindCanvasView((action)=>action==='fit'?canvas.fitToCanvas():action==='selection'?canvas.zoomToSelection():action==='reset'?canvas.resetView():canvas.zoomView(action==='in'?1.1:1/1.1));
   // The wheel zooms too, so the readout has to follow the canvas, not the
   // buttons -- and so does the bar anchored to the selection. One handler:
   // `onViewChange` holds exactly one, and a second call replaces the first.
@@ -194,7 +218,11 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     onClose: () => shell.canvasEl.focus?.(),
     // What the menu offers is the catalogue, filtered for this piece and for
     // how deep this surface goes (`ui/piece-actions.js`).
-    getActions: (id) => { const piece = pieceContext(id), depth = gestureDepth(shell.getWorkspace()); return piece && depth ? pieceActionsFor(piece, depth) : []; },
+    // The whole catalogue, and the menu folds it at this surface's depth: an
+    // action a surface does not lead with is one press further down, never
+    // gone (audit §5, and UIR-00).
+    getActions: (id) => { const piece = pieceContext(id); return piece && gestureDepth(shell.getWorkspace()) ? pieceActionsFor(piece, 'advanced') : []; },
+    depth: () => gestureDepth(shell.getWorkspace()) || 'advanced',
     // Every entry runs through the one runner below, which is also what the
     // keyboard and the on-canvas bar call: three doors, one implementation.
     onAction: (action, id, value) => runPieceAction(action, id, { value, from: 'menu' })
@@ -243,10 +271,28 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     loadTemplate: (kind) => projectService.loadTemplate(kind),
     applyPreview: () => preview.apply(),
     drawHandStyle: (side, style) => handArtwork.addStyle(side, style),
+    drawHandPair: (look) => handArtwork.drawPair(look),
     download: browserDownload,
     runPieceAction: (action, id) => runPieceAction(action, id, { from: 'inspector' })
   });
   const { characterBuilder, handStates, facePartCommands } = design.panels;
+
+  /**
+   * Teach the canvas what a piece is, on the surfaces that have pieces.
+   *
+   * The canvas knows SVG elements; it does not know that seven of them are one
+   * eye. Design ▸ Face and Design ▸ Hands are where a person handles a mascot,
+   * and they are exactly the `simple` half of the table the gestures already
+   * read (`ui/piece-actions.js`) — so this cannot drift from it. Artwork is the
+   * vector editor and Rig assigns roles to named elements: both want the shape
+   * under the pointer, and both get null.
+   */
+  const syncPieceModel = (workspace) => canvas.setPieceModel(gestureDepth(workspace) === 'simple' ? {
+    resolve: (id) => characterBuilder.resolvePiece(id),
+    contains: (root, id) => characterBuilder.containsPiece(root, id),
+    commit: (id, transform) => characterBuilder.commitTransform(id, transform)
+  } : null);
+  syncPieceModel(shell.getWorkspace());
 
   /* ── One piece, one set of gestures, every surface ─────────────────────────
    *
@@ -434,6 +480,10 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   function syncSelectionActions() {
     const id = store.getSession().selectedId;
     const many = (store.getSession().selectedIds || []).length > 1;
+    // *Selection* zooms to what is in hand, so it is offered exactly while
+    // there is something in hand — including a multi-selection, which is when
+    // it is most useful (audit §5).
+    shell.setZoomToSelection?.(Boolean(id) && Boolean(store.getDocument().svgMarkup));
     if (!id || many || !takesGestures(shell.getWorkspace()) || !store.getDocument().svgMarkup) { selectionActions.hide(); return; }
     selectionActions.show(canvas.clientBox?.(id), pieceActionIds(id));
   }
@@ -718,7 +768,9 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // Readiness deep links, Problems and Export share one vocabulary -- a section,
   // an issue, and the `fix` context an issue names -- so they are one service
   // (app/services/export-service.js, VNX-02). main.js keeps the wiring only.
-  const exportService=createExportService({store,exporter,validationCache,readiness:taskReadiness,navigate:route=>taskRouter.navigate(route),updateContext:context=>editorContext.update(context),setStatus:(message,tone)=>shell.setStatus(message,tone),showProblems:(readiness,issues,onFix,onGo)=>shell.showProblems(readiness,issues,onFix,onGo),setReturnToExport:visible=>shell.setReturnToExport(visible),focusPanel:id=>shell.focusPanel(id),showTimeline:()=>{shell.showTimeline();timeline.requestRender();},openAuthorEditor:()=>{states.render();shell.openAuthorEditor();}});
+  const exportService=createExportService({store,exporter,validationCache,readiness:taskReadiness,navigate:route=>taskRouter.navigate(route),updateContext:context=>editorContext.update(context),setStatus:(message,tone,options)=>shell.setStatus(message,tone,options),showProblems:(readiness,issues,onFix,onGo,onRepair)=>shell.showProblems(readiness,issues,onFix,onGo,onRepair),setReturnToExport:visible=>shell.setReturnToExport(visible),focusPanel:id=>shell.focusPanel(id),showTimeline:()=>{shell.showTimeline();timeline.requestRender();},openAuthorEditor:()=>{states.render();shell.openAuthorEditor();},
+    // The repairs Project check can perform rather than navigate to (audit §4.2).
+    repair:{clearRole:(partId,role)=>Boolean(createSemanticRigCommands(store,history).assignRole(partId,role,null))},undo:()=>undo()});
   /**
    * What the mascot is being tested against: a ground, and a size
    * (`ui/preview-stage.js`).
@@ -988,6 +1040,10 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     // inspector then says "Pick a part on the left, or click the mascot", the
     // bar of actions goes, and the gizmo with it — which is what Escape means
     // in every editor and what it did nowhere here.
+    // Out of the piece before out of the selection: a double-click stepped
+    // inside an eye to reach its pupil, and Escape is how you come back up a
+    // level before it is how you let go (audit §2.1).
+    if(canvas.insidePiece?.()){const root=canvas.insidePiece();canvas.leavePiece();canvas.selectMany([root]);return true;}
     if(store.getSession().selectedId||(store.getSession().selectedIds||[]).length){canvas.selectMany([]);return true;}
     return false;
   };
@@ -1060,6 +1116,10 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
       // the shape just drawn is selected, and R must still mean Rectangle —
       // which is why the gizmo keys are only read when the canvas is not
       // holding a drawing tool.
+      // Shift+F fills the view with what is in hand. `F` alone is free, but a
+      // bare letter that moves the view is a letter somebody will hit while
+      // reaching for a tool.
+      if (!meta && event.shiftKey && event.key.toLowerCase() === 'f' && id) { event.preventDefault(); shell.setZoomValue(canvas.zoomToSelection()); return; }
       if (!meta && id && canvas.getGizmoMode && canvas.handleGizmoKey(event)) { event.preventDefault(); return; }
       // Two things own these keys before the selection does, and both only
       // exist in the vector editor: a pen run owns Enter and Backspace, and a

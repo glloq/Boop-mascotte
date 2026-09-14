@@ -126,6 +126,7 @@ export function createToolOptions(host, { getTool, getOptions, setOptions, node 
 
   function render() {
     const tool = getTool();
+    const vectorTools = () => (selection?.vector ? selection.vector() : true);
     const options = normalizeDrawOptions(getOptions());
     host.dataset.tool = tool;
     const parts = [];
@@ -143,11 +144,17 @@ export function createToolOptions(host, { getTool, getOptions, setOptions, node 
       const ids = selection.ids();
       if (ids.length) {
         const many = ids.length > 1;
+        // Lining pieces up travels to every surface that edits a piece; making
+        // them one SVG group, or cutting one to the shape of another, does not.
+        // Those two are the vector editor's, and offering them over a mascot
+        // would be offering to restructure the drawing a rig is bound to
+        // (audit §5).
+        const vector = vectorTools();
         const item = (verb, what, label, title, enabled = true) => `<button type="button" class="secondary" data-arrange="${verb}:${what}" title="${title}"${enabled ? '' : ' disabled'}>${label}</button>`;
         parts.push(`<span class="tool-field tool-arrange" role="group" aria-label="Arrange"><b>${ids.length} selected</b><span>Align</span>${[
           ['left', 'Left', many ? 'Line up the left edges' : 'Put it on the left edge of the working area'], ['center', 'Centre', many ? 'Line up the centres' : 'Centre it in the working area'], ['right', 'Right', many ? 'Line up the right edges' : 'Put it on the right edge of the working area'],
           ['top', 'Top', many ? 'Line up the top edges' : 'Put it at the top of the working area'], ['middle', 'Middle', many ? 'Line up the middles' : 'Centre it vertically in the working area'], ['bottom', 'Bottom', many ? 'Line up the bottom edges' : 'Put it at the bottom of the working area']
-        ].map(([what, label, title]) => item('align', what, label, title)).join('')}<span>Spread</span>${item('distribute', 'horizontal', '↔', 'Equal gaps left to right (three or more pieces)', ids.length > 2)}${item('distribute', 'vertical', '↕', 'Equal gaps top to bottom (three or more pieces)', ids.length > 2)}${item('group', 'selection', 'Group', 'Make the selected pieces one group (Ctrl/Cmd+G)', many)}${item('clip', 'selection', 'Cut to top', 'Cut the pieces to the shape of the one in front. The shape stops being drawn and does the cutting', many)}</span>`);
+        ].map(([what, label, title]) => item('align', what, label, title)).join('')}<span>Spread</span>${item('distribute', 'horizontal', '↔', 'Equal gaps left to right (three or more pieces)', ids.length > 2)}${item('distribute', 'vertical', '↕', 'Equal gaps top to bottom (three or more pieces)', ids.length > 2)}${vector ? `${item('group', 'selection', 'Group', 'Make the selected pieces one group (Ctrl/Cmd+G)', many)}${item('clip', 'selection', 'Cut to top', 'Cut the pieces to the shape of the one in front. The shape stops being drawn and does the cutting', many)}` : ''}</span>`);
         // A piece that is already cut says so *here*, where the author is
         // looking at the dashed outline on the canvas -- not only in a menu
         // they would have to know to right-click for.
@@ -176,7 +183,11 @@ export function createToolOptions(host, { getTool, getOptions, setOptions, node 
     // every line it takes is a line the artwork does not get.
     const hint = TOOL_HINTS[tool] || '';
     if (hint) parts.push(`<p class="tool-hint">${esc(hint)}</p>`);
-    parts.push(`<span class="tool-field tool-grid" role="group" aria-label="Grid"><label class="check"><input type="checkbox" data-draw-option="grid"${options.grid ? ' checked' : ''}>Grid</label><label class="check"><input type="checkbox" data-draw-option="snap"${options.snap ? ' checked' : ''}>Snap</label>${options.grid || options.snap ? `<input type="number" data-draw-option="gridSize" aria-label="Grid size" min="1" step="1" value="${options.gridSize}">` : ''}</span>`);
+    // Grid and Snap are drawing aids: they place a new shape's corners. Nothing
+    // is drawn on a mascot surface, so they stay with the tools they serve
+    // rather than riding along with the arrange bar (audit §5 asks for
+    // snapping *on a move*, which is its own piece of work and not this one).
+    if (vectorTools()) parts.push(`<span class="tool-field tool-grid" role="group" aria-label="Grid"><label class="check"><input type="checkbox" data-draw-option="grid"${options.grid ? ' checked' : ''}>Grid</label><label class="check"><input type="checkbox" data-draw-option="snap"${options.snap ? ' checked' : ''}>Snap</label>${options.grid || options.snap ? `<input type="number" data-draw-option="gridSize" aria-label="Grid size" min="1" step="1" value="${options.gridSize}">` : ''}</span>`);
     host.innerHTML = `<div class="tool-options-row">${parts.join('')}</div>`;
     host.hidden = false;
   }

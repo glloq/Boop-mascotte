@@ -220,3 +220,69 @@ test('@critical the view can be panned, zoomed and fitted', async ({ page }) => 
   expect(Math.round(spacePanned.x - panned.x)).toBe(-40);
   expect((await documentOf(page)).svgMarkup).not.toContain('NaN');
 });
+
+/**
+ * Alt+click reaches what is behind (audit §5).
+ *
+ * Nothing could select a piece under another one. On a mascot that is not a
+ * corner case: hair is drawn over a head, glasses over a face, a highlight over
+ * an eye — and once a click resolves to the *piece* rather than the deepest
+ * shape, the piece in front is the only one a pointer can name.
+ */
+test('@critical Alt+click steps down the stack and wraps at the bottom', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await goToMode(page, 'design.face');
+  const selected = () => page.evaluate(() => window.__BOOP_E2E__.session().selectedId);
+
+  const box = await page.locator('#canvas svg svg #glintLeft').boundingBox();
+  const on = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  await page.mouse.click(on.x, on.y);
+  await expect.poll(selected).toBe('eyeLeft');
+
+  // Each Alt+click at the same place is one further down, and each is a piece
+  // rather than a shape inside one.
+  const walk = [];
+  for (let step = 0; step < 5; step += 1) {
+    await page.keyboard.down('Alt');
+    await page.mouse.click(on.x, on.y);
+    await page.keyboard.up('Alt');
+    await page.waitForTimeout(120);
+    walk.push(await selected());
+  }
+  expect(new Set(walk.slice(0, 3)).size, 'three different pieces under one point').toBe(3);
+  expect(walk[walk.length - 1], 'and it wraps rather than sticking at the bottom').toBe(walk[0]);
+});
+
+/**
+ * Snap, on a move (audit §5).
+ *
+ * The grid helped the drawing tools alone: it placed the corners of a shape
+ * being drawn and did nothing at all to a shape being moved.
+ */
+test('a move lands on the grid when the grid is on, and comes onto it', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await goToMode(page, 'design.artwork');
+  // Where the drawing's own left edge sits, in the space a transform moves it.
+  const origin = () => page.evaluate(() => {
+    const node = document.querySelector('#canvas svg svg #mouth'), box = node.getBBox();
+    const transform = window.__BOOP_E2E__.document().elements.mouth.baseTransform;
+    return { x: Number((box.x + transform.x).toFixed(3)), y: Number((box.y + transform.y).toFixed(3)) };
+  });
+  const before = await origin();
+  // It starts off the grid, which is the case worth proving: snapping the
+  // distance travelled would leave it off the grid for ever.
+  expect(before.x % 10 === 0 && before.y % 10 === 0).toBe(false);
+
+  const box = await page.locator('#canvas svg svg #mouth').boundingBox();
+  const at = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  await page.mouse.click(at.x, at.y);
+  await page.locator('[data-draw-option="snap"]').check();
+  await dragBy(page, at, 23, 17);
+
+  const after = await origin();
+  expect(after.x % 10, 'the drawing lands on the grid').toBe(0);
+  expect(after.y % 10).toBe(0);
+  expect(after.x).not.toBe(before.x);
+});
