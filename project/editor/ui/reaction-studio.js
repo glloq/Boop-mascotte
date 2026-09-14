@@ -332,8 +332,14 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
     const gate = model.hasTargets ? '' : '<p class="face-pick-notice" data-tone="warn"><span>A reaction shows an expression or a motion. Create one first.</span><button type="button" class="secondary" data-reaction-go="animate.expressions">Expressions</button><button type="button" class="secondary" data-reaction-go="animate.motions">Animate</button></p>';
     // Presets first: Expressions and Animate open with something to click, and
     // a reaction made of what the project already has is one press away.
-    const card = (preset) => `<article class="preset-card" data-reaction-preset-card="${preset.id}" data-preset-usable="${preset.usable}" data-preset-missing="${preset.missing.length}" title="${esc(preset.description)}">
-      <div><b>${esc(preset.name)}</b><small>${esc(preset.description)}</small><small class="${preset.usable ? '' : 'preset-missing'}">${preset.usable ? `Uses ${esc(reactionPresetSummary(preset))}` : `Needs ${esc(preset.missing.map((item) => item.label).join(' or '))}`}</small></div>
+    // What the preset is *made of* -- "Uses Surprised · Head Pop · left hand" --
+    // rides the card's title rather than a third line under its description:
+    // two `<small>`s clamped to two lines each spent four lines of a 300 px
+    // column on one preset, and the recipe is not a decision anybody is making
+    // at the moment they press Add. What it is *missing* stays visible, because
+    // on a card that cannot be pressed that is the whole message.
+    const card = (preset) => `<article class="preset-card" data-reaction-preset-card="${preset.id}" data-preset-usable="${preset.usable}" data-preset-missing="${preset.missing.length}" title="${esc(preset.name)} — ${esc(preset.description)}${preset.usable ? ` Uses ${esc(reactionPresetSummary(preset))}.` : ''}">
+      <div><b>${esc(preset.name)}</b><small>${esc(preset.description)}</small>${preset.usable ? '' : `<small class="preset-missing">Needs ${esc(preset.missing.map((item) => item.label).join(' or '))}</small>`}</div>
       ${preset.usable
         ? `<button type="button" data-reaction-preset-add="${preset.id}" aria-label="Add ${esc(preset.name)} reaction">Add</button>`
         : `<button type="button" class="secondary" data-reaction-preset-fix="${preset.id}" aria-label="Make what ${esc(preset.name)} needs">Make it</button>`}
