@@ -484,6 +484,46 @@ tombées sur une violation de mode strict. Le roster a son propre attribut.
 demande, des rangées par rôle (`eyes`, `mouth`, et pas `faceRoot`), et une
 pression qui met la pièce en main.
 
+### Atteindre ce qui est derrière, et poser un déplacement sur la grille (§5)
+
+**Alt+clic.** Rien ne pouvait sélectionner une pièce sous une autre. Sur une
+mascotte ce n'est pas un cas limite : les cheveux sont dessinés sur la tête, les
+lunettes sur le visage, un reflet sur un œil — et depuis qu'un clic désigne la
+**pièce** plutôt que la forme la plus profonde, celle de devant est la seule
+qu'un pointeur peut nommer. Chaque Alt+clic au même endroit descend d'un cran et
+boucle en bas.
+
+Il est écouté en phase de **capture** sur le conteneur : une fois quelque chose
+sélectionné, l'overlay du gizmo couvre le dessin, donc un écouteur sur l'artwork
+ne voit jamais la pression — le gizmo la prend pour un glissement du corps.
+
+**Le magnétisme au déplacement.** La grille n'aidait que les outils de dessin :
+elle plaçait les coins d'une forme qu'on trace et ne faisait rien du tout à une
+forme qu'on déplace.
+
+Ce qui est magnétisé est **le coin de la boîte**, pas la distance parcourue : se
+déplacer par pas de grille depuis là où la pièce se trouvait la laisserait hors
+grille pour toujours — c'est la demi-mesure qui se lit comme un bug. Mesuré :
+une bouche à (87 ; 172,5) atterrit à (100 ; 180), puis (100 ; 190), puis
+(110 ; 190).
+
+**Et c'est la boîte du dessin, pas `drag.box`.** La boîte de sélection est
+rembourrée d'un demi-contour et grandie à une taille minimale pour qu'un trait
+fin reste attrapable : magnétiser *celle-là* laissait le dessin à une largeur de
+contour de la grille. C'est la première version que j'ai écrite, et une sonde a
+montré le résultat à 91,9 — un magnétisme qui *semble* marcher est pire que pas
+de magnétisme.
+
+Seulement un déplacement, et seulement là où la grille est : une rotation ou une
+mise à l'échelle n'a pas de coin sur lequel atterrir, et on ne dessine pas sur
+une mascotte — `tool-options.js` garde *Grid* et *Snap* avec les outils qu'ils
+servent.
+
+**Prouvé par** deux specs dans `ux25-canvas-editing` : l'une compte trois pièces
+différentes sous un même point et vérifie que ça boucle, l'autre part d'une
+position **hors** grille — le cas qui vaut la peine — et vérifie que le dessin y
+arrive.
+
 ### Rendu global
 
 | Ce qui a changé | Où |
@@ -503,7 +543,7 @@ avec la référence de l'audit.
 | Priorité | Tâche | Référence |
 | --- | --- | --- |
 | **P2** | Colonnes redimensionnables | §10.1 |
-| **P2** | Magnétisme et guides au déplacement ; sélection derrière (Alt+clic) | §5 |
+| **P2** | Guides visuels à l'alignement (la ligne « centré sur l'axe ») | §5 |
 | **P2** | Les libellés français de l'éditeur simple | §7.3 |
 | **P2** | Assistant de création en trois écrans | [04](04_RECOMMANDATIONS.md) §5 |
 | **P3** | Migration complète du CSS hors d'`index.html` | [06](06_PLAN_PR.md) P3-1 |
