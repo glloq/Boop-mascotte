@@ -93,6 +93,14 @@ drawing` pour passer outre le type) vient de `main` ; de cette branche restent l
 cours passent devant, sans que rien n'ait été écrit ligne par ligne — et le
 retrait des lignes qu'aucun dessin ne peut remplir.
 
+**Déclaré mais pas encore lu** : `symmetry` et `maxInstances` sur un dessin
+(§7 du brief, [04_COMPATIBILITE.md](04_COMPATIBILITE.md) §B). Les deux champs
+sont dans le modèle, validés et conservés à l'aller-retour, mais rien ne les
+lit encore : la paire est toujours reconstruite à partir des noms de rôles du
+rig, et le nombre d'exemplaires vient toujours de `multiple` de la catégorie.
+Les lire est le travail d'une PR ultérieure ; ce qui est acquis ici, c'est le
+vocabulaire dont un auteur de pack a besoin pour l'écrire.
+
 **Non livré de la PR 02** : les *projets récents* (`core/state/recent-projects.js`).
 Le modèle proposé en [02_HOME.md](02_HOME.md) §E tient toujours ; la Home livrée
 montre le brouillon local quand il existe, et trois exemples sinon.
