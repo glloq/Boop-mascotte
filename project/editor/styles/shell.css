@@ -112,3 +112,51 @@
  * this rule can never strand a screen (UIR-00).
  */
 .stage-group[data-folded] { display: none; }
+
+/**
+ * The two column boundaries, draggable (audit §10.1).
+ *
+ * `300px` and `310px` of fixed furniture left **52 % of a 1280 px screen for
+ * the mascot**, and the only control was collapsing a column whole. These are
+ * the Timeline's separator turned on its side, positioned by the same custom
+ * property the grid is sized by — so the handle cannot drift from the edge it
+ * is the handle for.
+ *
+ * They are children of the grid rather than items in it: absolutely positioned,
+ * so no `grid-template-columns` anywhere has to learn about two more tracks.
+ */
+.panel-resize { display: none; }
+
+/* Desktop only. On tablet the left column is a drawer and the right one a
+   sheet — overlays, with no boundary to drag. */
+#app[data-layout=desktop] .workspace { position: relative; }
+
+#app[data-layout=desktop] .panel-resize {
+  display: block;
+  position: absolute;
+  z-index: 6;
+  top: 0;
+  bottom: 0;
+  width: 9px;
+  cursor: ew-resize;
+  background: transparent;
+  /* Nine pixels of target over a one-pixel line: the line belongs to the
+     panel, the target belongs to the pointer. */
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+
+#app[data-layout=desktop] #left-resize { left: calc(var(--left-width, 300px) - 4px); }
+#app[data-layout=desktop] #right-resize { right: calc(var(--right-width, 310px) - 4px); }
+
+.panel-resize:hover,
+.panel-resize:focus-visible { background: var(--ux-focus); }
+.panel-resize:focus-visible { outline: none; }
+
+/* A boundary that is not there: a collapsed column has no width to drag, and
+   Preview hides the left one altogether. */
+#app.left-collapsed #left-resize,
+#app.right-collapsed #right-resize,
+#app[data-workspace=preview] #left-resize,
+#app.focus-preview .panel-resize { display: none; }

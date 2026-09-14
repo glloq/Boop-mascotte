@@ -17,6 +17,13 @@ export function readUiPreferences(storage = globalThis.localStorage) {
       workspace: modeToSurface(mode),
       leftCollapsed: Boolean(saved.leftCollapsed),
       rightCollapsed: Boolean(saved.rightCollapsed),
+      // How wide the author dragged each column (audit §10.1). Null means "the
+      // stylesheet's own default": storing a number here that happens to equal
+      // it would freeze the default at the value it had the day somebody first
+      // touched a separator. Re-clamped against *this* window on startup, so a
+      // width saved on a wide screen cannot come back wider than the screen.
+      leftWidth: Number.isFinite(saved.leftWidth) ? saved.leftWidth : null,
+      rightWidth: Number.isFinite(saved.rightWidth) ? saved.rightWidth : null,
       // Closed until asked for: presets and three sliders are the simple path,
       // and the Timeline is the expert one. What the author chooses is kept.
       timelineCollapsed: saved.timelineCollapsed === undefined ? true : Boolean(saved.timelineCollapsed),
@@ -35,7 +42,7 @@ export function readUiPreferences(storage = globalThis.localStorage) {
       // somebody makes rather than one made for them.
       simpleMode: Boolean(saved.simpleMode)
     };
-  } catch { return { mode: DEFAULT_MODE, workspace: modeToSurface(DEFAULT_MODE), leftCollapsed: false, rightCollapsed: false, timelineCollapsed: true, hintsDismissed: {}, puppetHidden: false, openSections: {}, expertNav: {}, simpleMode: false }; }
+  } catch { return { mode: DEFAULT_MODE, workspace: modeToSurface(DEFAULT_MODE), leftCollapsed: false, rightCollapsed: false, leftWidth: null, rightWidth: null, timelineCollapsed: true, hintsDismissed: {}, puppetHidden: false, openSections: {}, expertNav: {}, simpleMode: false }; }
 }
 
 export function writeUiPreferences(preferences, storage = globalThis.localStorage) {

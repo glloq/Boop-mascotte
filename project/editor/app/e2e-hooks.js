@@ -37,7 +37,7 @@ export function installE2EHooks(deps, { search = globalThis.location?.search || 
 /** The seam itself, with every collaborator injected so it can be exercised. */
 export function createE2EHooks({
   store, canvas, preview, history, exporter, taskRouter, contextInspector, responsive, capabilitySheet,
-  validationCache, taskReadiness, diagnostics, autosave, project, panels = {}, dom = globalThis.document
+  validationCache, taskReadiness, diagnostics, autosave, project, shell = null, panels = {}, dom = globalThis.document
 }) {
   // Version tokens are opaque and change shape; tests only ever need "did it
   // change", so the seam hands out a counter instead of the token itself.
@@ -125,6 +125,9 @@ export function createE2EHooks({
     character: () => panels.characterBuilder.snapshot(),
     palette: () => panels.palette.snapshot(),
     layout: () => responsive.snapshot(),
+    // One column, asked for a width it may not get: what a spec wants to know
+    // about a separator is the clamp, and a drag cannot ask for 5000 px.
+    setColumnWidth: (side, value) => shell?.setColumnWidth?.(side, value) ?? null,
     capabilities: () => capabilitySheet.isOpen(),
     previewSession: () => structuredClone(preview.getSession()),
     activeReaction: () => preview.getActiveReaction(),

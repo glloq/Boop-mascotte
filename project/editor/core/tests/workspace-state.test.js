@@ -18,7 +18,14 @@ test('workspace preferences are UI-only, persisted and safely normalized', () =>
   // somebody who has opened Artwork once is somebody who wants it, and asking
   // again on every visit would be a worse tax than the clutter the fold removes
   // (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §7.2).
-  assert.deepEqual(readUiPreferences(storage), { mode: 'rig.assign', workspace: 'rig', leftCollapsed: true, rightCollapsed: false, timelineCollapsed: true, hintsDismissed: { rig: true }, puppetHidden: false, openSections: {}, expertNav: {}, simpleMode: false });
+  // `leftWidth`/`rightWidth` are how wide the author dragged each column
+  // (audit §10.1). Null, not a number, until somebody moves a separator: the
+  // default belongs to the stylesheet, and a number written here on first run
+  // would freeze it at whatever it was that day.
+  assert.deepEqual(readUiPreferences(storage), { mode: 'rig.assign', workspace: 'rig', leftCollapsed: true, rightCollapsed: false, leftWidth: null, rightWidth: null, timelineCollapsed: true, hintsDismissed: { rig: true }, puppetHidden: false, openSections: {}, expertNav: {}, simpleMode: false });
+  writeUiPreferences({ leftWidth: 420, rightWidth: 'wide' }, storage);
+  assert.deepEqual([readUiPreferences(storage).leftWidth, readUiPreferences(storage).rightWidth], [420, null],
+    'a width is kept, and anything that is not a number is no width at all');
   writeUiPreferences({ mode: 'rig.head2d' }, storage);
   assert.deepEqual([readUiPreferences(storage).mode, readUiPreferences(storage).workspace], ['rig.head2d', 'rig'],
     'and a screen an author left in is the one they come back to');

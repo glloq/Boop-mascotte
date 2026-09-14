@@ -33,6 +33,7 @@ import { canvasColumnMarkup, wireCanvasColumn } from './canvas-column.js';
 import { inspectorHostMarkup, inspectorHosts } from './inspector-host.js';
 import { bottomDockMarkup, wireBottomDock } from './bottom-dock.js';
 import { exportPanelMarkup, overlaysMarkup, wireOverlays } from './overlays.js';
+import { columnResizeMarkup, wireColumnResize } from './column-resize.js';
 
 export function createAppShell(root) {
   const preferences = readUiPreferences();
@@ -44,6 +45,7 @@ export function createAppShell(root) {
       ${sideNavMarkup(preferences.openSections)}
       ${canvasColumnMarkup()}
       ${inspectorHostMarkup()}
+      ${columnResizeMarkup()}
     </main>
     ${bottomDockMarkup()}${exportPanelMarkup()}`;
 
@@ -61,6 +63,9 @@ export function createAppShell(root) {
   }, true);
 
   const dock = wireBottomDock({ root, q, preferences, savePreferences });
+  // The two column boundaries, draggable (audit §10.1). Wired before the panels
+  // so a saved width is on the grid by the time anything measures the canvas.
+  const columns = wireColumnResize({ root, q, preferences, savePreferences });
   const canvas = wireCanvasColumn({ root, q, qAll, preferences, savePreferences });
   const overlays = wireOverlays({ root, q, qAll });
   const topbar = wireTopbar({ root, q });
@@ -104,6 +109,9 @@ export function createAppShell(root) {
 
   return {
     ...hosts, ...canvas, ...dock, ...overlays, ...topbar, ...nav,
+    /** The width of a column, and setting it: the separators' own seam (shell/column-resize.js). */
+    setColumnWidth: (side, value) => columns.setWidth(side, value),
+    columnWidth: (side) => columns.width(side),
     /** Section headings say what is inside without opening it. */
     setSetupSections: (sections) => setSetupSections(root, sections),
     /**
