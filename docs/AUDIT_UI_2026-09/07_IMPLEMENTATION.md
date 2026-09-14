@@ -428,6 +428,37 @@ conception dit maintenant « replié ». Elles vérifient désormais le pli *et*
 porte, ce qui est plus fort : le repli existe, il est fermé, rien de technique
 n'est lu, et *Isoler* est derrière.
 
+### L'éditeur simple (§7.3)
+
+Pour quelqu'un venu habiller un personnage, trois des quatre questions parlent
+de rigging, d'animation et de réactions : du vrai travail, et hors sujet. Aucun
+réglage ne les repliait, donc la réponse à « lesquelles me servent ? » était
+« lis les quatre et tu verras ».
+
+| Ce qui a changé | Où |
+| --- | --- |
+| `SIMPLE_WORKSPACES` et `isSimpleMode`, purs | `ui/task-router.js` |
+| Un bouton dans `•••` qui dit ce qu'il **donne**, pas où l'on est | `shell/topbar.js` |
+| La nav replie les groupes ; une règle CSS suffit | `shell/workspace-nav.js`, `styles/shell.css` |
+| Une préférence, pas une donnée de projet | `ui/workspace-state.js` (`simpleMode`) |
+
+**Replié, jamais retiré**, et c'est la moitié sur laquelle la spec passe le plus
+de lignes : la recherche, *Advanced tools* et tout lien profond y vont encore,
+et **arriver ramène les quatre** — parce qu'un écran que personne ne voit n'est
+pas un écran qu'un lien profond peut atteindre. Preview ne se replie jamais :
+ce n'est pas un espace, c'est la façon de regarder la chose.
+
+**Éteint par défaut**, et c'est délibéré : replier trois questions pour tout le
+monde qui a déjà un projet est une décision de produit, pas un rangement. Le
+réglage existe, une pression l'active, et le toast dit où sont passés les trois
+autres plutöt que de laisser trois boutons disparaître sans explication.
+
+**Corrigé pendant l'écriture de la spec.** L'étiquette du bouton pouvait mentir :
+quand un lien profond ramenait les quatre espaces, elle disait encore « Every
+workspace » avec `aria-pressed="true"`. La nav prévient désormais la barre de
+projet à chaque changement (`onSimpleMode`), donc les deux ne peuvent plus
+dériver — personne n'a à se souvenir de demander.
+
 ### Rendu global
 
 | Ce qui a changé | Où |
@@ -449,7 +480,7 @@ avec la référence de l'audit.
 | **P2** | Colonnes redimensionnables | §10.1 |
 | **P2** | Magnétisme et guides au déplacement ; sélection derrière (Alt+clic) | §5 |
 | **P2** | Liste des pièces **par rôle** sous *Avancé* dans Face | §1.3 |
-| **P2** | Mode `Simple / Complet` et les libellés français | §7.3 |
+| **P2** | Les libellés français de l'éditeur simple | §7.3 |
 | **P2** | Assistant de création en trois écrans | [04](04_RECOMMANDATIONS.md) §5 |
 | **P3** | Migration complète du CSS hors d'`index.html` | [06](06_PLAN_PR.md) P3-1 |
 | **P3** | Jeu d'icônes cohérent à la place des glyphes unicode | P3-4 |

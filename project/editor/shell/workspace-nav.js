@@ -9,7 +9,7 @@
  * is the point of it being a module: `data-workspace`, `data-mode` and
  * `data-stage` are written in exactly one place.
  */
-import { DEFAULT_MODE, MODES, WORKSPACES, WORKSPACE_ORDER, modeToSurface, modeToWorkspace, normalizeMode, workspaceEntryMode, workspaceModes } from '../ui/task-router.js';
+import { DEFAULT_MODE, MODES, WORKSPACES, WORKSPACE_ORDER, modeToSurface, modeToWorkspace, normalizeMode, workspaceEntryMode, workspaceModes, SIMPLE_WORKSPACES, isSimpleMode} from '../ui/task-router.js';
 import { worstStatus } from '../core/validation/task-readiness.js';
 import { ringTarget } from '../ui/character-builder/ring-keys.js';
 
@@ -81,7 +81,11 @@ export const workspaceNavMarkup = () => `<nav class="stage-nav" aria-label="Edit
  * @param {(mode: object) => void} deps.enter       opens whatever the screen arrives with
  * @param {() => void} deps.resetScroll            puts both columns back to the top
  */
-export function createWorkspaceNav({ root, preferences, savePreferences, enter, resetScroll }) {
+export function createWorkspaceNav({ root, preferences, savePreferences, enter, resetScroll ,
+  // Told whenever the simple set is folded or unfolded, so a label somewhere
+  // else cannot drift from it: a route into a folded workspace unfolds, and
+  // the button that offers the fold has to say so.
+  onSimpleMode = () => {}}) {
   const q = (selector) => root.querySelector(selector);
   const qAll = (selector) => [...root.querySelectorAll(selector)];
   /** The screen last open in each workspace, for the session. */
@@ -123,6 +127,9 @@ export function createWorkspaceNav({ root, preferences, savePreferences, enter, 
     // route that lands on a tab nobody can see is the failure the fold could
     // introduce, and this is the one line that prevents it.
     if (MODES[mode].advanced && workspace) revealExpert(workspace);
+    // And a route outside the simple set brings the full set back, for the same
+    // reason: a screen nobody can see is not a screen a deep link can reach.
+    if (!isSimpleMode(mode)) revealWorkspaces();
     // A column keeps its scroll position across a change of screen, so the
     // panel for the new one used to open scrolled halfway down whatever the
     // last one had been reading. Each screen starts at the top of its column.
@@ -203,6 +210,32 @@ export function createWorkspaceNav({ root, preferences, savePreferences, enter, 
     };
   });
   syncExpert();
+  /**
+   * The simple set, or all four (audit §7.3).
+   *
+   * The root carries `data-simple-nav`, and one rule in `styles/shell.css`
+   * folds the three groups the simple set does not name. Nothing is removed:
+   * the palette, *Advanced tools* and every deep link still route there, and
+   * `revealWorkspaces` below is what makes that true.
+   */
+  const syncSimple = () => {
+    root.dataset.simpleNav = preferences.simpleMode ? 'true' : 'false';
+    onSimpleMode(Boolean(preferences.simpleMode));
+    for (const group of qAll('[data-stage-group]')) {
+      const id = group.dataset.stageGroup;
+      group.toggleAttribute('data-folded', Boolean(preferences.simpleMode) && !SIMPLE_WORKSPACES.includes(id));
+    }
+  };
+  /** Bring the full set back, because a route landed outside the simple one. */
+  const revealWorkspaces = () => {
+    if (!preferences.simpleMode) return false;
+    preferences.simpleMode = false;
+    savePreferences();
+    syncSimple();
+    return true;
+  };
+  syncSimple();
+
 
   /**
    * The arrow keys through the navigation (UIR-15).
@@ -243,6 +276,9 @@ export function createWorkspaceNav({ root, preferences, savePreferences, enter, 
   });
 
   return {
+    /** Fold the three rigging workspaces away, or bring them back. */
+    setSimpleMode(on) { preferences.simpleMode = Boolean(on); savePreferences(); syncSimple(); return Boolean(on); },
+    isSimpleMode: () => Boolean(preferences.simpleMode),
     applyMode,
     /** The panels mounted right now. Every caller asking this means the composition. */
     getWorkspace: () => preferences.workspace,

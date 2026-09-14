@@ -111,6 +111,28 @@ export const WORKSPACES = Object.freeze({
 
 export const WORKSPACE_ORDER = Object.freeze(Object.keys(WORKSPACES));
 
+/**
+ * The workspaces somebody who just wants a mascot needs (audit §7.3).
+ *
+ * Three of the four are about rigging, animating and reacting: real work, and
+ * off-topic for an author who came to dress a character. There was no setting
+ * that folded them, so the answer to "which of these four do I need?" was
+ * "read all four and find out".
+ *
+ * Folded, never removed — the palette, *Advanced tools* and every deep link
+ * still go there, and arriving turns the full set back on (UIR-00).
+ */
+export const SIMPLE_WORKSPACES = Object.freeze(['design']);
+
+/** Whether a mode is one the simple set leads to. */
+export const isSimpleMode = (mode) => {
+  const entry = MODES[normalizeMode(mode)];
+  if (!entry) return false;
+  if (entry.global) return true;
+  if (entry.advanced) return false;
+  return SIMPLE_WORKSPACES.includes(entry.workspace);
+};
+
 /** The modes of a workspace, in the order they are worked through. Derived, never authored. */
 const MODES_BY_WORKSPACE = Object.freeze(Object.fromEntries(WORKSPACE_ORDER.map((workspace) =>
   [workspace, Object.freeze(Object.values(MODES).filter((mode) => mode.navigable && mode.workspace === workspace).map((mode) => mode.id))])));

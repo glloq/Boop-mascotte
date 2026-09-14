@@ -97,6 +97,20 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   const LAYOUT_PREFERENCE='boop.layoutMode';
   const responsive=createResponsiveShell(document.getElementById('app'),{onChange:state=>{shell.setDrawerState(state.drawerOpen);globalThis.__boopLayoutChanged?.(state);},readPreference:()=>{try{return localStorage.getItem(LAYOUT_PREFERENCE)||'auto';}catch{return 'auto';}},writePreference:mode=>{try{localStorage.setItem(LAYOUT_PREFERENCE,mode);}catch{}}});
   const capabilitySheet=createCapabilitySheet(document.getElementById('capability-panel'),{layout:()=>responsive.snapshot(),onForce:mode=>{responsive.forceLayout(mode);shell.setStatus(mode==='desktop'?'Desktop layout on. Both panels are shown; nothing is gated.':'Automatic layout restored.');}});
+  /**
+   * Fold the three rigging workspaces away, or bring them back (audit §7.3).
+   *
+   * The nav does the folding and tells the project bar to relabel, so the two
+   * cannot drift: a route into a folded workspace unfolds, and the button that
+   * offers the fold says so without anybody here remembering to ask. This only
+   * says what happened.
+   */
+  shell.bindSimpleMode(() => {
+    const on = shell.setSimpleMode(!shell.isSimpleMode());
+    shell.setStatus(on
+      ? 'Simple editor: Design and Preview. Rig, Animate and Behavior are still reachable — the search and Advanced tools go there, and arriving brings them back.'
+      : 'Every workspace is back.', 'info');
+  });
   shell.bindCapabilities(()=>capabilitySheet.isOpen()?capabilitySheet.close():capabilitySheet.open());
   shell.bindDrawer(()=>responsive.toggleDrawer(),()=>responsive.closeDrawer());
   shell.bindSheet(detent=>responsive.setSheet(detent));
