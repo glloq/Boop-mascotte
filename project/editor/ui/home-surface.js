@@ -1,56 +1,107 @@
 /**
- * Home starts a mascot, and that is all it does (V3-08, docs/V3_ROADMAP.md).
+ * The first page (UI-REDESIGN-02, docs/REDESIGN_UI_2026-09/02_HOME.md).
  *
- * It used to be six things at once: two templates, a face builder with three
- * selects, an SVG import, a project file picker and the local draft. Five of
- * them are not "start a mascot" — they are "come back to work you already
- * have" or "keep working on the drawing in front of you" — and on a first run
- * they are the wrong five things to read. So Home offers the two ways to get a
- * mascot with nothing of your own to hand: a preset, or the mascot as it comes.
+ * ```text
+ *                        ( ◕  ◕ )
+ *                           ‿
+ *              Create and animate your mascot
+ *      A character that blinks, smiles and reacts — no code
  *
- * Everything that left is still reachable from the topbar, which sits *above*
- * Home (z-index 90 against 80) and is therefore usable while Home is open:
- * Open Project and Import SVG in the ••• menu, and Blank canvas and the Face
- * Builder in Artwork, next to Start over with the Mascot Face.
+ *      [ +  New mascot ]        [ Open a project ]
+ *
+ *      CONTINUE
+ *      [ a draft ]
+ * ```
+ *
+ * What it stopped doing, and why each one mattered:
+ *
+ * ```text
+ * it showed no mascot          a mascot editor whose first page has no mascot
+ * it said "Create or continue" an instruction, not what the software is for
+ * "Open a project" was prose   a grey sentence explaining where a button is
+ * two cards, two destinations  one led to the Character Builder and one to the
+ *                              vector editor, which the cards did not say
+ * an empty "Continue" panel    a bordered box saying "No local draft", on the
+ *                              one run where the impression matters most
+ * ```
+ *
+ * The hero is a real preset drawn by `presetThumbnail` from the real assets:
+ * the first thing an author sees is something the library can actually make.
+ *
+ * The rest of what used to live here — Import SVG, Open Project, the blank
+ * canvas — is still reachable. Two of them are one press from this page now
+ * rather than a sentence pointing at the ••• menu.
  */
-
-// One template. Three starter faces meant three sets of artwork to keep rigged,
-// and the two extra ones were strictly smaller than this one. The table stays a
-// table: `bindLoadSample` binds every `[data-template-id]` it finds, here and
-// in Artwork, and neither place knows a template id.
-const TEMPLATES = [
-  { id: 'basic', title: 'Mascot Face', description: 'The mascot as it comes, rigged and ready', capabilities: 'Head turn in 2.5D, eyes, gaze, eyelids, brows, nose, ears, hair and mouth; lands in Artwork', recommended: false }
-];
+import { FACE_PART_LIBRARY } from '../core/face-library/face-part-registry.js';
+import { FACE_PRESET_LIBRARY, presetThumbnail } from '../core/face-library/face-presets.js';
+import { esc } from './escape-html.js';
 
 /**
- * The one-minute path (docs/CHARACTER_BUILDER.md, "The one-minute path"):
- * the same rigged template, landing in the Character Builder with the
- * presets open, so a character is a preset and a few swaps -- no rig step.
+ * The face on the poster.
+ *
+ * `classic` is the library's own reference character, so the picture is never
+ * a promise the library cannot keep. A library with no presets at all — every
+ * pack forgotten — falls back to nothing rather than to a placeholder drawing.
  */
-const characterCard = () => `<button class="home-card recommended" data-home-action="character"><span><b>New Character</b><em>Recommended</em></span><small>A preset, then any part swapped for another style</small><small>Head, eyes, hair, mouth, glasses and hands from the library, rigged as they go; under a minute</small></button>`;
+function heroArt({ library = FACE_PART_LIBRARY, presets = FACE_PRESET_LIBRARY } = {}) {
+  const preset = presets.get?.('classic') || presets.list?.()[0] || null;
+  return preset ? presetThumbnail(preset, library, { size: 200 }) : '';
+}
 
 /**
- * Where the rest went. Said once, in small type, rather than left for an author
- * to find: on a first run Home is the whole screen below the topbar, and an
- * author who came back to open a saved project needs to be told where it is.
+ * Three ready-made characters to press on a first run, in place of an empty
+ * *Continue* panel. An empty state a section can simply not have is an empty
+ * state that should not exist.
  */
-const elsewhere = () => `<p class="home-elsewhere">Coming back to a saved project, or bringing your own drawing? <b>Open Project</b> and <b>Import SVG</b> are in the ••• menu, top right. Once a mascot is open, <b>Blank canvas</b> and <b>Build a face</b> are in Artwork, under Add / Create artwork.</p>`;
+const EXAMPLES = Object.freeze([
+  { id: 'fox', label: 'Fox' },
+  { id: 'robot-screen', label: 'Robot' },
+  { id: 'owl', label: 'Owl' }
+]);
 
-export function homeSurfaceMarkup() {
+export const homeExamples = ({ presets = FACE_PRESET_LIBRARY } = {}) =>
+  EXAMPLES.filter((example) => Boolean(presets.get?.(example.id)));
+
+export function homeSurfaceMarkup(options = {}) {
+  const examples = homeExamples(options);
   return `<section class="home-surface" data-home aria-labelledby="home-heading" hidden><div class="home-panel">
-    <p class="home-brand">BOOP Mascot Studio</p><h1 id="home-heading" tabindex="-1">Create or continue a mascot</h1>
-    <section aria-labelledby="home-start"><h2 id="home-start">New Mascot</h2><div class="home-templates">${characterCard()}${TEMPLATES.map(item=>`<button class="home-card ${item.recommended?'recommended':''}" data-template-id="${item.id}"><span><b>${item.title}</b>${item.recommended?'<em>Recommended</em>':''}</span><small>${item.description}</small><small>${item.capabilities}</small></button>`).join('')}</div>${elsewhere()}</section>
-    <section class="home-recovery" aria-labelledby="home-continue" data-recovery-status="none"><h2 id="home-continue">Continue</h2><div data-recovery-content></div><p class="small">Stored only in this browser. Not synced to the cloud.</p></section>
-    <button class="secondary home-back" data-home-action="back" hidden>Back to current project</button>
+    <p class="home-brand">BOOP</p>
+    <div class="home-hero" aria-hidden="true">${heroArt(options)}</div>
+    <h1 id="home-heading" tabindex="-1">Create and animate your mascot</h1>
+    <p class="home-lede">A character that blinks, smiles and reacts — no code, nothing to install.</p>
+    <div class="home-actions">
+      <button type="button" class="primary btn-lg home-start" data-home-action="character">+&nbsp; New mascot</button>
+      <button type="button" class="secondary btn-lg" data-home-action="open">Open a project</button>
+    </div>
+    <p class="home-otherwise">Otherwise:
+      <button type="button" class="link" data-template-id="basic" title="The cartoon face this editor comes with, ready to change">Start from the ready-made face</button> ·
+      <button type="button" class="link" data-home-action="import">Import an SVG</button></p>
+    <section class="home-recovery" aria-labelledby="home-continue" data-recovery-status="none">
+      <h2 id="home-continue" class="screen-eyebrow">Continue</h2><div data-recovery-content></div>
+    </section>
+    ${examples.length ? `<p class="home-examples" data-home-examples>Or try an example:
+      ${examples.map((example) => `<button type="button" class="link" data-home-example="${esc(example.id)}">${esc(example.label)}</button>`).join(' · ')}</p>` : ''}
+    <button type="button" class="secondary home-back" data-home-action="back" hidden>Back to current project</button>
   </div></section>`;
 }
 
+/**
+ * The local draft, as the one card of *Continue*.
+ *
+ * The section carries its own state on the host, and the stylesheet hides it
+ * when there is nothing: a first run does not show a bordered box whose whole
+ * content is the word "no".
+ */
 export function renderHomeRecovery(container, recovery) {
   container.dataset.recoveryStatus = recovery.status;
   const content = container.querySelector('[data-recovery-content]');
   if (recovery.status === 'available') {
-    const when = recovery.savedAt ? ` Saved ${new Date(recovery.savedAt).toLocaleString()}.` : '';
-    content.innerHTML = `<p>A local draft is available.${when}</p><button data-home-action="recover">Recover local draft</button>`;
-  } else if (recovery.status === 'invalid') content.innerHTML = '<p role="alert">This local draft could not be read. Your current project was not changed.</p><button class="secondary" data-home-action="discard-recovery">Discard local draft</button>';
-  else content.innerHTML = '<p>No local draft is available.</p>';
+    const when = recovery.savedAt ? new Date(recovery.savedAt).toLocaleString() : '';
+    content.innerHTML = `<button type="button" class="screen-card home-draft" data-home-action="recover">
+      <span class="screen-card-title">Unsaved draft</span>
+      <small class="screen-card-note">${when ? `Saved ${esc(when)}. ` : ''}Kept in this browser only.</small></button>`;
+  } else if (recovery.status === 'invalid') {
+    content.innerHTML = `<p role="alert" class="screen-card-note">This local draft could not be read. Your current project was not changed.</p>
+      <button type="button" class="secondary" data-home-action="discard-recovery">Discard local draft</button>`;
+  } else content.innerHTML = '';
 }

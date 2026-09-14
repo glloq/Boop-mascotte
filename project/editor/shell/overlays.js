@@ -8,10 +8,11 @@
  */
 import { describeFix } from '../core/validation/issue-guidance.js';
 import { homeSurfaceMarkup, renderHomeRecovery } from '../ui/home-surface.js';
+import { wizardMarkup } from '../ui/new-mascot/wizard.js';
 import { esc } from '../ui/escape-html.js';
 import { groupReadiness } from '../core/validation/task-readiness.js';
 
-export const overlaysMarkup = () => `${homeSurfaceMarkup()}<div id="toast" class="toast" role="status" aria-live="polite"></div><button id="exit-focus" class="exit-focus">Exit Preview</button><button id="return-export" class="return-export" hidden>↩ Back to Export</button><section id="problems-panel" class="problems-popover" hidden></section><section id="advanced-panel" class="problems-popover advanced-popover" role="dialog" hidden></section><dialog id="command-palette" class="command-palette" aria-label="Command palette"></dialog><dialog id="shortcut-help" class="shortcut-help"></dialog><dialog id="colour-picker" class="colour-picker" aria-label="Choose a colour"></dialog><section id="capability-panel" class="problems-popover capability-popover" role="dialog" hidden></section><dialog id="delete-dialog" class="confirm-dialog" aria-labelledby="delete-heading"><form method="dialog"><h2 id="delete-heading" data-delete-question></h2><p data-delete-detail></p><div class="dialog-actions"><button value="cancel">Cancel</button><button value="delete" class="danger">Delete</button></div></form></dialog><dialog id="unsaved-dialog" aria-labelledby="unsaved-heading"><form method="dialog"><h2 id="unsaved-heading">Unsaved changes</h2><p>Your current project has changes that have not been saved.</p><div class="dialog-actions"><button value="cancel">Cancel</button><button value="discard">Discard</button><button value="save" class="primary">Save Project</button></div></form></dialog>
+export const overlaysMarkup = () => `${homeSurfaceMarkup()}${wizardMarkup()}<div id="toast" class="toast" role="status" aria-live="polite"></div><button id="exit-focus" class="exit-focus">Exit Preview</button><button id="return-export" class="return-export" hidden>↩ Back to Export</button><section id="problems-panel" class="problems-popover" hidden></section><section id="advanced-panel" class="problems-popover advanced-popover" role="dialog" hidden></section><dialog id="command-palette" class="command-palette" aria-label="Command palette"></dialog><dialog id="shortcut-help" class="shortcut-help"></dialog><dialog id="colour-picker" class="colour-picker" aria-label="Choose a colour"></dialog><section id="capability-panel" class="problems-popover capability-popover" role="dialog" hidden></section><dialog id="delete-dialog" class="confirm-dialog" aria-labelledby="delete-heading"><form method="dialog"><h2 id="delete-heading" data-delete-question></h2><p data-delete-detail></p><div class="dialog-actions"><button value="cancel">Cancel</button><button value="delete" class="danger">Delete</button></div></form></dialog><dialog id="unsaved-dialog" aria-labelledby="unsaved-heading"><form method="dialog"><h2 id="unsaved-heading">Unsaved changes</h2><p>Your current project has changes that have not been saved.</p><div class="dialog-actions"><button value="cancel">Cancel</button><button value="discard">Discard</button><button value="save" class="primary">Save Project</button></div></form></dialog>
 <div id="drawer-scrim" class="drawer-scrim" hidden></div>`;
 
 /** The export sheet, which opens over the canvas rather than beside it. */
@@ -53,16 +54,30 @@ export function wireOverlays({ root, q, qAll }) {
 
   const showHome = ({ focus = 'heading' } = {}) => {
     homeOpen = true;
+    // The project bar is the brand and the menu while Home is up (UI-REDESIGN-02):
+    // Export and Project check in front of somebody with no project are two
+    // buttons that can only disappoint.
+    root.classList.add('home-open');
     q('[data-home]').hidden = false;
     q('.home-back').hidden = !projectLoaded;
     requestAnimationFrame(() => q(focus === 'new' ? '[data-home-action=character]' : '#home-heading').focus());
   };
   const closeHome = () => {
     if (!projectLoaded) return false;
-    homeOpen = false; q('[data-home]').hidden = true;
+    homeOpen = false; root.classList.remove('home-open'); q('[data-home]').hidden = true;
     q('.workspace-tab.active')?.focus();
     return true;
   };
+  /**
+   * A press somewhere inside Home. `event.target` is not enough any more: the
+   * draft is a card with a title and a note inside it, so a click lands on a
+   * span and the old equality test silently did nothing.
+   */
+  const onHomeAction = (name, handler) => q('[data-home]').addEventListener('click', (event) => {
+    const button = event.target?.closest?.(`[data-home-action="${name}"]`);
+    if (button) handler(button);
+  });
+
   q('#home-button').onclick = () => showHome();
   q('[data-home-action=back]').onclick = closeHome;
   q('#focus-preview').onclick = () => root.classList.add('focus-preview');
@@ -70,6 +85,7 @@ export function wireOverlays({ root, q, qAll }) {
 
   return {
     homeEl: q('[data-home]'),
+    wizardEl: q('[data-wizard]'),
     advancedEl: q('#advanced-panel'),
     colourPickerEl: q('#colour-picker'),
     paletteEl: q('#command-palette'),
@@ -156,8 +172,12 @@ export function wireOverlays({ root, q, qAll }) {
     bindSheet(handler) { qAll('[data-sheet-detent]').forEach((button) => { button.onclick = () => handler(button.dataset.sheetDetent); }); },
     setSheetSubject(text) { q('[data-sheet-subject]').textContent = text; },
     setRecoveryState(recovery) { renderHomeRecovery(q('.home-recovery'), recovery); q('#recover-autosave').hidden = recovery.status !== 'available'; },
-    bindRecoverAutosave(handler) { q('#recover-autosave').onclick = handler; q('[data-home]').addEventListener('click', (event) => event.target.dataset.homeAction === 'recover' && handler(event.target)); },
-    bindDiscardRecovery(handler) { q('[data-home]').addEventListener('click', (event) => event.target.dataset.homeAction === 'discard-recovery' && handler(event.target)); },
+    bindRecoverAutosave(handler) { q('#recover-autosave').onclick = handler; onHomeAction('recover', handler); },
+    bindDiscardRecovery(handler) { onHomeAction('discard-recovery', handler); },
+    /** Open a project, import an SVG, try an example: the presses Home grew in UI-REDESIGN-02. */
+    bindHomeOpenProject(handler) { onHomeAction('open', handler); },
+    bindHomeImportSvg(handler) { onHomeAction('import', handler); },
+    bindHomeExample(handler) { q('[data-home]').addEventListener('click', (event) => { const button = event.target?.closest?.('[data-home-example]'); if (button) handler(button.dataset.homeExample, button); }); },
     bindLoadSample(handler) { qAll('[data-template-id]').forEach((button) => { button.onclick = () => handler(button.dataset.templateId, button); }); q('#empty-basic').onclick = () => handler('basic'); },
     bindNewCharacter(handler) { q('[data-home-action=character]').onclick = () => handler(); },
     /** Preview is a place the canvas goes to, so this follows the composition rather than a button. */

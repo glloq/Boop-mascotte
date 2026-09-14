@@ -140,7 +140,12 @@ test('the two whens V3-09 added: following the pointer, and acting when left alo
   await page.locator(`[data-reaction-when="${yawn.id}"]`).selectOption('idle');
   await expect.poll(async () => (await documentOf(page)).reactions.find((item) => item.id === yawn.id).trigger).toEqual({ type: 'idle', after: 8 });
   await expect(page.locator(`[data-reaction-select="${yawn.id}"]`)).toContainText('After 8 s alone');
-  await expect(page.locator('[data-runs-when-group="idle"]')).toHaveAttribute('data-runs-when-count', '1');
+  // A group's count is everything that runs on that when — its reactions *and*
+  // the automatic behaviours filed under it (`runs-when.js:123`). So the idle
+  // bucket holds the reaction just moved here plus the behaviours that were
+  // already idling, and asserting a total would fail the day the catalogue
+  // gains one. What is worth holding still is that the reaction moved.
+  await expect(page.locator(`[data-runs-when-group="idle"] [data-reaction-select="${yawn.id}"]`)).toHaveCount(1);
   await expect(page.locator('[data-runs-when-group="click"]')).toHaveAttribute('data-runs-when-count', '0');
 
   // Both new whens are the one change in V3 an older runtime cannot safely

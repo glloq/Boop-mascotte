@@ -198,22 +198,32 @@ test('no handle is hidden under another one', async ({ page }) => {
   expect(controlsCovering(await drawnControls(page))).toEqual([]);
 });
 
+/**
+ * The gaze handle drives `gazeX`/`gazeY`, not `lookX`/`lookY`.
+ *
+ * Those are two different movements and the control rig separated them
+ * (docs/FACE_CONTROL_RIG.md, and the table in `ui/control-catalog.js`):
+ * `gazeX`/`gazeY` are **the point the character wants to look at**, and
+ * `lookX`/`lookY` stay the manual correction of the eyes themselves. This test
+ * was written before that split and kept asserting the movement the handle had
+ * stopped driving, so it read a working keyboard as a broken one.
+ */
 test('a handle answers to the keyboard and puts itself back', async ({ page }) => {
   await openFace(page);
   await handle(page, 'gaze').focus();
   await page.keyboard.press('ArrowRight');
-  await expect.poll(async () => (await params(page)).lookX).toBeGreaterThan(0);
+  await expect.poll(async () => (await params(page)).gazeX).toBeGreaterThan(0);
   await page.keyboard.press('ArrowUp');
-  await expect.poll(async () => (await params(page)).lookY).toBeLessThan(0);
+  await expect.poll(async () => (await params(page)).gazeY).toBeLessThan(0);
 
-  const nudged = (await params(page)).lookX;
+  const nudged = (await params(page)).gazeX;
   await page.keyboard.down('Shift');
   await page.keyboard.press('ArrowRight');
   await page.keyboard.up('Shift');
-  await expect.poll(async () => (await params(page)).lookX).toBeGreaterThan(nudged);
+  await expect.poll(async () => (await params(page)).gazeX).toBeGreaterThan(nudged);
 
   await page.keyboard.press('Home');
-  await expect.poll(async () => (await params(page)).lookX).toBe(0);
+  await expect.poll(async () => (await params(page)).gazeX).toBe(0);
   await expect(handle(page, 'gaze')).toHaveAttribute('aria-valuetext', 'at rest');
 });
 

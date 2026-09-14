@@ -14,12 +14,21 @@ test('@critical blank editor boots safely and diagnostics stay opt-in', async ({
   const errors = monitorErrors(page);
   await openFreshEditor(page);
   await expect(page.locator('#app')).toHaveAttribute('data-editor-ready', 'true');
-  for (const workspace of ['design', 'rig', 'animate', 'behavior']) await expect(page.locator(`.stage-tab[data-stage="${workspace}"]`)).toBeVisible();
-  await expect(page.locator('.workspace-tab[data-mode="preview"]')).toBeVisible();
+  // The shell renders the whole navigation at boot; Home hides it until there
+  // is something to navigate (UI-REDESIGN-02). Four workspaces and an Export
+  // button in front of somebody with no project are controls that can only
+  // disappoint, so the boot check is that they exist and that Home covers them.
+  for (const workspace of ['design', 'rig', 'animate', 'behavior']) await expect(page.locator(`.stage-tab[data-stage="${workspace}"]`)).toHaveCount(1);
   await expect(page.locator('.workspace-tab[data-mode="design.artwork"]')).toHaveText('Artwork');
-  await expect(page.getByRole('button', { name: 'Save Project' })).toBeDisabled();
-  await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeDisabled();
-  await expect(problemsButton(page)).toBeVisible();
+  await expect(page.locator('#app')).toHaveClass(/home-open/);
+  for (const selector of ['.stage-nav', '#export-top', '#save-project-top', '#validate', '#undo']) {
+    await expect(page.locator(selector), `${selector} is not offered before there is a project`).toBeHidden();
+  }
+  // By id, not by role: a hidden control is out of the accessibility tree
+  // entirely, so `getByRole` cannot see it — which is the point of hiding it,
+  // and also why "it is disabled" has to be asked of the element itself.
+  await expect(page.locator('#save-project-top')).toBeDisabled();
+  await expect(page.locator('#export-top')).toBeDisabled();
   expect(await page.evaluate(() => window.__BOOP_E2E__)).toBeUndefined();
 
   await page.getByLabel('More project actions').click();
@@ -27,8 +36,8 @@ test('@critical blank editor boots safely and diagnostics stay opt-in', async ({
   await expect(page.locator('#unsaved-dialog')).not.toBeVisible();
   await expect(page.locator('[data-editor-ready="true"]')).toHaveCount(1);
   await expect(page.locator('#canvas svg svg')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Save Project' })).toBeDisabled();
-  await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeDisabled();
+  await expect(page.locator('#save-project-top')).toBeDisabled();
+  await expect(page.locator('#export-top')).toBeDisabled();
   expect(errors).toEqual([]);
 });
 
@@ -126,11 +135,11 @@ test('@critical E2E seam is ready on a blank editor', async ({ page }) => {
 test('@critical @smoke editor loads from the Pages base and reloads cleanly', async ({ page }) => {
   const errors = monitorErrors(page);
   await page.goto('./');
-  await expect(page.getByRole('heading', { name: 'New Mascot' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Create and animate your mascot' })).toBeVisible();
   await page.reload();
   await expect(page.locator('[data-home] [data-template-id="basic"]')).toBeVisible();
   await expect(page.locator('[data-home] [data-home-action="character"]')).toBeVisible();
-  await expect(page.getByRole('button', { name: /Preview/ })).toBeVisible();
+  await expect(page.locator('.workspace-tab[data-mode="preview"]')).toHaveCount(1);
   await expect(page.locator('#layers-panel')).toHaveCount(1);
   await expect(page.locator('#state-editor')).toHaveCount(1);
   expect(errors).toEqual([]);
@@ -186,7 +195,9 @@ test('@critical SVG import sanitizes executable content and remains editable', a
 
 test('project strings cannot inject executable markup', async ({ page }) => {
   const payload = '\"><img src=x onerror=window.__xss=1>';
-  await page.goto('./');
+  // `startBasicFace` enters through the project seam, which only `?e2e=1` puts
+  // on the page: this said `page.goto('./')` and had been failing on it.
+  await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   const project = { version: 2, document: { svgMarkup: '<svg xmlns="http://www.w3.org/2000/svg"><g id="safe"/></svg>', layers: [],
     layerMetadata: { safe: { name: payload } }, rig: { schemaVersion: 3, params: { safe: { default: 0, value: 0 } }, states: { [payload]: { safe: 0 } }, activeState: payload, transitions: {}, transitionSettings: {}, elements: {}, behaviors: [] } } };
@@ -272,7 +283,7 @@ test('@critical @smoke exported mascot, rig and standalone runtime execute toget
 
 test('essential editor controls remain available on phone and tablet', async ({ page }) => {
   for (const viewport of [{ width: 390, height: 844 }, { width: 768, height: 1024 }]) {
-    await page.setViewportSize(viewport); await page.goto('./');
+    await page.setViewportSize(viewport); await openFreshEditor(page, { e2e: true });
     await startBasicFace(page);
     await expect(page.getByRole('button', { name: 'Save Project' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeVisible();

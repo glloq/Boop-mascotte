@@ -5,6 +5,7 @@ import { FACE_PART_LIBRARY, createFacePartRegistry } from '../face-library/face-
 import { NARROWED } from './fixtures/face-packs.js';
 import { CHARACTER_CATEGORY_IDS, characterCategory } from '../../ui/character-builder/character-model.js';
 import { typeSelectMarkup, typeWaitingFor } from '../../ui/character-builder/type-browser.js';
+import { FACE_MORPHOLOGY_IDS, faceMorphology } from '../face-library/face-morphologies.js';
 
 /**
  * MASC-05 — Type in Design ▸ Face.
@@ -60,7 +61,7 @@ test('the Kind setting offers every kind, and says what the ones it cannot offer
     loaded: true,
     types: [
       { id: 'human', label: 'Human', description: 'A person.', available: true, missing: [], current: true },
-      { id: 'muzzle', label: 'Muzzle', description: 'A cat, a dog.', available: false, missing: ['muzzle', 'whiskers'], current: false }
+      { id: 'muzzle', label: 'Animal', description: 'A cat, a dog.', available: false, missing: ['muzzle', 'whiskers'], current: false }
     ]
   });
   assert.match(markup, /<select data-face-type/);
@@ -68,13 +69,27 @@ test('the Kind setting offers every kind, and says what the ones it cannot offer
   assert.match(markup, /<option value="muzzle"[^>]*disabled/);
   // The reason rides in the option and in the note, never only in a `title`:
   // a tooltip is invisible to a finger.
-  assert.match(markup, /Muzzle — not drawn yet/);
+  assert.match(markup, /Animal — not drawn yet/);
   assert.match(markup, /Nothing is drawn for its muzzle or its whiskers yet\./);
   assert.equal(typeWaitingFor({ missing: [] }), '');
   assert.equal(typeWaitingFor({ missing: ['beak', 'crest'] }), 'Nothing is drawn for its beak or its crest yet.');
   // The sentence that makes it safe to change.
   assert.match(typeSelectMarkup({ loaded: true, types: [{ id: 'human', label: 'Human', description: 'A person.', available: true, missing: [], current: true }] }), /changes nothing on the mascot/);
   assert.equal(typeSelectMarkup({}), '', 'no kinds, no control');
+});
+
+/**
+ * UI-REDESIGN-03 — the label is the author's word, the id stays ours.
+ *
+ * Nobody shops for a snout. The ids are load-bearing — a document, a pack, an
+ * asset's `morphologies`, every test — and they do not move.
+ */
+test('a kind is named for what an author is making, not for what it is made of', () => {
+  const named = Object.fromEntries(FACE_MORPHOLOGY_IDS.map((id) => [id, faceMorphology(id).label]));
+  assert.deepEqual(named, { human: 'Human', muzzle: 'Animal', beak: 'Bird', robot: 'Robot', monster: 'Creature' });
+  // And the six birds MASC-12B drew give Bird a default at last: a kind with
+  // presets and no default has no picture for its card and nothing to start from.
+  assert.equal(faceMorphology('beak').defaultPreset, 'owl');
 });
 
 test('Type is a row of the browser, beside the presets rather than in front of them', () => {

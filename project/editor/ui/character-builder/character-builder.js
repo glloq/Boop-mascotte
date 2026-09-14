@@ -215,7 +215,10 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
     // library cannot change what the rig gets. That is why the row hands one id
     // to `assetsFor` and another to `plan`.
     const kind = activeMorphology();
-    const offered = assetsFor({ library: facePartCommands.library, morphology: showAll ? null : kind, slot: row.id })
+    // `affinity` orders and never filters: the drawings that share the
+    // character's own words come first, and a face wearing no preset gets the
+    // library's own order back (UI-REDESIGN-04).
+    const offered = assetsFor({ library: facePartCommands.library, morphology: showAll ? null : kind, slot: row.id, affinity: characterTags() })
       .map((item) => item.card)
       .filter((asset) => matchesQuery(asset));
     // With the filter lifted, a card that is not this kind's says so: the
@@ -240,6 +243,23 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
         animation: controls.map((control) => ({ control, carried: !missing.includes(control) }))
       };
     });
+  }
+
+  /**
+   * The words this character is made of, for sorting a row's drawings by how
+   * well they suit it (UI-REDESIGN-04).
+   *
+   * Read from the preset the face is wearing, which is itself read back from
+   * the parts (`presetOf`) rather than stored — so a fox says `fox`, `vulpine`,
+   * `animal`, and the fox's ears come first in the Ears row without anything
+   * having been written down about ears.
+   *
+   * It **sorts** and never filters: a face wearing no preset, or one whose
+   * preset carries no words, simply gets the library's own order back.
+   */
+  function characterTags() {
+    const preset = facePartCommands?.presetOf?.();
+    return preset?.tags ? [...preset.tags] : [];
   }
 
   /**
@@ -324,7 +344,30 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   function rowsFor(rows, active) {
     const slots = new Set(faceMorphology(activeMorphology())?.slots || []);
     if (!slots.size) return rows;
-    return rows.filter((row) => row.kind || slots.has(row.id) || row.pieces.length || row.id === active);
+    // A row is worth a line if it is a choice of its own (`kind`), if the
+    // mascot is wearing something in it, if it is the one open — or if this
+    // kind of mascot has a slot for it *and the library can fill it*. That last
+    // clause is UI-REDESIGN-04: `Pupils` and `Eyelids` are slots of a human
+    // face that nobody has drawn a single piece for, so on a face not already
+    // wearing them the row was a line that could never do anything.
+    const drawn = slotsWithDrawings();
+    return rows.filter((row) => row.kind || row.pieces.length || row.id === active || (slots.has(row.id) && drawn.has(row.id)));
+  }
+
+  /**
+   * Which slots this kind of mascot has any drawing at all for.
+   *
+   * One pass over the library rather than one `assetsFor` per row: the rows are
+   * rebuilt on every document notification, and eighteen filtered walks of 150
+   * drawings is a lot of work to decide what to *not* draw.
+   */
+  function slotsWithDrawings() {
+    const morph = activeMorphology();
+    const filled = new Set();
+    for (const card of facePartCommands?.library?.cards?.() || []) {
+      if (assetSupportsMorphology(card, morph)) filled.add(assetSlot(card));
+    }
+    return filled;
   }
 
   const browserView = () => {
@@ -1217,6 +1260,12 @@ export function createCharacterBuilder({ browserHost, inspectorHost, store, hist
   return {
     render,
     openCategory: chooseCategory,
+    /**
+     * Browse another kind of mascot. Public since UI-REDESIGN-03: the new-mascot
+     * wizard asks the question before a face exists, and hands the answer here
+     * so the builder opens already offering the right parts and characters.
+     */
+    setType: chooseType,
     openReplace,
     selectPiece: choosePiece,
     editShape,

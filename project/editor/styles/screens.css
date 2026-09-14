@@ -1,0 +1,269 @@
+/*
+ * The two surfaces the redesign added: Home and the new-mascot wizard
+ * (UI-REDESIGN-02 and 03).
+ *
+ * A file per region, in the `--ux-*` vocabulary, with selectors nothing else
+ * declares — the two rules `styles/README.md` sets for anything written here
+ * from the start. These are *places* rather than components: each is used once,
+ * so the three shapes they share (a pick-a-thing card, a section label, an
+ * empty state) are declared here beside them rather than promoted to a layer
+ * nothing else would read.
+ *
+ * The buttons are the editor's own: a bare `button` is already the blue
+ * primary, `.secondary` the quiet one beside it, `.link` the underlined text
+ * action. Only the size of a first-run action is new, and that is `.btn-lg`.
+ */
+
+/* ══ The three shapes Home and the wizard share ════════════════════════════ */
+/*
+ * A card an author presses to choose something: a picture, a name, a note. It
+ * is a `button` — so it is keyboard-reachable, it answers Enter, and it is in
+ * the row's arrow-key ring — and it undoes the primary blue, which is for the
+ * one action a screen wants rather than for every option on it.
+ */
+.screen-card{
+  display: grid;
+  gap: var(--ux-gap-1);
+  padding: var(--ux-gap-3);
+  text-align: left;
+  background: var(--ux-raised);
+  border: 1px solid var(--ux-border-strong);
+  border-radius: var(--ux-radius-3);
+  color: var(--ux-text);
+}
+.screen-card:hover{background:var(--ux-surface);border-color:var(--ux-border-popover)}
+.screen-card[aria-pressed=true]{border-color:var(--ux-accent-bright);background:var(--ux-surface)}
+.screen-card-title{font-size:var(--ux-size-control);font-weight:600;color:var(--ux-text-strong)}
+.screen-card-note{font-size:var(--ux-size-small);color:var(--ux-faint)}
+/* The label over a section: read as a heading, sized as a hint. */
+.screen-eyebrow{
+  margin: 0;
+  font-size: var(--ux-size-label);
+  font-weight: 700;
+  letter-spacing: var(--ux-track-label);
+  text-transform: uppercase;
+  color: var(--ux-faint);
+}
+.screen-empty{margin:0;color:var(--ux-muted);font-size:var(--ux-size-control)}
+/* A first-run action is pressed once, by somebody who has never seen the
+ * editor: it is worth more than the 24px a panel button gets. */
+.btn-lg{min-height:38px;padding:0 var(--ux-gap-4);font-size:var(--ux-size-control)}
+
+/* ══ Home ══════════════════════════════════════════════════════════════════ */
+.home-surface{
+  position: fixed;
+  z-index: 80;
+  inset: 56px 0 0;
+  overflow: auto;
+  background: radial-gradient(120% 80% at 50% -10%, var(--ux-surface), var(--ux-canvas-void) 70%);
+  padding: 48px var(--ux-gap-4);
+}
+.home-surface[hidden]{display:none}
+.home-panel{
+  max-width: 760px;
+  margin: 0 auto;
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: var(--ux-gap-3);
+}
+.home-brand{
+  margin: 0;
+  font-size: var(--ux-size-label);
+  font-weight: 700;
+  letter-spacing: .22em;
+  color: var(--ux-brand);
+}
+/* The mascot, drawn from the library's own preset. */
+.home-hero{width:200px;height:200px;margin:var(--ux-gap-2) 0}
+/* The hero floats: the library's thumbnails carry a white plate of their own,
+ * which is right in a grid of a hundred of them and wrong for one at 200px. */
+.home-hero svg{width:100%;height:100%;background:transparent}
+.home-panel h1{margin:0;max-width:24ch;font-size:26px;line-height:1.2;color:var(--ux-text-strong)}
+.home-lede{
+  margin: 0;
+  max-width: 46ch;
+  font-size: var(--ux-size-control);
+  line-height: 1.5;
+  color: var(--ux-muted);
+}
+.home-actions{
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--ux-gap-3);
+  margin-top: var(--ux-gap-4);
+}
+.home-otherwise,.home-examples{
+  margin: 0;
+  font-size: var(--ux-size-small);
+  color: var(--ux-muted);
+}
+
+/*
+ * Continue: present only when there is something to continue. A section whose
+ * whole content is the word "no" is not an empty state, it is noise on the one
+ * run where the impression matters.
+ */
+.home-recovery{margin-top:28px;width:100%;max-width:320px;display:grid;gap:var(--ux-gap-2)}
+.home-recovery[data-recovery-status=none]{display:none}
+.home-draft{text-align:center;justify-items:center}
+.home-back{margin-top:28px}
+
+@media (max-width:700px){
+  .home-surface{padding:28px var(--ux-gap-4)}
+  .home-hero{width:140px;height:140px}
+  .home-panel h1{font-size:21px}
+  .home-actions{flex-direction:column;align-self:stretch;width:100%}
+  .home-actions>button{width:100%}
+}
+
+/* ══ The new-mascot wizard ═════════════════════════════════════════════════
+ *
+ * Above the project bar, not under it (z-index 95 against the bar's 90, and
+ * Home's 80). Choosing a mascot is a flow with its own way out; leaving Export
+ * and Project check pressable over it would offer a project that does not exist
+ * yet, and cancelling the first step goes back to the page it was opened from
+ * rather than to a blank editor.
+ */
+.wizard{
+  position: fixed;
+  z-index: 95;
+  inset: 0;
+  display: grid;
+  grid-template-rows: 56px minmax(0,1fr);
+  background: var(--ux-canvas-void);
+  color: var(--ux-text);
+}
+.wizard[hidden]{display:none}
+.wizard-bar{
+  display: flex;
+  align-items: center;
+  gap: var(--ux-gap-3);
+  padding: 0 var(--ux-gap-4);
+  border-bottom: 1px solid var(--ux-border);
+  background: var(--ux-bar);
+}
+.wizard-name{flex:1;margin:0;text-align:center;font-size:var(--ux-size-small);color:var(--ux-muted)}
+.wizard-dots{display:flex;gap:var(--ux-gap-1);margin:0;padding:0;list-style:none}
+.wizard-dot{width:8px;height:8px;border-radius:999px;background:var(--ux-border-popover)}
+.wizard-dot-current{background:var(--ux-focus)}
+.wizard-body{overflow:auto;min-height:0;display:grid;align-content:center}
+/*
+ * `justify-items: stretch` and not `center`: a centred grid item is sized to
+ * its own content, so the card grid was as wide as the heading above it and
+ * four kinds wrapped to two rows on a 1440px screen. The row is centred by the
+ * step's own margin instead.
+ */
+.wizard-step{
+  display: grid;
+  justify-items: stretch;
+  text-align: center;
+  gap: 28px;
+  padding: 36px var(--ux-gap-4);
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.wizard-step h1{margin:0;font-size:26px;line-height:1.2;color:var(--ux-text-strong);outline:none;justify-self:center}
+.wizard-otherwise{margin:0;font-size:var(--ux-size-small);color:var(--ux-muted)}
+
+/* Step one — the kinds. */
+.wizard-types{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--ux-gap-4);
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+.wizard-type{justify-items:center;text-align:center;padding:var(--ux-gap-4)}
+.wizard-type-art{
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--ux-radius-3);
+  background: var(--ux-thumb-ground);
+  margin-bottom: var(--ux-gap-2);
+}
+.wizard-type-art svg{width:86%;height:86%;background:transparent}
+.wizard-type-name{font-size:var(--ux-size-heading)}
+
+/*
+ * Step two — the characters on the left, the result on the right.
+ *
+ * The result takes the greater share on purpose: it is what the author is
+ * choosing, and six faces cannot be told apart from six small pictures.
+ */
+.wizard-step-character{
+  grid-template-columns: minmax(280px, 34%) minmax(0, 1fr);
+  align-items: start;
+  justify-items: stretch;
+  gap: 36px;
+  max-width: 1200px;
+  width: 100%;
+}
+.wizard-choices{display:grid;gap:var(--ux-gap-3);justify-items:start;text-align:left}
+.wizard-step-character h1{justify-self:start}
+.wizard-characters{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--ux-gap-3);
+  width: 100%;
+}
+.wizard-character{justify-items:center;text-align:center;padding:var(--ux-gap-2)}
+.wizard-character-art{
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--ux-radius-2);
+  background: var(--ux-thumb-ground);
+}
+.wizard-character-art svg{width:92%;height:92%;background:transparent}
+.wizard-preview{display:grid;justify-items:center;gap:var(--ux-gap-3);position:sticky;top:var(--ux-gap-4)}
+.wizard-preview-art{
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 1;
+  border-radius: var(--ux-radius-4);
+  background: var(--ux-thumb-ground);
+}
+.wizard-preview-art svg{width:88%;height:88%;background:transparent}
+.wizard-preview-name{margin:0;font-size:var(--ux-size-heading);font-weight:600;color:var(--ux-text-strong)}
+
+@media (max-width:900px){
+  /* Centred content taller than the viewport hides its own top: on a phone the
+   * preview sits above the grid, and centring pushed it off the screen. */
+  .wizard-body{align-content:start}
+  .wizard-step{padding:28px var(--ux-gap-4);gap:var(--ux-gap-4)}
+  .wizard-step h1{font-size:21px}
+  .wizard-step-character{grid-template-columns:1fr}
+  .wizard-preview{position:static;order:-1}
+  .wizard-preview-art{max-width:260px}
+  .wizard-step-character h1{text-align:center}
+  .wizard-choices{justify-items:stretch}
+}
+
+/* ══ Home chrome ═══════════════════════════════════════════════════════════
+ *
+ * The project bar sits over Home (z-index 90 against 80), which is what keeps
+ * the ••• menu reachable on a first run — and what also put Export, Project
+ * check, Save Project, Undo, Redo and the four workspaces in front of somebody
+ * who has no project yet. On Home the bar is the brand and the menu.
+ */
+/* `.project-actions .capability-toggle` is `display:inline-flex!important`, so
+ * this one has to answer in kind rather than lose to a rule about layout. */
+#app.home-open #capability-toggle{display:none!important}
+#app.home-open .stage-nav,
+#app.home-open #search-button,
+#app.home-open #undo,
+#app.home-open #redo,
+#app.home-open #validate,
+#app.home-open #reset-mascot-top,
+#app.home-open #save-project-top,
+#app.home-open #export-top,
+#app.home-open #save-state{display:none}

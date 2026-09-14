@@ -54,6 +54,16 @@ export function wireTopbar({ root, q }) {
     bindOpenAdvanced(handler) { q('[data-open-advanced]').onclick = () => { closeMenu(); handler(); }; },
     bindExport(handler) { q('#export-top').onclick = handler; },
     bindSaveProject(handler) { q('#save-project-top').onclick = handler; },
+    /**
+     * Open the file pickers from somewhere other than the ••• menu.
+     *
+     * Home used to say, in grey twelve-point prose, that Open Project and
+     * Import SVG were "in the ••• menu, top right" (UI-REDESIGN-02). They are
+     * buttons on Home now, and both press the same hidden input the menu's
+     * label does, so there is still one way in and one handler behind it.
+     */
+    openProjectFilePicker() { q('#project-file').click(); },
+    openSvgFilePicker() { q('#svg-file').click(); },
     bindLoadProject(handler) { bindFile('#project-file', handler); },
     bindLoadSvg(handler) { bindFile('#svg-file', handler); bindFile('#artwork-svg-file', handler); },
     bindLoadRig(handler) { bindFile('#rig-file', handler); },

@@ -289,7 +289,11 @@ test('the form saves what it shows, and says which row the drawing landed in', (
     name: { value: 'Cat muzzle' }, slot: { value: 'muzzle' }, roles: { element: 'mouth' },
     morphologies: ['muzzle'], tags: { value: 'Cat, short' }
   });
-  assert.equal(ui.statuses.at(-1), 'Cat muzzle is in the library now, under Muzzle for Muzzle faces: a style card of yours, on this face and the next.');
+  // "under Muzzle for Animal faces" (UI-REDESIGN-03): the first Muzzle is the
+  // row the drawing landed in, the second word is the kind of mascot it suits.
+  // They used to be the same word, which read as a stutter and told an author
+  // nothing about either.
+  assert.equal(ui.statuses.at(-1), 'Cat muzzle is in the library now, under Muzzle for Animal faces: a style card of yours, on this face and the next.');
   const asset = ui.library.get('accessory.cat-muzzle');
   assert.deepEqual([asset.category, asset.slot, [...asset.morphologies], [...asset.tags]], ['accessory', 'muzzle', ['muzzle'], ['cat', 'short']]);
   // And Design offers it where it was saved.

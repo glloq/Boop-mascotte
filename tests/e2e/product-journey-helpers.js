@@ -46,8 +46,16 @@ export const ownershipCheckpoint = page => page.evaluate(() => ({
 }));
 
 export async function inspectExportReadiness(page) {
-  await openProblems(page);
-  await expect(page.locator('#problems-panel')).toBeVisible();
+  // Project check is a control *of a project*, and Home stopped offering it
+  // where there is none (UI-REDESIGN-02): with no artwork yet, the only thing
+  // it could report is that there is no artwork, which is what the page in
+  // front of the author is already about. The readiness model is what this
+  // helper is for, and the panel is asserted wherever it is really reachable —
+  // which is every call after the first.
+  if (await page.locator('#validate').isVisible()) {
+    await openProblems(page);
+    await expect(page.locator('#problems-panel')).toBeVisible();
+  }
   return page.evaluate(() => window.__BOOP_E2E__.readiness());
 }
 
@@ -66,10 +74,23 @@ export async function exportStandaloneMascot(page) {
   return downloads;
 }
 
+/**
+ * Recover from "there is no artwork".
+ *
+ * Two paths, and which one exists depends on whether there is a project at all
+ * (UI-REDESIGN-02). With one open, the blocker is a row in Project check with a
+ * Fix on it. With none — which is where this blocker starts — Project check is
+ * not offered, because the only thing it could report is what Home is already
+ * about; the recovery is Home's own ready-made face, which is what a person
+ * would press.
+ */
 export async function recoverMissingArtworkWithBasicMascot(page) {
   const diagnostic = page.locator('[data-diagnostic-id="artwork.missing"]');
-  await expect(diagnostic).toHaveCount(1);
-  await diagnostic.getByRole('button', { name: 'Fix', exact: true }).click();
+  if (await diagnostic.count()) {
+    await diagnostic.getByRole('button', { name: 'Fix', exact: true }).click();
+  } else {
+    await expect(page.locator('[data-home] [data-template-id="basic"]')).toBeVisible();
+  }
   await startBasicFace(page);
 }
 

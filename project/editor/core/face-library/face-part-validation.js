@@ -15,7 +15,7 @@
 import { findUnsafeSvg } from '../security/sanitize-svg.js';
 import { HEAD_TURN_PROFILE_KEYS, HEAD_TURN_PROFILE_NUMBERS, HEAD_TURN_PROFILE_SIDES } from '../head-pose/head-pose-turn.js';
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
-import { DRIVER_PROPERTIES, FACE_MOUNT_POINTS, FACE_PART_ID, FACE_STYLE_ID, FACE_TAG, PALETTE_TOKENS, describeFacePartCapabilities, facePartCategory, normalizeFacePart, scanArtwork } from './face-part-model.js';
+import { DRIVER_PROPERTIES, FACE_MOUNT_POINTS, FACE_PART_ID, FACE_STYLE_ID, FACE_SYMMETRY, FACE_TAG, PALETTE_TOKENS, describeFacePartCapabilities, facePartCategory, normalizeFacePart, scanArtwork } from './face-part-model.js';
 import { FACE_MORPHOLOGY_IDS, faceMorphology, faceSlot } from './face-morphologies.js';
 
 const issue = (severity, code, message, field = null) => ({ severity, code, message, field });
@@ -205,6 +205,21 @@ export function validateFacePart(input, { taken = () => false, library = null } 
   }
 
   if (asset.mountPoint && !FACE_MOUNT_POINTS.includes(asset.mountPoint)) issues.push(error('mount-point-unknown', `Unknown mount point "${asset.mountPoint}".`, 'mountPoint'));
+  // Said-nothing is normalised to null and 0, so what is refused here is a
+  // value somebody meant and got wrong rather than a field they left out.
+  /*
+   * Said-nothing normalises to `null` and `0`, and an asset that has already
+   * been through `normalizeFacePart` — one saved to the browser, one read back
+   * out of a pack — carries those. So the sentinels are not refusals: what is
+   * refused is a value somebody meant and got wrong.
+   */
+  const said = (value) => value !== undefined && value !== null && value !== '';
+  if (said(input?.symmetry) && !asset.symmetry) {
+    issues.push(error('symmetry-unknown', `A drawing is ${FACE_SYMMETRY.join(', ')} or says nothing; "${input.symmetry}" is none of those.`, 'symmetry'));
+  }
+  if (said(input?.maxInstances) && Number(input.maxInstances) !== 0 && !asset.maxInstances) {
+    issues.push(error('max-instances-invalid', 'How many a face may wear is a whole number above zero, or nothing at all.', 'maxInstances'));
+  }
   checkHost(issues, asset.host, category);
   checkVariant(issues, asset, library);
   checkMorphology(issues, asset, category);

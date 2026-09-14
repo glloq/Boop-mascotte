@@ -17,6 +17,7 @@ const { artworkIds } = await import('../face-library/face-part-model.js');
 const { PART_DRAG_TYPE } = await import('../../ui/character-builder/part-drag.js');
 const { describeHands } = await import('../../ui/character-builder/hand-placement-panel.js');
 const { handStyleIds } = await import('../hands/hand-style-art.js');
+const { assetSlot } = await import('../face-library/face-morphologies.js');
 
 /**
  * The Character Builder shell (docs/CHARACTER_BUILDER.md, PR 1).
@@ -1374,4 +1375,37 @@ test('a drawing that restyles another is no card of its own, and the card it res
   // And the card puts its own drawing on, which is a change of look the author asked for.
   ui.press({ facePart: 'mouth.wide' });
   assert.equal(ui.store.getDocument().semanticParts.mouth.assetId, 'mouth.wide');
+});
+
+/**
+ * UI-REDESIGN-04 — a row the library cannot fill is not a line.
+ *
+ * A slot the mascot wears nothing in is an *offer*, and an offer the library
+ * cannot honour is a line an author opens onto nothing, above rows that do
+ * something. So a slot with no drawing behind it is not listed, and it appears
+ * by itself the day somebody draws one — read from the library rather than
+ * from a table anyone has to remember to edit.
+ *
+ * The rule is deliberately narrow: it never touches a row the mascot is
+ * *wearing* something in. `Pupils` and `Eyelids` have no drawing in the whole
+ * library and stay on the list, because the template draws both — and hiding
+ * the only door to a part somebody already has on is exactly the failure this
+ * filter layer exists to prevent.
+ */
+test('a slot the library cannot fill is not offered, and one the mascot wears always is', () => {
+  const ui = harness();
+  const rows = () => [...ui.browserHost.innerHTML.matchAll(/data-part-category-row="([a-zA-Z]+)"/g)].map((match) => match[1]);
+
+  // Worn, and with nothing drawn for either: both stay, and that is the rule.
+  assert.match(ui.browserHost.innerHTML, /data-part-category-row="pupils" data-part-status="ready"/);
+  assert.match(ui.browserHost.innerHTML, /data-part-category-row="eyelids" data-part-status="ready"/);
+  // Not worn, but drawn for: an offer the library can honour.
+  assert.match(ui.browserHost.innerHTML, /data-part-category-row="facialHair" data-part-status="missing"/);
+
+  // Take every facial-hair drawing back out and the offer goes with them,
+  // while the rows either side of it stay exactly where they were.
+  for (const asset of ui.library.list()) if (assetSlot(asset) === 'facialHair') ui.library.remove(asset.id);
+  ui.builder.render();
+  assert.ok(!rows().includes('facialHair'), 'a slot with nothing behind it is not a line');
+  assert.deepEqual(rows().filter((id) => ['hair', 'accessory', 'pupils', 'eyelids'].includes(id)), ['pupils', 'eyelids', 'hair', 'accessory'], 'and only that line');
 });

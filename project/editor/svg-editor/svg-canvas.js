@@ -2337,9 +2337,25 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
    * and are read only before a control has ever been laid out.
    */
   const HANDLE_HIT = Object.freeze({ small: 19, normal: 26, large: 32 });
-  /** The opener's own width, and where on its control's shoulder it rides. */
+  /** The opener's own width, how high it rides, and the air it keeps. */
   const EXPANDER_WIDTH = 15;
-  const EXPANDER_AT = Object.freeze({ x: 19, y: -15 });
+  const EXPANDER_LIFT = -15;
+  const EXPANDER_GAP = 2;
+  /**
+   * Where the opener sits, on a control of *this* size.
+   *
+   * It used to be a constant 19px to the right, which put a 15px badge's left
+   * edge at +11.5 on a 26px control whose own hit area reaches +13 — so the
+   * two overlapped by a pixel and a half, and since the badge sits above it in
+   * the stack, that sliver of the control could not be pressed. Derived from
+   * the measured control instead, so the three sizes the stylesheet draws
+   * (19, 26, 32) each clear their own badge by the same air.
+   *
+   * Only the horizontal separation is made: the badge still rides the shoulder,
+   * overlapping the control's rows but never its columns, which is what keeps
+   * it reading as part of the control rather than as a second one beside it.
+   */
+  const openerAt = (box) => ({ x: box.width / 2 + EXPANDER_WIDTH / 2 + EXPANDER_GAP, y: EXPANDER_LIFT });
   function handleBox(entry) {
     if (!entry.hit) {
       const measured = { width: entry.button.offsetWidth, height: entry.button.offsetHeight };
@@ -2366,10 +2382,13 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
    * reserves a little air on the side the opener is not on, and a little air
    * beside a control is not a fault.
    */
-  const withOpener = (box) => ({
-    width: Math.max(box.width, 2 * (EXPANDER_AT.x + EXPANDER_WIDTH / 2)),
-    height: Math.max(box.height, 2 * (Math.abs(EXPANDER_AT.y) + EXPANDER_WIDTH / 2))
-  });
+  const withOpener = (box) => {
+    const at = openerAt(box);
+    return {
+      width: Math.max(box.width, 2 * (at.x + EXPANDER_WIDTH / 2)),
+      height: Math.max(box.height, 2 * (Math.abs(at.y) + EXPANDER_WIDTH / 2))
+    };
+  };
 
   /**
    * Where one control would like to be, and whether it may be moved off it.
@@ -2482,8 +2501,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       const index = showing.findIndex(({ entry }) => entry.handle.id === expander.id);
       expander.button.hidden = index < 0;
       if (index < 0) continue;
-      expander.button.style.left = `${placed[index].x + EXPANDER_AT.x}px`;
-      expander.button.style.top = `${placed[index].y + EXPANDER_AT.y}px`;
+      const at = openerAt(handleBox(showing[index].entry));
+      expander.button.style.left = `${placed[index].x + at.x}px`;
+      expander.button.style.top = `${placed[index].y + at.y}px`;
     }
 
     // Everything that is drawn *from* where a control ended up, once it has.

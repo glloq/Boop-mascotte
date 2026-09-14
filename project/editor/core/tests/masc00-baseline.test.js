@@ -110,8 +110,11 @@ test('an asset carrying none of the morphology metadata normalises, validates an
   // library reads a drawing that says nothing exactly as it always did.
   const plain = mouth('mouth.plain', 'Plain');
   const normalized = normalizeFacePart(plain);
-  assert.deepEqual(Object.keys(normalized).sort(), ['artwork', 'behind', 'capabilities', 'category', 'depth', 'description', 'drivers', 'host', 'id', 'morphologies', 'mountPoint', 'name', 'origin', 'paletteRoles', 'palette', 'parts', 'pack', 'referenceBox', 'roles', 'slot', 'tags', 'turn', 'variant'].sort());
-  assert.deepEqual({ slot: normalized.slot, morphologies: normalized.morphologies, tags: normalized.tags }, { slot: '', morphologies: [], tags: [] });
+  assert.deepEqual(Object.keys(normalized).sort(), ['artwork', 'behind', 'capabilities', 'category', 'depth', 'description', 'drivers', 'host', 'id', 'maxInstances', 'morphologies', 'mountPoint', 'name', 'origin', 'paletteRoles', 'palette', 'parts', 'pack', 'referenceBox', 'roles', 'slot', 'symmetry', 'tags', 'turn', 'variant'].sort());
+  // The same contract holds for the two UI-REDESIGN-04 added: in the shape,
+  // empty here, and a drawing that says nothing behaves as it always did.
+  assert.deepEqual({ slot: normalized.slot, morphologies: normalized.morphologies, tags: normalized.tags, symmetry: normalized.symmetry, maxInstances: normalized.maxInstances },
+    { slot: '', morphologies: [], tags: [], symmetry: null, maxInstances: 0 });
   assert.equal(normalized.origin, 'custom');
   assert.equal(normalized.pack, null);
 
