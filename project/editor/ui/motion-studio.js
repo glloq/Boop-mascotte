@@ -266,7 +266,19 @@ export function createMotionStudio({ listHost, inspectorHost, store, history, pr
     listHost.dataset.motionsReady = 'true';
     listHost.dataset.motionsCount = String(model.clipCount);
     if (!model.hasArtwork) { listHost.innerHTML = '<p class="small">Add artwork first: import an SVG or start from a template.</p>'; return; }
-    const card = (preset) => `<article class="preset-card" data-motion-preset-card="${preset.id}" data-preset-usable="${preset.usable}" data-preset-missing="${preset.missing.length}"><div><b>${esc(preset.name)}</b><small>${esc(preset.description)}</small><small class="${preset.usable ? '' : 'preset-missing'}">${preset.usable ? `Uses ${Object.values(preset.controls).map((name) => esc(controlLabel(name))).join(', ')}` : `Needs ${preset.missing.map((item) => esc(item.label)).join(', ')}`}</small></div><button type="button" data-motion-preset="${preset.id}" aria-label="Add ${esc(preset.name)} motion" ${preset.usable ? '' : 'disabled'} title="${preset.usable ? 'Adds this motion with your movements' : esc(preset.missing.find((item) => item.hint)?.hint || 'Turn on the movement in Face Setup first')}">Add</button></article>`;
+    /**
+     * A ready-made motion: its name, what it does, and the button.
+     *
+     * What it is *made of* -- "Uses Head · Move up / down" -- is on the card's
+     * title rather than under its description. Two `<small>`s, each clamped to
+     * two lines, spent four lines of a 300 px column on one preset and still
+     * finished both sentences in an ellipsis; the recipe is not a decision
+     * anybody is making at the moment they press Add.
+     *
+     * What it is *missing* stays visible, because that is the whole message on
+     * a card that cannot be pressed.
+     */
+    const card = (preset) => `<article class="preset-card" data-motion-preset-card="${preset.id}" data-preset-usable="${preset.usable}" data-preset-missing="${preset.missing.length}" title="${esc(preset.name)} — ${esc(preset.description)}${preset.usable ? ` Uses ${Object.values(preset.controls).map((name) => esc(controlLabel(name))).join(', ')}.` : ''}"><div><b>${esc(preset.name)}</b><small>${esc(preset.description)}</small>${preset.usable ? '' : `<small class="preset-missing">Needs ${preset.missing.map((item) => esc(item.label)).join(', ')}</small>`}</div><button type="button" data-motion-preset="${preset.id}" aria-label="Add ${esc(preset.name)} motion" ${preset.usable ? '' : 'disabled'} title="${preset.usable ? 'Adds this motion with your movements' : esc(preset.missing.find((item) => item.hint)?.hint || 'Turn on the movement in Face Setup first')}">Add</button></article>`;
     const cards = presetGroups(view.groups, card, { className: 'motion-presets' });
     const gate = model.anyPresetUsable ? '' : '<p class="face-pick-notice" data-tone="warn"><span>Turn on a head movement in Face Setup: motions are made of movements.</span><button type="button" class="secondary" data-motion-fix-movements>Face Setup</button></p>';
     const items = view.summaries.map((summary) => `<li><button type="button" class="expression-item motion-item" data-motion-select="${esc(summary.id)}" data-motion-kind="${summary.kind}" aria-pressed="${summary.id === model.activeId}"><span>${esc(summary.name)}<span class="motion-badge" data-motion-badge="${summary.kind}">${BADGES[summary.kind]}</span></span><small>${esc(summaryLine(summary))}</small></button></li>`).join('');

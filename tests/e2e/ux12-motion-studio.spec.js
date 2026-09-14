@@ -25,7 +25,12 @@ test('@critical the grouped preset catalogue, Timeline parity and the explicit p
   expect(await cards.count()).toBeGreaterThanOrEqual(18);
   await expect(page.locator('[data-preset-catalogue="motions"] .preset-group')).toHaveCount(4, 'Head, Eyes, Face and Hands');
   await expect(page.locator('[data-preset-group="Head"] [data-motion-preset-card][data-preset-usable="true"]')).toHaveCount(12);
-  await expect(page.locator('[data-motion-preset-card="head-pop"]')).toContainText('Head · Move up / down, Mouth · Open / close, Gaze · Pupil size');
+  // What a preset is made of rides its title rather than a third line under
+  // its description: two clamped `<small>`s spent four lines of a 300 px column
+  // on one card and finished both sentences in an ellipsis. Moved, not removed
+  // — which is what this reads.
+  await expect(page.locator('[data-motion-preset-card="head-pop"]')).toContainText('The head jumps up');
+  await expect(page.locator('[data-motion-preset-card="head-pop"]')).toHaveAttribute('title', /Uses Head · Move up \/ down, Mouth · Open \/ close, Gaze · Pupil size\./);
 
   await page.getByRole('button', { name: 'Add Head Pop motion' }).click();
   const pop = await clipOf(page, 'head-pop');

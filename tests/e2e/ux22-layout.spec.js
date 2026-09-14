@@ -121,3 +121,30 @@ test('Behavior opens on what runs, not on a list of what does not', async ({ pag
   expect(measured.rows, 'and every motion is still in it').toBeGreaterThan(20);
   expect(measured.column, 'the column was 5725 px').toBeLessThan(4000);
 });
+
+/**
+ * A ready-made preset card carried three texts: a name, what it does, and what
+ * it is made of. Two of the three were `<small>`s clamped to two lines each, so
+ * one card could spend four lines of a 300 px column and still finish both
+ * sentences in an ellipsis. The recipe moved to the title: it is not a decision
+ * anybody is making at the moment they press Add, and a card that cannot be
+ * pressed still says what it needs, out loud, because that is its whole message.
+ */
+test('a preset card is a name and what it does; what it is made of is on its title', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await goToMode(page, 'animate.motions');
+
+  const nod = page.locator('[data-motion-preset-card="nod"]');
+  await expect(nod).toContainText('The head dips and comes back.');
+  await expect(nod, 'the recipe is off the card').not.toContainText('Uses Head');
+  await expect(nod, 'and still reachable').toHaveAttribute('title', /Uses Head/);
+
+  const measured = await page.evaluate(() => {
+    const cards = [...document.querySelectorAll('[data-preset-catalogue="motions"] .preset-card')].filter((card) => card.offsetHeight);
+    return { median: cards.map((card) => card.offsetHeight).sort((a, b) => a - b)[Math.floor(cards.length / 2)], catalogue: document.querySelector('[data-preset-catalogue="motions"]').offsetHeight };
+  });
+  expect(measured.median, 'a card was 104 px').toBeLessThan(90);
+  expect(measured.catalogue, 'the open group was 1545 px').toBeLessThan(1300);
+});

@@ -197,6 +197,33 @@ juste à côté.
 lignes toujours là, la colonne sous 4 000 px) et `ux13-reactions`, qui ouvre le
 repli comme une personne le ferait avant de choisir un *quand*.
 
+### Animate, et les cartes des trois catalogues (PR UI-09)
+
+Une carte de preset portait trois textes : un nom, ce qu'elle fait, et **ce dont
+elle est faite**. Deux des trois étaient des `<small>` coupés à deux lignes
+chacun (`-webkit-line-clamp: 2`), donc une seule carte pouvait dépenser quatre
+lignes d'une colonne de 300 px — et finir les deux phrases par des points de
+suspension. Le pire des deux mondes : la place prise, et la phrase inachevée.
+
+La recette passe sur le `title` de la carte. Ce n'est pas une décision que l'on
+prend au moment d'appuyer sur *Add* ; ce qui **manque** reste à voix haute,
+parce que sur une carte qu'on ne peut pas presser, c'est tout le message.
+
+| | Avant | Après |
+| --- | --- | --- |
+| Carte de motion (médiane) | 104 px | **70 px** |
+| Catalogue ouvert (groupe *Head*) | 1 545 px | **1 147 px** |
+| Colonne d'Animate ▸ Motions | 3 998 px | **3 599 px** |
+| Colonne de Behavior ▸ Reactions | 3 137 px | **2 947 px** |
+
+Les expressions gardent leur deuxième ligne : c'est un compte court
+(« 3 movements »), pas une recette, et il ne revient jamais à la ligne.
+
+**Prouvé par** une spec dans `ux22-layout` qui lit les deux moitiés — la recette
+hors de la carte, la recette toujours dans son `title` — et mesure la hauteur ;
+et par `ux12-motion-studio`, dont l'assertion sur *Uses* lit désormais le
+`title`.
+
 ### Rendu global
 
 | Ce qui a changé | Où |
