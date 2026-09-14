@@ -402,6 +402,32 @@ dédoublonnage, le stockage coupé) et une spec dans `ux45-character-builder` qu
 étoile, utilise, lit `localStorage`, vérifie que le document n'en sait rien, et
 retire l'étoile.
 
+### Trois choses que le canvas savait faire et n'offrait pas (§5)
+
+| | Avant | Après |
+| --- | --- | --- |
+| *Isoler* | existe, mais de niveau `more` — donc **inatteignable** sur la surface faite pour ceux qui ne savent pas ce qu'est un SVG | sous *Advanced* du menu, une pression plus bas |
+| *Aligner / répartir* | derrière `workspace === 'create'` | dans Face, là où les pièces sont placées à l'œil |
+| *Zoom sur la sélection* | absent | un bouton à côté de *Fit*, et `Maj+F` |
+
+**Le menu plie au niveau de la surface, pas à un niveau fixe.** Dans Artwork,
+*Isoler* et *Vers l'arrière* sont du quotidien et seuls les mots de rigging se
+replient ; dans Design ▸ Face, les six gestes simples sont le menu et tout le
+reste est une pression plus bas. Le plafond ne dépasse jamais `more`, pour que
+*Dupliquer* reste la première chose lue plutôt que « Convertir en chemin ».
+
+**Ce qui ne voyage pas.** *Group* et *Cut to top* restructurent le dessin auquel
+un rig est lié : ils restent dans l'éditeur vectoriel. *Grid* et *Snap* placent
+les coins d'une forme qu'on dessine, et on ne dessine pas sur une mascotte —
+ils restent avec les outils qu'ils servent. (L'audit demande aussi le
+magnétisme **au déplacement** : c'est un autre travail, pas celui-ci.)
+
+**Prouvé par** une spec dans `ux40-arrangement` qui lit les trois, et **deux
+assertions réécrites** dans `ux45` : elles disaient « absent » là où la
+conception dit maintenant « replié ». Elles vérifient désormais le pli *et* la
+porte, ce qui est plus fort : le repli existe, il est fermé, rien de technique
+n'est lu, et *Isoler* est derrière.
+
 ### Rendu global
 
 | Ce qui a changé | Où |
@@ -420,8 +446,8 @@ avec la référence de l'audit.
 
 | Priorité | Tâche | Référence |
 | --- | --- | --- |
-| **P2** | Colonnes redimensionnables ; aligner/centrer hors d'Artwork | §10.1, §5 |
-| **P2** | Magnétisme et guides au déplacement ; zoom sur la sélection ; isoler exposé | §5 |
+| **P2** | Colonnes redimensionnables | §10.1 |
+| **P2** | Magnétisme et guides au déplacement ; sélection derrière (Alt+clic) | §5 |
 | **P2** | Liste des pièces **par rôle** sous *Avancé* dans Face | §1.3 |
 | **P2** | Mode `Simple / Complet` et les libellés français | §7.3 |
 | **P2** | Assistant de création en trois écrans | [04](04_RECOMMANDATIONS.md) §5 |

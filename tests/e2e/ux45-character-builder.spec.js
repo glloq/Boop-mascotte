@@ -68,7 +68,13 @@ test('@critical the Character Builder is a screen of Design: parts, the canvas, 
   await expect(page.locator('.character-tools')).toBeVisible();
   await expect(page.locator('.structure-tools')).toBeHidden();
   await expect(page.locator('.design-toolbar')).toBeHidden();
-  await expect(page.locator('#tool-options')).toBeHidden();
+  // The options bar is here now, and carries only what lines pieces up: Align
+  // and Spread travel to every surface that edits a piece, while Group and
+  // Cut — which restructure the drawing a rig is bound to — stay in the vector
+  // editor (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §5). What is gone from here
+  // is the *drawing* chrome, which is what this assertion was ever about.
+  await expect(page.locator('#tool-options [data-draw-option]')).toHaveCount(0);
+  await expect(page.locator('#tool-options').getByRole('button', { name: 'Group' })).toHaveCount(0);
   // Sixteen rows: the eleven parts, the hands, and the four questions above
   // them — Presets, Type (MASC-05), Style (MASC-06) and Colours.
   // Fourteen rows: Presets, the eleven parts a human face has, Colours and
@@ -428,13 +434,20 @@ test('@critical the six actions ride on the selection, and the menu opens on the
   await page.locator('#toast[data-actionable] [data-toast-action]').click();
   await expect.poll(async () => Object.keys((await page.evaluate(() => window.__BOOP_E2E__.document())).elements).length).toBe(before);
 
-  // And the right-click menu, which this screen never had. It is the simple
-  // one: nothing in it names a rigging concept.
+  // And the right-click menu, which this screen never had. Nothing that names a
+  // rigging concept is *read* here: the menu folds at this surface's depth, so
+  // the six simple gestures are the menu and everything else — Isolate
+  // included, which the audit wanted exposed and which the simple depth used
+  // to drop on the floor — is one press further down rather than absent.
   await page.locator('#canvas #mouth').click({ button: 'right' });
   await expect(page.locator('[data-canvas-menu]')).toBeVisible();
-  await expect(page.locator('[data-canvas-menu-advanced]')).toHaveCount(0);
-  await expect(page.locator('[data-canvas-menu-action="points"]')).toHaveCount(0);
   await expect(page.locator('[data-canvas-menu-action="delete"]')).toBeVisible();
+  const folded = page.locator('[data-canvas-menu-advanced]');
+  await expect(folded).toBeVisible();
+  expect(await folded.evaluate((node) => node.open), 'shut until asked for').toBe(false);
+  await expect(page.locator('.canvas-menu-actions').first().locator('[data-canvas-menu-action="points"]')).toHaveCount(0);
+  await folded.locator('summary').click();
+  await expect(page.locator('[data-canvas-menu-advanced] [data-canvas-menu-action="isolate"]')).toBeVisible();
   await page.keyboard.press('Escape');
 
   // The bar goes away with the selection.

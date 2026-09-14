@@ -3585,6 +3585,34 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       setView({ scale, x: (width-box.width*scale)/2-box.x*scale, y: (height-box.height*scale)/2-box.y*scale });
       return scale;
     },
+    /**
+     * Fill the view with what is selected (audit §5).
+     *
+     * *Fit* has always framed the whole mascot; there was no way to get close
+     * to the piece in hand except by wheeling towards it and hoping. A pupil is
+     * forty pixels of a six-hundred-pixel face, and shaping one meant working
+     * at a size nobody can aim at.
+     *
+     * The same arithmetic as `fitToCanvas`, over the union of the selection
+     * rather than the whole drawing, and capped at the zoom ceiling the wheel
+     * already respects — a two-pixel reflection would otherwise fill the screen
+     * at four hundred times life size.
+     */
+    zoomToSelection(padding = .25) {
+      const ids = selectedIds.length ? selectedIds : (selectedId ? [selectedId] : []);
+      if (!ids.length || !rootGroup?.node) return viewTransform().scale;
+      setView({ scale: 1, x: 0, y: 0 });
+      const boxes = ids.map((id) => documentModel.getNode(id)).filter(Boolean).map((node) => node.getBBox?.()).filter((box) => box && box.width && box.height);
+      if (!boxes.length) return viewTransform().scale;
+      const left = Math.min(...boxes.map((box) => box.x)), top = Math.min(...boxes.map((box) => box.y));
+      const right = Math.max(...boxes.map((box) => box.x + box.width)), bottom = Math.max(...boxes.map((box) => box.y + box.height));
+      const box = { x: left, y: top, width: right - left, height: bottom - top };
+      const width = container.clientWidth, height = container.clientHeight;
+      if (!box.width || !box.height || !width || !height) return viewTransform().scale;
+      const scale = Math.max(.2, Math.min(5, Math.min(width * (1 - padding * 2) / box.width, height * (1 - padding * 2) / box.height)));
+      setView({ scale, x: (width - box.width * scale) / 2 - box.x * scale, y: (height - box.height * scale) / 2 - box.y * scale });
+      return scale;
+    },
     resetView(){ setView({ scale: 1, x: 0, y: 0 }); return 1; },
     /** Zoom about a point of the viewport — the middle by default, so the mascot stays in view; the pointer for the wheel. */
     zoomView(factor, center = null){
