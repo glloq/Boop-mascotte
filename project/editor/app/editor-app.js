@@ -242,6 +242,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
     loadTemplate: (kind) => projectService.loadTemplate(kind),
     applyPreview: () => preview.apply(),
     drawHandStyle: (side, style) => handArtwork.addStyle(side, style),
+    drawHandPair: (look) => handArtwork.drawPair(look),
     download: browserDownload,
     runPieceAction: (action, id) => runPieceAction(action, id, { from: 'inspector' })
   });

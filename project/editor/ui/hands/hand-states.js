@@ -113,11 +113,34 @@ function actionsMarkup(hand, state) {
     </div>`;
 }
 
+/**
+ * No hands at all, and the press that makes them (audit §16, op. 11).
+ *
+ * This was a route: *Draw a pair of hands…* took the author to Rig ▸ Controls,
+ * where a second button actually drew them. Three actions for the one thing
+ * this screen exists to do, and a trip through the screen about *where a hand
+ * is* to answer *what a hand looks like*.
+ *
+ * Once, not once per hand: hands arrive as a pair, so two identical buttons
+ * would be two doors onto one gesture. The look goes with it, because choosing
+ * it afterwards means drawing them again — and placement stays Rig's, with its
+ * own door below.
+ */
+function nothingDrawnMarkup(looks = []) {
+  const choice = looks.length > 1
+    ? `<label class="small">Look <select data-hand-states-look aria-label="Hand look">${looks.map((look) => `<option value="${esc(look.id)}"${look.current ? ' selected' : ''}>${esc(look.name)}</option>`).join('')}</select></label>`
+    : '';
+  return `<section class="hand-states" data-hand-states="none"><h3>No hands yet</h3>
+    <p class="small">A pair arrives in one press, rigged, with a state for every drawing in the set.</p>
+    <div class="hand-actions"><button type="button" data-hand-states-draw>✋ Draw a pair of hands</button>${choice}</div>
+    <p class="small">Where each hand sits on the body is a movement, so it is set in <button type="button" class="link" data-hand-states-route="hand-setup">Rig › Controls</button>.</p></section>`;
+}
+
 function handMarkup(hand, selected) {
   if (!hand.present) {
     return `<section class="hand-states" data-hand-states="${esc(hand.side)}"><h3>${esc(hand.label)}</h3>`
-      + '<p class="small">Not drawn yet. A pair arrives in one press, rigged, with a state for every drawing in the set.</p>'
-      + '<button type="button" class="secondary" data-hand-states-route="hand-setup">Draw a pair of hands…</button></section>';
+      + '<p class="small">Not drawn yet. The other hand is, so this one takes a drawing from the set under Advanced, or a mirror of its pair.</p>'
+      + `<button type="button" class="secondary" data-hand-states-route="hand-setup">Where the hands are…</button></section>`;
   }
   const chosen = hand.states.find((state) => `${hand.side}:${state.id}` === selected) || null;
   const offers = hand.offers.length
@@ -135,7 +158,7 @@ function handMarkup(hand, selected) {
 }
 
 /** The screen, as markup. */
-export function handsScreenMarkup(model, { selected = null, notice = null } = {}) {
+export function handsScreenMarkup(model, { selected = null, notice = null, looks = [] } = {}) {
   const set = model.set;
   const advanced = `<details class="hand-set-advanced"><summary><span class="setup-title">The set these are drawn from</span><span class="setup-summary">advanced</span></summary>
       ${set ? `<p class="small"><b>${esc(set.name)}</b> · ${count(model.gestures.length, 'drawing')}, one pivot, everything inside ${set.radius}. Every drawing in a set shares one pivot and one size, so a hand that changes state never changes size or moves.</p>` : '<p class="small">No hand set is loaded, so there is nothing to draw a hand from. Import one below.</p>'}
@@ -148,7 +171,7 @@ export function handsScreenMarkup(model, { selected = null, notice = null } = {}
       <p class="small">A drawing you add is kept in this browser and can be added to either hand at once. Importing a set replaces the one in use — a hand already holding states keeps them.</p>
     </details>`;
   return `${notice ? `<p class="workspace-hint" data-hand-set-notice data-tone="${esc(notice.tone)}">${esc(notice.text)}</p>` : ''}
-    ${model.hands.map((hand) => handMarkup(hand, selected)).join('')}
+    ${looks.length ? nothingDrawnMarkup(looks) : model.hands.map((hand) => handMarkup(hand, selected)).join('')}
     ${advanced}
     <div class="action-row"><button type="button" class="secondary" data-hand-states-route="hand-setup">Where the hands are, and how far they reach…</button></div>`;
 }
@@ -175,10 +198,12 @@ export function createHandStatesPanel(host, {
   document: getDocument = () => ({}), onUse = () => {}, onEdit = () => {}, onDuplicate = () => {},
   onRename = () => {}, onMirror = () => {}, onDelete = () => {}, onAdd = () => {},
   onAddGestures = () => {}, onImportSet = () => {}, onExportSet = () => {}, onForget = () => {}, onRoute = () => {},
+  // The pair, drawn here rather than three actions away in Rig (audit §16).
+  onDrawPair = null, looks = () => [],
   ask = (message, value) => globalThis.prompt?.(message, value) ?? null
 } = {}) {
   if (!host) throw new Error('Missing required UI element: #hand-states');
-  let notice = null, selected = null;
+  let notice = null, selected = null, look = null;
 
   /** The state in hand, as the side and id the commands take. */
   const chosen = () => (selected ? { side: selected.split(':')[0], id: selected.slice(selected.indexOf(':') + 1) } : null);
@@ -200,6 +225,7 @@ export function createHandStatesPanel(host, {
         if (data.handGestureForget) { onForget(data.handGestureForget); return; }
         if (data.handSetExport !== undefined) { onExportSet(); return; }
         if (data.handStatesRoute) { onRoute(data.handStatesRoute); return; }
+        if (data.handStatesDraw !== undefined) { onDrawPair?.(host.querySelector('[data-hand-states-look]')?.value || look || null); return; }
         const state = chosen();
         if (!state) return;
         if (data.handStateUse !== undefined) onUse(state.side, state.id);
@@ -215,6 +241,9 @@ export function createHandStatesPanel(host, {
       });
       listen(host, 'change', (event) => {
         const input = event.target;
+        // The look is remembered rather than read at the press, so a redraw
+        // between the two keeps the choice the author made.
+        if (input?.dataset?.handStatesLook !== undefined) { look = input.value || null; return; }
         if (!input?.files?.length) return;
         if (input.id === 'hand-gesture-file') onAddGestures([...input.files]);
         else if (input.id === 'hand-set-file') onImportSet(input.files[0]);
@@ -222,7 +251,7 @@ export function createHandStatesPanel(host, {
       });
     },
     render: (model) => {
-      setPanelHtml(host, handsScreenMarkup(model.rich, { selected: model.selected, notice: model.rich.notice }));
+      setPanelHtml(host, handsScreenMarkup(model.rich, { selected: model.selected, notice: model.rich.notice, looks: model.looks || [] }));
       host.dataset.handSet = model.rich.set?.id || '';
       host.dataset.handStates = model.rich.hands.map((hand) => hand.states.length).join('/');
     }
@@ -230,9 +259,14 @@ export function createHandStatesPanel(host, {
 
   const view = () => {
     const rich = { ...describeHandStates(getDocument()), notice };
+    // Offered only while there is nothing drawn: once a pair is on the canvas
+    // the look is a property of the drawings, not a choice to make again.
+    const offered = onDrawPair && rich.hands.every((hand) => !hand.present)
+      ? looks().map((item) => ({ ...item, current: item.id === (look || looks()[0]?.id) }))
+      : [];
     // A state that has gone takes the selection with it.
     if (selected && !rich.hands.some((hand) => hand.states.some((state) => `${hand.side}:${state.id}` === selected))) selected = null;
-    return { signature: `${JSON.stringify(rich)}|${selected}`, rich, selected };
+    return { signature: `${JSON.stringify(rich)}|${selected}|${offered.map((item) => `${item.id}:${item.current ? 1 : 0}`).join(',')}`, rich, selected, looks: offered };
   };
 
   /** @returns {boolean} whether anything was drawn */

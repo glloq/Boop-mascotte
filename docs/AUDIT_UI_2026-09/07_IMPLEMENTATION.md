@@ -339,6 +339,33 @@ plutôt que comme « pas encore ».
 sélectionné, la boîte a des mots, et la porte se rouvre dès qu'une pièce de
 bibliothèque arrive sur le visage.
 
+### Les mains, dessinées depuis Design (opération 11)
+
+*Draw a pair of hands…*, sur l'écran des mains, était une **route** : elle
+emmenait dans Rig ▸ Controls, où un second bouton les dessinait vraiment.
+Trois actions pour la seule chose que cet écran existe pour faire, et un
+détour par l'écran de *où se trouve une main* pour répondre à *à quoi une main
+ressemble*. Le *look*, qui doit être choisi **avant** le tracé, n'était offert
+qu'au bout du voyage.
+
+| Ce qui a changé | Où |
+| --- | --- |
+| Le bouton dessine sur place, avec le choix du look | `ui/hands/hand-states.js` |
+| `drawHandPair` traversé jusqu'à Design | `app/editor-app.js`, `app/workspaces/design.js` |
+| Un seul bouton, pas un par main | `hand-states.js` (`nothingDrawnMarkup`) |
+
+**Une fois, pas une fois par main.** Les mains arrivent par paire, donc deux
+boutons identiques auraient été deux portes sur un seul geste — exactement la
+duplication que l'audit traque. Quand une seule main manque, sa section dit quoi
+faire de l'autre côté plutôt que d'offrir un tracé de paire impossible.
+
+**Trois actions → deux**, et le placement reste celui de Rig, avec sa porte
+juste en dessous : *où* une main se trouve est un mouvement.
+
+**Prouvé par** une spec dans `ux47-hand-workshop` : un bouton, un sélecteur de
+look, une presse, la paire gréée, l'écran inchangé, un seul undo, et la porte de
+Rig toujours là.
+
 ### Rendu global
 
 | Ce qui a changé | Où |
@@ -359,7 +386,6 @@ Par ordre de valeur, avec la référence de l'audit.
 | **P1** | Clic = la pièce, double-clic = dedans, fil d'Ariane de sélection | [02](02_PROBLEMES.md) §2.1 · PR **UI-03** |
 | **P1** | Le gizmo agit sur la partie, et miroite la paire liée comme les champs | §2.2 · PR **UI-04** |
 | **P1** | Messages de validation en langage utilisateur, avec un *Fix* | §4.2 · PR **UI-05** |
-| **P1** | Les mains dessinées depuis Design, sans aller-retour vers Rig | §1 (op. 11) |
 | **P2** | Favoris et récents dans la bibliothèque | §8.3 |
 | **P2** | Colonnes redimensionnables ; aligner/centrer hors d'Artwork | §10.1, §5 |
 | **P2** | Magnétisme et guides au déplacement ; zoom sur la sélection ; isoler exposé | §5 |
