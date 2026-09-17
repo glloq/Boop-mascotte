@@ -169,6 +169,8 @@ export function createEditorApp({ root = document.getElementById('app'), recover
     store: { put: async (...args) => (await assetStoreReady).put(...args), get: async (id) => (await assetStoreReady).get(id), remove: async (id) => (await assetStoreReady).remove(id) },
     optimiser: createAssetOptimiser({ codec: createBrowserCodec() })
   });
+  /** What the store says about itself, for whoever has to tell the author. */
+  const assetStorage = async () => { const store = await assetStoreReady; return { persistent: store.persistent, reason: store.reason }; };
   // The options bar under the vector toolbar: what a new shape is painted
   // with, a polygon's sides, the grid, and the Node tool's point operations.
   // UI preferences, remembered in the browser, never part of the project.
@@ -641,7 +643,7 @@ export function createEditorApp({ root = document.getElementById('app'), recover
   // stop, swap, clear undo and re-baseline in the same order, and that can be
   // exercised without a browser.
   const projectService = createProjectService({
-    store, history, canvas, preview, timeline, autosave, assets,
+    store, history, canvas, preview, timeline, autosave, assets, assetStorage,
     setStatus: (message, tone) => shell.setStatus(message, tone),
     setProjectLoaded: (loaded) => shell.setProjectLoaded(loaded),
     closeHome: () => shell.closeHome(),
@@ -688,7 +690,9 @@ export function createEditorApp({ root = document.getElementById('app'), recover
   // as a missing feature (app/picture-drop.js).
   createPictureDrop(shell.canvasEl, {
     isReady: () => Boolean(store.getDocument()?.svgMarkup),
-    onPicture: (file) => projectService.addImageFile(file),
+    // Dropped where it was aimed: the canvas turns the client point into
+    // artwork units, and a drop outside the working area is clamped into it.
+    onPicture: (file, where) => projectService.addImageFile(file, { at: where ? canvas.artworkPointAt(where.clientX, where.clientY) : null }),
     setStatus: (message, tone) => shell.setStatus(message, tone)
   });
   shell.bindAddBaseImage(withArtwork((file) => projectService.addBaseImageFile(file)));

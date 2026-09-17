@@ -2,6 +2,10 @@ import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { goToArtwork, openFreshEditor } from './editor-helpers.js';
+import { readZip } from '../../project/editor/core/export/zip.js';
+
+/** The one asset the project holds, as the archive will name it. */
+const assetId = (page) => page.evaluate(() => Object.keys(window.__BOOP_E2E__.document().assets)[0]);
 
 /**
  * Importing a picture, in a browser.
@@ -24,8 +28,8 @@ const watchForTrouble = (page) => {
   return trouble;
 };
 
-const openReadyMadeFace = async (page) => {
-  await openFreshEditor(page);
+const openReadyMadeFace = async (page, options = {}) => {
+  await openFreshEditor(page, options);
   await page.getByRole('button', { name: 'Start from the ready-made face' }).click();
   // The canvas has a project on it, which is the state every test below needs.
   await expect(page.locator('#app[data-project-loaded="true"], #app[data-mode]')).toHaveCount(1);
@@ -130,7 +134,7 @@ test('@critical a project with pictures saves as a package and opens without the
 
 test('@critical a mascot of pictures exports as one archive that carries them', async ({ page }) => {
   const trouble = watchForTrouble(page);
-  await openReadyMadeFace(page);
+  await openReadyMadeFace(page, { e2e: true });
   await page.setInputFiles('#artwork-image-file', PICTURE);
   await expect(page.locator('svg image')).toHaveCount(1);
 
@@ -144,31 +148,63 @@ test('@critical a mascot of pictures exports as one archive that carries them', 
     page.locator('[data-download-artifact="mascot-export.zip"]').click()
   ]);
   expect(download.suggestedFilename()).toBe('mascot-export.zip');
+
+  // Opened, not just named. Reading the pictures out of the store is the one
+  // asynchronous step in a download, and it lives in a loop that no test
+  // reached: the unit suite feeds `createExportArtifacts` a map it built
+  // itself, and this asserted a filename. A zip called `mascot-export.zip`
+  // with nothing in it passes both.
+  const entries = await readZip(new Uint8Array(readFileSync(await download.path())));
+  expect([...entries.keys()].sort()).toEqual(['assets/' + (await assetId(page)) + '.webp', 'mascot.svg', 'rig.json', 'runtime.js']);
+  // Byte for byte the file that was imported, so the page draws the picture
+  // the author chose rather than something re-encoded on the way out.
+  expect(Buffer.from(entries.get('assets/' + (await assetId(page)) + '.webp'))).toEqual(readFileSync(PICTURE));
+  // And the artwork points at the file rather than at a scheme no browser has.
+  const svg = new TextDecoder().decode(entries.get('mascot.svg'));
+  expect(svg).not.toMatch(/asset:/);
+  expect(svg).toContain('assets/' + (await assetId(page)) + '.webp');
   expect(trouble).toEqual([]);
 });
 
 test('@critical a picture dropped on the mascot is added where it was dropped on', async ({ page }) => {
   const trouble = watchForTrouble(page);
-  await openReadyMadeFace(page);
+  await openReadyMadeFace(page, { e2e: true });
 
   // The gesture people reach for first. Built in the page, because a real
   // `DataTransfer` is the only thing the handler is written against.
   const bytes = [...readFileSync(PICTURE)];
-  const hinted = await page.evaluate(({ bytes }) => {
+  // Aimed well away from the middle, because the middle is where a picture
+  // lands when nobody says otherwise — and for a while that is what a drop did
+  // too, while this test's name said it did not.
+  const box = await page.locator('#canvas').boundingBox();
+  const aim = { clientX: Math.round(box.x + box.width * 0.3), clientY: Math.round(box.y + box.height * 0.72) };
+  const hinted = await page.evaluate(({ bytes, aim }) => {
     const transfer = new DataTransfer();
     transfer.items.add(new File([new Uint8Array(bytes)], 'dropped.webp', { type: 'image/webp' }));
     const canvas = document.querySelector('#canvas');
-    canvas.dispatchEvent(new DragEvent('dragenter', { dataTransfer: transfer, bubbles: true }));
-    canvas.dispatchEvent(new DragEvent('dragover', { dataTransfer: transfer, bubbles: true }));
+    canvas.dispatchEvent(new DragEvent('dragenter', { dataTransfer: transfer, bubbles: true, ...aim }));
+    canvas.dispatchEvent(new DragEvent('dragover', { dataTransfer: transfer, bubbles: true, ...aim }));
     const showed = canvas.classList.contains('picture-drop-over');
-    canvas.dispatchEvent(new DragEvent('drop', { dataTransfer: transfer, bubbles: true }));
+    canvas.dispatchEvent(new DragEvent('drop', { dataTransfer: transfer, bubbles: true, ...aim }));
     return showed;
-  }, { bytes });
+  }, { bytes, aim });
 
   expect(hinted, 'the canvas says it will take the drop').toBe(true);
   await expect(page.locator('svg image')).toHaveCount(1);
   await expect(page.locator('svg image').first()).toHaveAttribute('href', /^blob:/);
   await expect(page.locator('#canvas.picture-drop-over')).toHaveCount(0);
+
+  // Where it was dropped, which is what this test is named after: the picture's
+  // centre lands under the pointer, in artwork units, rather than in the middle
+  // of the artboard.
+  const node = page.locator('svg image').first();
+  const placed = await node.evaluate((image) => ({
+    cx: Number(image.getAttribute('x')) + Number(image.getAttribute('width')) / 2,
+    cy: Number(image.getAttribute('y')) + Number(image.getAttribute('height')) / 2
+  }));
+  const dropped = await page.evaluate(({ aim }) => window.__BOOP_E2E__.artworkPointAt(aim.clientX, aim.clientY), { aim });
+  expect(Math.abs(placed.cx - dropped.x)).toBeLessThan(1);
+  expect(Math.abs(placed.cy - dropped.y)).toBeLessThan(1);
   expect(trouble).toEqual([]);
 });
 

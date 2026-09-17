@@ -60,3 +60,27 @@ test('rewriting touches references and nothing else',()=>{
   for (const markup of ['<image href="#head"/>', '<use href="#a"/>', '<image href="http://x/a.png"/>', '<image href="asset:nope"/>'])
     assert.equal(rewriteAssetReferences(markup, shipped),markup);
 });
+
+test('an export carries the pictures the mascot draws, and not the ones it used to',()=>{
+  // A project keeps every picture ever imported into it: replacing one leaves
+  // the previous one in the table on purpose, because undo has to be able to
+  // bring it back. None of that is a web page's business — four pictures
+  // shipped to draw one is weight on somebody's site for a history they
+  // cannot see.
+  const state = { ...stateWith(ID), assets: { [ID]: asset(ID), [OTHER]: asset(OTHER, 'image/png') } };
+  const files = exported(state);
+  assert.ok(files.some((file) => file.name === `assets/${ID}.webp`),'what the artwork points at is shipped');
+  assert.equal(files.some((file) => file.name === `assets/${OTHER}.png`),false,'what nothing points at is not');
+  assert.equal(files.length,EXPORT_ARTIFACTS.length + 1);
+
+  // Read from the markup that is about to be written, not from the table: a
+  // node deleted on the canvas takes its picture out of the archive with it,
+  // even before the document has caught up.
+  const stale = { svgMarkup: '<svg xmlns="http://www.w3.org/2000/svg"><circle id="head" r="4"/></svg>', assets: { [ID]: asset(ID) } };
+  assert.deepEqual(exported(stale).map((file) => file.name),EXPORT_ARTIFACTS.map((item) => item.name));
+
+  // And a reference that lives on an element rather than in the markup still
+  // counts, because `assetReferencesIn` reads both.
+  const onElement = { svgMarkup: '<svg xmlns="http://www.w3.org/2000/svg"><image id="p0"/></svg>', elements: { p0: { meta: { assetRef: assetRef(ID) } } }, assets: { [ID]: asset(ID) } };
+  assert.ok(exported(onElement).some((file) => file.name === `assets/${ID}.webp`));
+});

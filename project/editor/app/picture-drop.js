@@ -37,7 +37,7 @@ export function picturesIn(dataTransfer) {
  * @param {Element} host the canvas, or whatever the mascot is drawn in
  * @param {object} options
  * @param {() => boolean} options.isReady whether there is a project to drop onto
- * @param {(file: File) => Promise<unknown>} options.onPicture
+ * @param {(file: File, where: {clientX: number, clientY: number}) => Promise<unknown>} options.onPicture
  * @param {(message: string, tone?: string) => void} [options.setStatus]
  * @param {string} [options.activeClass] a class while a picture is over the canvas
  * @returns {() => void} stop listening
@@ -68,9 +68,21 @@ export function createPictureDrop(host, { isReady = () => true, onPicture, setSt
       setStatus(rejected === 1 ? 'That file is not a picture this editor can read — PNG, WebP or SVG.' : `None of those ${rejected} files is a picture this editor can read — PNG, WebP or SVG.`, 'error');
       return;
     }
+    /**
+     * Where the drop landed, passed on with the file.
+     *
+     * The gesture carries an intent that a button cannot: a file dragged onto
+     * the mascot's left eye was aimed there. Without this every drop was
+     * placed in the middle of the artboard like a press on *Add picture*, and
+     * the author's first act was to drag the thing they had just dragged.
+     *
+     * Client coordinates, because that is what the canvas converts from and
+     * this module knows nothing about artwork units.
+     */
+    const where = { clientX: event.clientX, clientY: event.clientY };
     // One at a time and in order, so several dropped together land in the
     // order they were dropped and each is its own undo step.
-    for (const file of pictures) await onPicture(file);
+    for (const file of pictures) await onPicture(file, where);
     if (rejected) setStatus(`${rejected} of those files ${rejected === 1 ? 'was' : 'were'} not a picture, and ${rejected === 1 ? 'it was' : 'they were'} left out.`, 'warn');
   };
 

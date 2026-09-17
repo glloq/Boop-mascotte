@@ -1,4 +1,5 @@
 import { normalizeAssets } from '../assets/asset-model.js';
+import { assetReferencesIn } from '../assets/asset-manager.js';
 import { parseAssetRef } from '../../../runtime/asset-reference.js';
 import { hasValidProjectDocument } from '../state/project-snapshot.js';
 
@@ -52,6 +53,16 @@ export function createExportUiModel(state) {
  * an asset store and this does not. A picture it cannot supply is reported
  * rather than shipped as a dead link.
  *
+ * **Only the pictures the artwork points at are shipped.** A project keeps
+ * every picture that was ever imported into it -- replacing one leaves the
+ * previous one in the table, deliberately, because undo has to be able to
+ * bring it back (docs/V4_ROADMAP.md, V4-032). None of that is any business of
+ * a web page: an export that carries four pictures to draw one is weight on
+ * somebody's site for a history they cannot see. The artwork that is being
+ * shipped is the list, read from the markup that is about to be written rather
+ * than from the table, so a node deleted on the canvas takes its picture out
+ * of the archive with it.
+ *
  * @param {(id: string) => Uint8Array|null} [options.assetBytes]
  * @returns {{name: string, type: string, content: string|Uint8Array}[]}
  */
@@ -61,8 +72,10 @@ export function createExportArtifacts({ state, serializeSvg, createRig, runtimeS
     throw new Error('Cannot export a project without a valid SVG document');
   }
   const assets = normalizeAssets(state?.assets);
+  const drawn = assetReferencesIn({ svgMarkup: svg, elements: state?.elements });
   const files = [], shipped = new Map();
   for (const asset of Object.values(assets)) {
+    if (!drawn.has(asset.id)) continue;
     const bytes = assetBytes(asset.id);
     if (!bytes) continue;
     const name = exportedAssetName(asset);

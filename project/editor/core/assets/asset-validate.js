@@ -68,7 +68,11 @@ function readPng(bytes) {
     for (let at = 8; at + 8 <= bytes.length;) {
       const size = be32(bytes, at), name = tag(bytes, at + 4);
       if (name === 'tRNS') { alpha = true; break; }
-      if (name === 'IDAT' || name === 'IEND' || !Number.isFinite(size)) break;
+      if (name === 'IDAT' || name === 'IEND') break;
+      // `be32` is unsigned, so `size` is always a number and always at least
+      // zero: a chunk length longer than the file walks `at` off the end and
+      // the loop condition stops it. Every step is at least 12 bytes, so this
+      // terminates on any input.
       at += 12 + size;
     }
   }
