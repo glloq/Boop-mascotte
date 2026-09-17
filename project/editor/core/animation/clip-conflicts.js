@@ -125,7 +125,7 @@ function valueAt(placement, parameter, at) {
  * A sweep over the span boundaries: every gap between two consecutive edges has
  * one fixed set of writers, and neighbouring gaps with the same set are one
  * conflict, not two. Spans are half-open — clips that only touch at an instant
- * do not overlap, the same rule `assignEdgeLanes` uses for its lanes.
+ * do not overlap, the same rule a diagram uses to decide two things can share a row.
  */
 function overlapSegments(writers, minimumOverlap) {
   const edges = [...new Set(writers.flatMap((writer) => [writer.start, writer.end]))].sort((a, b) => a - b);

@@ -92,6 +92,8 @@ export function createE2EHooks({
     nodeEdit: () => canvas.getNodeEdit(),
     editScope: () => canvas.getEditScope?.() ?? null,
     panView: (dx, dy) => canvas.panView(dx, dy),
+    /** A point on screen in artwork units, which is what a drop is placed by. */
+    artworkPointAt: (x, y) => canvas.artworkPointAt(x, y),
     setAuthoredTransform: (id, patch) => { store.setState((state) => Object.assign(state.elements[id].baseTransform, patch)); canvas.applyElementTransform(id, store.getState().elements[id]); },
     setLiveParam: (name, value) => preview.setLiveParam(name, value),
     clearLiveParam: (name) => preview.clearLiveParam(name),

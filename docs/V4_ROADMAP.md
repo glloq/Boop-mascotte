@@ -335,42 +335,104 @@ shape to break.
   key for a picture part is its asset id, and it belongs with whatever asks
   next.
 
-## Phase 6 — Pseudo-3D parity, and masks (4 PRs)
+## Phase 6 — Pseudo-3D parity, and masks (4 PRs) — **done**
 
 | PR | What | Size |
 | --- | --- | --- |
-| **V4-060** | `headYaw` / `headPitch` / `headRoll`, depth, parallax, scale and draw order verified on raster nodes | M |
-| **V4-061** | Far-side compression, scale by yaw, dynamic order | M |
-| **V4-062** | `MaskNode` and clipping in the model and the canvas | L |
-| **V4-063** | The library's parts that need one use it: iris in eye, mouth, hair, muzzle, visor | M |
+| **V4-060** — done | The turn and depth proved on raster nodes against a vector twin, frame by frame | S |
+| **V4-061** — done | Already there: the turn is authored transforms and draw order is depth bands, neither of which asks what a piece is drawn with | S |
+| **V4-062** — done | A picture cuts by its transparency: `<mask mask-type="alpha">` where a shape gives a `<clipPath>` | M |
+| **V4-063** — done | Nothing to do: those all want a *shape* clip, which the cut tool has given them since V3 | S |
 
 **Exit:** a rigid raster face reads at least as well through a full turn as
 the SVG one does.
 
-## Phase 7 — `mesh-image` (4 PRs)
+### What building it corrected
+
+- **Most of this phase already existed.** The turn is a grid of authored
+  per-element transforms and the draw order is depth bands; neither ever asked
+  what a piece was drawn with. V4-060 became a proof rather than a build: the
+  same turn over a raster mascot and its vector twin, compared at every corner
+  of the grid.
+- **Clipping already existed too.** The cut tool has been able to clip any
+  piece to any shape since V3, so the parts V4-063 named — iris, mouth, hair,
+  muzzle, visor — were already served.
+- **What was actually missing is alpha.** A `<clipPath>` cuts to an outline,
+  and a picture's outline is its rectangle, so cutting *with* a picture cut to
+  a box — never what anyone means. A picture now becomes a
+  `<mask mask-type="alpha">`, and `releaseClip` takes off whichever attribute
+  is doing the cutting.
+- **A mask lives in `<defs>`,** which is exactly where a serializer is easiest
+  to forget: the test asserts the mask's own picture is stored as a reference
+  and comes back painted after a reload.
+
+## Phase 7 — `mesh-image` (4 PRs) — **done**
 
 Only now.
 
 | PR | What | Size |
 | --- | --- | --- |
-| **V4-070** | `MeshImageNode` in the model: vertices, UV, mask, depth, deformers. 3×3 and 4×4 presets only | M |
-| **V4-071** | The `MeshImageRenderer` interface — `loadTexture` / `updateVertices` / `updateUV` / `applyMask` / `render` — with no implementation chosen | S |
-| **V4-072** | The first implementation behind it, measured against V4-004 | L |
-| **V4-073** | The three cases: bird's lower beak, human cheek and mouth, animal muzzle | M |
+| **V4-070** — done | `meshes` beside `warps` in the rig: target, size, moved points in unit space | M |
+| **V4-071** — done | No interface was needed: the answer is SVG, and an interface to defer a choice already made is ceremony | S |
+| **V4-072** — done | Triangles of the same picture, each clipped and carrying its own affine | M |
+| **V4-073** — done | One mechanism, so the three cases are the same case: any picture, 3×3 or 4×4, any piece | S |
 
 **Exit:** all three deform through one mechanism. If they do not, the model is
 wrong and Phase 8 does not start.
 
-`core/keyforms/` and `core/warp/` already carry the interpolation maths; what
-is missing is textured rendering, which is why V4-071 defers the choice.
+### What building it corrected
 
-## Phase 8 — The mesh editor (3 PRs)
+- **No renderer had to be chosen, because SVG could already do it.** A mesh is
+  drawn as triangles of the *same* picture, each clipped to its own triangle
+  and carrying the affine that maps its rest triangle onto its moved one. No
+  WebGL context, no texture upload, and — the real prize — no second answer to
+  any question this codebase has already answered: the sanitizer, the
+  serializer, the asset resolver and undo all keep working because nothing new
+  is being drawn, only more of what is. An exported mascot bends with no code
+  of ours running at all.
+- **So V4-071's interface was dropped.** An interface exists to defer a choice;
+  the measurement made the choice, and deferring it afterwards is ceremony.
+- **Triangles, not quads**, because three points determine an affine exactly
+  and a quad would need a projective transform, which SVG cannot express.
+- **Every cell splits along the same diagonal.** Alternating makes a
+  deformation fold differently in neighbouring cells, which reads as a crease
+  nobody put there.
+- **Each triangle's clip is grown by a hair.** Two clips meeting exactly on a
+  line leave a background hairline wherever the rasteriser rounds both sides
+  the same way.
+- **`preserveAspectRatio="none"` on every piece**, or each copy letterboxes
+  inside its own box and the pieces stop lining up.
+- **A bent picture is still a picture to the Inspector.** Reading only
+  `<image>` made bending a one-way door: the section vanished the moment it was
+  turned on, taking with it the control that turns it off.
+- **`projectVersion` moves to 5,** because a reader that drops the mesh list
+  drops a deformation its author made. `RIG_SCHEMA_VERSION` does not: a runtime
+  that ignores meshes draws the picture at rest, which is undeformed rather
+  than wrong.
+
+## Phase 8 — The mesh editor (3 PRs) — **done**
 
 | PR | What | Size |
 | --- | --- | --- |
-| **V4-080** | Enable deformation on an image node; drag control points; reset | L |
-| **V4-081** | Presets, symmetry, mirroring, preview, undo per gesture | M |
-| **V4-082** | Mesh bound to drivers, so `mouthOpen` 0 → 1 interpolates between two meshes | M |
+| **V4-080** — done | Bending switched on from the Inspector; nine or sixteen handles over a lattice; drag and flatten | L |
+| **V4-081** — done | 3×3 and 4×4, Alt to move the mirror, the picture bending under the pointer, one undo per drag | M |
+| **V4-082** — done | A mesh carries a driver and a second shape; the canvas and the exported runtime write it from the same function | M |
+
+### What building it corrected
+
+- **A bug the bundle list had been hiding.** `runtime.js` reaches for the
+  asset modules (since V4-024) and now the mesh one, and none of them was in
+  `RUNTIME_MODULES` — which is not a build error: the bundler strips the
+  import and the name is simply undefined at the moment something calls it. A
+  standalone runtime that throws on a mascot made of pictures while working
+  perfectly on one made of paths. There is a test that reads what `runtime.js`
+  imports and asserts the bundle carries all of it.
+- **A point may leave its picture's box.** Clamping at 0 and 1 would forbid the
+  most ordinary thing this is for — pulling a mouth open is pulling past the
+  edge of the drawing.
+- **Capture, don't edit a second pose.** Two editable shapes means a mode, and
+  a mode means an author who cannot tell which one they are looking at. The
+  open shape is captured from the one on screen, exactly as a shape key is.
 
 ## Phases 9–10 — Behavior (parallel branch)
 
@@ -380,23 +442,106 @@ workspace exists (`app/workspaces/behavior.js`, `animation-editor/behaviors/`,
 
 | PR | What | Size |
 | --- | --- | --- |
-| **V4-090** | One vocabulary behind both surfaces: simple and graph edit the same objects | M |
-| **V4-091** | The simple surface: `WHEN → IF → DO` | L |
-| **V4-092** | The four labels made true in the UI: Design / Rig / Animation / Behavior | S |
-| **V4-100** | Nodes carry a saved position. `state-machine/transition-graph.js` computes positions itself today (43 lines, one row, lanes above it) — this replaces that with stored layout | M |
-| **V4-101** | Pan, zoom, drag | M |
-| **V4-102** | Links drawn and edited on the canvas | L |
-| **V4-103** | Live highlight: active state and firing transition | M |
-| **V4-104** | Trigger simulation — MIDI, audio, timers | M |
-| **V4-105** | Multi-selection, groups, auto-layout | M |
-| **V4-106** | Comments | S |
+| **V4-090** | ✅ The **IF**: conditions in the runtime, behind `reaction:condition` | M |
+| **V4-091** | ✅ The simple surface: `WHEN → IF → DO`, as four clauses of one sentence | L |
+| **V4-092** | ✅ The four labels made true for a mascot made of pictures, and a picture is a way to *begin* one | S |
+| **V4-100** | ✅ Nodes carry a saved position. `state-machine/transition-graph.js` computed positions itself (43 lines, one row, lanes above it) — replaced with stored layout | M |
+| **V4-101** | ✅ Pan, zoom, drag | M |
+| **V4-102** | ✅ Links drawn and edited on the canvas | L |
+| **V4-103** | ✅ Live highlight: active state and firing transition | M |
+| **V4-104** | ⏸ Trigger simulation — MIDI, audio, timers. **Not built, on purpose**: see below | M |
+| **V4-105** | ✅ Multi-selection, groups, auto-layout | M |
+| **V4-106** | ✅ Comments | S |
+
+### What building V4-090/091 corrected
+
+- **The IF was never a UI problem.** The panel had refused to draw one for
+  three roadmaps, and the comment saying why is still at the top of
+  `ui/reaction-studio.js`: the runtime had no conditions, so a condition in the
+  panel would be UI for something that cannot run (VNX-39). The work was
+  therefore 90 % runtime and 10 % panel, in that order — `runtime/reaction-conditions.js`
+  first, the clause second.
+- **A condition is not additive, and that decides the whole design.** A runtime
+  that does not know about one does not skip the reaction; it fires it
+  unconditionally, which is the reaction behaving as something else. So a rig
+  carrying one asks for `reaction:condition` in `requires`, exactly as a
+  `gaze-follow` trigger does, and an older build declines the rig by name.
+- **A condition nobody can read is dropped by the runtime and refused by the
+  command.** The two are not in conflict: a file written elsewhere must not
+  cost the mascot its other conditions, and a row somebody is typing into must
+  not vanish under the pointer with no word about why.
+- **Every, not any.** An author listing two things is describing one situation.
+  "Or" is two reactions, which this panel could already make; an expression
+  language in a fieldset is a programming language with no error messages.
+- **The vocabulary is the project's own.** A condition names a movement from
+  `document.params` rather than a fixed table, so a hand pose added this
+  morning is testable this afternoon. A condition naming something the mascot
+  has no way to be is reported — a reaction that never runs looks exactly like
+  a reaction nobody noticed.
+
+### What building V4-092 and Phase 10 corrected
+
+- **Home had no way to begin with a picture.** A mascot could be made of
+  pictures since Phase 1, and the first page offered *New mascot*, *Open a
+  project* and *Import an SVG*. An author arriving with three PNGs had to make
+  a template mascot they did not want, find *Artwork* behind the Design
+  chevron, and find *Import head / base* inside it: three presses, none of them
+  named after what they came to do. Both picture imports also assumed there was
+  already artwork to append to — true while the only way to reach them was a
+  column inside a project, and false the moment Home offered one.
+- **The labels were already the right four words**; what was not true of them
+  was the mascot they described. Each workspace's hint named drawings only, so
+  an author with photographs read past every one.
+- **A diagram's positions are authored data.** That single decision is Phase 10.
+  The old renderer recomputed every position on each render, so there was no
+  such thing as moving a node — only watching it be placed. Positions live in
+  the `stateMachine` domain, undo like a transition, save with the project, and
+  never reach `rig.json`: the runtime runs a state machine without drawing one.
+- **A node dragged pins every node.** Moving one node writes down *all* of
+  them, at the place they were already being drawn. Otherwise the dragged one is
+  fixed and the rest stay free to jump the next time a state is added.
+- **A label has to be drawn against the zoom.** Scaled with the scene, a 10 px
+  label is four pixels at the zoom that fits a machine into this column. The
+  first version hid labels below a threshold — and hiding a label makes the
+  transition it names unclickable. Counter-scaling through a custom property on
+  the scene keeps one readable size at every zoom, and keeps a pan or a zoom to
+  one style write on one element.
+- **The state editor is in the wrong column, and this did not fix that.** It is
+  a ~260 px sidebar, so a four-state machine fits at 47 %. The geometry was
+  shrunk to make that bearable; the real answer is that a graph wants the
+  canvas, and that is a shell change, not a graph change.
+- **V4-104 was cut rather than faked.** "Trigger simulation — MIDI, audio,
+  timers" would have been a panel for inputs the runtime does not have. That is
+  exactly the mistake VNX-39 is about, and exactly the one V4-090 spent a
+  roadmap avoiding: the triggers that exist are simulated already, by the event
+  simulator (UX-14). MIDI and audio are runtime work first, a panel second.
 
 ## Phase 11 — Validation and release (2 PRs)
 
 | PR | What | Size |
 | --- | --- | --- |
-| **V4-110** | Four reference mascots plus one hybrid, through the whole matrix: historic SVG, raster, mixed, replaced asset, shared asset, personal head, `.boop`, autosave, mesh, masks, pseudo-3D, behavior, runtime parity, memory, FPS, corrupt project | L |
-| **V4-111** | Release notes, `docs/IMPLEMENTATION_STATUS.md`, `docs/KNOWN_LIMITATIONS.md` | S |
+| **V4-110** | ✅ Five reference mascots through the whole matrix: historic SVG, raster, mixed, personal head, bent-and-masked; versions, round-trips, `.boop`, shared and replaced assets, export, runtime parity, sanitising, corruption, one frame ceiling | L |
+| **V4-111** | ✅ `docs/V4_RELEASE_NOTES.md`, `docs/IMPLEMENTATION_STATUS.md`, `docs/KNOWN_LIMITATIONS.md` | S |
+
+### What building Phase 11 corrected
+
+- **A fixture assembled by hand is not a project.** The first version of
+  `tests/helpers/reference-mascots.js` built its states from
+  `createCleanProjectState`, which leaves `parallax` null — and
+  `createProjectDocument`, which every real project goes through, normalizes it
+  into a block. So the matrix reported that the editor and the exported rig
+  disagreed about depth, and the disagreement was entirely in the fixture. The
+  reference mascots go through `normalizeRig` and `createProjectDocument` now,
+  which is the pair a template load goes through.
+- **"The document does not carry pixels" has to be measured scale-free.**
+  Comparing the document's size against the bytes of its pictures fails on a
+  mascot with one small fixture, for no reason anybody cares about. What the
+  matrix measures instead is the difference the asset table makes — under 300
+  bytes per picture — which is the claim ASSET-REF actually makes and is true of
+  a 4 MB photograph.
+- **The five reference mascots are a fixture, not a test.** They live in
+  `tests/helpers/` so anything else can reach them; a fixture only one file can
+  use is a fixture that rots.
 
 ## Dependencies
 

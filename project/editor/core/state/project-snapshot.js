@@ -2,6 +2,8 @@ import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
 import { normalizeRig } from '../rig/normalize-rig.js';
 import { canOpenProjectVersion, projectVersionFor, projectVersionOf } from './project-version.js';
 import { normalizeAssets } from '../assets/asset-model.js';
+import { normalizeMeshes } from '../../../runtime/mesh-warp.js';
+import { normalizeGraphLayout } from '../state-machine/graph-layout.js';
 import { migrateProject } from './migrations/project-migrations.js';
 
 /**
@@ -21,7 +23,7 @@ export function createProjectSnapshot(state, serializeSvg) {
     schemaVersion: RIG_SCHEMA_VERSION, params: state.params, states: state.states, elements: state.elements,
     activeState: state.activeState, transitions: state.transitions, transitionSettings: state.transitionSettings,
     globalConstraints: state.globalConstraints, stateConstraints: state.stateConstraints,
-    runtimeConfig: state.runtimeConfig, behaviors: state.behaviors, keyforms: state.keyforms, shapeKeys: state.shapeKeys, warps: state.warps, rigPins: state.rigPins, rigConstraints: state.rigConstraints, rigAttachments: state.rigAttachments, rigHolds: state.rigHolds, hands: state.hands, deformers: state.deformers, parallax: state.parallax, followers: state.followers, expressionBlend: state.expressionBlend, motionBlend: state.motionBlend, gazeSolver: state.gazeSolver
+    runtimeConfig: state.runtimeConfig, behaviors: state.behaviors, keyforms: state.keyforms, shapeKeys: state.shapeKeys, warps: state.warps, meshes: state.meshes, rigPins: state.rigPins, rigConstraints: state.rigConstraints, rigAttachments: state.rigAttachments, rigHolds: state.rigHolds, hands: state.hands, deformers: state.deformers, parallax: state.parallax, followers: state.followers, expressionBlend: state.expressionBlend, motionBlend: state.motionBlend, gazeSolver: state.gazeSolver
   });
   const document = {
     svgMarkup: serializeSvg ? serializeSvg() : (state.svgMarkup || ''),
@@ -31,7 +33,7 @@ export function createProjectSnapshot(state, serializeSvg) {
     // project concern, and the runtime rig schema knows nothing about it.
     assets: normalizeAssets(state.assets),
     rig,
-    editor: { semanticParts: structuredClone(state.semanticParts || {}), animationClips: structuredClone(state.animationClips || []), expressions: structuredClone(state.expressions || []), reactions: structuredClone(state.reactions || []), animationEditor: structuredClone(state.animationEditor || {}), rigHandles: structuredClone(state.rigHandles || []), rigLinks: structuredClone(state.rigLinks || []), arrangement: structuredClone(state.arrangement || { placements: [] }) }
+    editor: { semanticParts: structuredClone(state.semanticParts || {}), animationClips: structuredClone(state.animationClips || []), expressions: structuredClone(state.expressions || []), reactions: structuredClone(state.reactions || []), animationEditor: structuredClone(state.animationEditor || {}), rigHandles: structuredClone(state.rigHandles || []), rigLinks: structuredClone(state.rigLinks || []), arrangement: structuredClone(state.arrangement || { placements: [] }), graphLayout: normalizeGraphLayout(state.graphLayout) }
   };
   // The oldest reader that can still read it, not the newest thing that wrote
   // it: a project that gained nothing new stays openable by an editor that
@@ -74,6 +76,9 @@ export function applyProjectSnapshot(state, snapshot) {
   state.keyforms = Array.isArray(rig.keyforms) ? structuredClone(rig.keyforms) : [];
   state.shapeKeys = Array.isArray(rig.shapeKeys) ? structuredClone(rig.shapeKeys) : [];
   state.warps = Array.isArray(rig.warps) ? structuredClone(rig.warps) : [];
+  // Additive since V4: a snapshot written before meshes has none, which is
+  // every picture drawn at rest.
+  state.meshes = normalizeMeshes(rig);
   // Additive since the control rig: a snapshot written before pins has none.
   state.rigPins = Array.isArray(rig.rigPins) ? structuredClone(rig.rigPins) : [];
   state.rigConstraints = Array.isArray(rig.rigConstraints) ? structuredClone(rig.rigConstraints) : [];
@@ -100,6 +105,11 @@ export function applyProjectSnapshot(state, snapshot) {
   state.rigLinks = Array.isArray(editor.rigLinks) ? structuredClone(editor.rigLinks) : [];
   // Additive: a snapshot written before clips could be arranged simply has none.
   state.arrangement = editor.arrangement && typeof editor.arrangement === 'object' ? structuredClone(editor.arrangement) : { placements: [] };
+  // Where the state machine is drawn (Phase 10). Editor-side: it adds no
+  // runtime concept and never reaches `rig.json`, so it sits beside the
+  // arrangement rather than inside the rig. A project laid out by the old
+  // renderer has none, and auto-layout answers for every state that has none.
+  state.graphLayout = normalizeGraphLayout(editor.graphLayout);
   // Additive since UX-09: older snapshots simply have no expressions.
   state.expressions = Array.isArray(editor.expressions) ? structuredClone(editor.expressions) : [];
   // Additive since UX-13: older snapshots simply have no reactions.
@@ -141,6 +151,7 @@ export function prepareProjectSnapshot(snapshot, sanitizeSvg) {
   prepared.document.editor.rigHandles = candidate.rigHandles;
   prepared.document.editor.rigLinks = candidate.rigLinks;
   prepared.document.editor.arrangement = candidate.arrangement;
+  prepared.document.editor.graphLayout = candidate.graphLayout;
   delete prepared.document.selectedId;
   return prepared;
 }

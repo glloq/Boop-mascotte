@@ -8,7 +8,8 @@ import { createHistory } from '../undo/history.js';
 import { createPreviewController } from '../preview-runtime/preview-controller.js';
 import { createClip, addTrack, upsertKeyframe } from '../../animation-editor/timeline/clip-operations.js';
 import { duplicateSelectedKeys } from '../../animation-editor/timeline/timeline-operations.js';
-import { assignEdgeLanes, renderTransitionGraph } from '../../animation-editor/state-machine/transition-graph.js';
+import { linkBows } from '../../core/state-machine/graph-layout.js';
+import { renderStateGraph } from '../../animation-editor/state-machine/graph-view.js';
 import { createExpressionCommands } from '../expressions/expression-commands.js';
 import { expressionBlend } from '../expressions/expression-model.js';
 import { createExportRig } from '../export/export-rig.js';
@@ -37,16 +38,23 @@ test('duplicating keys never overwrites a key that is already there', () => {
 });
 
 /* § 7 — every edge used to be drawn at one height, so a pair hid each other. */
-test('transition edges take separate lanes so every one of them is clickable', () => {
-  assert.deepEqual(assignEdgeLanes([{ left: 110, right: 190 }, { left: 110, right: 190 }]), [0, 1], 'A→B and B→A cannot share a rectangle');
-  assert.deepEqual(assignEdgeLanes([{ left: 110, right: 190 }, { left: 260, right: 340 }]), [0, 0], 'edges that do not overlap share a lane');
-  assert.deepEqual(assignEdgeLanes([{ left: 110, right: 190 }, { left: 110, right: 340 }]), [0, 1], 'an edge drawn across a node gets its own lane');
+test('every transition is drawn on its own curve, so every one of them is clickable', () => {
+  // The lane renderer this replaces (Phase 10) drew edges as bars above a row
+  // of nodes and had to assign lanes so a pair did not land on one rectangle.
+  // Curves need no lanes: a pair bows opposite ways, and everything else is
+  // drawn straight because leaning for no reason is noise.
+  const transitions = { Idle: ['Happy', 'Angry'], Happy: ['Idle'] };
+  const bows = linkBows(transitions);
+  assert.equal(bows.get('Idle->Happy') + bows.get('Happy->Idle'), 0, 'a pair bows apart');
+  assert.notEqual(bows.get('Idle->Happy'), 0);
+  assert.equal(bows.get('Idle->Angry'), 0, 'and a link with no opposite is drawn straight');
 
-  const rig = { states: { Idle: {}, Happy: {}, Angry: {} }, transitions: { Idle: ['Happy', 'Angry'], Happy: ['Idle'] }, activeState: 'Idle' };
-  const html = renderTransitionGraph(rig, 'Idle', null);
-  const tops = [...html.matchAll(/graph-edge[^>]*top:(-?\d+)px/g)].map((match) => Number(match[1]));
-  assert.equal(new Set(tops).size, tops.length, 'no two edges land on the same row');
-  assert.ok(tops.every((top) => top >= 0), 'and none of them is clipped off the top');
+  const rig = { states: { Idle: {}, Happy: {}, Angry: {} }, transitions, activeState: 'Idle' };
+  const html = renderStateGraph(rig, {});
+  const hits = [...html.matchAll(/class="graph-link-hit" d="([^"]+)" data-select-transition="([^"]+)"/g)];
+  assert.equal(hits.length, 3, 'one hit target per transition');
+  assert.equal(new Set(hits.map((match) => match[2])).size, 3, 'each one selects its own transition');
+  assert.equal(new Set(hits.map((match) => match[1])).size, 3, 'and no two of them are the same curve');
 });
 
 /* § 3.1 — the cross-fade was shipped, exported and unreachable. */

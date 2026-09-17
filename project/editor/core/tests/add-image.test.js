@@ -13,16 +13,15 @@ const file = (name) => readFileSync(new URL(`./fixtures/assets/${name}`, import.
 /** A `File`, as the service reads one: a name, a type and some bytes. */
 const fileOf = (name, bytes, type = '') => ({ name, type, arrayBuffer: async () => bytes });
 
-function harness({ assets = true } = {}) {
+function harness({ assets = true, assetStore = createMemoryAssetStore(), assetStorage = async () => null, status = [] } = {}) {
   const store = createEditorStore(Object.assign(createCleanProjectState(), {
     svgMarkup: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><circle id="head" r="10"/></svg>',
     elements: { head: { baseTransform: { x: 0, y: 0 } } }, layers: [{ id: 'head', type: 'circle', name: 'head', children: [] }]
   }));
   const history = createHistory(store);
-  const status = [], refreshed = [];
-  const assetStore = createMemoryAssetStore();
+  const refreshed = [];
   const service = createProjectService({
-    store, history,
+    store, history, assetStorage,
     assets: assets ? createAssetManager({ store: assetStore }) : null,
     canvas: {
       // The real one parses and re-reads the document; this returns what it
@@ -117,6 +116,21 @@ test('an unreadable file is the file being the problem, not the project',async()
   assert.equal(await service.addImageFile({ name: 'gone.png', type: 'image/png', arrayBuffer: async () => { throw new Error('disk'); } }),false);
   assert.match(status[0][0],/Could not read gone\.png/);
   assert.equal(store.getDocument().svgMarkup,before);
+});
+
+test('a store that cannot take the picture says so, instead of blaming the file',async()=>{
+  // A full quota, a transaction another tab is blocking, a browser with no
+  // SubtleCrypto: all of them arrive here as a throw from `import`, and all of
+  // them used to be reported as "Could not read head.webp" -- which sends an
+  // author to look at a file that is perfectly fine.
+  const assetStore = createMemoryAssetStore();
+  assetStore.put = async () => { throw new Error('QuotaExceededError'); };
+  const { service, store, status } = harness({ assetStore });
+  const before = store.getDocument().svgMarkup;
+  assert.equal(await service.addImageFile(fileOf('head.webp', file('alpha-24x17.webp'), 'image/webp')),false);
+  assert.match(status[0][0],/head\.webp could not be stored: QuotaExceededError/);
+  assert.equal(status[0][1],'error');
+  assert.equal(store.getDocument().svgMarkup,before,'and the artwork is untouched');
 });
 
 test('every reference the service writes is one the sanitizer keeps',async()=>{
@@ -225,4 +239,47 @@ test('a head arrives as the thing everything else sits on',async()=>{
   assert.equal(element.depth,0);
   assert.deepEqual([element.baseTransform.pivotX, element.baseTransform.pivotY],[120, 120]);
   assert.match(built.status.at(-1)[0],/is the base/);
+});
+
+test('a browser that cannot keep pictures says so, once, when the first one arrives',async()=>{
+  const said = [];
+  const { service } = harness({ status: said, assetStorage: async () => ({ persistent: false, reason: 'no-indexeddb' }) });
+  assert.equal(await service.addImageFile(fileOf('head.webp', file('alpha-24x17.webp'), 'image/webp')),true);
+  const warnings = said.filter(([, tone]) => tone === 'warn');
+  assert.equal(warnings.length,1);
+  assert.match(warnings[0][0],/will not keep pictures after the tab closes/);
+
+  // Said at the first picture rather than at boot -- a warning about pictures
+  // in front of somebody whose mascot is made of paths is about a feature they
+  // are not using -- and once, because the answer cannot change while the tab
+  // is open.
+  await service.addImageFile(fileOf('mouth.png', file('alpha-16x16.png'), 'image/png'));
+  assert.equal(said.filter(([, tone]) => tone === 'warn').length,1);
+});
+
+test('a store that does keep pictures says nothing at all',async()=>{
+  const said = [];
+  const { service } = harness({ status: said, assetStorage: async () => ({ persistent: true, reason: '' }) });
+  await service.addImageFile(fileOf('head.webp', file('alpha-24x17.webp'), 'image/webp'));
+  assert.deepEqual(said.filter(([, tone]) => tone === 'warn'),[]);
+});
+
+test('replacing a picture with one of a different shape says it will not fill the box',async()=>{
+  // `preserveAspectRatio="xMidYMid meet"` fits a replacement inside the box
+  // the old picture had rather than distorting it — correct, and invisible:
+  // the picture simply arrives smaller than its slot, and nothing said why.
+  const { service, status: said } = replaceHarness();
+  await service.addImageFile(fileOf('mouth.png', file('alpha-16x16.png'), 'image/png'));
+  said.length = 0;
+
+  assert.equal(await service.replaceImageFile('mouth', fileOf('wide.webp', file('alpha-24x17.webp'), 'image/webp')),true);
+  assert.match(said.at(-1)[0],/different shape, so it sits inside the old box/);
+
+  // The same shape has nothing extra to say. 24x17 and 9x5 differ, so the one
+  // that matches is the picture already there.
+  said.length = 0;
+  await service.replaceImageFile('mouth', fileOf('again.webp', file('simple-lossy-48x32.webp'), 'image/webp'));
+  const matched = said.at(-1)[0];
+  await service.replaceImageFile('mouth', fileOf('twice.webp', file('opaque-48x32.webp'), 'image/webp'));
+  assert.doesNotMatch(said.at(-1)[0],/different shape/, `48x32 replacing 48x32: ${matched}`);
 });

@@ -11,6 +11,10 @@ import { createPreviewSession } from '../state/preview-session.js';
  */
 export function createPreviewController({ store, canvas, requestFrame = requestAnimationFrame, cancelFrame = cancelAnimationFrame, now = () => performance.now(), onFrame = () => {}, onError = () => {} }) {
   let raf=0, running=false, destroyed=false, playing=false, generation=0, previewElapsed=0, clipTime=0, transitionElapsed=0, last=0, clipId=null, live={}, transition=null, effective={}, authorState=null, testBehavior=null, lastError=null, behaviorOverrides={};
+  // Which transition is running, by name (V4-103). `transition` carries the two
+  // *poses* it interpolates, which is all the maths needs and nothing a diagram
+  // can highlight: two value maps do not say which arrow is lighting up.
+  let transitionEdge=null;
   // Held still (docs/STILL_WHILE_DESIGNING.md). Where the author is *designing*
   // the mascot -- the Character Builder and Artwork -- nothing the mascot does
   // on its own may move it: a part cannot be placed on a face that is blinking,
@@ -98,14 +102,17 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
   const expressionWeights=createWeightBlender();
   const blendOptions=(options={})=>{const configured=store.getDocument().expressionBlend;return {duration:options.duration??configured?.duration??0,easing:options.easing||configured?.easing||'easeInOut'};};
   const session=createPreviewSession();
-  const syncSession=()=>Object.assign(session,{running,playing,activeClipId:clipId,clipPosed,clipTime,previewElapsed,transitionElapsed,liveParams:live,effectiveParams:effective,transition,previewState:authorState,testBehavior,lastError,heldStill,behaviorOverrides:{...behaviorOverrides},expressionWeights:expressionWeights.values(),activeReaction:reactionController.getActive(),eventLog:eventLog.map(entry=>({...entry}))});
+  const syncSession=()=>Object.assign(session,{running,playing,activeClipId:clipId,clipPosed,clipTime,previewElapsed,transitionElapsed,liveParams:live,effectiveParams:effective,transition,transitionEdge,previewState:authorState,testBehavior,lastError,heldStill,behaviorOverrides:{...behaviorOverrides},expressionWeights:expressionWeights.values(),activeReaction:reactionController.getActive(),eventLog:eventLog.map(entry=>({...entry}))});
   const behaviors=createBehaviorController();
   // A reaction that fires on a timer, or on the mascot being left alone, is the
   // other thing that moves a face nobody is touching, so a held mascot is not
   // due one either. The prompted ones are untouched: a click or a hover is the
   // author asking for something, which is never what holding still is about.
   const liveReactions=()=>{const list=normalizeReactions(store.getDocument());return heldStill?list.filter(item=>!UNPROMPTED_REACTION_TRIGGERS.includes(item.trigger?.type)):list;};
-  const reactionController=createReactionController(()=>({reactions:liveReactions(),clips:store.getDocument().animationClips||[],hands:store.getDocument().hands}));
+  const reactionController=createReactionController(()=>({reactions:liveReactions(),clips:store.getDocument().animationClips||[],hands:store.getDocument().hands}),
+    // The same question the exported runtime asks, from the editor's own
+    // state: a condition tested here and there has to mean the same thing.
+    { context: () => ({ params: effective, state: store.getDocument().activeState }) });
   // Session-only event log for the Preview simulator (newest first, bounded).
   let eventLog=[];const EVENT_LOG_LIMIT=40;const logEvent=(entry)=>{eventLog=[{at:Number(previewElapsed.toFixed(2)),...entry},...eventLog].slice(0,EVENT_LOG_LIMIT);};
   // A reaction nobody has to do anything for — a timer, or one waiting for the
@@ -133,7 +140,7 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
     const progress=transition.duration ? Math.min(1,transitionElapsed/transition.duration) : 1;
     const eased=easingValue(progress,transition.easing);
     const result=Object.fromEntries(Object.keys(state.params||{}).map((key)=>[key,(transition.from[key]??0)+((transition.to[key]??0)-(transition.from[key]??0))*eased]));
-    if(progress>=1)transition=null;
+    if(progress>=1){transition=null;transitionEdge=null;}
     return result;
   }
   function compute(){
@@ -182,7 +189,9 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
       // the canvas's paint order every frame, or differently from the mascot.
       const compiled=compileFrame(state.elements,drawn,state.globalConstraints,state.stateConstraints?.[state.activeState],{keyforms:state.keyforms,shapeKeys:state.shapeKeys,warps:state.warps,rigPins:state.rigPins,rigConstraints:state.rigConstraints,rigAttachments:state.rigAttachments,rigHolds:state.rigHolds,hands:state.hands,deformers:state.deformers,parallax:state.parallax,followerOffsets,previousBands:depthBands,handStyles,delta:frameDelta});
       for(const [id,item] of Object.entries(compiled.frames))if(item.depthBand)depthBands[id]=item.depthBand;
-      canvas.applyFrame(compiled);
+      // `drawn` as well as the frame: a mesh is driven by a parameter and the
+      // compiled frame carries transforms, not the values behind them.
+      canvas.applyFrame(compiled, drawn);
       diagnostics.increment('preview.applies'); if(diagnostics.enabled)diagnostics.increment('preview.applyMs',performance.now()-applyStart);
       syncSession();onFrame({time:clipTime,previewElapsed,transitionElapsed,arrangementTime:arrangement?previewElapsed-arrangement.origin:null,params:{...effective},playing});
       lastError=null; diagnostics.set('preview.lastError',null);
@@ -190,7 +199,7 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
       if(!handReveal.settled()&&!running)wake();
       return effective;
     } catch(error) {
-      lastError=error instanceof Error?error:new Error(String(error)); playing=false; transition=null; testBehavior=null;
+      lastError=error instanceof Error?error:new Error(String(error)); playing=false; transition=null; transitionEdge=null; testBehavior=null;
       diagnostics.set('preview.playing',false);diagnostics.set('preview.lastError',lastError.message);onError(lastError);sleep();return effective;
     } finally { if(diagnostics.enabled)diagnostics.increment('preview.computeMs',performance.now()-began); }
   }
@@ -210,10 +219,10 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
   }
   const api={
     start(){if(destroyed||running)return false;wake();return true;},
-    stop(){const changed=running||playing||raf||transition||testBehavior||arrangement;playing=false;transition=null;testBehavior=null;transitionElapsed=0;arrangement=null;motionLayer.stop({fade:0});sleep();behaviors.reset();syncPlaying();if(changed)diagnostics.increment('preview.stops');compute();return changed;},
-    setState(name){const state=store.getDocument(),fromName=authorState||state.activeState;if(!state.states?.[name]||!canTransition(state.transitions,fromName,name))return false;const from={...transitionValues(state),...live},to=resolveStateParams(state.params,state.states[name]),settings=state.transitionSettings?.[`${fromName}->${name}`]||{};const duration=Math.max(0,Number(settings.duration??300)||0);transitionElapsed=0;transition=duration?{from,to,duration,easing:settings.easing||'easeInOut'}:null;authorState=name;if(!duration)effective=to;compute();if(transition)wake();return true;},
-    previewState(name){const state=store.getDocument();if(!state.states?.[name])return false;authorState=name;transition=null;compute();return true;},
-    testTransition({from,to,duration,easing}={}){const state=store.getDocument();if(!state.states?.[from]||!state.states?.[to])return false;authorState=from;transitionElapsed=0;transition={from:resolveStateParams(state.params,state.states[from]),to:resolveStateParams(state.params,state.states[to]),duration:Math.max(1,Number(duration)||300),easing:easing||'easeInOut'};compute();wake();return true;},
+    stop(){const changed=running||playing||raf||transition||testBehavior||arrangement;playing=false;transition=null;transitionEdge=null;testBehavior=null;transitionElapsed=0;arrangement=null;motionLayer.stop({fade:0});sleep();behaviors.reset();syncPlaying();if(changed)diagnostics.increment('preview.stops');compute();return changed;},
+    setState(name){const state=store.getDocument(),fromName=authorState||state.activeState;if(!state.states?.[name]||!canTransition(state.transitions,fromName,name))return false;const from={...transitionValues(state),...live},to=resolveStateParams(state.params,state.states[name]),settings=state.transitionSettings?.[`${fromName}->${name}`]||{};const duration=Math.max(0,Number(settings.duration??300)||0);transitionElapsed=0;transition=duration?{from,to,duration,easing:settings.easing||'easeInOut'}:null;transitionEdge=transition?`${fromName}->${name}`:null;authorState=name;if(!duration)effective=to;compute();if(transition)wake();return true;},
+    previewState(name){const state=store.getDocument();if(!state.states?.[name])return false;authorState=name;transition=null;transitionEdge=null;compute();return true;},
+    testTransition({from,to,duration,easing}={}){const state=store.getDocument();if(!state.states?.[from]||!state.states?.[to])return false;authorState=from;transitionElapsed=0;transition={from:resolveStateParams(state.params,state.states[from]),to:resolveStateParams(state.params,state.states[to]),duration:Math.max(1,Number(duration)||300),easing:easing||'easeInOut'};transitionEdge=`${from}->${to}`;compute();wake();return true;},
     testBehavior(id,{random=Math.random}={}){const behavior=normalizeBehaviors(store.getDocument()).find(item=>item.id===id);if(!behavior)return false;const window=behavior.type==='oscillator'?Math.max(1,2/Math.max(.1,behavior.frequency)):behavior.type==='blink'?behavior.duration*2:.6;testBehavior={...behavior,started:previewElapsed,window,sample:behavior.min+random()*(behavior.max-behavior.min)};compute();wake();return true;},
     setTransition(value){transition=value;transitionElapsed=0;compute();if(value)wake();},
     setBehaviorOverride(key,enabled){behaviorOverrides[key]=Boolean(enabled);compute();if(continuous())wake();else sleep();},
@@ -354,6 +363,6 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
      * working, not what the mascot is doing, so a reset pressed in the Character
      * Builder must not be the thing that starts the face blinking.
      */
-    reset(){playing=false;sleep();clipId=null;clipPosed=false;arrangement=null;motionLayer.reset();syncPlaying();clipTime=previewElapsed=transitionElapsed=0;live={};transition=null;authorState=null;testBehavior=null;behaviorOverrides={};expressionWeights.reset();reactionController.reset();eventLog=[];behaviors.reset();compute();},destroy(){if(destroyed)return;api.stop();destroyed=true;live={};}
+    reset(){playing=false;sleep();clipId=null;clipPosed=false;arrangement=null;motionLayer.reset();syncPlaying();clipTime=previewElapsed=transitionElapsed=0;live={};transition=null;transitionEdge=null;authorState=null;testBehavior=null;behaviorOverrides={};expressionWeights.reset();reactionController.reset();eventLog=[];behaviors.reset();compute();},destroy(){if(destroyed)return;api.stop();destroyed=true;live={};}
   };return api;
 }

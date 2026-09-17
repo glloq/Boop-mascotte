@@ -3,6 +3,7 @@ import { createStore } from '../core/state/store.js';
 import { createHistory } from '../core/undo/history.js';
 import { imageElementPlugin } from '../core/plugins/builtin/image-plugin.js';
 import { createSvgCanvas } from '../svg-editor/svg-canvas.js';
+import { createPictureDrop } from './picture-drop.js';
 import { openAssetStore } from '../core/assets/asset-store.js';
 import { createAssetManager } from '../core/assets/asset-manager.js';
 import { createAssetOptimiser, createBrowserCodec } from '../core/assets/asset-optimise.js';
@@ -168,6 +169,8 @@ export function createEditorApp({ root = document.getElementById('app'), recover
     store: { put: async (...args) => (await assetStoreReady).put(...args), get: async (id) => (await assetStoreReady).get(id), remove: async (id) => (await assetStoreReady).remove(id) },
     optimiser: createAssetOptimiser({ codec: createBrowserCodec() })
   });
+  /** What the store says about itself, for whoever has to tell the author. */
+  const assetStorage = async () => { const store = await assetStoreReady; return { persistent: store.persistent, reason: store.reason }; };
   // The options bar under the vector toolbar: what a new shape is painted
   // with, a polygon's sides, the grid, and the Node tool's point operations.
   // UI preferences, remembered in the browser, never part of the project.
@@ -197,7 +200,14 @@ export function createEditorApp({ root = document.getElementById('app'), recover
         // out of the selection too: a selection naming a piece nobody can see
         // is a selection every panel has to guess about.
         if(result.ok&&result.targets?.length)store.mutateSession('selectedIds',state=>{state.selectedIds=result.targets;});
-        shell.setStatus(result.ok?'Cut to the shape in front. The shape is now doing the cutting; "Stop cutting" brings it back.':result.message,result.ok?'info':'error');},
+        // Two kinds of cut, so two sentences: a shape cuts to its outline and
+        // a picture cuts to where it is not transparent, and an author told
+        // the wrong one looks for a mistake that is not there.
+        shell.setStatus(result.ok
+          ?(result.byAlpha
+            ?'Cut to the picture in front, where it is not transparent. "Stop cutting" brings it back.'
+            :'Cut to the shape in front. The shape is now doing the cutting; "Stop cutting" brings it back.')
+          :result.message,result.ok?'info':'error');},
       // A cut is drawn on the canvas as a dashed outline, so the way to take it
       // off belongs beside the drawing rather than only in a menu.
       cutOn:(id)=>(shell.getWorkspace()==='create'?canvas.describeClip(id):null),
@@ -281,7 +291,15 @@ export function createEditorApp({ root = document.getElementById('app'), recover
   // One dialog for every colour in the editor: the artwork's own palette first
   // (`ui/colour-picker.js`), then a standard set, then a hex field.
   const colourPicker = createColourPicker(shell.colourPickerEl, { palette: () => paletteFromSvg(store.getDocument().svgMarkup) });
-  const inspector = createInspector(shell.inspectorEl, store, history, canvas, { openColour: (options) => colourPicker.open(options) });
+  const inspector = createInspector(shell.inspectorEl, store, history, canvas, {
+    openColour: (options) => colourPicker.open(options),
+    // Declared later in this same scope; the callback only runs once someone
+    // has a picture selected, which is long after the wiring is done.
+    replacePicture: (id, file) => projectService.replaceImageFile(id, file),
+    setMesh: (id, size) => projectService.setPictureMesh(id, size),
+    setMeshDriver: (id, parameter) => projectService.setMeshDriver(id, parameter),
+    captureMeshOpen: (id) => projectService.captureMeshOpen(id)
+  });
   // The Character Builder (docs/CHARACTER_BUILDER.md): the parts a person
   // names, on the same canvas and the same document, editing through the same
   // commands the Artwork inspector runs. Its presets load a template through
@@ -530,7 +548,11 @@ export function createEditorApp({ root = document.getElementById('app'), recover
 
   let timeline;
   let lastReactionId=null;
-  const preview = createPreviewController({ store, canvas, onError: error=>shell.setStatus(`Preview stopped: ${error.message}`,'error'), onFrame: ({ time }) => { const output=shell.previewEl.querySelector('#current-time'); if(output) output.textContent=time.toFixed(2); const playhead=shell.previewEl.querySelector('#playhead'); if(playhead) playhead.value=String(time); if(preview.isArrangementPlaying?.()&&!timeline.syncArrangementPlayhead())timeline.requestRender();const activeReaction=preview.getActiveReaction()?.id||null; if(activeReaction!==lastReactionId){lastReactionId=activeReaction;if(shell.getWorkspace()==='preview'&&!shell.previewPanelEl.querySelector(':focus'))previewPanel.render();} } });
+  // The state graph's live highlight (V4-103). Assigned once the Behavior
+  // workspace exists, which is after this callback is written but long before
+  // a frame can run.
+  let syncGraphHighlight=()=>{};
+  const preview = createPreviewController({ store, canvas, onError: error=>shell.setStatus(`Preview stopped: ${error.message}`,'error'), onFrame: ({ time }) => { const output=shell.previewEl.querySelector('#current-time'); if(output) output.textContent=time.toFixed(2); const playhead=shell.previewEl.querySelector('#playhead'); if(playhead) playhead.value=String(time); if(preview.isArrangementPlaying?.()&&!timeline.syncArrangementPlayhead())timeline.requestRender();const activeReaction=preview.getActiveReaction()?.id||null; if(activeReaction!==lastReactionId){lastReactionId=activeReaction;if(shell.getWorkspace()==='preview'&&!shell.previewPanelEl.querySelector(':focus'))previewPanel.render();} syncGraphHighlight(); } });
   /**
    * Undo and redo put the numbers back; these put the mascot back.
    *
@@ -563,6 +585,7 @@ export function createEditorApp({ root = document.getElementById('app'), recover
   const workspaceContext = { store, history, shell, preview, editorContext, navigate: (route) => taskRouter.navigate(route), setStatus: (message, tone) => shell.setStatus(message, tone) };
   const animate = createAnimateWorkspace({ ...workspaceContext, isMobile: () => responsive.layout === 'mobile' });
   const behavior = createBehaviorWorkspace(workspaceContext);
+  syncGraphHighlight = () => behavior.syncLive();
   const { expressionStudio, motionStudio } = animate.panels;
   const { states, reactionStudio, automaticPanel } = behavior.panels;
   timeline = animate.panels.timeline;
@@ -589,7 +612,9 @@ export function createEditorApp({ root = document.getElementById('app'), recover
   // is built once they all exist.
   let workspaceManager = null;
   editorContext.subscribe((context)=>workspaceManager?.apply(context));
-  const exporter = createExporter(shell.exportEl, store, canvas);
+  // Export ships the pictures beside the artwork, so it needs to be able to
+  // read them (docs/V4_ROADMAP.md, V4-024).
+  const exporter = createExporter(shell.exportEl, store, canvas, { assetBytes: (id) => assets.bytes(id) });
 
   function reportFatalError(error) {
     console.error(error);
@@ -618,7 +643,7 @@ export function createEditorApp({ root = document.getElementById('app'), recover
   // stop, swap, clear undo and re-baseline in the same order, and that can be
   // exercised without a browser.
   const projectService = createProjectService({
-    store, history, canvas, preview, timeline, autosave, assets,
+    store, history, canvas, preview, timeline, autosave, assets, assetStorage,
     setStatus: (message, tone) => shell.setStatus(message, tone),
     setProjectLoaded: (loaded) => shell.setProjectLoaded(loaded),
     closeHome: () => shell.closeHome(),
@@ -646,8 +671,31 @@ export function createEditorApp({ root = document.getElementById('app'), recover
 
 
   shell.bindLoadSvg((file) => projectService.loadSvgFile(file));
-  shell.bindAddImage((file) => projectService.addImageFile(file));
-  shell.bindAddBaseImage((file) => projectService.addBaseImageFile(file));
+  /**
+   * Somewhere to put a picture (V4-092).
+   *
+   * Both picture imports place a node into the artwork that is open, so both
+   * assumed there was one — which was true while the only way to reach them
+   * was a column inside a project. Home offers *Start from a picture* now, and
+   * the first thing an author does there is press a button that had nothing to
+   * append to. A blank project is the artboard a picture needs, and making one
+   * is what they were going to have to do anyway.
+   */
+  const withArtwork = (add) => async (file) => {
+    if (!store.getDocument()?.svgMarkup && !(await projectService.loadTemplate('blank', { mode: 'design.artwork' }))) return false;
+    return add(file);
+  };
+  shell.bindAddImage(withArtwork((file) => projectService.addImageFile(file)));
+  // The gesture people reach for first. A button alone works and still reads
+  // as a missing feature (app/picture-drop.js).
+  createPictureDrop(shell.canvasEl, {
+    isReady: () => Boolean(store.getDocument()?.svgMarkup),
+    // Dropped where it was aimed: the canvas turns the client point into
+    // artwork units, and a drop outside the working area is clamped into it.
+    onPicture: (file, where) => projectService.addImageFile(file, { at: where ? canvas.artworkPointAt(where.clientX, where.clientY) : null }),
+    setStatus: (message, tone) => shell.setStatus(message, tone)
+  });
+  shell.bindAddBaseImage(withArtwork((file) => projectService.addBaseImageFile(file)));
 
   shell.bindLoadSample((kind) => projectService.loadTemplate(kind));
 
@@ -692,6 +740,9 @@ export function createEditorApp({ root = document.getElementById('app'), recover
   // an empty "Continue" panel.
   shell.bindHomeOpenProject(() => shell.openProjectFilePicker());
   shell.bindHomeImportSvg(() => shell.openSvgFilePicker());
+  // The third way to begin (V4-092): the same picker the Artwork column has,
+  // which now makes its own artboard when there is no project behind it.
+  shell.bindHomeStartFromPicture(() => shell.openBaseImageFilePicker());
   // An example knows its own kind, read from the parts it names rather than
   // stored beside them: a fox is an Animal, never the human default.
   shell.bindHomeExample((presetId) => {

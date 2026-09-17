@@ -31,7 +31,10 @@ import { validateRig } from '../../core/validation/rig-validator.js';
 import { applyImportedRig } from '../../core/state/import-rig.js';
 import { identifyFaceParts } from '../../core/face-library/face-part-migration.js';
 import { imageNodeId, imageNodeMarkup, placeBaseInArtboard, placeImageInArtboard } from '../../core/assets/asset-placement.js';
-import { readBoopPackage, writeBoopPackage } from '../../core/export/boop-package.js';
+import { unusedAssets } from '../../core/assets/asset-manager.js';
+import { parseAssetRef } from '../../../runtime/asset-reference.js';
+import { BOOP_EXTENSION, readBoopPackage, writeBoopPackage } from '../../core/export/boop-package.js';
+import { restMesh } from '../../../runtime/mesh-warp.js';
 import { createExportRig } from '../../core/export/export-rig.js';
 import { readArtboard } from '../../core/artwork/artboard.js';
 import { createArtworkCommands } from '../../core/commands/artwork-commands.js';
@@ -79,6 +82,19 @@ export function createProjectService({
   // How a picture becomes an asset. Absent in a service wired without one, and
   // `addImageFile` then says so rather than throwing.
   assets = null,
+  /**
+   * Whether the pictures will still be there tomorrow.
+   *
+   * The store reports this and nothing read it: a browser in private mode,
+   * with site data blocked, or too old for IndexedDB, falls back to memory --
+   * and the fallback is correct, because somebody should still be able to work
+   * on a mascot. What is not correct is not saying so. The store's own note
+   * calls it "autosave quietly stopping at the images while claiming to have
+   * saved", and that is what happened until this was wired.
+   *
+   * `null` is "no answer", which a service wired without a store gives.
+   */
+  assetStorage = async () => null,
   // The shell, as the four things this service actually asks of it.
   setStatus = () => {}, setProjectLoaded = () => {}, closeHome = () => {},
   navigate = () => {},
@@ -192,6 +208,58 @@ export function createProjectService({
   };
 
   /**
+   * A file's bytes, then an asset, with the three failures told apart.
+   *
+   * `file.arrayBuffer()` fails when the file is gone from disk or the browser
+   * refuses to read it. `assets.import` fails when the *store* cannot take it:
+   * a full quota, a transaction another tab is blocking, a browser with no
+   * `SubtleCrypto` to name the bytes with. One `catch` covered both and said
+   * "Could not read head.png" for either, which sends an author to look at
+   * their file when the problem is their browser.
+   *
+   * The third is a refusal -- a JPEG, a 60000 px header, an SVG carrying a
+   * script -- which is not a failure at all and already has its own sentence.
+   *
+   * @returns {Promise<object|null>} the import, or null with the reason said
+   */
+  const importPicture = async (file) => {
+    if (!assets) { setStatus('Pictures cannot be added in this editor build.', 'error'); return null; }
+    let bytes;
+    try { bytes = new Uint8Array(await file.arrayBuffer()); }
+    catch { setStatus(`Could not read ${file.name}.`, 'error'); return null; }
+
+    let imported;
+    try { imported = await assets.import(bytes, { name: file.name, type: file.type }); }
+    catch (error) { setStatus(`${file.name} could not be stored: ${error.message}`, 'error'); return null; }
+
+    if (!imported.ok) { setStatus(`${file.name}: ${importRefusal(imported.issues)}`, 'error'); return null; }
+    // `import` describes what it stored, and a record it cannot describe is a
+    // reference nothing could ever paint. Never seen; checked because every
+    // caller below reads `.asset.id` without looking.
+    if (!imported.asset) { setStatus(`${file.name} could not be described as a picture.`, 'error'); return null; }
+    await warnAboutStorageOnce();
+    return imported;
+  };
+
+  /**
+   * Said once, after the first picture is actually stored.
+   *
+   * At import rather than at boot: a warning about pictures in front of
+   * somebody whose mascot is made of paths is a warning about a feature they
+   * are not using. Once rather than every time, because the second copy of a
+   * sentence is noise and the answer cannot change while the tab is open.
+   */
+  let storageWarned = false;
+  const warnAboutStorageOnce = async () => {
+    if (storageWarned) return;
+    storageWarned = true;
+    let storage = null;
+    try { storage = await assetStorage(); } catch { return; }
+    if (!storage || storage.persistent !== false) return;
+    setStatus('This browser will not keep pictures after the tab closes — save your project as a .boop file to keep them.', 'warn');
+  };
+
+  /**
    * Add a picture to the artwork that is already open.
    *
    * Not `loadSvgFile`, which replaces the project: this puts one more piece on
@@ -202,19 +270,14 @@ export function createProjectService({
    * both back. Splitting them would leave a step where the artwork points at a
    * record the project does not list.
    */
-  const addImageFile = async (file) => {
-    if (!assets) { setStatus('Pictures cannot be added in this editor build.', 'error'); return false; }
-    let imported;
-    try {
-      imported = await assets.import(new Uint8Array(await file.arrayBuffer()), { name: file.name, type: file.type });
-    } catch {
-      setStatus(`Could not read ${file.name}.`, 'error');
-      return false;
-    }
-    if (!imported.ok) { setStatus(`${file.name}: ${importRefusal(imported.issues)}`, 'error'); return false; }
+  const addImageFile = async (file, { at = null } = {}) => {
+    const imported = await importPicture(file);
+    if (!imported) return false;
 
     const before = store.getDocument();
-    const box = placeImageInArtboard(imported.asset, readArtboard(before.svgMarkup));
+    // `at` is where a drop was aimed, in artwork units. A press on *Add
+    // picture* has no such point and lands in the middle, as it always has.
+    const box = placeImageInArtboard(imported.asset, readArtboard(before.svgMarkup), { at });
     if (!box) { setStatus(`${file.name} has no size to place.`, 'error'); return false; }
     const id = imageNodeId(file.name, new Set(Object.keys(before.elements || {})));
     const artwork = canvas.appendArtwork(imageNodeMarkup({ id, assetId: imported.asset.id, box }), null, { updateStore: false });
@@ -246,16 +309,9 @@ export function createProjectService({
    * deliberately (`assets.collect`), where there is nothing to undo.
    */
   const replaceImageFile = async (id, file) => {
-    if (!assets) { setStatus('Pictures cannot be replaced in this editor build.', 'error'); return false; }
     const before = store.getDocument();
-    let imported;
-    try {
-      imported = await assets.import(new Uint8Array(await file.arrayBuffer()), { name: file.name, type: file.type });
-    } catch {
-      setStatus(`Could not read ${file.name}.`, 'error');
-      return false;
-    }
-    if (!imported.ok) { setStatus(`${file.name}: ${importRefusal(imported.issues)}`, 'error'); return false; }
+    const imported = await importPicture(file);
+    if (!imported) return false;
 
     const artwork = canvas.replaceImageAsset(id, assets.reference(imported.asset.id));
     if (!artwork) { setStatus(`${id} is not a picture, so there is nothing to replace.`, 'error'); return false; }
@@ -264,7 +320,13 @@ export function createProjectService({
       { domains: ['artwork', 'assets'], source: 'replace-image' });
     await canvas.refreshAssets();
     preview.apply();
-    setStatus(`${id} now draws ${file.name}. Its movements are unchanged.`);
+    // `preserveAspectRatio="xMidYMid meet"` on every picture node means a
+    // replacement of a different shape is fitted inside the box the old one
+    // had rather than distorted -- correct, and invisible: the picture simply
+    // arrives smaller than its slot, and nothing says why.
+    const was = before.assets?.[parseAssetRef(before.elements?.[id]?.meta?.assetRef) ?? ''] || null;
+    const reshaped = was && Math.abs((was.width / was.height) - (imported.asset.width / imported.asset.height)) > 0.01;
+    setStatus(`${id} now draws ${file.name}. Its movements are unchanged.${reshaped ? ' It is a different shape, so it sits inside the old box — resize it in the Inspector.' : ''}`);
     return true;
   };
 
@@ -282,15 +344,8 @@ export function createProjectService({
    * seen and changed; none of them is a mode the author is now in.
    */
   const addBaseImageFile = async (file) => {
-    if (!assets) { setStatus('Pictures cannot be added in this editor build.', 'error'); return false; }
-    let imported;
-    try {
-      imported = await assets.import(new Uint8Array(await file.arrayBuffer()), { name: file.name, type: file.type });
-    } catch {
-      setStatus(`Could not read ${file.name}.`, 'error');
-      return false;
-    }
-    if (!imported.ok) { setStatus(`${file.name}: ${importRefusal(imported.issues)}`, 'error'); return false; }
+    const imported = await importPicture(file);
+    if (!imported) return false;
 
     const before = store.getDocument();
     const box = placeBaseInArtboard(imported.asset, readArtboard(before.svgMarkup));
@@ -329,12 +384,28 @@ export function createProjectService({
       bytesFor: async (id) => (assets ? assets.bytes(id) : null),
       rig: createExportRig(store.getState())
     });
-    createDownload('mascot.boop', bytes, 'application/zip');
+    createDownload(`mascot${BOOP_EXTENSION}`, bytes, 'application/zip');
+    /**
+     * A package keeps every picture the project holds, including the ones
+     * nothing draws any more.
+     *
+     * That is deliberate and it is the opposite of what Export does. An export
+     * is for a web page, so it carries what is drawn; a package is the
+     * *project*, and a picture that was replaced is a picture undo can bring
+     * back, so throwing it away here would make Save destructive
+     * (docs/V4_ROADMAP.md, V4-032: "no action that can be undone deletes
+     * bytes"). What was missing is anybody saying so — a project quietly
+     * doubles in size every time a picture is swapped, and nothing anywhere
+     * mentions it.
+     */
+    const spare = unusedAssets(store.getDocument()).length;
     // Said rather than swallowed: a package short a picture still opens, and
     // its author should hear it from the save and not from the reopen.
     setStatus(missing.length
       ? `Project exported — ${missing.length} picture${missing.length === 1 ? '' : 's'} could not be included.`
-      : 'Project exported as a package, pictures included.', missing.length ? 'warn' : undefined);
+      : spare
+        ? `Project exported as a package, pictures included — ${spare} of them ${spare === 1 ? 'is one' : 'are ones'} nothing draws any more, kept so undo can reach ${spare === 1 ? 'it' : 'them'}.`
+        : 'Project exported as a package, pictures included.', missing.length ? 'warn' : undefined);
     autosave.markSaved();
     return true;
   };
@@ -353,7 +424,7 @@ export function createProjectService({
     catch (error) { setStatus(`${file.name}: ${error.message}`, 'error'); return false; }
 
     const refused = [];
-    for (const [id, bytes] of read.assets) if (!assets || !(await assets.adopt(id, bytes))) refused.push(id);
+    for (const [id, bytes] of read.assets) if (!assets || !(await assets.adopt(id, bytes, read.snapshot.document.assets?.[id]?.format))) refused.push(id);
     let prepared;
     try { prepared = prepareProjectSnapshot(read.snapshot, (svg) => canvas.prepareSvgImport(svg)); }
     catch { setStatus(`${file.name} is not a project this editor can open.`, 'error'); return false; }
@@ -366,6 +437,77 @@ export function createProjectService({
     const short = [...new Set([...read.missing, ...read.damaged, ...refused])];
     if (short.length) setStatus(`Opened ${file.name} — ${short.length} picture${short.length === 1 ? '' : 's'} in it could not be read.`, 'warn');
     return true;
+  };
+
+  /**
+   * Let a picture bend, or stop it bending.
+   *
+   * The deformation and the record of it are written in one command. Splitting
+   * them would leave a step where the artwork is a group of triangles and
+   * nothing in the project knows it is a mesh -- which is a piece nobody can
+   * edit and an undo that half works.
+   */
+  const setPictureMesh = (id, size) => {
+    const before = store.getDocument();
+    const mesh = size ? (before.meshes || []).find((item) => item.target === id) || restMesh(id, size) : null;
+    // A size that differs from the mesh on record is a change of grid, and a
+    // grid change starts from rest: there is no honest way to carry nine
+    // dragged points onto sixteen.
+    const wanted = mesh && mesh.size !== size ? restMesh(id, size) : mesh;
+    const artwork = canvas.setMesh(id, wanted);
+    if (!artwork) { setStatus(`${id} is not a picture, so it has nothing to bend.`, 'error'); return false; }
+    const meshes = (before.meshes || []).filter((item) => item.target !== id);
+    commands.syncSvg({ ...artwork, meshes: wanted ? [...meshes, wanted] : meshes },
+      { domains: ['artwork', 'keyforms'], source: 'picture-mesh' });
+    preview.apply();
+    setStatus(wanted
+      ? `${id} bends now. Drag its points to shape it; ${wanted.size}×${wanted.size} to start.`
+      : `${id} is a plain picture again.`);
+    return true;
+  };
+
+  /** Write one mesh back, keeping the artwork it draws in step with it. */
+  const writeMesh = (id, next, message) => {
+    const before = store.getDocument();
+    const artwork = canvas.setMesh(id, next);
+    if (!artwork) return false;
+    commands.syncSvg({ ...artwork, meshes: (before.meshes || []).map((item) => (item.target === id ? next : item)) },
+      { domains: ['artwork', 'keyforms'], source: 'picture-mesh' });
+    preview.apply();
+    if (message) setStatus(message);
+    return true;
+  };
+
+  /**
+   * What moves a picture between its two shapes.
+   *
+   * The same vocabulary a shape key uses (`runtime/shape-keys.js`): a
+   * parameter, and the range of it that carries the picture from the shape it
+   * rests in to the shape it opens to. An author who has learned that
+   * `mouthOpen` from 0 to 1 drives a mouth's outline should not have to learn
+   * a second one to drive the picture of a mouth.
+   */
+  const setMeshDriver = (id, parameter) => {
+    const mesh = (store.getDocument().meshes || []).find((item) => item.target === id);
+    if (!mesh) return false;
+    if (!parameter) return writeMesh(id, { ...mesh, driver: null, to: null }, `${id} stays as it is drawn.`);
+    // Its own current shape as the starting point, so turning a driver on
+    // changes nothing on screen until a shape is captured.
+    return writeMesh(id, { ...mesh, driver: { parameter, min: 0, max: 1, clamp: true }, to: mesh.to || mesh.points },
+      `${id} follows ${parameter}. Bend it, then capture that as the open shape.`);
+  };
+
+  /**
+   * The shape it is bent into now becomes the shape it opens to.
+   *
+   * Captured rather than edited in a second mode, which is how a shape key is
+   * made and for the same reason: two editable poses means a mode, and a mode
+   * means an author who cannot tell which one they are looking at.
+   */
+  const captureMeshOpen = (id) => {
+    const mesh = (store.getDocument().meshes || []).find((item) => item.target === id);
+    if (!mesh?.driver) { setStatus(`${id} has nothing driving it yet.`, 'error'); return false; }
+    return writeMesh(id, { ...mesh, to: mesh.points }, `${id} opens to the shape it is in now. Flatten the points to see it closed again.`);
   };
 
   const loadSvgFile = async (file) => {
@@ -480,5 +622,5 @@ export function createProjectService({
     }
   };
 
-  return { replaceProject, restoreSnapshot, saveProject, downloadJson, addImageFile, addBaseImageFile, replaceImageFile, saveBoopPackage, loadBoopFile, loadSvgFile, loadTemplate, generateFace, loadProjectFile, importRigFile };
+  return { replaceProject, restoreSnapshot, saveProject, downloadJson, addImageFile, addBaseImageFile, replaceImageFile, setPictureMesh, setMeshDriver, captureMeshOpen, saveBoopPackage, loadBoopFile, loadSvgFile, loadTemplate, generateFace, loadProjectFile, importRigFile };
 }

@@ -66,3 +66,27 @@ test('a base takes most of the frame, and brings a pivot with it',async()=>{
   assert.deepEqual(off.pivot,{ x: off.x + off.width / 2, y: off.y + off.height / 2 });
   assert.equal(placeBaseInArtboard({ width: 0, height: 0 }, board),null);
 });
+
+test('a picture dropped somewhere lands there, not in the middle', () => {
+  const asset = { width: 40, height: 40 };
+  const board = { x: 0, y: 0, width: 240, height: 240 };
+  // A press on Add picture has no point and still lands centred.
+  assert.deepEqual(placeImageInArtboard(asset, board), { x: 100, y: 100, width: 40, height: 40 });
+
+  // A drop does, and the picture is centred on it.
+  assert.deepEqual(placeImageInArtboard(asset, board, { at: { x: 60, y: 200 } }), { x: 40, y: 180, width: 40, height: 40 });
+
+  // Clamped inside the working area: a drop lands on the canvas, which is
+  // bigger than the artboard, and a piece placed where nothing is drawn is a
+  // piece the author has to go looking for.
+  assert.deepEqual(placeImageInArtboard(asset, board, { at: { x: -500, y: -500 } }), { x: 0, y: 0, width: 40, height: 40 });
+  assert.deepEqual(placeImageInArtboard(asset, board, { at: { x: 900, y: 900 } }), { x: 200, y: 200, width: 40, height: 40 });
+
+  // An offset artboard is clamped to its own edges, not to the origin.
+  assert.deepEqual(placeImageInArtboard(asset, { x: 100, y: 50, width: 120, height: 120 }, { at: { x: 0, y: 0 } }), { x: 100, y: 50, width: 40, height: 40 });
+
+  // A point that is not one is no point at all.
+  for (const at of [null, {}, { x: 10 }, { x: NaN, y: 2 }]) {
+    assert.deepEqual(placeImageInArtboard(asset, board, { at }), { x: 100, y: 100, width: 40, height: 40 }, JSON.stringify(at));
+  }
+});

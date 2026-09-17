@@ -35,7 +35,7 @@ export const BASE_PLACEMENT_FRACTION = 0.9;
  * half a pixel per add, and a raw float writes `x="53.33333333333333"` into
  * artwork somebody reads.
  */
-export function placeImageInArtboard(asset, artboard = { x: 0, y: 0, width: 240, height: 240 }, { fraction = PLACEMENT_FRACTION } = {}) {
+export function placeImageInArtboard(asset, artboard = { x: 0, y: 0, width: 240, height: 240 }, { fraction = PLACEMENT_FRACTION, at = null } = {}) {
   const board = {
     x: Number(artboard?.x) || 0, y: Number(artboard?.y) || 0,
     width: Number(artboard?.width) > 0 ? Number(artboard.width) : 240,
@@ -45,11 +45,24 @@ export function placeImageInArtboard(asset, artboard = { x: 0, y: 0, width: 240,
   const fitted = fitWithin({ width: asset?.width, height: asset?.height }, room);
   if (!fitted.width) return null;
   const half = (value) => Math.round(value * 2) / 2;
-  return {
-    x: half(board.x + (board.width - fitted.width) / 2),
-    y: half(board.y + (board.height - fitted.height) / 2),
-    width: fitted.width, height: fitted.height
-  };
+  /**
+   * Centred on the artboard, unless somebody said where.
+   *
+   * `at` is what a drop knows and a button does not: the point the picture was
+   * aimed at, in artwork units. Without it every import lands in the middle,
+   * which is right for a press on *Add picture* and wrong for a file dragged
+   * onto the mascot's left eye — the one gesture that does carry an intent.
+   *
+   * Clamped inside the artboard, because the drop may be over the canvas and
+   * outside the working area, and a piece placed where nothing is drawn is a
+   * piece the author has to go looking for.
+   */
+  const clamp = (value, low, high) => Math.min(Math.max(value, low), Math.max(low, high));
+  const centre = Number.isFinite(at?.x) && Number.isFinite(at?.y)
+    ? { x: clamp(at.x - fitted.width / 2, board.x, board.x + board.width - fitted.width),
+        y: clamp(at.y - fitted.height / 2, board.y, board.y + board.height - fitted.height) }
+    : { x: board.x + (board.width - fitted.width) / 2, y: board.y + (board.height - fitted.height) / 2 };
+  return { x: half(centre.x), y: half(centre.y), width: fitted.width, height: fitted.height };
 }
 
 /**

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { compileRigFrame, resolveStateParams } from '../../../runtime/runtime.js';
 import { assetRef } from '../../../runtime/asset-reference.js';
-import { paintAssetReferences, restoreAssetReferences } from '../../../runtime/asset-paint.js';
+import { paintAssetReferences, restoreAssetReferences, unpaintAssetNodes } from '../../../runtime/asset-paint.js';
 import { createAssetResolver } from '../../../runtime/asset-resolver.js';
 import { createMemoryAssetStore } from '../assets/asset-store.js';
 import { createAssetManager } from '../assets/asset-manager.js';
@@ -143,9 +143,61 @@ test('the round trip through the DOM never leaves an object URL in the artwork',
   });
   paintAssetReferences(nodes, resolver);
   for (const node of nodes) assert.equal(node.toObject().href,'blob:test/0','painted for the browser');
-  restoreAssetReferences(nodes);
+  unpaintAssetNodes(nodes);
   for (const node of nodes) {
-    assert.match(node.toObject().href,/^asset:/,'and back to a reference for the file');
-    assert.equal(node.toObject()['data-editor-asset'],undefined);
+    assert.equal(node.toObject().href,undefined,'the object URL comes off the node');
+    assert.match(restoreAssetReferences(`<image data-editor-asset="${node.toObject()['data-editor-asset']}"/>`),/href="asset:/,'and the reference goes back into the text');
   }
+});
+
+test('the head turn carries a picture exactly as it carries a path',async()=>{
+  // The pseudo-3D turn is a grid of per-element transforms (keyforms), and a
+  // transform never asked what it was moving. Phase 6's claim, as a number:
+  // build the same turn over a raster mascot and over its vector twin, and
+  // watch the frames agree through the whole grid.
+  const { captureHeadPose, createHeadPoseAxes, headPoseSamplesFromTransforms } = await import('../head-pose/head-pose-model.js');
+  const raster = await rasterProject(), vector = vectorProject();
+  const axes = createHeadPoseAxes();
+  const samples = Object.fromEntries(PIECES.map((piece) => [piece.id, {}]));
+
+  const turnOf = (elements) => {
+    let keyforms = captureHeadPose([], { axes, cell: { i: 1, j: 1 }, samples: headPoseSamplesFromTransforms(elements, samples) });
+    keyforms = captureHeadPose(keyforms, { axes, cell: { i: 2, j: 1 }, samples: headPoseSamplesFromTransforms(elements, samples) });
+    return keyforms;
+  };
+  const rasterTurn = turnOf(raster.elements), vectorTurn = turnOf(vector.elements);
+  assert.ok(rasterTurn.length > 0,'the turn captured something');
+  assert.equal(rasterTurn.length,vectorTurn.length,'and the same amount for both');
+
+  // Every corner of the grid, not just the rest pose.
+  const at = (elements, keyforms, headX, headY) => compileRigFrame(
+    elements, { ...resolveStateParams(PARAMS, STATES.idle), headX, headY },
+    { translate: 1, rotate: 1, scale: 1 }, {}, { keyforms, parallax: { enabled: true, strength: 1 } });
+  for (const [headX, headY] of [[0, 0], [1, 0], [-1, 0], [0, 1], [1, 1], [-1, -1]]) {
+    const one = at(raster.elements, rasterTurn, headX, headY), two = at(vector.elements, vectorTurn, headX, headY);
+    for (const id of Object.keys(one)) assert.deepEqual(one[id].transform, two[id].transform, `${id} at ${headX},${headY}`);
+  }
+  // And it is a turn: the pieces are somewhere else at the edges.
+  assert.notDeepEqual(at(raster.elements, rasterTurn, 1, 0).head.transform, at(raster.elements, rasterTurn, 0, 0).head.transform);
+});
+
+test('depth separates pictures the way it separates paths',()=>{
+  // Parallax reads `depth` and nothing about the drawing. Isolated to depth on
+  // purpose: the first version of this test gave the pieces different binding
+  // amplitudes as well, and the binding drowned out the thing being measured.
+  const elements = {};
+  for (const [id, depth] of [['front', 0.6], ['middle', 0], ['back', -0.6]])
+    elements[id] = { baseTransform: transform(), baseOpacity: 1, depth, bindings: { translateX: { expression: 'headX', amplitude: 6 } }, meta: { nodeType: 'image' } };
+  const options = { parallax: { enabled: true, amount: 6, parameterX: 'headX', parameterY: 'headY' } };
+  const at = (headX) => compileRigFrame(elements, { headX, headY: 0 }, { translate: 1, rotate: 1, scale: 1 }, {}, options);
+  const rest = at(0), turned = at(1);
+  const moved = (id) => turned[id].transform.x - rest[id].transform.x;
+  assert.ok(moved('front') > moved('middle'),`front ${moved('front')} should lead middle ${moved('middle')}`);
+  assert.ok(moved('back') < moved('middle'),`back ${moved('back')} should trail middle ${moved('middle')}`);
+  // The same rig with the parallax off moves all three together, which is what
+  // says the difference came from depth rather than from anything else.
+  const flat = (headX) => compileRigFrame(elements, { headX, headY: 0 }, { translate: 1, rotate: 1, scale: 1 }, {}, { parallax: { enabled: false } });
+  const flatRest = flat(0), flatTurned = flat(1);
+  const flatMoved = (id) => flatTurned[id].transform.x - flatRest[id].transform.x;
+  assert.equal(flatMoved('front'),flatMoved('back'));
 });

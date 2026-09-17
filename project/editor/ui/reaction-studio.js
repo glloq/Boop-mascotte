@@ -1,5 +1,7 @@
 import { createReactionCommands } from '../core/reactions/reaction-commands.js';
-import { TIMING_PRESETS, TRIGGER_TYPES, findReaction, reactionIssues, timingPresetOf, triggerLabel } from '../core/reactions/reaction-model.js';
+import { TIMING_PRESETS, TRIGGER_TYPES, describeConditions, findReaction, reactionIssues, timingPresetOf, triggerLabel } from '../core/reactions/reaction-model.js';
+import { CONDITION_OPERATORS, describeCondition } from '../../runtime/reaction-conditions.js';
+import { availableControlGroups, controlMeta } from './control-catalog.js';
 import { handStates } from '../core/hands/hand-state-model.js';
 import { instantiateReactionPreset, reactionPresetAvailabilityGroups, reactionPresetSummary } from '../core/reactions/reaction-presets.js';
 import { RUNS_WHEN, deriveRunsWhen, runsWhenOf, triggerForRunsWhen } from '../core/reactions/runs-when.js';
@@ -11,15 +13,20 @@ import { esc } from './escape-html.js';
 
 /**
  * One vocabulary for the whole stage (VNX-09): every behaviour here is the same
- * sentence — **when** something happens, **do** these things, **then** go back
- * to this. The three words are the three fieldset legends, the three clauses of
- * every list row and the readout above the fields, so the same word always
- * names the same part of a reaction.
+ * sentence — **when** something happens, **only if** these hold, **do** these
+ * things, **then** go back to this. The four words are the four fieldset
+ * legends, the four clauses of every list row and the readout above the fields,
+ * so the same word always names the same part of a reaction.
  *
  * The options complete the clause they sit under: read them after the legend
  * and they are already a phrase ("When · Clicked", "Then · Return to idle").
- * There is no IF: the runtime has no conditions and inventing them here would
- * be UI for something that cannot run (VNX-39).
+ *
+ * The IF was the one clause this panel refused to draw: for three roadmaps the
+ * runtime had no conditions, and UI for something that cannot run is a promise
+ * the mascot breaks on somebody else's page (VNX-39). V4-090 put conditions in
+ * the runtime — behind a `reaction:condition` requirement, so a build without
+ * them declines the rig rather than firing every reaction unconditionally —
+ * and this is the clause that was waiting for them.
  *
  * V3-10 added the question above the sentence: **when does this run?** The list
  * is bucketed by it, each row can be moved between buckets without opening the
@@ -52,6 +59,12 @@ const underLifecycle = (host, listen) => ({
 /** Six per reaction: what the row shows, the switch, the issue mark, the when. */
 const listSignature = (rows) => rows.flatMap((row) => [row.id, row.name, row.enabled, row.issue, row.description, row.when || '']).join(SEP);
 /**
+ * What a condition row can be about: every movement the project has a value
+ * for, and every state it can be in. Both are what the two `<select>`s offer,
+ * so a movement added in Design has to reach this panel's next render.
+ */
+const vocabularySignature = (parameters, states) => [...parameters.map((item) => item.id), '', ...states].join(SEP);
+/**
  * What runs when, as one line: per bucket its id and how many rows it holds,
  * then the automatic behaviours filed under it and the reactions the runtime
  * cannot run — everything the grouped list draws that the rows do not already
@@ -83,10 +96,12 @@ const poseSignature = (poses) => poses.flatMap((entry) => [entry.side, entry.pos
 const detailSignature = (reaction, issue) => !reaction ? '' : [
   reaction.id, reaction.name, reaction.enabled, reaction.after, reaction.priority, reaction.interrupt,
   reaction.trigger.type, reaction.trigger.name || '', reaction.trigger.interval ?? '', reaction.trigger.after ?? '', reaction.trigger.of || '',
+  (reaction.conditions || []).map((item) => `${item.kind}:${item.parameter || item.state}:${item.operator}:${item.value ?? ''}`).join(','),
   reaction.expression?.id || '', reaction.expression?.weight ?? '', reaction.motion?.clipId || '',
   (reaction.gestures || []).map((item) => `${item.side}:${item.pose}`).join(','),
   timingPresetOf(reaction.timing), reaction.timing.attack, reaction.timing.hold, reaction.timing.release,
-  issue?.missingExpression || '', issue?.missingClip || '', Boolean(issue?.empty), issue?.unsupportedTrigger || ''
+  issue?.missingExpression || '', issue?.missingClip || '', Boolean(issue?.empty), issue?.unsupportedTrigger || '',
+  issue?.unknownCondition ? describeCondition(issue.unknownCondition) : ''
 ].join(SEP);
 
 /**
@@ -97,10 +112,11 @@ const detailSignature = (reaction, issue) => !reaction ? '' : [
  * has: a part it does not have is left out rather than shown as an empty slot,
  * and a reaction with nothing to do says that in words.
  *
- * Two of the three keywords are in the sentence itself: `triggerLabel` writes
- * the when clause with its own ("When clicked", "Every 0.5 s") and the last
- * clause opens with "then". The middle one needs no word — everything between
- * the two *is* the doing — and the legends over the fields name all three.
+ * Three of the four keywords are in the sentence itself: `triggerLabel` writes
+ * the when clause with its own ("When clicked", "Every 0.5 s"), the IF opens
+ * with "only if" and the last clause opens with "then". The doing needs no word
+ * — everything between them *is* the doing — and the legends over the fields
+ * name all four.
  *
  * @param {object} reaction
  * @param {{expressions: Map, clips: Map, poses: Map}} names  id → name, per kind
@@ -121,6 +137,10 @@ function reactionSentence(reaction, names) {
   }
   return [
     triggerLabel(reaction.trigger),
+    // The IF sits where it is read: between what happened and what is done
+    // about it. A reaction with no conditions has no clause here at all, which
+    // is what keeps every sentence written before them reading as it did.
+    ...(describeConditions(reaction.conditions || []) ? [describeConditions(reaction.conditions)] : []),
     ...(does.length ? does : ['does nothing yet']),
     // A reaction that is switched off never reaches its THEN, so `off` is the
     // end of that sentence rather than a fourth clause after it.
@@ -156,7 +176,7 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
   // Everything derived for the last render. The lists are rebuilt on every
   // derivation, so nothing but their signature can tell two identical passes
   // apart: they stay here and the signature goes in the model.
-  let view = { hasArtwork: false, rows: [], runsWhen: { groups: [], unsupported: [], motions: [], running: 0 }, groups: [], plan: null, expressions: [], clips: [], poses: [], reaction: null, issue: null };
+  let view = { hasArtwork: false, rows: [], runsWhen: { groups: [], unsupported: [], motions: [], running: 0 }, groups: [], plan: null, expressions: [], clips: [], poses: [], parameters: [], states: [], reaction: null, issue: null };
   const doc = () => store.getDocument();
   const activeId = () => editorContext.get().activeReactionId;
   const active = () => findReaction(doc(), activeId());
@@ -234,6 +254,43 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
     } catch (error) { fail(error); }
   }
 
+  /**
+   * A fresh row of the kind asked for, filled in with something that holds.
+   *
+   * A row that starts empty is a row the command refuses the moment it is
+   * added, which would make "+ Only if…" look broken. It starts on the first
+   * movement — or the state the mascot is in — which is true, testable and
+   * immediately editable.
+   */
+  const defaultCondition = (kind) => (kind === 'state'
+    ? { kind: 'state', state: doc().activeState || view.states[0] || '', operator: '==' }
+    : { kind: 'parameter', parameter: view.parameters[0]?.id || '', operator: '>=', value: 0 });
+
+  /** Patch one row, keeping the rest of it and the rows around it. */
+  function writeCondition(reaction, index, patch) {
+    const conditions = (reaction.conditions || []).map((item, at) => (at === index ? { ...item, ...patch } : item));
+    if (!conditions[index]) return;
+    try { commands.update(reaction.id, { conditions }); notice = null; } catch (error) { fail(error); }
+  }
+
+  function addCondition(reaction) {
+    const kind = view.parameters.length ? 'parameter' : 'state';
+    try {
+      commands.update(reaction.id, { conditions: [...(reaction.conditions || []), defaultCondition(kind)] });
+      notice = null;
+      onStatus(`"${reaction.name}" now runs only in the situation you describe.`);
+    } catch (error) { fail(error); }
+  }
+
+  function removeCondition(reaction, index) {
+    const conditions = (reaction.conditions || []).filter((_, at) => at !== index);
+    try {
+      commands.update(reaction.id, { conditions });
+      notice = null;
+      onStatus(conditions.length ? `Condition removed from "${reaction.name}".` : `"${reaction.name}" runs every time again.`);
+    } catch (error) { fail(error); }
+  }
+
   const component = createComponent({
     host: listHost,
     onMount: ({ listen }) => {
@@ -271,6 +328,8 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
         const data = button.dataset;
         if (data.reactionTest !== undefined) { if (preview.fireReaction(reaction.id)) onStatus(`Testing "${reaction.name}"…`); else onStatus('This reaction is disabled.', 'warn'); return; }
         if (data.reactionGo) { navigate({ mode: data.reactionGo }); return; }
+        if (data.reactionConditionAdd !== undefined) { addCondition(reaction); return; }
+        if (data.reactionConditionRemove !== undefined) { removeCondition(reaction, Number(data.reactionConditionRemove)); return; }
         try {
           if (data.reactionDuplicate !== undefined) { const id = commands.duplicate(reaction.id); notice = null; select(id); onStatus(`Reaction "${findReaction(doc(), id)?.name}" duplicated.`); }
           if (data.reactionDelete !== undefined) { commands.remove(reaction.id); notice = { tone: 'success', text: `✓ ${reaction.name} deleted.` }; select(null); onStatus(`Reaction "${reaction.name}" deleted.`); }
@@ -301,6 +360,14 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
           if (data.reactionEvent !== undefined) { commands.update(reaction.id, { trigger: { type: 'custom', name: value.trim() || 'custom' } }); return; }
           if (data.reactionInterval !== undefined) { commands.update(reaction.id, { trigger: { type: 'timer', interval: Number(value) } }); return; }
           if (data.reactionIdleAfter !== undefined) { commands.update(reaction.id, { trigger: { type: 'idle', after: Number(value) } }); return; }
+          // The IF (V4-090). Each field writes its own key on its own row and
+          // leaves the rest of the row alone, so changing an operator never
+          // quietly resets the number beside it.
+          if (data.reactionConditionKind !== undefined) { writeCondition(reaction, Number(data.reactionConditionKind), defaultCondition(value)); return; }
+          if (data.reactionConditionParameter !== undefined) { writeCondition(reaction, Number(data.reactionConditionParameter), { parameter: value }); return; }
+          if (data.reactionConditionState !== undefined) { writeCondition(reaction, Number(data.reactionConditionState), { state: value }); return; }
+          if (data.reactionConditionOperator !== undefined) { writeCondition(reaction, Number(data.reactionConditionOperator), { operator: value }); return; }
+          if (data.reactionConditionValue !== undefined) { writeCondition(reaction, Number(data.reactionConditionValue), { value: Number(value) }); return; }
           if (data.reactionExpression !== undefined) { commands.update(reaction.id, { expressionId: value || null }); return; }
           if (data.reactionWeight !== undefined) { if (reaction.expression && reaction.expression.weight !== Number(value)) commands.update(reaction.id, { weight: Number(value) }); return; }
           if (data.reactionMotion !== undefined) { commands.update(reaction.id, { clipId: value || null }); return; }
@@ -411,14 +478,77 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
       + '<p class="small">A hand is set to a state, not animated into one: the drawing swaps, and nothing interpolates between two pictures.</p>';
   }
 
+  /** How an operator reads on a row, in the same words `describeCondition` uses. */
+  const OPERATOR_LABELS = { '>=': 'is at least', '<=': 'is at most', '>': 'is more than', '<': 'is less than', '==': 'is exactly', '!=': 'is not' };
+
+  /**
+   * The IF, as rows (V4-090).
+   *
+   * One row is one comparison, and the rows are joined with **and**, never
+   * "or": an author listing two things is describing one situation, and "or"
+   * is two reactions — which this panel can already make, and an expression
+   * language in a fieldset is a programming language with no error messages.
+   *
+   * A row names either a movement or a state, because those are the only two
+   * things the runtime can be asked about at the moment a trigger fires. The
+   * `<select>` offers what the project actually has; a row pointing at
+   * something it no longer has keeps its own option, selected, so the author
+   * sees what it says instead of watching it silently become something else.
+   */
+  function conditionMarkup(reaction) {
+    const conditions = reaction.conditions || [];
+    // Nothing to compare against is not an empty list, it is a clause that
+    // cannot be written: a project with no movements and no states has no
+    // vocabulary for a condition, and offering two empty selects would be a
+    // row that can only ever be removed.
+    if (!view.parameters.length && !view.states.length) {
+      return '<p class="small" data-reaction-conditions="none">A condition tests a movement or a state. This mascot has neither yet.</p>';
+    }
+    const parameterOptions = (selected) => [
+      ...(selected && !view.parameters.some((item) => item.id === selected) ? [`<option value="${esc(selected)}" selected>Missing: ${esc(selected)}</option>`] : []),
+      ...[...availableControlGroups(Object.fromEntries(view.parameters.map((item) => [item.id, 0]))).entries()]
+        .map(([group, items]) => `<optgroup label="${esc(group)}">${items.map((item) => `<option value="${esc(item.id)}" ${item.id === selected ? 'selected' : ''}>${esc(item.label)}</option>`).join('')}</optgroup>`)
+    ].join('');
+    const stateOptions = (selected) => [
+      ...(selected && !view.states.includes(selected) ? [`<option value="${esc(selected)}" selected>Missing: ${esc(selected)}</option>`] : []),
+      ...view.states.map((name) => `<option value="${esc(name)}" ${name === selected ? 'selected' : ''}>${esc(name)}</option>`)
+    ].join('');
+    const row = (condition, index) => {
+      // Only the kinds this project can answer, plus whichever one the row is
+      // already: a mascot with no states is never offered a state to test, and
+      // a row that tests one keeps saying so even after the last state goes.
+      const kindOptions = [
+        ...(view.parameters.length || condition.kind === 'parameter' ? [`<option value="parameter" ${condition.kind === 'parameter' ? 'selected' : ''}>A movement</option>`] : []),
+        ...(view.states.length || condition.kind === 'state' ? [`<option value="state" ${condition.kind === 'state' ? 'selected' : ''}>The state</option>`] : [])
+      ].join('');
+      const kind = `<select data-reaction-condition-kind="${index}" aria-label="Condition ${index + 1} tests">${kindOptions}</select>`;
+      const body = condition.kind === 'state'
+        ? `<select data-reaction-condition-operator="${index}" aria-label="Condition ${index + 1} comparison"><option value="==" ${condition.operator === '==' ? 'selected' : ''}>is</option><option value="!=" ${condition.operator === '!=' ? 'selected' : ''}>is not</option></select><select data-reaction-condition-state="${index}" aria-label="Condition ${index + 1} state">${stateOptions(condition.state)}</select>`
+        : `<select data-reaction-condition-parameter="${index}" aria-label="Condition ${index + 1} movement">${parameterOptions(condition.parameter)}</select><select data-reaction-condition-operator="${index}" aria-label="Condition ${index + 1} comparison">${CONDITION_OPERATORS.map((op) => `<option value="${op}" ${condition.operator === op ? 'selected' : ''}>${OPERATOR_LABELS[op]}</option>`).join('')}</select><input type="number" data-reaction-condition-value="${index}" aria-label="Condition ${index + 1} value" step=".05" value="${condition.value}">`;
+      return `<div class="reaction-condition" data-reaction-condition="${index}">${index ? '<span class="small reaction-condition-join">and</span>' : ''}${kind}${body}<button type="button" class="link" data-reaction-condition-remove="${index}" aria-label="Remove condition ${index + 1}">Remove</button></div>`;
+    };
+    const add = view.parameters.length || view.states.length
+      ? `<button type="button" class="secondary" data-reaction-condition-add aria-label="Add a condition">+ Only if…</button>` : '';
+    // Said back in words under the rows, for the same reason the sentence is
+    // said back above the fields: six `<select>`s do not read as a sentence,
+    // and the sentence is what the mascot will do.
+    const summary = conditions.length
+      ? `<p class="small" data-reaction-conditions-summary>${esc(describeConditions(conditions))}. Otherwise nothing happens — or the next reaction gets its turn.</p>`
+      : '<p class="small">Without one, this runs every time. With one, it runs only in the situation you describe.</p>';
+    return `<div class="reaction-conditions" data-reaction-conditions="${conditions.length}">${conditions.map(row).join('')}</div>${summary}${add}`;
+  }
+
   /**
    * A clause of the sentence: the keyword, then the controls that fill it in.
    *
    * `<legend>` is already rendered small, spaced and upper case by
-   * `.reaction-fields legend`, so the three keywords read as the sentence they
+   * `.reaction-fields legend`, so the four keywords read as the sentence they
    * are without a line of new CSS.
+   *
+   * The hook is one word even when the legend is two: "Only if" reads as a
+   * clause and `if` is what a test and a stylesheet ask for by name.
    */
-  const clause = (keyword, body) => `<fieldset data-reaction-clause="${keyword.toLowerCase()}"><legend>${keyword}</legend>${body}</fieldset>`;
+  const clause = (keyword, body, id = keyword.toLowerCase()) => `<fieldset data-reaction-clause="${id}"><legend>${keyword}</legend>${body}</fieldset>`;
 
   /**
    * A `<select>` whose only option would be "nothing" is an empty slot, not a
@@ -439,7 +569,7 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
     // part of the sentence it fills, so an unset one reads instead of blanking.
     const expressionOptions = ['<option value="">No expression</option>', ...view.expressions.map((item) => `<option value="${esc(item.id)}" ${reaction.expression?.id === item.id ? 'selected' : ''}>${esc(item.name)}</option>`), ...(issue?.missingExpression ? [`<option value="${esc(issue.missingExpression)}" selected>Missing: ${esc(issue.missingExpression)}</option>`] : [])].join('');
     const clipOptions = ['<option value="">No motion</option>', ...view.clips.map((item) => `<option value="${esc(item.id)}" ${reaction.motion?.clipId === item.id ? 'selected' : ''}>${esc(item.name)}</option>`), ...(issue?.missingClip ? [`<option value="${esc(issue.missingClip)}" selected>Missing: ${esc(issue.missingClip)}</option>`] : [])].join('');
-    const guidance = issue ? `<p class="face-pick-notice" data-tone="warn" data-reaction-guidance><span>${issue.unsupportedTrigger ? `This reaction waits for “${esc(issue.unsupportedTrigger)}”, which this editor cannot run. Choose a when below, or open it in the editor that wrote it. ` : ''}${issue.missingExpression ? `The expression “${esc(issue.missingExpression)}” no longer exists. ` : ''}${issue.missingClip ? `The motion “${esc(issue.missingClip)}” no longer exists. ` : ''}${issue.empty ? 'This reaction does nothing yet: choose an expression or a motion.' : issue.unsupportedTrigger && !issue.missingExpression && !issue.missingClip ? '' : 'Choose another one below.'}</span>${issue.missingExpression || (issue.empty && !view.expressions.length) ? '<button type="button" class="secondary" data-reaction-go="animate.expressions">Expressions</button>' : ''}${issue.missingClip ? '<button type="button" class="secondary" data-reaction-go="animate.motions">Animate</button>' : ''}</p>` : '';
+    const guidance = issue ? `<p class="face-pick-notice" data-tone="warn" data-reaction-guidance><span>${issue.unsupportedTrigger ? `This reaction waits for “${esc(issue.unsupportedTrigger)}”, which this editor cannot run. Choose a when below, or open it in the editor that wrote it. ` : ''}${issue.missingExpression ? `The expression “${esc(issue.missingExpression)}” no longer exists. ` : ''}${issue.missingClip ? `The motion “${esc(issue.missingClip)}” no longer exists. ` : ''}${issue.unknownCondition ? `This runs only if ${esc(describeCondition(issue.unknownCondition))}, which this mascot has no way to be — so it never runs. ` : ''}${issue.empty ? 'This reaction does nothing yet: choose an expression or a motion.' : issue.unsupportedTrigger && !issue.missingExpression && !issue.missingClip ? '' : 'Choose another one below.'}</span>${issue.missingExpression || (issue.empty && !view.expressions.length) ? '<button type="button" class="secondary" data-reaction-go="animate.expressions">Expressions</button>' : ''}${issue.missingClip ? '<button type="button" class="secondary" data-reaction-go="animate.motions">Animate</button>' : ''}</p>` : '';
 
     // Each trigger's own field, and nothing else's: an idle reaction is asked
     // how long the page has to be left alone, a timer how often it strikes, and
@@ -466,6 +596,7 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
       <p class="small reaction-sentence" data-reaction-sentence>${esc(reactionSentence(reaction, view.names))}</p>
       <div class="reaction-fields">
         ${clause('When', when)}
+        ${clause('Only if', conditionMarkup(reaction), 'if')}
         ${clause('Do', does)}
         ${clause('Then', then)}
         <details class="reaction-advanced" data-keep-open="advanced"${inspectorSections.attr('advanced')}><summary>Advanced</summary><div class="reaction-fields"><label class="check"><input type="checkbox" data-reaction-enabled ${reaction.enabled ? 'checked' : ''}>Enabled</label><label>Priority<input type="number" data-reaction-priority aria-label="Priority" step="1" value="${reaction.priority}"></label><label>When another reaction is playing<select data-reaction-interrupt aria-label="Interrupt policy"><option value="replace" ${reaction.interrupt === 'replace' ? 'selected' : ''}>Replace it (if not higher priority)</option><option value="ignore" ${reaction.interrupt === 'ignore' ? 'selected' : ''}>Wait (do not fire)</option></select></label><p class="small">id <code>${esc(reaction.id)}</code> · <code>mascot.fire('${esc(reaction.id)}')</code></p></div></details>
@@ -498,6 +629,11 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
       clips: new Map(clips.map((item) => [item.id, item.name])),
       poses: new Map(poses.map(({ side, pose }) => [`${side}:${pose.id}`, pose.name || pose.id]))
     };
+    // What a condition can be about. Movements come from the project's own
+    // parameter map rather than a fixed table, because a rig names its own:
+    // a hand pose added this morning is testable this afternoon.
+    const parameters = Object.keys(state.params || {}).sort().map((id) => ({ id, label: controlMeta(id).label }));
+    const states = Object.keys(state.states || {});
     return {
       hasArtwork: Boolean(state.svgMarkup),
       rows: list.map((item) => ({ id: item.id, name: item.name, enabled: Boolean(item.enabled), issue: issues.has(item.id), description: reactionSentence(item, names), when: runsWhenOf(item.trigger) })),
@@ -506,7 +642,7 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
       // nothing runs (V3-10).
       runsWhen: deriveRunsWhen(state),
       groups: reactionPresetAvailabilityGroups(state), plan: starterKit.plan(),
-      expressions, clips, names, poses,
+      expressions, clips, names, poses, parameters, states,
       reaction, issue: reaction ? issues.get(reaction.id) || null : null
     };
   }
@@ -533,6 +669,7 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
     runsWhen: runsWhenSignature(view.runsWhen),
     targets: targetSignature(view.expressions, view.clips),
     poses: poseSignature(view.poses),
+    vocabulary: vocabularySignature(view.parameters, view.states),
     detail: detailSignature(view.reaction, view.issue)
   });
 
@@ -549,7 +686,7 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
      * deliberately not `hide()`: nothing calls this panel back in.
      */
     leave() { if (preview.getActiveReaction() || Object.keys(preview.getStayedExpressions?.() || {}).length) preview.clearReactions(); },
-    snapshot() { const state = doc(); return { activeId: activeId(), reactions: (state.reactions || []).map((item) => ({ id: item.id, name: item.name, trigger: { ...item.trigger }, expression: item.expression ? { ...item.expression } : null, motion: item.motion ? { ...item.motion } : null, timing: timingPresetOf(item.timing), issue: issuesFor(item.id) })) }; },
+    snapshot() { const state = doc(); return { activeId: activeId(), reactions: (state.reactions || []).map((item) => ({ id: item.id, name: item.name, trigger: { ...item.trigger }, conditions: (item.conditions || []).map((entry) => ({ ...entry })), expression: item.expression ? { ...item.expression } : null, motion: item.motion ? { ...item.motion } : null, timing: timingPresetOf(item.timing), issue: issuesFor(item.id) })) }; },
     destroy: () => component.destroy(),
     counters: () => component.counters()
   };

@@ -3,8 +3,9 @@ import 'svg.select.js';
 import 'svg.resize.js';
 import 'svg.draggable.js';
 import { sanitizeSvgMarkup } from '../core/security/sanitize-svg.js';
-import { collectAssetReferences, paintAssetReferences } from '../../runtime/asset-paint.js';
+import { collectAssetReferences, deferAssetReferences, paintAssetReferences } from '../../runtime/asset-paint.js';
 import { pathOnlyMessage } from './path-only.js';
+import { DEFAULT_MESH_SIZE, MESH_PRESETS, applyMeshesToDom, meshMarkup, restMesh } from '../../runtime/mesh-warp.js';
 import { SvgDocument } from '../core/svg-document/svg-document.js';
 import { lifecycleDiagnostics as diagnostics } from '../core/diagnostics/lifecycle-diagnostics.js';
 import { createArtworkCommands } from '../core/commands/artwork-commands.js';
@@ -28,6 +29,7 @@ import { renderPartGlyph } from '../ui/rig-controls/part-glyph.js';
 import { handStyleThumbnail } from '../core/hands/hand-style-art.js';
 import { installedHandLook } from '../core/sample/hand-feature.js';
 import { createWarpGesture, isWarpEdgePoint, warpLattice, warpOverlay, warpedPath } from '../core/warp/warp-handles.js';
+import { createMeshGesture, isMeshEdgePoint, meshLattice, meshOverlay } from '../core/mesh/mesh-handles.js';
 import { createPinGesture, pinReachEllipse } from '../core/rig/pin-handles.js';
 import { pinOverlay } from '../core/rig/pin-model.js';
 import { createPinCommands } from '../core/rig/pin-commands.js';
@@ -350,14 +352,27 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
    * replaced, and a clip read off a piece nobody can see any more is a cut
    * drawn on a canvas that no longer has one.
    */
+  /**
+   * What is cutting this piece, whether it is cut to a shape or to a picture.
+   *
+   * Two attributes because there are two kinds of cut and they are not
+   * interchangeable. A `clip-path` cuts to an outline, which is what a shape
+   * has. A picture's outline is its rectangle, so cutting to one would be
+   * cutting to a box -- never what anybody means by "the iris inside the eye".
+   * What a picture has instead is transparency, and cutting to *that* is a
+   * `mask` (docs/V4_ROADMAP.md, V4-062).
+   */
+  const CUT_ATTRIBUTES = ['clip-path', 'mask'];
   function clipOwnerOf(id) {
     const host = rootGroup.node.querySelector('svg');
     const from = (id && host?.querySelector?.(`#${CSS.escape(id)}`)) || documentModel.getNode(id);
     for (let node = from; node && node !== host?.parentNode; node = node.parentElement) {
-      const reference = /url\(['"]?#([^)'"]+)['"]?\)/.exec(node.getAttribute?.('clip-path') || '')?.[1];
-      if (!reference) continue;
-      const shape = host?.querySelector?.(`#${CSS.escape(reference)} > *`) || null;
-      return { ownerId: node.getAttribute('id') || null, clipId: reference, owner: node, shape };
+      for (const attribute of CUT_ATTRIBUTES) {
+        const reference = /url\(['"]?#([^)'"]+)['"]?\)/.exec(node.getAttribute?.(attribute) || '')?.[1];
+        if (!reference) continue;
+        const shape = host?.querySelector?.(`#${CSS.escape(reference)} > *`) || null;
+        return { ownerId: node.getAttribute('id') || null, clipId: reference, owner: node, shape, attribute };
+      }
     }
     return null;
   }
@@ -695,6 +710,112 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
   // canvas being told.
   store.subscribeDocument?.('keyforms', () => renderWarp());
 
+  /* ── Mesh points ──────────────────────────────────────────────────────────
+   *
+   * The same gesture as the warp, over a picture instead of a path
+   * (core/mesh/mesh-handles.js). Simpler in one way that matters: a mesh's
+   * triangles already carry their own transforms, so the live preview is
+   * writing those again rather than re-running a deformation over a path.
+   */
+  const meshLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  meshLayer.setAttribute('class', 'mesh-layer');
+  meshLayer.style.display = 'none';
+  draw.node.append(meshLayer);
+  const meshEdges = [], meshHandles = [];
+  const meshHandle = (index) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'rig-node-handle';
+    button.dataset.meshPoint = String(index);
+    button.hidden = true;
+    container.append(button);
+    return button;
+  };
+
+  /** A mesh's box is the box of the copies inside it -- they all share one. */
+  const meshBoxFor = (id) => {
+    const group = documentModel.getNode(id);
+    const image = group?.localName === 'g' && group.hasAttribute('data-mesh') ? group.querySelector('image') : null;
+    if (!image) return null;
+    const side = (name) => Number(image.getAttribute(name)) || 0;
+    return { x: side('x'), y: side('y'), width: side('width'), height: side('height') };
+  };
+
+  const meshGesture = createMeshGesture({
+    document: () => store.getDocument(),
+    box: (id) => meshBoxFor(id),
+    commands: { moveMeshPoints: (target, points) => api.moveMeshPoints?.(target, points) }
+  });
+
+  /** Whether the canvas should be showing a mesh at all, and which one. */
+  const openMesh = () => meshOverlay(store.getDocument(), selectedId, meshBoxFor(selectedId));
+
+  /** Write a live shape onto the triangles, so the picture bends under the pointer. */
+  const paintMeshPieces = (target, pieces) => {
+    const group = documentModel.getNode(target);
+    if (!group || !pieces) return;
+    const children = [...group.children];
+    pieces.forEach((piece, index) => {
+      const cell = children[index];
+      const image = cell?.querySelector?.('image');
+      if (image) image.setAttribute('transform', `matrix(${piece.transform.map((value) => Math.round(value * 1000) / 1000).join(' ')})`);
+      const reference = /url\(['"]?#([^)'"]+)['"]?\)/.exec(cell?.getAttribute?.('clip-path') || '')?.[1];
+      const polygon = reference ? rootGroup.node.querySelector(`#${CSS.escape(reference)} > polygon`) : null;
+      if (polygon) polygon.setAttribute('points', piece.clip.map((point) => `${Math.round(point.x * 1000) / 1000},${Math.round(point.y * 1000) / 1000}`).join(' '));
+    });
+  };
+
+  function renderMesh() {
+    const live = meshGesture.preview();
+    const overlay = live || openMesh();
+    meshLayer.style.display = overlay ? '' : 'none';
+    if (!overlay) { for (const button of meshHandles) button.hidden = true; return null; }
+    // A rebuild appends the artwork after this layer, which would leave the
+    // lattice drawn underneath the picture it is about.
+    draw.node.append(meshLayer);
+    const matrix = artworkMatrix();
+    const ctm = rootGroup.node.querySelector('svg')?.getScreenCTM();
+    if (!matrix || !ctm) { for (const button of meshHandles) button.hidden = true; return null; }
+    meshLayer.setAttribute('transform', `matrix(${matrix.a} ${matrix.b} ${matrix.c} ${matrix.d} ${matrix.e} ${matrix.f})`);
+    if (live?.pieces) paintMeshPieces(overlay.target, live.pieces);
+
+    const edges = meshLattice(overlay.size);
+    while (meshEdges.length < edges.length) {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('class', 'warp-lattice');
+      line.setAttribute('stroke-width', '1');
+      line.setAttribute('stroke-dasharray', '3 3');
+      meshEdges.push(line);
+      meshLayer.append(line);
+    }
+    meshEdges.forEach((line, index) => {
+      const edge = edges[index];
+      line.style.display = edge ? '' : 'none';
+      if (!edge) return;
+      const [a, b] = [overlay.points[edge[0]], overlay.points[edge[1]]];
+      line.setAttribute('x1', a.x); line.setAttribute('y1', a.y);
+      line.setAttribute('x2', b.x); line.setAttribute('y2', b.y);
+    });
+    while (meshHandles.length < overlay.points.length) meshHandles.push(meshHandle(meshHandles.length));
+    const box = container.getBoundingClientRect();
+    meshHandles.forEach((button, index) => {
+      const point = overlay.points[index];
+      if (!point) { button.hidden = true; return; }
+      const label = `Mesh point ${index + 1} of ${overlay.points.length}${isMeshEdgePoint(index, overlay.size) ? ', on the edge of the picture' : ''}. Drag to bend it. Hold Alt to move its mirror with it.`;
+      button.title = label;
+      button.setAttribute('aria-label', label);
+      button.setAttribute('aria-valuetext', `${Math.round(point.x)}, ${Math.round(point.y)}`);
+      button.dataset.warpEdge = String(isMeshEdgePoint(index, overlay.size));
+      placeHandRigHandle(button, point, ctm, box);
+    });
+    return overlay;
+  }
+
+  // A mesh is document geometry like a warp, so the lattice follows the
+  // document: an undo, a change of grid size or a reset all move it.
+  store.subscribeDocument?.('keyforms', () => renderMesh());
+  store.subscribeDocument?.('artwork', () => renderMesh());
+
   /* ── Pins ─────────────────────────────────────────────────────────────────
    *
    * The structural points the artwork is held by (docs/FACE_CONTROL_RIG.md).
@@ -867,6 +988,19 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
         return;
       }
     }
+    const meshPoint = event.target.closest?.('[data-mesh-point]');
+    if (meshPoint && event.button === 0) {
+      const overlay = openMesh();
+      // Alt moves the mirror with it: a face is symmetrical far more often
+      // than not, and bending one cheek alone is the rarer thing to want.
+      if (overlay && meshGesture.start(overlay.target, Number(meshPoint.dataset.meshPoint), { mirror: event.altKey })) {
+        event.preventDefault();
+        event.stopPropagation();
+        meshPoint.setPointerCapture(event.pointerId);
+        meshPoint.focus?.();
+        return;
+      }
+    }
     const point = event.target.closest?.('[data-warp-point]');
     if (point && event.button === 0) {
       const overlay = openWarp();
@@ -896,6 +1030,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       return;
     }
     if (pinGesture.active()) { pinGesture.to(artworkPoint(event)); renderPins(); return; }
+    if (meshGesture.preview()) { meshGesture.move(artworkPoint(event)); renderMesh(); return; }
     if (warpGesture.active()) { warpGesture.to(artworkPoint(event)); renderWarp(); return; }
     if (!handRigGesture.active()) return;
     handRigGesture.to(artworkPoint(event));
@@ -919,6 +1054,13 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       renderPins();
       return;
     }
+    if (meshGesture.preview()) {
+      event.target.releasePointerCapture?.(event.pointerId);
+      // One command for the whole gesture, not one per frame.
+      meshGesture.commit();
+      renderMesh();
+      return;
+    }
     if (warpGesture.active()) {
       event.target.releasePointerCapture?.(event.pointerId);
       // One command for the whole gesture, not one per frame.
@@ -933,7 +1075,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
     renderHandRig();
   }, true);
 
-  container.addEventListener('pointercancel', () => { if (reachDrag) { reachDrag = null; renderPins(); } if (pinGesture.cancel()) renderPins(); if (warpGesture.cancel()) renderWarp(); if (handRigGesture.cancel()) renderHandRig(); });
+  container.addEventListener('pointercancel', () => { if (reachDrag) { reachDrag = null; renderPins(); } if (pinGesture.cancel()) renderPins(); if (meshGesture.cancel()) renderMesh(); if (warpGesture.cancel()) renderWarp(); if (handRigGesture.cancel()) renderHandRig(); });
 
   // Escape abandons a drag in progress. It is caught here, in the capture
   // phase, because the shell's own Escape closes whatever surface is on top and
@@ -942,6 +1084,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
     if (event.key !== 'Escape') return;
     if (reachDrag) { event.stopPropagation(); reachDrag = null; renderPins(); return; }
     if (pinGesture.active()) { event.stopPropagation(); pinGesture.cancel(); renderPins(); return; }
+    if (meshGesture.preview()) { event.stopPropagation(); meshGesture.cancel(); renderMesh(); return; }
     if (warpGesture.active()) { event.stopPropagation(); warpGesture.cancel(); renderWarp(); return; }
     if (!handRigGesture.active()) return;
     event.stopPropagation();
@@ -1298,7 +1441,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
   function loadSvgTextNow(svgText, metadata = {}, options = {}) {
     const safeMarkup = sanitizeSvgMarkup(svgText);
     rootGroup.remove();
-    rootGroup = draw.group().svg(safeMarkup);
+    // `deferAssetReferences` first: a browser starts fetching `asset:` the
+    // moment the markup is parsed, so moving the reference aside afterwards
+    // would be one failed request too late (runtime/asset-paint.js).
+    rootGroup = draw.group().svg(deferAssetReferences(safeMarkup));
     raiseGizmoLayer();
     const svgRoot = rootGroup.node.querySelector('svg');
     // Before anything measures the artwork: a raster node carrying
@@ -3336,15 +3482,105 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       const node = documentModel.getNode(id);
       if (!node || node.localName !== 'image') return false;
       const attribute = node.hasAttribute?.('xlink:href') && !node.hasAttribute?.('href') ? 'xlink:href' : 'href';
-      node.removeAttribute('data-editor-asset');
-      node.removeAttribute('data-editor-asset-missing');
-      node.setAttribute(attribute, reference);
+      // The reference goes where references live, and the href is emptied
+      // rather than pointed at a scheme no browser can fetch. `refreshAssets`
+      // fills it; until then the piece is blank, which is honest -- it is a
+      // picture nothing has fetched yet.
+      node.setAttribute('data-editor-asset', reference);
+      node.setAttribute('data-editor-asset-missing', 'true');
+      node.removeAttribute(attribute);
       documentModel.captureAuthoringAttribute(id, attribute);
       const elements = structuredClone(store.getDocument().elements);
       if (elements[id]) elements[id].meta = { ...(elements[id].meta || {}), assetRef: reference };
       loadedMarkup = documentModel.serialize();
       return { svgMarkup: loadedMarkup, elements };
     },
+    /**
+     * Turn a picture into a mesh, or a mesh back into a picture.
+     *
+     * The group keeps the piece's own id, so nothing above it changes: the rig
+     * binds to it, the turn carries it, the depth sorts it and the layer list
+     * names it, and none of them ever asked what was inside
+     * (runtime/mesh-warp.js). What is inside is one clipped copy of the
+     * picture per triangle.
+     *
+     * Returns the artwork for a command to write together with the mesh, and
+     * touches neither the store nor the history: a deformation and the record
+     * of it have to arrive and leave in one step, or an undo leaves a group
+     * nothing knows how to edit.
+     */
+    setMesh(id, mesh) { return previewOrder.authored(() => api.setMeshNow(id, mesh)); },
+    setMeshNow(id, mesh) {
+      const node = documentModel.getNode(id);
+      if (!node) return false;
+      // A mesh bends a picture. Everything else already bends: a path has
+      // points, and warps and shape keys are how it bends (docs/WARP_GRID.md).
+      const current = node.localName === 'image' ? node : (node.localName === 'g' && node.hasAttribute('data-mesh') ? node.querySelector('image') : null);
+      if (!current) return false;
+      const reference = ['data-editor-asset', 'href', 'xlink:href'].map((name) => current.getAttribute(name)).find((value) => value && value.startsWith('asset:'));
+      if (!reference) return false;
+      const box = { x: Number(current.getAttribute('x')) || 0, y: Number(current.getAttribute('y')) || 0, width: Number(current.getAttribute('width')) || 0, height: Number(current.getAttribute('height')) || 0 };
+      if (!(box.width > 0) || !(box.height > 0)) return false;
+
+      const host = rootGroup.node.querySelector('svg');
+      if (!host) return false;
+      let defs = host.querySelector(':scope > defs');
+      if (!defs) { defs = document.createElementNS(SVG_NS, 'defs'); host.prepend(defs); }
+
+      const owner = node.localName === 'g' && node.hasAttribute('data-mesh') ? node : current;
+      // Every attribute of the piece except the picture's own geometry: a
+      // transform, an opacity, a name, a depth mark all belong to the piece
+      // and have to survive becoming a group and stop being one.
+      const carried = [...owner.attributes].filter((attribute) => !['id', 'href', 'xlink:href', 'x', 'y', 'width', 'height', 'preserveAspectRatio', 'data-mesh', 'data-editor-asset', 'data-editor-asset-missing'].includes(attribute.name));
+      const attributes = carried.map((attribute) => `${attribute.name}="${String(attribute.value).replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`).join(' ');
+
+      // Whatever this piece's clips were, they are about to be rewritten.
+      for (const stale of [...defs.querySelectorAll(`[id^="mesh-${CSS.escape(id)}-"]`)]) stale.remove();
+
+      let replacement;
+      if (mesh) {
+        const built = meshMarkup(mesh, { target: id, reference, box, attributes });
+        if (!built.markup) return false;
+        defs.insertAdjacentHTML('beforeend', built.defs);
+        replacement = built.markup;
+      } else {
+        replacement = `<image id="${id}" href="${reference}" x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}" preserveAspectRatio="xMidYMid meet"${attributes ? ` ${attributes}` : ''}/>`;
+      }
+      const template = document.createElementNS(SVG_NS, 'g');
+      template.innerHTML = deferAssetReferences(sanitizeSvgMarkup(`<svg xmlns="${SVG_NS}">${replacement}</svg>`)).replace(/^<svg[^>]*>|<\/svg>$/g, '');
+      const built = template.firstElementChild;
+      if (!built) return false;
+      owner.replaceWith(built);
+      paintAssets(host);
+      refreshDocument(id);
+      return { svgMarkup: documentModel.serialize(), elements: structuredClone(store.getDocument().elements) };
+    },
+    /**
+     * A whole drag, written once.
+     *
+     * The deformation and the record of it go together, as they do when
+     * bending is switched on: an undo that put the triangles back without the
+     * mesh, or the mesh back without the triangles, would leave a piece
+     * nothing can edit.
+     */
+    moveMeshPoints(target, points) {
+      const before = store.getDocument();
+      const mesh = (before.meshes || []).find((item) => item.target === target);
+      if (!mesh) return false;
+      const next = { ...mesh, points: points.map((point) => ({ x: point.x, y: point.y })) };
+      history.snapshot();
+      const artwork = api.setMeshNow(target, next);
+      if (!artwork) return false;
+      commands.syncSvg({ ...artwork, meshes: (before.meshes || []).map((item) => (item.target === target ? next : item)) },
+        { domains: ['artwork', 'keyforms'], source: 'mesh-drag', snapshot: false });
+      renderMesh();
+      return true;
+    },
+    /** Back to the grid it started as, in one step. */
+    resetMesh(target) { return meshGesture.reset(target); },
+    /** The sizes a mesh may be, for whoever is offering the choice. */
+    meshSizes: () => [...MESH_PRESETS],
+    restMeshFor: (id, size = DEFAULT_MESH_SIZE) => restMesh(id, size),
     /** The resolver every `asset:` reference is drawn through. One per editor. */
     setAssetResolver(resolver) { assetResolver = resolver; },
     /**
@@ -3621,6 +3857,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
         const used = new Set([...host.querySelectorAll('[id]')].map((node) => node.getAttribute('id')));
         let counter = 0;
         const clipId = () => { let id; do { counter += 1; id = `cut-${counter}`; } while (used.has(id)); used.add(id); return id; };
+        // A picture cuts by its transparency, not by its rectangle. Anything
+        // else cuts by its outline, exactly as it always did.
+        const byAlpha = cutter.localName === 'image';
         for (const target of targets) {
           const shape = cutter.cloneNode(true);
           shape.removeAttribute('id');
@@ -3628,19 +3867,27 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
           const into = invertMatrix(matrixToArtwork(target));
           if (!into) return { ok: false, message: 'This piece is flattened to nothing, so there is nothing to cut.' };
           shape.setAttribute('transform', matrixString(multiplyMatrix(into, cutterMatrix)));
-          const clip = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
-          clip.setAttribute('id', clipId());
-          clip.setAttribute('clipPathUnits', 'userSpaceOnUse');
-          clip.append(shape);
-          defs.append(clip);
-          target.setAttribute('clip-path', `url(#${clip.getAttribute('id')})`);
+          const definition = document.createElementNS('http://www.w3.org/2000/svg', byAlpha ? 'mask' : 'clipPath');
+          definition.setAttribute('id', clipId());
+          if (byAlpha) {
+            definition.setAttribute('maskUnits', 'userSpaceOnUse');
+            // A `<mask>` reads luminance by default, so a dark picture would
+            // erase what it was meant to keep. `mask-type` says to read the
+            // alpha instead; written twice because the attribute is newer than
+            // the property and neither is everywhere yet.
+            definition.setAttribute('mask-type', 'alpha');
+            definition.setAttribute('style', 'mask-type:alpha');
+          } else definition.setAttribute('clipPathUnits', 'userSpaceOnUse');
+          definition.append(shape);
+          defs.append(definition);
+          target.setAttribute(byAlpha ? 'mask' : 'clip-path', `url(#${definition.getAttribute('id')})`);
         }
         // The cutter is a shape now, not a drawing: out of the artwork and into
         // the definitions, the way it went in every editor that has this tool.
         cutter.remove();
         refreshDocument(targets[0]?.getAttribute('id') || null);
         renderFrame();
-        return { ok: true, cutter: cutter.getAttribute('id'), targets: targets.map((node) => node.getAttribute('id')) };
+        return { ok: true, byAlpha, cutter: cutter.getAttribute('id'), targets: targets.map((node) => node.getAttribute('id')) };
       });
     },
     /**
@@ -3660,11 +3907,14 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
         const host = rootGroup.node.querySelector('svg');
         history.snapshot();
         const owner = clip.owner, reference = clip.clipId;
-        owner.removeAttribute('clip-path');
+        owner.removeAttribute(clip.attribute || 'clip-path');
         // Only when nothing else is cut by it: a shape shared by both eyes is
-        // still doing its job for the other one.
+        // still doing its job for the other one. Both attributes are searched,
+        // because a definition is shared by whoever points at it and not by
+        // whoever points at it the same way.
         const definition = host?.querySelector?.(`#${CSS.escape(reference)}`);
-        const stillUsed = [...(host?.querySelectorAll('[clip-path]') || [])].some((node) => (node.getAttribute('clip-path') || '').includes(`#${reference}`));
+        const stillUsed = CUT_ATTRIBUTES.some((attribute) => [...(host?.querySelectorAll(`[${attribute}]`) || [])]
+          .some((node) => (node.getAttribute(attribute) || '').includes(`#${reference}`)));
         if (definition && !stillUsed && definition.firstElementChild) {
           const shape = definition.firstElementChild;
           // It was drawn in the owner's user space; put it back beside the
@@ -3822,7 +4072,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       const target=(mountPoint&&documentModel.getNode(mountPoint))||svgRoot;
       // `back` paints it behind everything already in the group, which is what
       // a head or a body is: the thing the rest of the mascot sits on.
-      target.insertAdjacentHTML(position==='back'?'afterbegin':'beforeend',sanitizeSvgMarkup(`<svg xmlns="http://www.w3.org/2000/svg">${markup}</svg>`).replace(/^<svg[^>]*>|<\/svg>$/g,''));
+      target.insertAdjacentHTML(position==='back'?'afterbegin':'beforeend',deferAssetReferences(sanitizeSvgMarkup(`<svg xmlns="http://www.w3.org/2000/svg">${markup}</svg>`)).replace(/^<svg[^>]*>|<\/svg>$/g,''));
+      // What was just inserted is pointed at whatever is already primed;
+      // anything new is fetched by `refreshAssets`.
+      paintAssets(svgRoot);
       const tree=documentModel.load(svgRoot,documentModel.metadata);loadedMarkup=documentModel.serialize();
       const elements=structuredClone(store.getDocument().elements);const visit=(items)=>items.forEach((item)=>{if(!elements[item.id]){const node=wrapperFor(item.id),plugin=pluginRegistry.getByNode(node);if(plugin){elements[item.id]=plugin.createRigData(node,parseTransform(node));attachBehavior(node);}}visit(item.children);});visit(tree);
       const artwork={layers:tree,layerMetadata:structuredClone(documentModel.metadata),elements,svgMarkup:loadedMarkup};
@@ -3870,7 +4123,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       const gone = new Set();
       for (const node of nodes) { for (const item of [node, ...node.querySelectorAll('[id]')]) { const id = item.getAttribute('id'); if (id) { gone.add(id); delete documentModel.metadata[id]; } } node.remove(); }
       const template = document.createElementNS(SVG_NS, 'svg');
-      template.innerHTML = sanitizeSvgMarkup(`<svg xmlns="${SVG_NS}">${markup}</svg>`).replace(/^<svg[^>]*>|<\/svg>$/g, '');
+      template.innerHTML = deferAssetReferences(sanitizeSvgMarkup(`<svg xmlns="${SVG_NS}">${markup}</svg>`)).replace(/^<svg[^>]*>|<\/svg>$/g, '');
       const added = [...template.childNodes];
       for (const node of added) { if (anchor && anchor.parentNode === parent) parent.insertBefore(node, anchor); else parent.appendChild(node); }
       // One anchor for every piece painted behind, found before any moves:
@@ -3905,7 +4158,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       // Rebuilding the artwork must not move the camera: an undo, or another
       // panel writing to the document, is not a reason to re-frame the mascot.
       const view = viewTransform();
-      rootGroup.remove(); rootGroup = draw.group().svg(sanitizeSvgMarkup(state.svgMarkup)); raiseGizmoLayer();
+      rootGroup.remove(); rootGroup = draw.group().svg(deferAssetReferences(sanitizeSvgMarkup(state.svgMarkup))); raiseGizmoLayer(); paintAssets();
       setView(view);
       const svgRoot = rootGroup.node.querySelector('svg');
       documentModel.load(svgRoot, state.layerMetadata || {}); loadedMarkup = documentModel.serialize();
@@ -3990,7 +4243,12 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       const node=documentModel.getNode(id), applied=node ? lastApplied.get(node)?.transform : undefined;
       return { requested:lastRequested.get(id) ? [...lastRequested.get(id)] : null, applied:applied ? [...applied] : null, domTransform:node?.getAttribute('transform') || null };
     },
-    applyFrame(frame) {
+    applyFrame(frame, values = null) {
+      // A mesh with a driver is two shapes and a parameter between them, so it
+      // is redrawn with the frame rather than only when it is edited
+      // (runtime/mesh-warp.js). A mesh being dragged is left alone: the
+      // pointer owns it until it is let go.
+      if (values) applyMeshesToDom(rootGroup.node.querySelector('svg'), store.getDocument().meshes, values, { skip: meshGesture.preview()?.target || null });
       // A warp drag owns the outline while it lasts: what is drawn is the
       // lattice under the pointer, and the compiled frame still says what the
       // document says, which is where the shape was before the drag started.

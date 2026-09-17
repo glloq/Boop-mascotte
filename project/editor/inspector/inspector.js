@@ -1,4 +1,5 @@
 import { mirrorTransformX } from '../core/rig/symmetry.js';
+import { meshIsRest } from '../../runtime/mesh-warp.js';
 import { PART_PRESETS, suggestPresetForElement } from '../core/assets/part-presets.js';
 import { createArtworkCommands } from '../core/commands/artwork-commands.js';
 import { rememberOpen, setPanelHtml } from '../ui/panel-render.js';
@@ -53,7 +54,7 @@ export function inspectorSubject(state, id) {
   };
 }
 
-export function createInspector(host, store, history, canvas, { openColour = null } = {}) {
+export function createInspector(host, store, history, canvas, { openColour = null, replacePicture = null, setMesh = null, setMeshDriver = null, captureMeshOpen = null } = {}) {
   // The Inspector is rebuilt whenever the selection or the document changes:
   // the disclosures the author opened outlive it, and the view stays put.
   const sections = rememberOpen(host);
@@ -101,6 +102,18 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     const tab = event.target.dataset.tab;
     if (tab) {
       activeTab = tab;
+      renderCurrent({ force: true });
+      return;
+    }
+    if (event.target.dataset.meshCapture !== undefined) {
+      const id = store.getSession().selectedId;
+      if (id) captureMeshOpen?.(id);
+      renderCurrent({ force: true });
+      return;
+    }
+    if (event.target.dataset.meshReset !== undefined) {
+      const id = store.getSession().selectedId;
+      if (id) canvas.resetMesh?.(id);
       renderCurrent({ force: true });
       return;
     }
@@ -166,6 +179,27 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     const selected = selectedElement();
     if (!selected) return;
     const { id, element, document } = selected;
+
+    if (target.dataset.meshDriver !== undefined) {
+      setMeshDriver?.(id, target.value || '');
+      renderCurrent({ force: true });
+      return;
+    }
+
+    if (target.dataset.meshSize !== undefined) {
+      setMesh?.(id, Number(target.value) || 0);
+      renderCurrent({ force: true });
+      return;
+    }
+
+    if (target.dataset.replacePicture !== undefined) {
+      const file = target.files?.[0];
+      // The input is cleared either way, so picking the same file twice is
+      // two replacements rather than one and a silence.
+      target.value = '';
+      if (file) Promise.resolve(replacePicture?.(id, file)).then(() => renderCurrent({ force: true }));
+      return;
+    }
 
     if (target.dataset.appearanceNone !== undefined) {
       const property = target.dataset.appearanceNone;
@@ -263,7 +297,13 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     // Fill and stroke paint nothing on a raster `<image>`: the pixels are the
     // paint. Offering the controls anyway is an author changing a colour and
     // watching nothing happen, which is worse than not offering them.
-    const isPicture=kind==='image';
+    //
+    // A bent picture is a `<g>` of clipped copies (runtime/mesh-warp.js) and is
+    // still a picture to whoever is looking at it. Reading only `image` here
+    // meant the section vanished the moment somebody turned bending on, taking
+    // the control that turns it off with it -- a one-way door.
+    const isMesh=kind==='g'&&Boolean(node.hasAttribute?.('data-mesh'));
+    const isPicture=kind==='image'||isMesh;
     // The swatch opens the colour dialog (`ui/colour-picker.js`), which leads
     // with the colours this mascot already uses -- the system picker knew
     // nothing about the drawing, so matching the skin or the line colour meant
@@ -272,6 +312,8 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     const paintRow=(name,label,value)=>{const none=!value||value==='none';const hex=paintToHex(value)||(name==='fill'?'#60a5fa':'#111827');return `<div class="paint-row" data-paint="${name}"><span class="paint-label">${label}</span><button type="button" class="paint-swatch" data-appearance-open="${name}" style="--swatch:${none?'transparent':esc(hex)}" aria-label="${label} colour: ${esc(none?'none':value)}" title="Choose a colour">${none?'—':''}</button><input type="text" data-appearance="${name}" aria-label="${label} value" value="${esc(none?'none':value)}" spellcheck="false" title="A colour, a name, or url(#gradientId)"><label class="check paint-none"><input type="checkbox" data-appearance-none="${name}"${none?' checked':''}>None</label></div>`;};
     const number=(name,label,value,attrs='')=>`<label>${label}<input type="number" data-appearance="${name}" aria-label="${label}" value="${esc(value)}" ${attrs}></label>`;
     const choice=(name,label,options,current)=>`<label>${label}<select data-appearance="${name}" aria-label="${label}">${options.map(([value,text])=>`<option value="${value}"${current===value?' selected':''}>${text}</option>`).join('')}</select></label>`;
+    // Like `choice`, but answered by something other than an SVG attribute.
+    const choiceOf=(name,label,options,current,marker)=>`<label>${label}<select ${marker} aria-label="${label}">${options.map(([value,text])=>`<option value="${value}"${current===value?' selected':''}>${text}</option>`).join('')}</select></label>`;
     const rows=[];
     const fill=paint('fill'), stroke=paint('stroke');
     if(!isGroup&&!isPicture){
@@ -288,8 +330,11 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     }
     const opacity=raw('opacity')??'1';
     rows.push(`<label>Opacity <output data-appearance-output="opacity">${Math.round(Number(opacity)*100)}%</output><input type="range" data-appearance="opacity" data-live aria-label="Opacity" min="0" max="1" step="0.01" value="${esc(opacity)}"></label>`);
-    const geometry=geometryFields(kind);
-    if(geometry.length||kind==='text'){
+    // A bent picture's box belongs to the mesh, not to the group: the numbers
+    // are on the copies inside it, and offering them here would be offering to
+    // edit one triangle of eight.
+    const geometry=isMesh?[]:geometryFields(kind);
+    if(geometry.length||kind==='text'||isMesh){
       rows.push(`<h4>${kind==='text'?'Text':isPicture?'Picture':'Shape'}</h4>`);
       if(kind==='text')rows.push(`<label>Text<input type="text" data-text-content aria-label="Text content" value="${esc(node.textContent||'')}"></label>`);
       for(const [name,label,attrs] of geometry)rows.push(number(name,label,raw(name)??(name==='font-size'?'16':'0'),attrs));
@@ -299,6 +344,27 @@ export function createInspector(host, store, history, canvas, { openColour = nul
       // Not offered to a picture: there is no outline to convert, and the
       // action would decline it (svg-editor/path-only.js).
       if(kind!=='text'&&!isPicture)rows.push(`<button type="button" class="secondary" data-convert-path title="The same outline as a path: it can then be reshaped point by point, pinned, warped and given shape keys">Convert to a path</button>`);
+      // Swapping the drawing and keeping everything else is the whole point of
+      // a picture being a node: the rig, the movements, the pivot, the depth
+      // and the place in the paint order all belong to the piece and none of
+      // them knows what it draws (docs/V4_ROADMAP.md, V4-032).
+      if(isPicture&&replacePicture)rows.push(`<label class="button secondary" title="A different picture on this same piece. Its movements, its pivot and its depth are unchanged.">Replace picture<input hidden type="file" data-replace-picture accept=".png,.webp,.svg,image/png,image/webp,image/svg+xml"></label>`);
+      // A picture's shape is its pixels, so bending one is a grid of points
+      // over it rather than an outline to edit (docs/V4_ROADMAP.md, Phase 7).
+      if(isPicture&&setMesh){
+        const mesh=(store.getDocument().meshes||[]).find(item=>item.target===selectedId);
+        rows.push(choiceOf('mesh','Bends',[['0','No — a flat picture'],['3','Yes, 3 × 3 points'],['4','Yes, 4 × 4 points']],String(mesh?.size||0),'data-mesh-size'));
+        // Only where there is something to undo: an author who has bent
+        // nothing does not need to be offered a way to unbend it.
+        if(mesh&&!meshIsRest(mesh))rows.push(`<button type="button" class="secondary" data-mesh-reset title="Every point back where it started, in one step">Flatten the points</button>`);
+        // What moves it between its two shapes. The same vocabulary a shape
+        // key uses, so an author learns one thing rather than two.
+        if(mesh&&setMeshDriver){
+          const names=Object.keys(store.getDocument().params||{});
+          rows.push(choiceOf('meshDriver','Driven by',[['','Nothing — it stays as it is drawn'],...names.map(name=>[name,name])],mesh.driver?.parameter||'','data-mesh-driver'));
+          if(mesh.driver)rows.push(`<button type="button" class="secondary" data-mesh-capture title="The shape it is bent into now is the shape it opens to">Capture this as the open shape</button>`);
+        }
+      }
     }
     return rows.join('');
   }

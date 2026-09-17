@@ -780,7 +780,7 @@ test('the reaction studio still leaves and reports the way the editor asks it to
   const id = ui.reactions()[0].id;
   assert.deepEqual(ui.studio.snapshot(), {
     activeId: id,
-    reactions: [{ id, name: 'Surprise', trigger: { type: 'click' }, expression: { id: 'happy', weight: 1 }, motion: null, timing: 'normal', issue: null }]
+    reactions: [{ id, name: 'Surprise', trigger: { type: 'click' }, conditions: [], expression: { id: 'happy', weight: 1 }, motion: null, timing: 'normal', issue: null }]
   });
 
   ui.clickInspector({ reactionTest: '' });

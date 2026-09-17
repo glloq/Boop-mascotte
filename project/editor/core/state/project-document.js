@@ -1,4 +1,6 @@
 import { normalizeAssets } from '../assets/asset-model.js';
+import { normalizeGraphLayout } from '../state-machine/graph-layout.js';
+import { normalizeMeshes } from '../../../runtime/mesh-warp.js';
 import { normalizeRigHandles } from '../puppet/handle-record.js';
 import { normalizeRigLinks } from '../puppet/control-links.js';
 import { normalizeArrangement } from '../animation/arrangement.js';
@@ -14,7 +16,10 @@ export const PROJECT_DOMAINS = Object.freeze({
   // `gazeSolver` sits here because turning it on writes parameters: one
   // domain, one notification (docs/FACE_CONTROL_RIG.md).
   rig: ['params', 'globalConstraints', 'stateConstraints', 'runtimeConfig', 'gazeSolver'],
-  stateMachine: ['states', 'transitions', 'transitionSettings', 'activeState', 'behaviors'],
+  // `graphLayout` is where the machine is *drawn* (docs/V4_ROADMAP.md Phase 10):
+  // authored like a transition, undone like a transition, and never sent to the
+  // runtime, which runs a state machine without drawing one.
+  stateMachine: ['states', 'transitions', 'transitionSettings', 'activeState', 'behaviors', 'graphLayout'],
   semanticRig: ['semanticParts'],
   // On-canvas controls an author owns (docs/DIRECT_CONTROLS.md): sparse
   // overrides on the generated set, so improving the defaults still reaches
@@ -26,7 +31,7 @@ export const PROJECT_DOMAINS = Object.freeze({
   arrangement: ['arrangement'],
   // Everything that deforms artwork rather than moving it whole: pose grids,
   // shape keys, warp grids and the pins the control rig holds it by.
-  keyforms: ['keyforms', 'shapeKeys', 'warps', 'rigPins'],
+  keyforms: ['keyforms', 'shapeKeys', 'warps', 'rigPins', 'meshes'],
   // The relationships the rig holds, and what is holding on to what.
   constraints: ['rigConstraints', 'rigAttachments', 'rigHolds'],
   hands: ['hands'],
@@ -103,6 +108,9 @@ export function createProjectDocument(candidate = {}) {
     layerMetadata: candidate.layerMetadata && typeof candidate.layerMetadata === 'object' ? candidate.layerMetadata : {},
     params: candidate.params && typeof candidate.params === 'object' ? candidate.params : {},
     states, transitions: candidate.transitions && typeof candidate.transitions === 'object' ? candidate.transitions : {},
+    // Empty for every project laid out by the old renderer, which computed
+    // positions itself and kept none of them.
+    graphLayout: normalizeGraphLayout(candidate.graphLayout),
     transitionSettings: candidate.transitionSettings && typeof candidate.transitionSettings === 'object' ? candidate.transitionSettings : {},
     activeState, globalConstraints,
     stateConstraints: candidate.stateConstraints && typeof candidate.stateConstraints === 'object' ? candidate.stateConstraints : {},
@@ -117,6 +125,9 @@ export function createProjectDocument(candidate = {}) {
     shapeKeys: normalizeShapeKeys(candidate),
     // Optional small warp grids (docs/WARP_GRID.md).
     warps: normalizeWarps(candidate),
+    // Pictures that bend (docs/V4_ROADMAP.md, Phase 7). Empty for every
+    // project made of paths, and for every raster one that only ever moved.
+    meshes: normalizeMeshes(candidate),
     // The structural points artwork is deformed around (docs/FACE_CONTROL_RIG.md).
     rigPins: normalizeRigPins(candidate),
     // What has to stay true whatever moved: follow, distance, orientation,

@@ -57,8 +57,14 @@ export function createAssetResolver({
       const missing = [];
       await Promise.all(wanted.map(async (id) => {
         if (held.has(id)) { if (held.get(id) === null) missing.push(id); return; }
-        const blob = await store?.get(id);
-        if (!blob) { held.set(id, null); absent.add(id); missing.push(id); return; }
+        const held_bytes = await store?.get(id);
+        if (!held_bytes) { held.set(id, null); absent.add(id); missing.push(id); return; }
+        // `createObjectURL` takes a `Blob` and nothing else: handed raw bytes
+        // it throws `Overload resolution failed`, which is a sentence nobody
+        // traces back to a missing wrapper. A store that keeps `Blob`s -- as
+        // the asset manager's does -- passes straight through; one that keeps
+        // bytes is wrapped here rather than failing at the last step.
+        const blob = typeof Blob === 'function' && !(held_bytes instanceof Blob) ? new Blob([held_bytes]) : held_bytes;
         held.set(id, createObjectURL ? createObjectURL(blob) : null);
       }));
       return { ready: wanted.filter((id) => held.get(id)), missing };

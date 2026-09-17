@@ -1,6 +1,6 @@
 export const LAYER_TAGS = new Set(['g', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'text', 'image', 'use']);
 
-import { restoreAssetReferences } from '../../../runtime/asset-paint.js';
+import { restoreAssetReferences, unpaintAssetNodes } from '../../../runtime/asset-paint.js';
 
 const EDITOR_ATTRIBUTES = ['data-editor-selected', 'data-editor-preview', 'data-editor-handle', 'data-editor-scope'];
 
@@ -195,11 +195,13 @@ export class SvgDocument {
       Object.entries(attributes).forEach(([name, value]) => value == null ? node.removeAttribute(name) : node.setAttribute(name, value));
     });
     const clean = [clone, ...childrenOfDeep(clone)];
-    // Before anything else: a node painted from an object URL gets its
-    // `asset:` reference back. An object URL is valid for this tab and no
-    // longer, so one reaching `svgMarkup` is a project that opens tomorrow
-    // pointing at nothing (runtime/asset-paint.js).
-    restoreAssetReferences(clean);
+    // A node painted from an object URL loses that URL here and gets its
+    // `asset:` reference back at the very end, once the markup is text: an
+    // object URL is valid for this tab and no longer, so one reaching
+    // `svgMarkup` is a project that opens tomorrow pointing at nothing, and a
+    // reference written onto the *clone* would be fetched by the browser even
+    // though the clone is never shown (runtime/asset-paint.js).
+    unpaintAssetNodes(clean);
     clean.forEach((node) => {
       EDITOR_ATTRIBUTES.forEach((name) => node.removeAttribute?.(name));
       // The canvas writes a full transform and opacity on every piece it
@@ -209,7 +211,7 @@ export class SvgDocument {
       const classes = (node.getAttribute?.('class') || '').split(/\s+/).filter((name) => name && !name.startsWith('svg_select_') && !name.startsWith('editor-'));
       if (node.hasAttribute?.('class')) classes.length ? node.setAttribute('class', classes.join(' ')) : node.removeAttribute('class');
     });
-    return this.serializer(clone);
+    return restoreAssetReferences(this.serializer(clone));
   }
 }
 

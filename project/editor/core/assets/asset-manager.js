@@ -28,6 +28,26 @@ import { createAssetOptimiser } from './asset-optimise.js';
  * with the node command (V4-032), and all this side needs is `import`.
  */
 
+/**
+ * Bytes as the store keeps them: a `Blob`, carrying the format.
+ *
+ * Not a detail. What finally paints a picture is
+ * `URL.createObjectURL(blob)`, and that takes a `Blob` and nothing else --
+ * handed a `Uint8Array` it throws `Overload resolution failed`, which is a
+ * sentence nobody traces back to a missing wrapper. And the type matters as
+ * much as the wrapper: an object URL with no MIME type leaves the browser
+ * sniffing at bytes it was told nothing about.
+ *
+ * This existed as a bug for six commits because every test wrote
+ * `new Blob([...])` into the store by hand while the manager wrote a
+ * `Uint8Array`. The fixtures were more correct than the code they were
+ * checking, so they agreed with each other and with nothing real.
+ */
+const asBlob = (bytes, type) => (bytes instanceof Blob ? bytes : new Blob([bytes], type ? { type } : undefined));
+
+/** And back again, for hashing and for writing into a package. */
+const asBytes = async (value) => (value instanceof Blob ? new Uint8Array(await value.arrayBuffer()) : (value ? new Uint8Array(value) : null));
+
 /** 64 bits of SHA-256, hex. Enough that a project will never see a collision, short enough to read. */
 export const ASSET_ID_LENGTH = 16;
 
@@ -100,7 +120,7 @@ export function createAssetManager({ store, hash = hashAssetBytes, optimiser = c
       // told would be resized, and then was not, is a surprise otherwise.
       const issues = fitted.resized || !fitted.reason ? checked.issues : [...checked.issues, { code: 'not-resized', detail: fitted.reason }];
       const id = await hash(fitted.bytes);
-      const held = await store.put(id, fitted.bytes);
+      const held = await store.put(id, asBlob(fitted.bytes, checked.format));
       const asset = normalizeAsset({
         id, format: checked.format, width: fitted.width, height: fitted.height,
         alpha: checked.alpha, bytes: held.bytes, name, importedAt: now()
@@ -110,8 +130,12 @@ export function createAssetManager({ store, hash = hashAssetBytes, optimiser = c
       return { ok: true, asset, stored: held.stored, issues };
     },
 
-    /** The bytes behind an id, or null. Painting them is the resolver's job, not this one's. */
-    bytes: (id) => store.get(id),
+    /**
+     * The bytes behind an id as a `Uint8Array`, or null -- for hashing and for
+     * writing into a package. Painting is the resolver's job, and it takes the
+     * `Blob` straight from the store.
+     */
+    bytes: async (id) => asBytes(await store.get(id)),
 
     /**
      * Take in bytes that are already named -- a package being opened.
@@ -122,11 +146,16 @@ export function createAssetManager({ store, hash = hashAssetBytes, optimiser = c
      * exists. What a package needs is the opposite operation: the name is
      * given and what is checked is that the bytes deserve it.
      *
+     * @param {string} id the name the package gave them
+     * @param {Uint8Array|Blob} bytes
+     * @param {string} [format] the MIME type to keep them under, so that what
+     *   paints them later is told what it is looking at
      * @returns {Promise<boolean>} false when the bytes are not what the id says
      */
-    async adopt(id, bytes) {
-      if (await hash(bytes) !== id) return false;
-      await store.put(id, bytes);
+    async adopt(id, bytes, format = '') {
+      const raw = await asBytes(bytes);
+      if (!raw || await hash(raw) !== id) return false;
+      await store.put(id, asBlob(raw, format));
       return true;
     },
 

@@ -20,9 +20,15 @@ import rigAttachmentsSource from '../../../runtime/rig-attachments.js?raw';
 import gazeSolverSource from '../../../runtime/gaze-solver.js?raw';
 import effectiveParamsSource from '../../../runtime/effective-params.js?raw';
 import runtimeModuleSource from '../../../runtime/runtime.js?raw';
+import assetReferenceSource from '../../../runtime/asset-reference.js?raw';
+import assetPaintSource from '../../../runtime/asset-paint.js?raw';
+import assetResolverSource from '../../../runtime/asset-resolver.js?raw';
+import meshWarpSource from '../../../runtime/mesh-warp.js?raw';
+import reactionConditionsSource from '../../../runtime/reaction-conditions.js?raw';
 import { bundleRuntimeSource } from './runtime-bundle.js';
 import { createExportRig } from './export-rig.js';
-import { createExportArtifacts as buildExportArtifacts, createExportUiModel } from './export-policy.js';
+import { EXPORT_BUNDLE, createExportArtifacts as buildExportArtifacts, createExportUiModel } from './export-policy.js';
+import { writeZip } from './zip.js';
 import { createExportReadinessModel } from './export-readiness.js';
 import { READINESS_SYMBOLS } from '../validation/task-readiness.js';
 
@@ -33,14 +39,15 @@ const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp
 export function createExporter(host, store, canvas, options = {}) {
   if (!host) throw new Error('Missing required UI element: #export-panel');
   // Readiness sources and deep-link handlers are configured once the validation cache and router exist (UX-16).
-  let config = { readiness: () => null, issues: () => [], onFix: () => {}, onGo: () => {}, ...options };
+  let config = { readiness: () => null, issues: () => [], onFix: () => {}, onGo: () => {}, assetBytes: async () => null, ...options };
   let current = null;
 
-  const createExportArtifacts = () => {
+  const createExportArtifacts = (assetBytes = () => null) => {
     return buildExportArtifacts({
       state: store.getState(),
       serializeSvg: () => canvas.serializeCurrentSvg(),
       createRig: createExportRig,
+      assetBytes,
       // One standalone file even though the runtime is authored as modules.
       runtimeSource: bundleRuntimeSource([
         { name: 'numeric.js', source: numericSource },
@@ -64,6 +71,16 @@ export function createExporter(host, store, canvas, options = {}) {
         { name: 'rig-attachments.js', source: rigAttachmentsSource },
         { name: 'gaze-solver.js', source: gazeSolverSource },
         { name: 'effective-params.js', source: effectiveParamsSource },
+        // Everything `runtime.js` reaches for. A module missing from this list
+        // is not a build error: the bundler strips the import and the name is
+        // simply undefined at the moment something calls it, which is a
+        // standalone runtime that throws on a mascot made of pictures while
+        // working perfectly on one made of paths.
+        { name: 'asset-reference.js', source: assetReferenceSource },
+        { name: 'asset-paint.js', source: assetPaintSource },
+        { name: 'asset-resolver.js', source: assetResolverSource },
+        { name: 'mesh-warp.js', source: meshWarpSource },
+        { name: 'reaction-conditions.js', source: reactionConditionsSource },
         { name: 'runtime.js', source: runtimeModuleSource }
       ])
     });
@@ -74,8 +91,28 @@ export function createExporter(host, store, canvas, options = {}) {
     const go=event.target.dataset.readinessGo; if (go) { const section=(current?.sections||[]).find(item=>item.id===go); host.hidden=true; if (section) config.onGo(section); return; }
     const name=event.target.dataset.downloadArtifact;
     if (!name) return;
-    const artifact=createExportArtifacts().find(item=>item.name===name);
-    if (artifact) download(artifact);
+    // Reading the pictures out of the store is asynchronous, so every download
+    // is: a mascot of paths asks for nothing and resolves at once.
+    void (async () => {
+      const held = new Map();
+      for (const id of Object.keys(store.getDocument?.()?.assets || {})) {
+        const bytes = await config.assetBytes?.(id);
+        if (bytes) held.set(id, bytes);
+      }
+      const artifacts = createExportArtifacts((id) => held.get(id) ?? null);
+      if (name === EXPORT_BUNDLE.name) {
+        const bytes = await writeZip(artifacts.map((item) => ({
+          name: item.name,
+          bytes: typeof item.content === 'string' ? new TextEncoder().encode(item.content) : item.content,
+          // A picture is compressed already; deflating it costs time to grow it.
+          compress: !item.name.startsWith('assets/') || item.type === 'image/svg+xml'
+        })));
+        download({ name, type: 'application/zip', content: bytes });
+        return;
+      }
+      const artifact = artifacts.find((item) => item.name === name);
+      if (artifact) download(artifact);
+    })();
   });
 
   return {

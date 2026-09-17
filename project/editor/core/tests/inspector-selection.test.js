@@ -323,11 +323,11 @@ const nodeOf = (localName, attributes = {}) => ({ node: {
   textContent: ''
 } });
 
-const appearanceFor = (localName, attributes) => {
+const appearanceFor = (localName, attributes, options = {}) => {
   const { store, history } = riggedStore();
   store.mutateSession('selectedId', (session) => { session.selectedId = 'mouth'; });
   const host = fakeHost();
-  createInspector(host, store, history, { getNode: () => nodeOf(localName, attributes), applyElementTransform() {}, setAppearance() {} }).render();
+  createInspector(host, store, history, { getNode: () => nodeOf(localName, attributes), applyElementTransform() {}, setAppearance() {} }, options).render();
   return host.innerHTML;
 };
 
@@ -361,4 +361,18 @@ test('nothing changed for the shapes that were already right',()=>{
   const path = appearanceFor('path', { d: 'M0 0 L1 1', fill: '#0f0' });
   assert.match(path,/data-paint="fill"/);
   assert.doesNotMatch(path,/<h4>Shape<\/h4>/,'a path has no geometry section: it is already one');
+});
+
+test('a picture can be swapped for another from the Inspector',()=>{
+  // Swapping the drawing and keeping everything else is the whole point of a
+  // picture being a node: the rig, the pivot, the depth and the paint order
+  // belong to the piece and none of them knows what it draws.
+  const offered = appearanceFor('image', { width: 48, height: 32 }, { replacePicture: () => true });
+  assert.match(offered,/data-replace-picture/);
+  assert.match(offered,/Replace picture/);
+  assert.match(offered,/accept="[^"]*image\/webp/);
+  // Not offered where there is nothing to swap, and not offered at all when
+  // the editor was wired without somewhere to send the file.
+  assert.doesNotMatch(appearanceFor('path', { d: 'M0 0' }, { replacePicture: () => true }),/data-replace-picture/);
+  assert.doesNotMatch(appearanceFor('image', { width: 48, height: 32 }),/data-replace-picture/);
 });

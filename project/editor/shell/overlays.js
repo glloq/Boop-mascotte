@@ -183,6 +183,8 @@ export function wireOverlays({ root, q, qAll }) {
     /** Open a project, import an SVG, try an example: the presses Home grew in UI-REDESIGN-02. */
     bindHomeOpenProject(handler) { onHomeAction('open', handler); },
     bindHomeImportSvg(handler) { onHomeAction('import', handler); },
+    /** Begin with a picture instead of a drawing (V4-092). */
+    bindHomeStartFromPicture(handler) { onHomeAction('picture', handler); },
     bindHomeExample(handler) { q('[data-home]').addEventListener('click', (event) => { const button = event.target?.closest?.('[data-home-example]'); if (button) handler(button.dataset.homeExample, button); }); },
     bindLoadSample(handler) { qAll('[data-template-id]').forEach((button) => { button.onclick = () => handler(button.dataset.templateId, button); }); q('#empty-basic').onclick = () => handler('basic'); },
     bindNewCharacter(handler) { q('[data-home-action=character]').onclick = () => handler(); },
