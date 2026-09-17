@@ -546,7 +546,11 @@ export function createEditorApp({ root = document.getElementById('app'), recover
 
   let timeline;
   let lastReactionId=null;
-  const preview = createPreviewController({ store, canvas, onError: error=>shell.setStatus(`Preview stopped: ${error.message}`,'error'), onFrame: ({ time }) => { const output=shell.previewEl.querySelector('#current-time'); if(output) output.textContent=time.toFixed(2); const playhead=shell.previewEl.querySelector('#playhead'); if(playhead) playhead.value=String(time); if(preview.isArrangementPlaying?.()&&!timeline.syncArrangementPlayhead())timeline.requestRender();const activeReaction=preview.getActiveReaction()?.id||null; if(activeReaction!==lastReactionId){lastReactionId=activeReaction;if(shell.getWorkspace()==='preview'&&!shell.previewPanelEl.querySelector(':focus'))previewPanel.render();} } });
+  // The state graph's live highlight (V4-103). Assigned once the Behavior
+  // workspace exists, which is after this callback is written but long before
+  // a frame can run.
+  let syncGraphHighlight=()=>{};
+  const preview = createPreviewController({ store, canvas, onError: error=>shell.setStatus(`Preview stopped: ${error.message}`,'error'), onFrame: ({ time }) => { const output=shell.previewEl.querySelector('#current-time'); if(output) output.textContent=time.toFixed(2); const playhead=shell.previewEl.querySelector('#playhead'); if(playhead) playhead.value=String(time); if(preview.isArrangementPlaying?.()&&!timeline.syncArrangementPlayhead())timeline.requestRender();const activeReaction=preview.getActiveReaction()?.id||null; if(activeReaction!==lastReactionId){lastReactionId=activeReaction;if(shell.getWorkspace()==='preview'&&!shell.previewPanelEl.querySelector(':focus'))previewPanel.render();} syncGraphHighlight(); } });
   /**
    * Undo and redo put the numbers back; these put the mascot back.
    *
@@ -579,6 +583,7 @@ export function createEditorApp({ root = document.getElementById('app'), recover
   const workspaceContext = { store, history, shell, preview, editorContext, navigate: (route) => taskRouter.navigate(route), setStatus: (message, tone) => shell.setStatus(message, tone) };
   const animate = createAnimateWorkspace({ ...workspaceContext, isMobile: () => responsive.layout === 'mobile' });
   const behavior = createBehaviorWorkspace(workspaceContext);
+  syncGraphHighlight = () => behavior.syncLive();
   const { expressionStudio, motionStudio } = animate.panels;
   const { states, reactionStudio, automaticPanel } = behavior.panels;
   timeline = animate.panels.timeline;
@@ -664,7 +669,21 @@ export function createEditorApp({ root = document.getElementById('app'), recover
 
 
   shell.bindLoadSvg((file) => projectService.loadSvgFile(file));
-  shell.bindAddImage((file) => projectService.addImageFile(file));
+  /**
+   * Somewhere to put a picture (V4-092).
+   *
+   * Both picture imports place a node into the artwork that is open, so both
+   * assumed there was one — which was true while the only way to reach them
+   * was a column inside a project. Home offers *Start from a picture* now, and
+   * the first thing an author does there is press a button that had nothing to
+   * append to. A blank project is the artboard a picture needs, and making one
+   * is what they were going to have to do anyway.
+   */
+  const withArtwork = (add) => async (file) => {
+    if (!store.getDocument()?.svgMarkup && !(await projectService.loadTemplate('blank', { mode: 'design.artwork' }))) return false;
+    return add(file);
+  };
+  shell.bindAddImage(withArtwork((file) => projectService.addImageFile(file)));
   // The gesture people reach for first. A button alone works and still reads
   // as a missing feature (app/picture-drop.js).
   createPictureDrop(shell.canvasEl, {
@@ -672,7 +691,7 @@ export function createEditorApp({ root = document.getElementById('app'), recover
     onPicture: (file) => projectService.addImageFile(file),
     setStatus: (message, tone) => shell.setStatus(message, tone)
   });
-  shell.bindAddBaseImage((file) => projectService.addBaseImageFile(file));
+  shell.bindAddBaseImage(withArtwork((file) => projectService.addBaseImageFile(file)));
 
   shell.bindLoadSample((kind) => projectService.loadTemplate(kind));
 
@@ -717,6 +736,9 @@ export function createEditorApp({ root = document.getElementById('app'), recover
   // an empty "Continue" panel.
   shell.bindHomeOpenProject(() => shell.openProjectFilePicker());
   shell.bindHomeImportSvg(() => shell.openSvgFilePicker());
+  // The third way to begin (V4-092): the same picker the Artwork column has,
+  // which now makes its own artboard when there is no project behind it.
+  shell.bindHomeStartFromPicture(() => shell.openBaseImageFilePicker());
   // An example knows its own kind, read from the parts it names rather than
   // stored beside them: a fox is an Animal, never the human default.
   shell.bindHomeExample((presetId) => {

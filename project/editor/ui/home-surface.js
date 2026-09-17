@@ -31,6 +31,14 @@
  * The rest of what used to live here — Import SVG, Open Project, the blank
  * canvas — is still reachable. Two of them are one press from this page now
  * rather than a sentence pointing at the ••• menu.
+ *
+ * V4-092 added the third way to begin. A mascot can be made of pictures since
+ * Phase 1, and Home offered no way to say so: an author arriving with three
+ * PNGs had to make a template mascot they did not want, find *Artwork* behind
+ * the Design chevron, and find *Import head / base* inside it. Three presses,
+ * none of them named after what they came to do. It is the same file picker
+ * the Artwork column has always had — one way in, one handler behind it — on
+ * the page where the decision is made.
  */
 import { FACE_PART_LIBRARY } from '../core/face-library/face-part-registry.js';
 import { FACE_PRESET_LIBRARY, presetThumbnail } from '../core/face-library/face-presets.js';
@@ -75,7 +83,8 @@ export function homeSurfaceMarkup(options = {}) {
     </div>
     <p class="home-otherwise">Otherwise:
       <button type="button" class="link" data-template-id="basic" title="The cartoon face this editor comes with, ready to change">Start from the ready-made face</button> ·
-      <button type="button" class="link" data-home-action="import">Import an SVG</button></p>
+      <button type="button" class="link" data-home-action="import">Import an SVG</button> ·
+      <button type="button" class="link" data-home-action="picture" title="A photo or a drawing you already have: PNG or WebP">Start from a picture</button></p>
     <section class="home-recovery" aria-labelledby="home-continue" data-recovery-status="none">
       <h2 id="home-continue" class="screen-eyebrow">Continue</h2><div data-recovery-content></div>
     </section>

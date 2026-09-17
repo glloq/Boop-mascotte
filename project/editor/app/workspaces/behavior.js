@@ -10,7 +10,7 @@ import { createAutomaticPanel } from '../../ui/automatic-panel.js';
 import { createStateMachineEditor } from '../../animation-editor/state-machine-editor.js';
 
 export function createBehaviorWorkspace({ store, history, shell, preview, editorContext, navigate, setStatus }) {
-  const states = createStateMachineEditor(shell.leftSidebarEl, store, history, preview, editorContext);
+  const states = createStateMachineEditor(shell.leftSidebarEl, store, history, preview, editorContext, setStatus);
   const reactionStudio = createReactionStudio({ listHost: shell.reactionsEl, inspectorHost: shell.reactionInspectorEl, store, history, preview, editorContext, onStatus: setStatus, navigate });
   // "Behaviors (advanced)" is in the Reactions column and the editor it opens is
   // the State machine's own screen: it has to travel there, or it changes a mode
@@ -30,6 +30,12 @@ export function createBehaviorWorkspace({ store, history, shell, preview, editor
       automaticPanel: () => automaticPanel.render()
     },
     enter() {},
+    /**
+     * The live highlight on the diagram (V4-103), driven from the editor's own
+     * frame callback: the state the mascot is in and the transition playing.
+     * Two class toggles, so it is free while the preview is asleep.
+     */
+    syncLive() { states.syncLive?.(); },
     /** A reaction being tested stops when the author goes somewhere else. */
     leave() { reactionStudio.leave(); },
     render() { states.render(); reactionStudio.render(); automaticPanel.render(); },

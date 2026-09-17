@@ -103,10 +103,15 @@ export const MODES = Object.freeze({
  * author does *from* wherever they are, not a fifth step after the fourth.
  */
 export const WORKSPACES = Object.freeze({
-  design: Object.freeze({ id: 'design', label: 'Design', hint: 'What your character looks like: its face, its hands, its artwork' }),
-  rig: Object.freeze({ id: 'rig', label: 'Rig', hint: 'How its face can move: which parts, which movements, how it turns' }),
-  animate: Object.freeze({ id: 'animate', label: 'Animate', hint: 'What its face can do: expressions and motions' }),
-  behavior: Object.freeze({ id: 'behavior', label: 'Behavior', hint: 'When it does it: reactions, automatic behaviours, states' })
+  // Each hint names what the workspace holds for *both* kinds of mascot
+  // (V4-092): a mascot has been drawings or pictures since Phase 1, and a hint
+  // that only names drawings is a workspace an author with photographs reads
+  // past. `hint` is the only sentence a workspace gets, so it is the sentence
+  // that has to be true of what they brought.
+  design: Object.freeze({ id: 'design', label: 'Design', hint: 'What your character looks like: its face, its hands, its drawings and pictures' }),
+  rig: Object.freeze({ id: 'rig', label: 'Rig', hint: 'How it can move: which parts, which movements, how it turns and bends' }),
+  animate: Object.freeze({ id: 'animate', label: 'Animate', hint: 'What it can do: expressions and motions' }),
+  behavior: Object.freeze({ id: 'behavior', label: 'Behavior', hint: 'When it does it: reactions, what has to be true first, automatic behaviours, states' })
 });
 
 export const WORKSPACE_ORDER = Object.freeze(Object.keys(WORKSPACES));

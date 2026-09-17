@@ -4,14 +4,27 @@ import { renderStateInspector, renderTransitionInspector } from './state-inspect
 import { renderStateList } from './state-list.js';
 import { stateProblems, transitionImpact } from './state-operations.js';
 import { createStateMachineCommands } from './state-machine-commands.js';
-import { renderTransitionGraph, renderTransitionList } from './transition-graph.js';
+import { renderTransitionList } from './transition-graph.js';
+import { createGraphView } from './graph-view.js';
 import { rememberOpen, setPanelHtml } from '../../ui/panel-render.js';
 import { esc } from '../../ui/escape-html.js';
 
-export function createStateMachinePanel(leftSidebarEl,store,history,preview=null,editorContext=null){
+export function createStateMachinePanel(leftSidebarEl,store,history,preview=null,editorContext=null,onStatus=()=>{}){
  const host=leftSidebarEl.querySelector('#state-editor');let selectedState=editorContext?.get().activeStateId||null,selectedEdge=null,selectedBehavior=0,catalog=false,error='';
  const sections=rememberOpen(host);
  const stateCommands=createStateMachineCommands(store,history),behaviorCommands=createBehaviorCommands(store,history);
+ /**
+  * The diagram (Phase 10). It owns its own pointer work and its own view --
+  * where somebody has scrolled is session state, never the project -- and asks
+  * this panel to re-render when it has changed something.
+  */
+ const graph=createGraphView({store,history,preview,onStatus,
+  requestRender:()=>render(),
+  onSelectState(name){if(!name||name===selectedState)return;selectedState=name;selectedEdge=null;editorContext?.update({activeStateId:name,selectedTrackParameter:null,selectedKey:null});preview?.previewState(name);},
+  // Drawing a link is adding a transition: the same command, the same refusal,
+  // the same one history step as the dialog.
+  addTransition(from,to){if(command(()=>stateCommands.addTransition(from,to))!==undefined)selectedEdge=`${from}->${to}`;render();}});
+ graph.attach(host);
  const command=fn=>{try{const result=fn();error='';return result;}catch(e){error=e.message;render();return undefined;}};
  const dialog=(title,body,confirm,action)=>{let d=host.querySelector('dialog');if(!d){d=document.createElement('dialog');host.append(d);}d.innerHTML=`<form method="dialog"><h2>${title}</h2>${body}<div class="dialog-actions"><button value="cancel">Cancel</button><button value="confirm" class="primary">${confirm}</button></div></form>`;d.addEventListener('close',()=>{if(d.returnValue==='confirm')action(d);},{once:true});d.showModal();};
  host.addEventListener('focusin',e=>{if(e.target.matches('input[type=range],input[type=number]'))history.beginTransaction?.();});
@@ -19,7 +32,7 @@ export function createStateMachinePanel(leftSidebarEl,store,history,preview=null
  host.addEventListener('change',()=>history.commitTransaction?.());
  host.addEventListener('click',e=>{const a=e.target.closest('[data-action],[data-author-mode],[data-select-state],[data-select-transition],[data-select-behavior],[data-add-behavior]');if(!a)return;
   if(a.dataset.authorMode){editorContext?.update({authorMode:a.dataset.authorMode});render();return;}
-  if(a.dataset.selectState){selectedState=a.dataset.selectState;selectedEdge=null;editorContext?.update({activeStateId:selectedState,selectedTrackParameter:null,selectedKey:null});preview?.previewState(selectedState);render();return;}
+  if(a.dataset.selectState){selectedState=a.dataset.selectState;selectedEdge=null;graph.select([selectedState]);editorContext?.update({activeStateId:selectedState,selectedTrackParameter:null,selectedKey:null});preview?.previewState(selectedState);render();return;}
   if(a.dataset.selectTransition){selectedEdge=a.dataset.selectTransition;render();return;}if(a.dataset.selectBehavior!==undefined){selectedBehavior=Number(a.dataset.selectBehavior);catalog=false;render();return;}
   if(a.dataset.addBehavior){if(command(()=>behaviorCommands.add(a.dataset.addBehavior)))selectedBehavior=store.getDocument().behaviors.length-1;catalog=false;render();return;}
   const s=store.getDocument(),state=selectedState&&s.states[selectedState]?selectedState:s.activeState||Object.keys(s.states)[0];
@@ -43,6 +56,12 @@ export function createStateMachinePanel(leftSidebarEl,store,history,preview=null
  // on the AUTHOR nav happen inside it and change nothing about that.
  let lastMode=editorContext?.get().authorMode||'states';
  const unfold=()=>{const details=host.closest('details');if(details&&!details.open)details.open=true;};
- function render(){const s=store.getDocument(),mode=editorContext?.get().authorMode||'states';if(mode!==lastMode){lastMode=mode;unfold();}selectedState=s.states?.[selectedState]?selectedState:s.activeState||Object.keys(s.states||{})[0]||null;if(selectedEdge&&!s.transitionSettings?.[selectedEdge])selectedEdge=null;const nav=`<nav class="author-nav" aria-label="Author"><b>AUTHOR</b><button data-author-mode="states" class="${mode==='states'?'active':''}">States</button><button data-author-mode="behaviors" class="${mode==='behaviors'?'active':''}">Behaviors</button></nav>`;let body='<div class="author-intro"><b>MOTION</b> is movement over time. Add a preset above, or edit any motion key by key in the Timeline below.</div>';if(mode==='states'){const problems=stateProblems(s);body=`<div class="author-intro"><b>STATE</b> is a persistent pose. <b>TRANSITION</b> is an allowed directed movement.</div>${renderStateList(s,selectedState)}<label>Initial State<select data-initial-state>${Object.keys(s.states).map(n=>`<option ${n===s.activeState?'selected':''}>${esc(n)}</option>`).join('')}</select></label>${renderStateInspector(s,selectedState)}${renderTransitionGraph(s,selectedState,selectedEdge)}${renderTransitionList(s,selectedState,selectedEdge)}${renderTransitionInspector(s,selectedEdge)}${problems.length?`<div class="notice error">${problems.map(esc).join('<br>')}</div>`:''}${advanced(s)}`;}else if(mode==='behaviors')body=renderBehaviorsPanel(s,selectedBehavior,catalog);setPanelHtml(host,`${nav}${error?`<div class="notice error">${esc(error)}</div>`:''}<div class="author-surface">${body}</div>`);}
- return {render,reset(){selectedState=selectedEdge=null;selectedBehavior=0;catalog=false;render();}};
+ function render(){const s=store.getDocument(),mode=editorContext?.get().authorMode||'states';if(mode!==lastMode){lastMode=mode;unfold();}selectedState=s.states?.[selectedState]?selectedState:s.activeState||Object.keys(s.states||{})[0]||null;if(selectedEdge&&!s.transitionSettings?.[selectedEdge])selectedEdge=null;const nav=`<nav class="author-nav" aria-label="Author"><b>AUTHOR</b><button data-author-mode="states" class="${mode==='states'?'active':''}">States</button><button data-author-mode="behaviors" class="${mode==='behaviors'?'active':''}">Behaviors</button></nav>`;let body='<div class="author-intro"><b>MOTION</b> is movement over time. Add a preset above, or edit any motion key by key in the Timeline below.</div>';if(mode==='states'){const problems=stateProblems(s);body=`<div class="author-intro"><b>STATE</b> is a persistent pose. <b>TRANSITION</b> is an allowed directed movement.</div>${renderStateList(s,selectedState)}<label>Initial State<select data-initial-state>${Object.keys(s.states).map(n=>`<option ${n===s.activeState?'selected':''}>${esc(n)}</option>`).join('')}</select></label>${renderStateInspector(s,selectedState)}${graph.markup(s,{selectedEdge})}${renderTransitionList(s,selectedState,selectedEdge)}${renderTransitionInspector(s,selectedEdge)}${problems.length?`<div class="notice error">${problems.map(esc).join('<br>')}</div>`:''}${advanced(s)}`;}else if(mode==='behaviors')body=renderBehaviorsPanel(s,selectedBehavior,catalog);setPanelHtml(host,`${nav}${error?`<div class="notice error">${esc(error)}</div>`:''}<div class="author-surface">${body}</div>`);}
+ return {render,
+  // The live highlight (V4-103), driven by the editor's own frame callback so
+  // it costs nothing while the preview is asleep.
+  syncLive:()=>graph.syncLive(),
+  graph:()=>graph.snapshot(),
+  destroy(){graph.detach();},
+  reset(){selectedState=selectedEdge=null;selectedBehavior=0;catalog=false;graph.select([]);render();}};
 }

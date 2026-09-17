@@ -79,6 +79,8 @@ export function wireTopbar({ root, q }) {
      */
     openProjectFilePicker() { q('#project-file').click(); },
     openSvgFilePicker() { q('#svg-file').click(); },
+    /** The same picker the Artwork column has, pressed from Home (V4-092). */
+    openBaseImageFilePicker() { q('#artwork-base-file').click(); },
     bindLoadProject(handler) { bindFile('#project-file', handler); },
     bindLoadSvg(handler) { bindFile('#svg-file', handler); bindFile('#artwork-svg-file', handler); },
     /** Adding a picture to the artwork that is open, as opposed to replacing the project with one. */

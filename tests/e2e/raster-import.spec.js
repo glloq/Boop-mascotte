@@ -283,3 +283,32 @@ test('@critical a mesh point is dragged, bends the picture, and flattens again',
   expect(await page.evaluate(() => window.__BOOP_E2E__.document().meshes[0].points[4])).toEqual(before);
   expect(trouble).toEqual([]);
 });
+
+test('@critical a mascot can begin as a picture, from the first page', async ({ page }) => {
+  const trouble = watchForTrouble(page);
+  await openFreshEditor(page, { e2e: true });
+
+  // The third way to begin (V4-092). Before it, an author arriving with a PNG
+  // had to make a template mascot they did not want, find Artwork behind the
+  // Design chevron, and find "Import head / base" inside it.
+  const start = page.getByRole('button', { name: 'Start from a picture' });
+  await expect(start).toBeVisible();
+  await start.click();
+  // The press opens the same picker the Artwork column has; Playwright cannot
+  // answer a file dialog, so the file goes to the input the press opens.
+  await page.setInputFiles('#artwork-base-file', PICTURE);
+
+  // No project was open, so the picture made its own artboard rather than
+  // failing on a canvas with nothing to append to.
+  await expect(page.locator('svg image')).toHaveCount(1);
+  await expect(page.locator('svg image').first()).toHaveAttribute('href', /^blob:/);
+  const document = await page.evaluate(() => window.__BOOP_E2E__.document());
+  expect(Object.keys(document.assets)).toHaveLength(1);
+  // And it landed where a base picture belongs: at the back, with a pivot, so
+  // everything added next is painted in front of it.
+  const [element] = Object.values(document.elements).filter((item) => item.meta?.nodeType === 'image');
+  expect(element.depth).toBe(0);
+  await expect(page.locator('[data-home]')).toBeHidden();
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('design.artwork');
+  expect(trouble).toEqual([]);
+});

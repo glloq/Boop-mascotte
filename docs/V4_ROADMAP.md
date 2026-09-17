@@ -444,14 +444,14 @@ workspace exists (`app/workspaces/behavior.js`, `animation-editor/behaviors/`,
 | --- | --- | --- |
 | **V4-090** | ✅ The **IF**: conditions in the runtime, behind `reaction:condition` | M |
 | **V4-091** | ✅ The simple surface: `WHEN → IF → DO`, as four clauses of one sentence | L |
-| **V4-092** | The four labels made true in the UI: Design / Rig / Animation / Behavior | S |
-| **V4-100** | Nodes carry a saved position. `state-machine/transition-graph.js` computes positions itself today (43 lines, one row, lanes above it) — this replaces that with stored layout | M |
-| **V4-101** | Pan, zoom, drag | M |
-| **V4-102** | Links drawn and edited on the canvas | L |
-| **V4-103** | Live highlight: active state and firing transition | M |
-| **V4-104** | Trigger simulation — MIDI, audio, timers | M |
-| **V4-105** | Multi-selection, groups, auto-layout | M |
-| **V4-106** | Comments | S |
+| **V4-092** | ✅ The four labels made true for a mascot made of pictures, and a picture is a way to *begin* one | S |
+| **V4-100** | ✅ Nodes carry a saved position. `state-machine/transition-graph.js` computed positions itself (43 lines, one row, lanes above it) — replaced with stored layout | M |
+| **V4-101** | ✅ Pan, zoom, drag | M |
+| **V4-102** | ✅ Links drawn and edited on the canvas | L |
+| **V4-103** | ✅ Live highlight: active state and firing transition | M |
+| **V4-104** | ⏸ Trigger simulation — MIDI, audio, timers. **Not built, on purpose**: see below | M |
+| **V4-105** | ✅ Multi-selection, groups, auto-layout | M |
+| **V4-106** | ✅ Comments | S |
 
 ### What building V4-090/091 corrected
 
@@ -478,6 +478,43 @@ workspace exists (`app/workspaces/behavior.js`, `animation-editor/behaviors/`,
   morning is testable this afternoon. A condition naming something the mascot
   has no way to be is reported — a reaction that never runs looks exactly like
   a reaction nobody noticed.
+
+### What building V4-092 and Phase 10 corrected
+
+- **Home had no way to begin with a picture.** A mascot could be made of
+  pictures since Phase 1, and the first page offered *New mascot*, *Open a
+  project* and *Import an SVG*. An author arriving with three PNGs had to make
+  a template mascot they did not want, find *Artwork* behind the Design
+  chevron, and find *Import head / base* inside it: three presses, none of them
+  named after what they came to do. Both picture imports also assumed there was
+  already artwork to append to — true while the only way to reach them was a
+  column inside a project, and false the moment Home offered one.
+- **The labels were already the right four words**; what was not true of them
+  was the mascot they described. Each workspace's hint named drawings only, so
+  an author with photographs read past every one.
+- **A diagram's positions are authored data.** That single decision is Phase 10.
+  The old renderer recomputed every position on each render, so there was no
+  such thing as moving a node — only watching it be placed. Positions live in
+  the `stateMachine` domain, undo like a transition, save with the project, and
+  never reach `rig.json`: the runtime runs a state machine without drawing one.
+- **A node dragged pins every node.** Moving one node writes down *all* of
+  them, at the place they were already being drawn. Otherwise the dragged one is
+  fixed and the rest stay free to jump the next time a state is added.
+- **A label has to be drawn against the zoom.** Scaled with the scene, a 10 px
+  label is four pixels at the zoom that fits a machine into this column. The
+  first version hid labels below a threshold — and hiding a label makes the
+  transition it names unclickable. Counter-scaling through a custom property on
+  the scene keeps one readable size at every zoom, and keeps a pan or a zoom to
+  one style write on one element.
+- **The state editor is in the wrong column, and this did not fix that.** It is
+  a ~260 px sidebar, so a four-state machine fits at 47 %. The geometry was
+  shrunk to make that bearable; the real answer is that a graph wants the
+  canvas, and that is a shell change, not a graph change.
+- **V4-104 was cut rather than faked.** "Trigger simulation — MIDI, audio,
+  timers" would have been a panel for inputs the runtime does not have. That is
+  exactly the mistake VNX-39 is about, and exactly the one V4-090 spent a
+  roadmap avoiding: the triggers that exist are simulated already, by the event
+  simulator (UX-14). MIDI and audio are runtime work first, a panel second.
 
 ## Phase 11 — Validation and release (2 PRs)
 

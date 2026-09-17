@@ -85,6 +85,11 @@ test('Home says what the editor is for, and offers one way to start and one to c
   // the real preset, rather than an illustration that could promise anything.
   assert.match(markup, /class="home-hero"/);
   assert.match(markup, /<svg/);
+  // The three ways to begin that are not "make me one": a drawing somebody
+  // already has, a picture somebody already has, and the face this editor
+  // comes with. All three under *Otherwise*, none of them a second primary.
+  assert.match(markup, /data-home-action="import"/);
+  assert.match(markup, /data-home-action="picture"/, 'a mascot can be made of pictures, and Home has to say so (V4-092)');
   // The ready-made template stays reachable, as an alternative rather than as
   // an equal: `pages.spec.js` starts a project by pressing exactly this.
   assert.match(markup, /data-template-id="basic"/);
