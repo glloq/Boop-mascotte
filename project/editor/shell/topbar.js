@@ -83,6 +83,8 @@ export function wireTopbar({ root, q }) {
     bindLoadSvg(handler) { bindFile('#svg-file', handler); bindFile('#artwork-svg-file', handler); },
     /** Adding a picture to the artwork that is open, as opposed to replacing the project with one. */
     bindAddImage(handler) { bindFile('#artwork-image-file', handler); },
+    /** A head or a body: the picture the rest of the mascot is placed on. */
+    bindAddBaseImage(handler) { bindFile('#artwork-base-file', handler); },
     bindLoadRig(handler) { bindFile('#rig-file', handler); },
     bindLoadFacePack(handler) { bindFile('#face-pack-file', handler); }
   };

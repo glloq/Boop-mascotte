@@ -50,3 +50,19 @@ test('the node points at the asset and never at the bytes',()=>{
   // An id is escaped where it lands in an attribute.
   assert.match(imageNodeMarkup({ id: 'a"b&c', assetId: 'aabbccdd', box: { x: 0, y: 0, width: 1, height: 1 } }),/id="a&quot;b&amp;c"/);
 });
+
+test('a base takes most of the frame, and brings a pivot with it',async()=>{
+  const { BASE_PLACEMENT_FRACTION, placeBaseInArtboard } = await import('../assets/asset-placement.js');
+  // It *is* the frame: everything else is placed on top of it, and a base
+  // arriving at six tenths would be resized before anything else happened.
+  assert.equal(BASE_PLACEMENT_FRACTION,0.9);
+  assert.deepEqual(placeBaseInArtboard({ width: 1024, height: 1024 }, board),
+    { x: 12, y: 12, width: 216, height: 216, pivot: { x: 120, y: 120 } });
+  // Not the whole artboard: a mascot touching every edge has nowhere to lean.
+  assert.ok(placeBaseInArtboard({ width: 1024, height: 1024 }, board).width < board.width);
+  // The pivot is the picture's own centre, which is where a head turns from
+  // far more often than the origin it would otherwise get.
+  const off = placeBaseInArtboard({ width: 200, height: 100 }, { x: 40, y: 0, width: 240, height: 240 });
+  assert.deepEqual(off.pivot,{ x: off.x + off.width / 2, y: off.y + off.height / 2 });
+  assert.equal(placeBaseInArtboard({ width: 0, height: 0 }, board),null);
+});

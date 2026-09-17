@@ -30,7 +30,7 @@ import { buildFaceProjectTemplate } from '../../core/assets/face-builder.js';
 import { validateRig } from '../../core/validation/rig-validator.js';
 import { applyImportedRig } from '../../core/state/import-rig.js';
 import { identifyFaceParts } from '../../core/face-library/face-part-migration.js';
-import { imageNodeId, imageNodeMarkup, placeImageInArtboard } from '../../core/assets/asset-placement.js';
+import { imageNodeId, imageNodeMarkup, placeBaseInArtboard, placeImageInArtboard } from '../../core/assets/asset-placement.js';
 import { readArtboard } from '../../core/artwork/artboard.js';
 import { createArtworkCommands } from '../../core/commands/artwork-commands.js';
 
@@ -247,6 +247,52 @@ export function createProjectService({
     return true;
   };
 
+  /**
+   * Import a picture as the head or the body: the thing the rest of the mascot
+   * sits on.
+   *
+   * The same import as `addImageFile`, placed as a base rather than as a
+   * piece. Three differences, and each is a thing an author would otherwise do
+   * by hand immediately: it takes most of the frame rather than a corner of
+   * it, it is painted behind everything already there, and its pivot is
+   * offered at its own centre, which is where a head turns from.
+   *
+   * Offered, not imposed. All three land in the document where they can be
+   * seen and changed; none of them is a mode the author is now in.
+   */
+  const addBaseImageFile = async (file) => {
+    if (!assets) { setStatus('Pictures cannot be added in this editor build.', 'error'); return false; }
+    let imported;
+    try {
+      imported = await assets.import(new Uint8Array(await file.arrayBuffer()), { name: file.name, type: file.type });
+    } catch {
+      setStatus(`Could not read ${file.name}.`, 'error');
+      return false;
+    }
+    if (!imported.ok) { setStatus(`${file.name}: ${importRefusal(imported.issues)}`, 'error'); return false; }
+
+    const before = store.getDocument();
+    const box = placeBaseInArtboard(imported.asset, readArtboard(before.svgMarkup));
+    if (!box) { setStatus(`${file.name} has no size to place.`, 'error'); return false; }
+    const id = imageNodeId(file.name, new Set(Object.keys(before.elements || {})));
+    const artwork = canvas.appendArtwork(imageNodeMarkup({ id, assetId: imported.asset.id, box }), null, { updateStore: false, position: 'back' });
+    if (!artwork) { setStatus(`Could not place ${file.name}.`, 'error'); return false; }
+
+    const elements = { ...artwork.elements };
+    if (elements[id]) elements[id] = {
+      ...elements[id],
+      baseTransform: { ...elements[id].baseTransform, pivotX: box.pivot.x, pivotY: box.pivot.y },
+      // The base plane: everything placed on top of it takes a depth in front.
+      depth: 0
+    };
+    commands.syncSvg({ ...artwork, elements, assets: { ...(before.assets || {}), [imported.asset.id]: imported.asset } },
+      { domains: ['artwork', 'layers', 'assets'], source: 'add-base-image' });
+    await canvas.refreshAssets();
+    preview.apply();
+    setStatus(`${file.name} is the base. Add eyes and a mouth on top of it — they will be painted in front.`);
+    return true;
+  };
+
   const loadSvgFile = async (file) => {
     try {
       // Read and sanitized before the confirm dialog: an unreadable file must
@@ -349,5 +395,5 @@ export function createProjectService({
     }
   };
 
-  return { replaceProject, restoreSnapshot, saveProject, downloadJson, addImageFile, replaceImageFile, loadSvgFile, loadTemplate, generateFace, loadProjectFile, importRigFile };
+  return { replaceProject, restoreSnapshot, saveProject, downloadJson, addImageFile, addBaseImageFile, replaceImageFile, loadSvgFile, loadTemplate, generateFace, loadProjectFile, importRigFile };
 }

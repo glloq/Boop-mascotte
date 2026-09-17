@@ -3813,14 +3813,16 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       return setView({ scale: view.scale, x: view.x + dx, y: view.y + dy });
     },
     getView() { return viewTransform(); },
-    appendArtwork(markup, mountPoint = null, { updateStore = true, viewBox = null } = {}) { return previewOrder.authored(() => api.appendArtworkNow(markup, mountPoint, { updateStore, viewBox })); },
-    appendArtworkNow(markup, mountPoint = null, { updateStore = true, viewBox = null } = {}) {
+    appendArtwork(markup, mountPoint = null, { updateStore = true, viewBox = null, position = 'front' } = {}) { return previewOrder.authored(() => api.appendArtworkNow(markup, mountPoint, { updateStore, viewBox, position })); },
+    appendArtworkNow(markup, mountPoint = null, { updateStore = true, viewBox = null, position = 'front' } = {}) {
       const svgRoot=rootGroup.node.querySelector('svg');if(!svgRoot)return false;
       // Artwork that needs room to live in says so: a pair of hands hangs below
       // a face that already fills its artboard.
       if(viewBox)svgRoot.setAttribute('viewBox',viewBox);
       const target=(mountPoint&&documentModel.getNode(mountPoint))||svgRoot;
-      target.insertAdjacentHTML('beforeend',sanitizeSvgMarkup(`<svg xmlns="http://www.w3.org/2000/svg">${markup}</svg>`).replace(/^<svg[^>]*>|<\/svg>$/g,''));
+      // `back` paints it behind everything already in the group, which is what
+      // a head or a body is: the thing the rest of the mascot sits on.
+      target.insertAdjacentHTML(position==='back'?'afterbegin':'beforeend',sanitizeSvgMarkup(`<svg xmlns="http://www.w3.org/2000/svg">${markup}</svg>`).replace(/^<svg[^>]*>|<\/svg>$/g,''));
       const tree=documentModel.load(svgRoot,documentModel.metadata);loadedMarkup=documentModel.serialize();
       const elements=structuredClone(store.getDocument().elements);const visit=(items)=>items.forEach((item)=>{if(!elements[item.id]){const node=wrapperFor(item.id),plugin=pluginRegistry.getByNode(node);if(plugin){elements[item.id]=plugin.createRigData(node,parseTransform(node));attachBehavior(node);}}visit(item.children);});visit(tree);
       const artwork={layers:tree,layerMetadata:structuredClone(documentModel.metadata),elements,svgMarkup:loadedMarkup};

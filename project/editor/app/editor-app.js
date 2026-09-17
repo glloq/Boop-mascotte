@@ -640,6 +640,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
 
   shell.bindLoadSvg((file) => projectService.loadSvgFile(file));
   shell.bindAddImage((file) => projectService.addImageFile(file));
+  shell.bindAddBaseImage((file) => projectService.addBaseImageFile(file));
 
   shell.bindLoadSample((kind) => projectService.loadTemplate(kind));
 

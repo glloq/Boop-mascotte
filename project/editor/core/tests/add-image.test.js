@@ -194,3 +194,35 @@ test('only a picture can be redrawn',async()=>{
   assert.equal(await service.replaceImageFile('head', fileOf('x.png', file('alpha-16x16.png'), 'image/png')),false);
   assert.match(status.at(-1)[0],/is not a picture/);
 });
+
+test('a head arrives as the thing everything else sits on',async()=>{
+  const placements = [];
+  const built = harness();
+  const store = built.store;
+  const service = createProjectService({
+    store, history: built.history, assets: createAssetManager({ store: built.assetStore }),
+    canvas: {
+      appendArtwork: (markup, mount, options) => {
+        placements.push(options.position);
+        const id = /id="([^"]+)"/.exec(markup)[1];
+        const document = store.getDocument();
+        return { svgMarkup: document.svgMarkup.replace('<circle', `${markup}<circle`), layers: document.layers, layerMetadata: {},
+          elements: { ...document.elements, [id]: { baseTransform: { x: 0, y: 0, pivotX: 0, pivotY: 0 }, meta: { nodeType: 'image' } } } };
+      },
+      refreshAssets: async () => ({ painted: [], missing: [] })
+    },
+    preview: { apply() {} },
+    setStatus: (message, tone) => built.status.push([message, tone])
+  });
+
+  assert.equal(await service.addBaseImageFile(fileOf('face.webp', file('opaque-48x32.webp'), 'image/webp')),true);
+  const document = store.getDocument();
+  // Painted behind what is already there.
+  assert.deepEqual(placements,['back']);
+  assert.ok(document.svgMarkup.indexOf('<image') < document.svgMarkup.indexOf('<circle'));
+  // Its pivot is offered at its own centre, and it sits on the base plane.
+  const element = document.elements.face;
+  assert.equal(element.depth,0);
+  assert.deepEqual([element.baseTransform.pivotX, element.baseTransform.pivotY],[120, 120]);
+  assert.match(built.status.at(-1)[0],/is the base/);
+});
