@@ -31,6 +31,8 @@ import { validateRig } from '../../core/validation/rig-validator.js';
 import { applyImportedRig } from '../../core/state/import-rig.js';
 import { identifyFaceParts } from '../../core/face-library/face-part-migration.js';
 import { imageNodeId, imageNodeMarkup, placeBaseInArtboard, placeImageInArtboard } from '../../core/assets/asset-placement.js';
+import { readBoopPackage, writeBoopPackage } from '../../core/export/boop-package.js';
+import { createExportRig } from '../../core/export/export-rig.js';
 import { readArtboard } from '../../core/artwork/artboard.js';
 import { createArtworkCommands } from '../../core/commands/artwork-commands.js';
 
@@ -62,8 +64,8 @@ const RIG_IMPORT_DOMAINS = Object.freeze(['artwork', 'rig', 'stateMachine', 'key
  * and a fake that records `(name, text)` is a better test seam than four DOM
  * shims. The globals are read when a download happens, never at import time.
  */
-export const browserDownload = (name, text) => {
-  const blob = new globalThis.Blob([text], { type: 'application/json' });
+export const browserDownload = (name, data, type = 'application/json') => {
+  const blob = new globalThis.Blob([data], { type });
   const link = globalThis.document.createElement('a');
   link.href = globalThis.URL.createObjectURL(blob);
   link.download = name;
@@ -119,10 +121,19 @@ export function createProjectService({
 
   const downloadJson = (name, data) => createDownload(name, JSON.stringify(data, null, 2));
 
+  /**
+   * Save the project, in whichever form does not lose part of it.
+   *
+   * A project of paths is a JSON file and always was. A project with pictures
+   * in it is a package, because a JSON snapshot references assets by id and
+   * carries none of them: handing an author a file that silently drops their
+   * drawings is worse than handing them a file type they did not choose.
+   */
   const saveProject = () => {
     // Serialized from the canvas rather than from `svgMarkup`: the store copy
     // lags behind whatever the author has just drawn.
     if (!hasValidProjectDocument(store.getState(), () => canvas.serializeCurrentSvg())) { setStatus('Create or open a project before saving.', 'warn'); return false; }
+    if (Object.keys(store.getDocument().assets || {}).length) return saveBoopPackage();
     const snapshot = createProjectSnapshot(store.getState(), () => canvas.serializeCurrentSvg());
     downloadJson('mascot-project.json', snapshot);
     setStatus('Project snapshot exported.');
@@ -293,6 +304,58 @@ export function createProjectService({
     return true;
   };
 
+  /**
+   * The whole project as one file, pictures included.
+   *
+   * Saving a `.json` beside a folder of pictures is a thing that works until
+   * somebody moves one of them. This is the version that survives being
+   * emailed (docs/V4_ROADMAP.md, Phase 4).
+   */
+  const saveBoopPackage = async () => {
+    if (!hasValidProjectDocument(store.getState(), () => canvas.serializeCurrentSvg())) { setStatus('Create or open a project before saving.', 'warn'); return false; }
+    const snapshot = createProjectSnapshot(store.getState(), () => canvas.serializeCurrentSvg());
+    const { bytes, missing } = await writeBoopPackage({
+      snapshot,
+      bytesFor: async (id) => (assets ? assets.bytes(id) : null),
+      rig: createExportRig(store.getState())
+    });
+    createDownload('mascot.boop', bytes, 'application/zip');
+    // Said rather than swallowed: a package short a picture still opens, and
+    // its author should hear it from the save and not from the reopen.
+    setStatus(missing.length
+      ? `Project exported — ${missing.length} picture${missing.length === 1 ? '' : 's'} could not be included.`
+      : 'Project exported as a package, pictures included.', missing.length ? 'warn' : undefined);
+    autosave.markSaved();
+    return true;
+  };
+
+  /**
+   * Open a package: its pictures into the store, its project through the same
+   * door a `.json` goes through.
+   *
+   * The assets land first, because the canvas paints as it loads and a picture
+   * that arrives afterwards is a piece drawn as a hole until something
+   * redraws it.
+   */
+  const loadBoopFile = async (file) => {
+    let read;
+    try { read = await readBoopPackage(new Uint8Array(await file.arrayBuffer())); }
+    catch (error) { setStatus(`${file.name}: ${error.message}`, 'error'); return false; }
+
+    const refused = [];
+    for (const [id, bytes] of read.assets) if (!assets || !(await assets.adopt(id, bytes))) refused.push(id);
+    let prepared;
+    try { prepared = prepareProjectSnapshot(read.snapshot, (svg) => canvas.prepareSvgImport(svg)); }
+    catch { setStatus(`${file.name} is not a project this editor can open.`, 'error'); return false; }
+
+    const restored = await restoreSnapshot(prepared, `Package ${file.name}`);
+    if (!restored) return false;
+    await canvas.refreshAssets();
+    const short = [...new Set([...read.missing, ...read.damaged, ...refused])];
+    if (short.length) setStatus(`Opened ${file.name} — ${short.length} picture${short.length === 1 ? '' : 's'} could not be read, and ${short.length === 1 ? 'that piece is' : 'those pieces are'} blank.`, 'warn');
+    return true;
+  };
+
   const loadSvgFile = async (file) => {
     try {
       // Read and sanitized before the confirm dialog: an unreadable file must
@@ -350,6 +413,11 @@ export function createProjectService({
 
   const loadProjectFile = async (file) => {
     try {
+      // A package and a snapshot arrive through the same button, because to
+      // the author they are the same thing: their project. `PK\x03\x04` is a
+      // ZIP, and a name is not asked because a name can be anything.
+      const head = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+      if (head[0] === 0x50 && head[1] === 0x4b && head[2] === 0x03 && head[3] === 0x04) return await loadBoopFile(file);
       const imported = JSON.parse(await file.text());
       // Parsed, versioned and normalized against a throwaway state first, so an
       // unsupported snapshot never reaches the live store.
@@ -395,5 +463,5 @@ export function createProjectService({
     }
   };
 
-  return { replaceProject, restoreSnapshot, saveProject, downloadJson, addImageFile, addBaseImageFile, replaceImageFile, loadSvgFile, loadTemplate, generateFace, loadProjectFile, importRigFile };
+  return { replaceProject, restoreSnapshot, saveProject, downloadJson, addImageFile, addBaseImageFile, replaceImageFile, saveBoopPackage, loadBoopFile, loadSvgFile, loadTemplate, generateFace, loadProjectFile, importRigFile };
 }

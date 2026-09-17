@@ -113,6 +113,23 @@ export function createAssetManager({ store, hash = hashAssetBytes, optimiser = c
     /** The bytes behind an id, or null. Painting them is the resolver's job, not this one's. */
     bytes: (id) => store.get(id),
 
+    /**
+     * Take in bytes that are already named -- a package being opened.
+     *
+     * Not `import`: importing validates, *resizes* and then names, and a
+     * resize would produce different bytes and therefore a different id,
+     * leaving every reference in the file pointing at a picture that no longer
+     * exists. What a package needs is the opposite operation: the name is
+     * given and what is checked is that the bytes deserve it.
+     *
+     * @returns {Promise<boolean>} false when the bytes are not what the id says
+     */
+    async adopt(id, bytes) {
+      if (await hash(bytes) !== id) return false;
+      await store.put(id, bytes);
+      return true;
+    },
+
     reference: assetRef,
     referencesIn: assetReferencesIn,
     unusedIn: unusedAssets,
