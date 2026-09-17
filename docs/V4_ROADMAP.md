@@ -244,13 +244,13 @@ branches.
   browser-level spec is still owed: the Chromium build available in this
   environment does not match the one Playwright expects.
 
-## Phase 3 — Import that a person can use (3 PRs)
+## Phase 3 — Import that a person can use (3 PRs) — **done**
 
 | PR | What | Size |
 | --- | --- | --- |
-| **V4-030** | **+ Add image**: drop or browse, validate, optimise, place, transform | M |
-| **V4-031** | **Import Head / Base**: auto-fit to the artboard, centre, propose pivot, depth and layer | M |
-| **V4-032** | **Replace artwork**: new bytes, same node — rig, animations, pivot and depth untouched | M |
+| **V4-030** — done | **+ Add image**: drop or browse, validate, optimise, place, transform | M |
+| **V4-031** — done | **Import Head / Base**: auto-fit to the artboard, centre, propose pivot, depth and layer | M |
+| **V4-032** — done | **Replace artwork**: new bytes, same node — rig, animations, pivot and depth untouched | M |
 
 **Exit:** someone who has never read `docs/PROJECT_FORMAT.md` builds a head
 from their own images and it moves.
@@ -258,17 +258,46 @@ from their own images and it moves.
 V4-032 is the one authors will actually live in, and it is cheap because of
 ASSET-REF: replacing artwork is writing one `assetId`.
 
-## Phase 4 — `.boop`, and an autosave that survives pixels (4 PRs)
+**What building it corrected.** Replacing a picture must *not* collect the one
+it replaced. That looked obviously right — nothing points at it — and is
+correct until the author presses undo: undo restores the document, nothing
+restores deleted bytes, and the piece comes back pointing at an asset that no
+longer exists. **No action that can be undone deletes bytes.** Collection stays
+a deliberate thing, done where there is nothing to undo.
+
+## Phase 4 — `.boop`, and an autosave that survives pixels (4 PRs) — **done**
 
 | PR | What | Size |
 | --- | --- | --- |
-| **V4-040** | The package reader/writer: `project.json`, `scene.svg`, `rig.json`, `assets/` | L |
-| **V4-041** | Export and import `.boop` from the UI, with hash verification on read | M |
-| **V4-042** | Autosave to IndexedDB: JSON snapshot referencing `assetId`s, blobs beside it — never base64 in the snapshot | M |
-| **V4-043** | Atomic save and recovery from a partial write | M |
+| **V4-040** — done | The package reader/writer: `project.json`, `scene.svg`, `rig.json`, `assets/` | L |
+| **V4-041** — done | Export and import `.boop` from the UI, with hash verification on read | M |
+| **V4-042** — done | Autosave to IndexedDB: JSON snapshot referencing `assetId`s, blobs beside it — never base64 in the snapshot | M |
+| **V4-043** — done | Atomic save and recovery from a partial write | M |
 
 **Exit:** export on one machine, open on another with none of the original
 files present, identical render.
+
+### What building it corrected
+
+- **The `.boop` question V4-005 raised is answered:** `project.json` is what
+  opens and `rig.json` is what runs. The package carries both; the reader
+  believes only the first, so a stale or hostile `rig.json` cannot corrupt
+  anything.
+- **The ZIP is written here**, about two hundred lines and no dependency, so a
+  mascot is never hostage to this editor existing. Compression is the
+  platform's `deflate-raw` where it helps.
+- **`Save Project` writes a package when there are pictures.** A JSON snapshot
+  references assets and carries none, so saving one is handing an author a file
+  that drops their drawings.
+- **`adopt` is the opposite of `import`.** Importing validates, resizes, then
+  names — and a resize changes the bytes and so the id. Opening a package has
+  the name already and checks the bytes deserve it.
+- **Autosave is a write-through cache, not an async rewrite.** The service reads
+  while rendering and writes from a timer; keeping `localStorage`'s three-method
+  shape kept a storage change from becoming a lifecycle change.
+- **`refreshAssets` belonged in `restoreSnapshot`, not beside it.** A draft
+  recovered after a restart came back with its pictures blank, because only the
+  package path fetched them.
 
 V4-042 retires `localStorage` for the snapshot (fact 4). The recovery record
 gains a version so a pre-V4 autosave still restores.
