@@ -66,8 +66,11 @@ export function normalizeAsset(candidate) {
   if (!width || !height) return null;
   return {
     id, format: candidate.format, width, height,
-    // Whether the pixels carry transparency: what decides if a node behind
-    // this one can be seen through it, and worth knowing before painting.
+    // Whether the format carries an alpha channel at all -- not whether any
+    // pixel actually uses it. That stronger question needs every pixel read,
+    // and this one is answered by the header: a canvas writes RGBA whatever it
+    // drew, so an opaque PNG still says true while lossy WebP says false.
+    // Enough to know that something behind *may* show through.
     alpha: Boolean(candidate.alpha),
     bytes: positiveInteger(candidate.bytes),
     // What the author called it. Free text, for the library and for nothing else.
