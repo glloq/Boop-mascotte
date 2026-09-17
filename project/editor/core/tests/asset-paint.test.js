@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ASSET_ATTRIBUTE, assetReferenceOf, collectAssetReferences, paintAssetReferences, restoreAssetReferences } from '../../svg-editor/asset-paint.js';
+import { ASSET_ATTRIBUTE, assetReferenceOf, collectAssetReferences, paintAssetReferences, restoreAssetReferences } from '../../../runtime/asset-paint.js';
 import { assetRef } from '../../../runtime/asset-reference.js';
 
 /** What the paint pass needs of an element: four attribute methods. */

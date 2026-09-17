@@ -21,7 +21,7 @@ export const imageElementPlugin = {
   createRigData(node, transform) {
     // Either attribute, and either state: a node already painted keeps its
     // reference in `data-editor-asset` while `href` holds an object URL
-    // (svg-editor/asset-paint.js).
+    // (runtime/asset-paint.js).
     const reference = ['data-editor-asset', 'href', 'xlink:href']
       .map((name) => node.attr(name))
       .find((value) => parseAssetRef(value)) ?? '';

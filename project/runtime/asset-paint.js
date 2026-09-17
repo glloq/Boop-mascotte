@@ -1,4 +1,4 @@
-import { parseAssetRef } from '../../runtime/asset-reference.js';
+import { parseAssetRef } from './asset-reference.js';
 
 /**
  * Making `asset:` references paintable in the live DOM, without ever letting
@@ -19,6 +19,10 @@ import { parseAssetRef } from '../../runtime/asset-reference.js';
  *
  * Written against nodes rather than a root so the whole of it can be tested
  * without a DOM: what it needs of an element is four attribute methods.
+ *
+ * It lives in the runtime because an exported mascot has exactly the same
+ * problem as the editor -- a `<svg>` full of `asset:` references and a browser
+ * that will not draw them -- and solving it twice is two answers that drift.
  */
 
 export const ASSET_ATTRIBUTE = 'data-editor-asset';

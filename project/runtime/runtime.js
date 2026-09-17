@@ -47,6 +47,10 @@ import { compilePinTarget, normalizeRigPins, pinDisplacement, pinOffsets, pinsFo
 // after the artwork has been deformed (docs/FACE_CONTROL_RIG.md).
 import { hasRigConstraints, normalizeRigConstraints, solveRigConstraints } from './rig-constraints.js';
 import { normalizeRigAttachments, normalizeRigHolds, solveRigHolds } from './rig-attachments.js';
+import { collectAssetReferences, paintAssetReferences } from './asset-paint.js';
+export { assetRef, isAssetRef, parseAssetRef } from './asset-reference.js';
+export { createAssetResolver } from './asset-resolver.js';
+export { collectAssetReferences, paintAssetReferences, restoreAssetReferences } from './asset-paint.js';
 export {
   normalizeWarp, normalizeWarps, normalizeWarpGrid, createWarpGrid, compileWarpTarget,
   warpDisplacement, applyWarp, isWarpGridMoved, locateInGrid, samplePosition, weightWarpGrid,
@@ -1190,7 +1194,7 @@ export function createReactionController(source = () => ({ reactions: [], clips:
   };
 }
 
-export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.random, requestFrame = requestAnimationFrame, cancelFrame = cancelAnimationFrame, now = () => performance.now() }) {
+export function createMascotEngine({ svgRoot, rig, assetResolver = null, fps = 20, random = Math.random, requestFrame = requestAnimationFrame, cancelFrame = cancelAnimationFrame, now = () => performance.now() }) {
   const initial = resolveStateParams(rig.params, rig.states?.[rig.activeState]);
   let stateParams = { ...initial }, activeState = rig.activeState || Object.keys(rig.states || {})[0];
   const overrides = {}, behaviors = normalizeBehaviors(rig), behaviorController = createBehaviorController({ random }); let transition = null, raf = 0, last = 0, started = 0, generation = 0;
@@ -1268,6 +1272,13 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
 
   const applied = new WeakMap();
   const nodes = new Map();
+  // Before the node map is built and before a frame is drawn: a raster piece
+  // carries `asset:<id>`, which no browser draws, so it is pointed at what the
+  // resolver holds (runtime/asset-paint.js). Synchronous, like the editor's
+  // pass and for the same reason -- fetching is `refreshAssets`, and a mascot
+  // with no pictures never waits for one.
+  const paintAssets = () => paintAssetReferences([...(svgRoot.querySelectorAll?.('image') || [])], assetResolver);
+  if (assetResolver) paintAssets();
   if (svgRoot.id) nodes.set(svgRoot.id, svgRoot);
   if (svgRoot.querySelectorAll) svgRoot.querySelectorAll('[id]').forEach((node) => nodes.set(node.id, node));
   else for (const id of Object.keys(rig.elements || {})) {
@@ -1445,6 +1456,20 @@ export function createMascotEngine({ svgRoot, rig, fps = 20, random = Math.rando
      */
     followPointer(clientX, clientY, target = svgRoot) { return followPointer(clientX, clientY, target); },
     clearPointer,
+    /**
+     * Fetch what the artwork points at, then point it at what was fetched.
+     *
+     * The same split the editor makes and for the same reason
+     * (docs/V4_ROADMAP.md, V4-024): drawing is synchronous and reading bytes
+     * is not, so a mascot made of pictures is awaited once here rather than
+     * per frame. A mascot made of paths never calls it and never waits.
+     */
+    async refreshAssets() {
+      const nodes = [...(svgRoot.querySelectorAll?.('image') || [])];
+      const references = collectAssetReferences(nodes);
+      await assetResolver?.prime?.(references);
+      return paintAssetReferences(nodes, assetResolver);
+    },
     /** Tell the mascot the page is being used, so `idle` reactions wait again. */
     notifyActivity() { activityAt(); },
     /** End a held reaction (`hover`, `gaze-follow`) from the page's own events. */
@@ -1573,6 +1598,9 @@ export async function load({ mount, svg, rig, autoStart = true, bindEvents = tru
   if (typeof markup === 'string') host.innerHTML = markup;
   const svgRoot = host.querySelector('svg') || host;
   const engine = createMascotEngine({ svgRoot, rig: model, ...options });
+  // A mascot made of pictures needs its pictures before it starts. One await,
+  // and nothing to await at all when the artwork is paths.
+  if (options.assetResolver) await engine.refreshAssets();
   if (bindEvents) engine.unbindEvents = engine.bindEvents(svgRoot);
   if (autoStart) engine.start();
   return engine;

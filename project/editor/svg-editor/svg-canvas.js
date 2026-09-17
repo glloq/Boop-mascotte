@@ -3,7 +3,7 @@ import 'svg.select.js';
 import 'svg.resize.js';
 import 'svg.draggable.js';
 import { sanitizeSvgMarkup } from '../core/security/sanitize-svg.js';
-import { collectAssetReferences, paintAssetReferences } from './asset-paint.js';
+import { collectAssetReferences, paintAssetReferences } from '../../runtime/asset-paint.js';
 import { pathOnlyMessage } from './path-only.js';
 import { SvgDocument } from '../core/svg-document/svg-document.js';
 import { lifecycleDiagnostics as diagnostics } from '../core/diagnostics/lifecycle-diagnostics.js';
