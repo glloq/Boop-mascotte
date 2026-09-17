@@ -88,11 +88,21 @@ test('the fan-out is now measurable, which is the point of writing it down', () 
     // layers: it is anchored to a box, so a piece that moved, grew or went away
     // leaves it pointing at where the piece was (ui/selection-actions.js).
     artwork: 11, layers: 7, rig: 14, stateMachine: 3, semanticRig: 6, rigHandles: 2,
-    animation: 4, arrangement: 1, keyforms: 6, constraints: 3, hands: 4, hierarchy: 1, expressions: 3, reactions: 2
+    animation: 4, arrangement: 1, keyforms: 6, constraints: 3, hands: 4, hierarchy: 1, expressions: 3, reactions: 2,
+    // Zero, and decided rather than forgotten: nothing on screen reads the
+    // asset table yet (docs/V4_ROADMAP.md, V4-010). It joins the artwork's
+    // fan-out when the canvas resolves `asset:` references, in V4-021.
+    assets: 0
   });
   // A domain that redraws nothing is a domain whose edits are invisible until
   // something unrelated happens. `hierarchy` was that domain, and `keyforms`
   // notified four panels while leaving the mascot itself alone.
+  //
+  // `assets` is the one allowed exception, and only because nothing reads it
+  // yet: an empty plan and a missing plan behave identically, so the list is
+  // pinned rather than relaxed. A second name appearing here is a panel gone
+  // stale, not a new exception.
   const silent = Object.entries(DOCUMENT_RENDER_PLAN).filter(([, list]) => !list.length).map(([domain]) => domain);
-  assert.deepEqual(silent, [], `these domains change the document and redraw nothing: ${silent.join(', ')}`);
+  assert.deepEqual(silent, ['assets'], `these domains change the document and redraw nothing: ${silent.join(', ')}`);
 });
+

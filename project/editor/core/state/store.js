@@ -16,6 +16,7 @@ export function createCleanProjectState() {
   return {
   schemaVersion: RIG_SCHEMA_VERSION,
   svgMarkup: '',
+  assets: {},
   selectedId: null,
   elements: {},
   layers: [],

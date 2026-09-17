@@ -146,8 +146,13 @@ for (const name of FIXTURES) test(`${name}: saving twice is a fixed point`,()=>{
 
 test('a project from the first format arrives at the current one, and says so',()=>{
   const { prepared, state } = open(fixture('legacy-face'));
-  assert.equal(prepared.version,PROJECT_VERSION);
+  // Version 3, not the ladder's top: this mascot carries no assets, so a
+  // reader that predates them loses nothing by opening it.
+  assert.equal(prepared.version,3);
   assert.equal(prepared.migratedFrom.version,1);
+  // Nothing had to be rewritten to open it: every rung between is one the
+  // reader already absorbs.
+  assert.deepEqual(prepared.migratedFrom.applied,[]);
   // The domains it predates read as empty rather than missing.
   for (const domain of ['keyforms','shapeKeys','warps','rigPins','rigConstraints','rigAttachments','rigHolds','followers','behaviors'])
     assert.deepEqual(state[domain],[],`${domain} should read as empty, not missing`);

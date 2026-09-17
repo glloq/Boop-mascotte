@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyProjectSnapshot, createProjectSnapshot, prepareProjectSnapshot } from '../state/project-snapshot.js';
-import { canOpenProjectVersion, PROJECT_VERSION, projectVersionOf } from '../state/project-version.js';
+import { canOpenProjectVersion, PROJECT_VERSION, projectVersionFor, projectVersionOf } from '../state/project-version.js';
 import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
 
 function baseState() {
@@ -70,16 +70,34 @@ test('the project file version is its own axis, and one predicate gates every wa
   const current=createProjectSnapshot(baseState());
   // Two versions, two reasons to move: the file's, and the rig's inside it.
   // Neither is stamped from the other.
-  assert.equal(current.version,PROJECT_VERSION);
+  // The file declares the oldest reader that can read it, not the newest
+  // editor that wrote it: this project uses nothing past version 3.
+  assert.equal(current.version,3);
+  assert.equal(current.version,projectVersionFor(current.document));
   assert.equal(current.document.rig.schemaVersion,RIG_SCHEMA_VERSION);
-  assert.equal(projectVersionOf(current),PROJECT_VERSION);
   // A file that declares none is the first format, which never wrote one.
   for(const absent of [undefined,null]){
     const fixture={...structuredClone(current),version:absent};
     assert.equal(projectVersionOf(fixture),1);
     const target=baseState();applyProjectSnapshot(target,fixture);
-    assert.equal(createProjectSnapshot(target).version,PROJECT_VERSION);
+    assert.equal(createProjectSnapshot(target).version,3);
   }
+});
+
+test('an asset in the project raises the version the file declares',()=>{
+  const source=baseState();
+  source.assets={ '7f3c9a1b': { id:'7f3c9a1b', format:'image/webp', width:512, height:512, alpha:true, name:'head' } };
+  const snapshot=createProjectSnapshot(source);
+  assert.equal(snapshot.version,4);
+  assert.deepEqual(Object.keys(snapshot.document.assets),['7f3c9a1b']);
+  // And it survives the way round the round trip that matters.
+  const target=baseState();applyProjectSnapshot(target,snapshot);
+  assert.equal(target.assets['7f3c9a1b'].name,'head');
+  assert.equal(createProjectSnapshot(target).version,4);
+  // An entry that is not an asset never reaches a document.
+  const broken=createProjectSnapshot({ ...baseState(), assets: { nope: { id: 'nope', format: 'image/gif' } } });
+  assert.deepEqual(broken.document.assets,{});
+  assert.equal(broken.version,3);
 });
 
 test('a file a newer editor wrote is declined, and declined the same way at every door',()=>{
@@ -102,9 +120,9 @@ test('the file boundary migrates once, and says what it did',()=>{
   // how it got there -- session information, never written back to a file.
   const old={...structuredClone(current),version:1};
   const prepared=prepareProjectSnapshot(old,value=>value);
-  assert.equal(prepared.version,PROJECT_VERSION);
+  assert.equal(prepared.version,3);
   assert.equal(prepared.migratedFrom.version,1);
-  assert.equal(prepared.migratedFrom.applied.length,PROJECT_VERSION-1);
+  assert.deepEqual(prepared.migratedFrom.applied,[]);
   assert.equal(old.version,1);
   const target=baseState();applyProjectSnapshot(target,prepared);
   assert.equal(createProjectSnapshot(target).migratedFrom,undefined);

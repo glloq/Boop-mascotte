@@ -10,6 +10,13 @@
  * every save; a file that carries none is the first format, which never wrote
  * one.
  *
+ * **What the number on a file means: the oldest editor that can read it
+ * without losing part of it** -- not "what wrote it". A project with no assets
+ * is still a version 3 project however new the editor that saved it, and stays
+ * openable by one that predates them; a project that carries assets is not,
+ * because a version 3 reader drops what it does not know about, silently. One
+ * rule, `projectVersionFor`, used everywhere a version is stamped.
+ *
  * It lives on the file rather than on `ProjectDocument` on purpose: which
  * format a document was *stored* in is not something the document means, and
  * the document holds nothing that is not authored (docs/V3_ROADMAP.md, the
@@ -17,7 +24,7 @@
  * writer and the migration ladder can ask what the current version is without
  * reaching through the snapshot reader.
  */
-export const PROJECT_VERSION = 3;
+export const PROJECT_VERSION = 4;
 
 /** The version a file declares, or 1 for the format that declared none. */
 export const projectVersionOf = (snapshot) => snapshot?.version ?? 1;
@@ -31,3 +38,16 @@ export const projectVersionOf = (snapshot) => snapshot?.version ?? 1;
  * twice and a third format would have had to remember both.
  */
 export const canOpenProjectVersion = (version) => Number.isInteger(version) && version >= 1 && version <= PROJECT_VERSION;
+
+/**
+ * The oldest version that can read this document without losing part of it.
+ *
+ * Every version above the first is a block a younger reader would drop on the
+ * floor: version 4 is the asset table. A document that uses none of them is
+ * honestly still the older format, and saying so is what keeps a project that
+ * gained nothing new openable by an editor that gained nothing new.
+ */
+export function projectVersionFor(document) {
+  if (Object.keys(document?.assets || {}).length) return 4;
+  return 3;
+}

@@ -1,6 +1,7 @@
 import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
 import { normalizeRig } from '../rig/normalize-rig.js';
-import { canOpenProjectVersion, PROJECT_VERSION, projectVersionOf } from './project-version.js';
+import { canOpenProjectVersion, projectVersionFor, projectVersionOf } from './project-version.js';
+import { normalizeAssets } from '../assets/asset-model.js';
 import { migrateProject } from './migrations/project-migrations.js';
 
 /**
@@ -22,17 +23,20 @@ export function createProjectSnapshot(state, serializeSvg) {
     globalConstraints: state.globalConstraints, stateConstraints: state.stateConstraints,
     runtimeConfig: state.runtimeConfig, behaviors: state.behaviors, keyforms: state.keyforms, shapeKeys: state.shapeKeys, warps: state.warps, rigPins: state.rigPins, rigConstraints: state.rigConstraints, rigAttachments: state.rigAttachments, rigHolds: state.rigHolds, hands: state.hands, deformers: state.deformers, parallax: state.parallax, followers: state.followers, expressionBlend: state.expressionBlend, motionBlend: state.motionBlend, gazeSolver: state.gazeSolver
   });
-  return {
-    version: PROJECT_VERSION,
-    capturedAt: new Date().toISOString(),
-    document: {
-      svgMarkup: serializeSvg ? serializeSvg() : (state.svgMarkup || ''),
-      layers: state.layers || [],
-      layerMetadata: state.layerMetadata || {},
-      rig,
-      editor: { semanticParts: structuredClone(state.semanticParts || {}), animationClips: structuredClone(state.animationClips || []), expressions: structuredClone(state.expressions || []), reactions: structuredClone(state.reactions || []), animationEditor: structuredClone(state.animationEditor || {}), rigHandles: structuredClone(state.rigHandles || []), rigLinks: structuredClone(state.rigLinks || []), arrangement: structuredClone(state.arrangement || { placements: [] }) }
-    }
+  const document = {
+    svgMarkup: serializeSvg ? serializeSvg() : (state.svgMarkup || ''),
+    layers: state.layers || [],
+    layerMetadata: state.layerMetadata || {},
+    // Beside the rig rather than inside it: what the artwork points at is a
+    // project concern, and the runtime rig schema knows nothing about it.
+    assets: normalizeAssets(state.assets),
+    rig,
+    editor: { semanticParts: structuredClone(state.semanticParts || {}), animationClips: structuredClone(state.animationClips || []), expressions: structuredClone(state.expressions || []), reactions: structuredClone(state.reactions || []), animationEditor: structuredClone(state.animationEditor || {}), rigHandles: structuredClone(state.rigHandles || []), rigLinks: structuredClone(state.rigLinks || []), arrangement: structuredClone(state.arrangement || { placements: [] }) }
   };
+  // The oldest reader that can still read it, not the newest thing that wrote
+  // it: a project that gained nothing new stays openable by an editor that
+  // gained nothing new.
+  return { version: projectVersionFor(document), capturedAt: new Date().toISOString(), document };
 }
 
 /**
@@ -50,6 +54,8 @@ export function applyProjectSnapshot(state, snapshot) {
   const rig = normalizeRig(snapshot.document.rig);
 
   state.svgMarkup = svgMarkup || '';
+  // Additive since V4: a snapshot written before assets simply has none.
+  state.assets = normalizeAssets(snapshot.document.assets);
   state.layers = Array.isArray(snapshot.document.layers) ? [...snapshot.document.layers] : Object.keys(rig.elements || {});
   state.layerMetadata = snapshot.document.layerMetadata && typeof snapshot.document.layerMetadata === 'object' ? structuredClone(snapshot.document.layerMetadata) : {};
   // Selection is editor context, not authored project data. Older snapshots may
@@ -113,18 +119,21 @@ export function prepareProjectSnapshot(snapshot, sanitizeSvg) {
   // The one place a file is brought up to the current format. A step that
   // throws throws here, before the live editor has been touched at all, and
   // the caller's own object is never the one that was migrated.
-  const { snapshot: migrated, from, applied } = migrateProject(snapshot);
+  const { snapshot: migrated, from, to, applied } = migrateProject(snapshot);
   const prepared = structuredClone(migrated);
-  // What was done to open it, for whoever wants to say so. Session
-  // information: a save builds its snapshot from the store, so this never
-  // reaches a file.
-  if (applied.length) prepared.migratedFrom = { version: from, applied };
+  // What was done to open it, for whoever wants to say so -- session
+  // information, since a save builds its snapshot from the store and never
+  // carries this. Reported when the file was not already the version it now
+  // is, or when a step actually rewrote something; a rung the reader absorbs
+  // is neither.
+  if (from !== to || applied.length) prepared.migratedFrom = { version: from, applied };
   prepared.document.svgMarkup = sanitizeSvg(prepared.document.svgMarkup);
   const candidate = {};
   applyProjectSnapshot(candidate, prepared);
   prepared.document.rig = normalizeRig(prepared.document.rig);
   prepared.document.layers = Array.isArray(prepared.document.layers) ? prepared.document.layers : [];
   prepared.document.layerMetadata = prepared.document.layerMetadata && typeof prepared.document.layerMetadata === 'object' ? prepared.document.layerMetadata : {};
+  prepared.document.assets = candidate.assets;
   prepared.document.editor ||= {};
   prepared.document.editor.semanticParts = candidate.semanticParts;
   prepared.document.editor.animationClips = candidate.animationClips;

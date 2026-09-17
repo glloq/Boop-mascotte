@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { migrateProject, PROJECT_MIGRATIONS, projectMigrationLadderGaps, runProjectMigrations } from '../state/migrations/project-migrations.js';
-import { PROJECT_VERSION } from '../state/project-version.js';
+import { PROJECT_VERSION, projectVersionFor } from '../state/project-version.js';
 
 const file = (version) => ({ version, document: { svgMarkup: '<svg><g id="head"/></svg>', rig: { params: {} } } });
 
@@ -20,18 +20,24 @@ test('a broken ladder is named, not tolerated',()=>{
   assert.deepEqual(projectMigrationLadderGaps([{from:1,name:'a'},step(2,'b')],3),['not a step: "a"','no step for version 1 to 2']);
 });
 
-test('a current file is returned untouched, and an older one is carried to the current version',()=>{
+test('a current file is returned untouched, and an older one climbs every rung',()=>{
   const current=file(PROJECT_VERSION),result=migrateProject(current);
-  // Nothing due: the same object back, not a copy of it.
+  // Nothing due: the same object back, not a copy of it. A file that
+  // over-declares its version is left declaring it; only a save normalizes
+  // that down to what a reader actually needs.
   assert.equal(result.snapshot,current);
   assert.deepEqual(result.applied,[]);
   assert.equal(result.to,PROJECT_VERSION);
 
   const old=file(1),migrated=migrateProject(old);
   assert.equal(migrated.from,1);
-  assert.equal(migrated.to,PROJECT_VERSION);
-  assert.equal(migrated.snapshot.version,PROJECT_VERSION);
-  assert.equal(migrated.applied.length,PROJECT_VERSION-1);
+  // Every current rung is declared empty -- the reader already absorbs them --
+  // so the file climbed all of them and nothing was done to it at any.
+  assert.deepEqual(migrated.applied,[]);
+  // Stamped by the rule, not by the ladder's top: this file uses nothing a
+  // version 3 reader would drop, so it is honestly still a version 3 file.
+  assert.equal(migrated.snapshot.version,projectVersionFor(migrated.snapshot.document));
+  assert.equal(migrated.to,3);
   // Non-destructive: what the caller handed in is still the file it handed in.
   assert.equal(old.version,1);
   assert.notEqual(migrated.snapshot,old);
@@ -41,7 +47,17 @@ test('a file that declares no version is the first format, and climbs from there
   const { version, ...none }=file(1);
   const result=migrateProject(none);
   assert.equal(result.from,1);
-  assert.equal(result.snapshot.version,PROJECT_VERSION);
+  assert.equal(result.snapshot.version,projectVersionFor(result.snapshot.document));
+});
+
+test('a project that carries an asset declares the version that can read one',()=>{
+  const withAsset=file(1);
+  withAsset.document.assets={ '7f3c9a1b': { id:'7f3c9a1b', format:'image/webp', width:512, height:512 } };
+  const migrated=migrateProject(withAsset);
+  // The whole point of the rung: a version 3 reader would drop this table
+  // without saying so, so the file may not claim to be one it can read.
+  assert.equal(migrated.snapshot.version,4);
+  assert.equal(migrateProject(file(1)).snapshot.version,3,'and one without stays where it was');
 });
 
 test('a step that throws fails the whole load rather than leaving a file half-migrated',()=>{
@@ -72,4 +88,13 @@ test('steps run in ladder order however the registry is written',()=>{
   ];
   runProjectMigrations(file(1),steps,3);
   assert.deepEqual(order,[1,2]);
+});
+
+test('a rung the reader absorbs is crossed without being reported as work',()=>{
+  const steps=[
+    { from:1,name:'nothing to do',empty:true,apply:(s)=>s },
+    { from:2,name:'rewrites the markup',apply:(s)=>{s.document.svgMarkup='<svg/>';return s;} }
+  ];
+  const { applied }=runProjectMigrations(file(1),steps,3);
+  assert.deepEqual(applied,['rewrites the markup']);
 });

@@ -1,4 +1,4 @@
-import { canOpenProjectVersion, PROJECT_VERSION, projectVersionOf } from '../project-version.js';
+import { canOpenProjectVersion, PROJECT_VERSION, projectVersionFor, projectVersionOf } from '../project-version.js';
 
 /**
  * Forward migrations for the project file, one rung of the version ladder at
@@ -13,6 +13,11 @@ import { canOpenProjectVersion, PROJECT_VERSION, projectVersionOf } from '../pro
  * A step migrates from `from` to `from + 1`: one rung, never two. It receives
  * the snapshot it is to migrate and returns the migrated one; it may mutate
  * what it is given, because it is never given the caller's object.
+ *
+ * A step that declares `empty: true` is one whose rung the reader already
+ * absorbs, and crossing it is not work: it is not reported as something done
+ * to the file. That distinction is what keeps "this project had to be
+ * rewritten to open" from firing on every project.
  */
 export const PROJECT_MIGRATIONS = Object.freeze([
   // Both early rungs were additive, and the reader already absorbs them: every
@@ -20,8 +25,14 @@ export const PROJECT_MIGRATIONS = Object.freeze([
   // which is what lets a file with no `document.editor` at all open as one
   // whose editor block is empty. Nothing to run; the entries are here so the
   // ladder is complete and says why.
-  Object.freeze({ from: 1, name: 'v1 to v2: additive, absorbed by the reader', apply: (snapshot) => snapshot }),
-  Object.freeze({ from: 2, name: 'v2 to v3: the editor block, defaulted when absent', apply: (snapshot) => snapshot })
+  Object.freeze({ from: 1, name: 'v1 to v2: additive, absorbed by the reader', empty: true, apply: (snapshot) => snapshot }),
+  Object.freeze({ from: 2, name: 'v2 to v3: the editor block, defaulted when absent', empty: true, apply: (snapshot) => snapshot }),
+  // The asset table. Additive in the same way: a file written before assets
+  // has none, and none is what an empty table means. The rung exists because
+  // the *reverse* is not additive -- a v3 reader opening a v4 file would drop
+  // the table without saying so, which is why a project carrying one declares
+  // version 4 (`projectVersionFor`).
+  Object.freeze({ from: 3, name: 'v3 to v4: the asset table, empty when absent', empty: true, apply: (snapshot) => snapshot })
 ]);
 
 /**
@@ -50,6 +61,9 @@ export function projectMigrationLadderGaps(steps = PROJECT_MIGRATIONS, current =
  * Nothing the caller owns is touched: the steps run on a copy, and a step that
  * throws fails the whole load rather than leaving a file half-migrated.
  *
+ * `applied` names the steps that actually did something -- a rung declared
+ * empty is crossed silently, because nothing was done to the file at it.
+ *
  * @returns {{ snapshot: object, from: number, to: number, applied: string[] }}
  */
 export function runProjectMigrations(snapshot, steps = PROJECT_MIGRATIONS, current = PROJECT_VERSION) {
@@ -62,10 +76,13 @@ export function runProjectMigrations(snapshot, steps = PROJECT_MIGRATIONS, curre
   for (const step of due) {
     try { migrated = step.apply(migrated) ?? migrated; }
     catch (cause) { throw new Error(`Project migration failed at "${step.name}"; the project was not opened.`, { cause }); }
-    applied.push(step.name);
+    if (!step.empty) applied.push(step.name);
   }
-  migrated.version = current;
-  return { snapshot: migrated, from, to: current, applied };
+  // Stamped by the same rule that stamps a save: the oldest reader that can
+  // still read it. A file brought forward through every rung but using none of
+  // what they added is honestly still the older format.
+  migrated.version = Math.min(projectVersionFor(migrated.document), current);
+  return { snapshot: migrated, from, to: migrated.version, applied };
 }
 
 /** The ladder as it stands, over one snapshot. */
