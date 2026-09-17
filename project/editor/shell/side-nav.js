@@ -83,6 +83,7 @@ export const sideNavHosts = (q) => ({
   handStatesEl: q('#hand-states'),
   faceSetupEl: q('#face-setup-checklist'),
   faceMovementsEl: q('#face-movements'),
+  faceStatesEl: q('#face-states'),
   gazePanelEl: q('#gaze-panel'),
   headPoseEl: q('#head-pose'),
   handSetupEl: q('#hand-setup'),

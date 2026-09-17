@@ -17,6 +17,11 @@ import { gazeSolverSettings } from '../rig/gaze-rig.js';
 export const SETUP_SECTIONS = Object.freeze([
   Object.freeze({ id: 'face-parts', panel: 'face-setup-checklist', label: 'Face parts', open: true }),
   Object.freeze({ id: 'movements', panel: 'face-movements', label: 'Movements', open: false }),
+  // The states an eye and a mouth can be in, and the speech shapes
+  // (docs/FACE_SVG_STATES.md). Beside Movements because that is what they are
+  // made of, and after it because there is nothing to pose until a movement is
+  // on.
+  Object.freeze({ id: 'face-states', panel: 'face-states', label: 'Face states', open: false }),
   Object.freeze({ id: 'gaze', panel: 'gaze-panel', label: 'Gaze', open: false }),
   Object.freeze({ id: 'head-pose', panel: 'head-pose', label: 'Head pose', open: false }),
   Object.freeze({ id: 'hands', panel: 'hand-setup', label: 'Hands', open: false }),
@@ -48,6 +53,8 @@ export function deriveSetupSections(document = {}) {
   // movement checklist and a hand-reach measurement nobody asked for.
   const authored = (document.rigHandles || []).length;
   const gaze = gazeSolverSettings(document);
+  const correctives = (document.shapeKeys || []).filter((key) => key?.faceState).length;
+  const visemes = (document.expressions || []).filter((item) => item?.viseme || item?.source === 'viseme').length;
 
   // Short enough to read at a glance in a collapsed heading: the panel itself
   // explains what the section is for, and the heading only grades it.
@@ -60,6 +67,14 @@ export function deriveSetupSections(document = {}) {
       : moves.enabled
         ? { summary: `${moves.enabled} on · ${moves.calibrated} set`, state: moves.calibrated ? 'ready' : 'partial' }
         : { summary: 'none on', state: 'empty' },
+    // The states are always available once the parts are there -- they are made
+    // of the movements the face already has -- so the heading grades what has
+    // been *captured*, which is the optional half (docs/FACE_SVG_STATES.md).
+    'face-states': !moves.available
+      ? { summary: 'parts first', state: 'empty' }
+      : correctives || visemes
+        ? { summary: [visemes ? `${visemes} speech` : '', correctives ? plural(correctives, 'corrective') : ''].filter(Boolean).join(' · '), state: 'ready' }
+        : { summary: 'optional', state: 'empty' },
     // The gaze solver is optional and off until asked for, so an empty section
     // says "optional" rather than "unfinished" (docs/FACE_CONTROL_RIG.md).
     gaze: gaze.enabled

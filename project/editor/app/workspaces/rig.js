@@ -19,6 +19,7 @@ import { controlMeta } from '../../ui/control-catalog.js';
 import { createRigPanel } from '../../rig-editor/semantic-parts/rig-panel.js';
 import { createFaceSetupPanel } from '../../rig-editor/semantic-parts/face-setup-panel.js';
 import { createFaceMovementsPanel } from '../../rig-editor/semantic-parts/face-movements-panel.js';
+import { createFaceStatesPanel } from '../../rig-editor/semantic-parts/face-states-panel.js';
 import { createGazePanel } from '../../rig-editor/gaze/gaze-panel.js';
 import { createHoldingPanel } from '../../rig-editor/holding/holding-panel.js';
 import { createHeadPosePanel } from '../../rig-editor/head-pose/head-pose-panel.js';
@@ -78,6 +79,20 @@ export function createRigWorkspace({
   });
   const gazePanel=createGazePanel(shell.gazePanelEl,store,history,{onStatus:setStatus});
   const faceMovements=createFaceMovementsPanel(shell.faceMovementsEl,store,history,editorContext,{openMovement:(id,control)=>{rigPanel.openMovement(id,control);revealInspector();},applyPose:applyPoseValues,liveValues:()=>preview.getEffectiveParams()});
+  // The states an eye and a mouth can be in, and the speech shapes
+  // (docs/FACE_SVG_STATES.md). A corrective is captured through the canvas's
+  // own node editor with the topology locked -- the same bargain the head pose
+  // makes (3D-06) -- so what comes back is a shape and never an artwork edit
+  // that would strand every delta measured against the old point count.
+  const faceStates=createFaceStatesPanel(shell.faceStatesEl,store,history,{
+    applyPose:applyPoseValues,
+    liveValues:()=>preview.getEffectiveParams(),
+    pathOf:(id)=>canvas.getPathData?.(id)||null,
+    beginShapePose:(id,path,{capture,cancel})=>canvas.beginMorphPose(id,path,{instruction:'Shape the outline for this state, then press Capture. The neutral drawing is not changed \u2014 what is kept is the difference.',capture:()=>capture(canvas.captureMorphPose()),cancel}),
+    cancelPose:()=>canvas.cancelRigTool(),
+    onStatus:setStatus,
+    select:(id)=>{if(id)editorContext.update({selectedId:id});}
+  });
   // V2 head pose and hands (docs/HEAD_POSE_2_5D.md, docs/HAND_RIGGING.md).
   const headPosePanel=createHeadPosePanel(shell.headPoseEl,store,history,{onRoute:(mode)=>navigate({mode}),
     // Capture is a transient canvas pose session: nothing is authored until the
@@ -121,11 +136,12 @@ export function createRigWorkspace({
   return {
     id: 'rig',
     surfaces: ['rig'],
-    panels: { rigPanel, faceSetup, faceMovements, gazePanel, holdingPanel, headPosePanel, handSetupPanel, warpPanel, handleBoard },
+    panels: { rigPanel, faceSetup, faceMovements, faceStates, gazePanel, holdingPanel, headPosePanel, handSetupPanel, warpPanel, handleBoard },
     targets: {
       rigPanel: () => rigPanel.render(),
       faceSetup: () => faceSetup.render(),
       faceMovements: () => faceMovements.render(),
+      faceStates: () => faceStates.render(),
       gazePanel: () => gazePanel.render(),
       holdingPanel: () => holdingPanel.render(),
       headPose: () => headPosePanel.render(),
@@ -140,11 +156,11 @@ export function createRigWorkspace({
      * A pin being placed and a part half-assigned are both transient: a gesture
      * the author walked away from is over.
      */
-    leave() { rigPanel.cancelTransient(); faceSetup.cancelTransient(); },
+    leave() { rigPanel.cancelTransient(); faceSetup.cancelTransient(); faceStates.cancelTransient(); },
     render() {
       rigPanel.render(); faceSetup.render(); gazePanel.render(); holdingPanel.render();
-      faceMovements.render(); headPosePanel.render(); handSetupPanel.render(); warpPanel.render(); handleBoard.render();
+      faceMovements.render(); faceStates.render(); headPosePanel.render(); handSetupPanel.render(); warpPanel.render(); handleBoard.render();
     },
-    destroy() { for (const panel of [rigPanel, faceSetup, faceMovements, gazePanel, holdingPanel, headPosePanel, handSetupPanel, warpPanel, handleBoard]) panel.destroy?.(); }
+    destroy() { for (const panel of [rigPanel, faceSetup, faceMovements, faceStates, gazePanel, holdingPanel, headPosePanel, handSetupPanel, warpPanel, handleBoard]) panel.destroy?.(); }
   };
 }

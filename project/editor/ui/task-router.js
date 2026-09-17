@@ -57,7 +57,7 @@ export const MODES = Object.freeze({
   // and how far — so they are one screen. Hand placement and reach ride here
   // too, marked advanced: where a hand *is* is a movement; what it is *drawn
   // from* is Design (§6).
-  'rig.controls': { id: 'rig.controls', label: 'Controls', workspace: 'rig', surface: 'rig', navigable: true, sections: ['movements', 'gaze', 'handles', 'hands'] },
+  'rig.controls': { id: 'rig.controls', label: 'Controls', workspace: 'rig', surface: 'rig', navigable: true, sections: ['movements', 'face-states', 'gaze', 'handles', 'hands'] },
   'rig.head2d': { id: 'rig.head2d', label: 'Head 2.5D', workspace: 'rig', surface: 'rig', navigable: true, sections: ['head-pose'] },
   'rig.deform': { id: 'rig.deform', label: 'Deform', workspace: 'rig', surface: 'rig', navigable: true, advanced: true, sections: ['holding', 'warp', 'all-parts'] },
 
@@ -274,7 +274,7 @@ export function normalizeTarget(target) {
 }
 
 /** Panels a route may focus. Anything else is ignored rather than trusted. */
-export const FOCUSABLE_PANELS = Object.freeze(['head-pose', 'hand-setup', 'warp-panel', 'automatic-panel', 'motion-panel', 'face-setup-checklist', 'face-movements', 'handle-board', 'layers-panel', 'rig-parts', 'holding-panel', 'gaze-panel', 'state-editor', 'face-builder']);
+export const FOCUSABLE_PANELS = Object.freeze(['head-pose', 'hand-setup', 'warp-panel', 'automatic-panel', 'motion-panel', 'face-setup-checklist', 'face-movements', 'face-states', 'handle-board', 'layers-panel', 'rig-parts', 'holding-panel', 'gaze-panel', 'state-editor', 'face-builder']);
 
 /**
  * The mode a focused panel lives in.
@@ -287,6 +287,7 @@ export const FOCUSABLE_PANELS = Object.freeze(['head-pose', 'hand-setup', 'warp-
 export const PANEL_MODES = Object.freeze({
   'face-setup-checklist': 'rig.assign',
   'face-movements': 'rig.controls',
+  'face-states': 'rig.controls',
   'gaze-panel': 'rig.controls',
   'handle-board': 'rig.controls',
   'hand-setup': 'rig.controls',

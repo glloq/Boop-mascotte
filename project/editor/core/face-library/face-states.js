@@ -101,6 +101,14 @@ export const visemeById = (key) => VISEME_PRESETS.find((item) => item.id === vis
 
 const number = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+/**
+ * A side offset is a subtraction, and a subtraction of two tenths leaves a
+ * tail of binary noise behind it (`1.4 - 1` is `0.3999999999999999`). Rounded
+ * where the value leaves the resolver, for the same reason `roundTo` exists in
+ * the runtime: a pose that should read 0.4 has to read 0.4, in a panel and in
+ * a saved project alike.
+ */
+const round = (value) => Math.round(number(value) * 1e5) / 1e5;
 
 /**
  * One state against one project: the controls it has, and the ones it wants.
@@ -175,7 +183,7 @@ export function eyePoseValues(document, id, side = null) {
     // had, rather than nothing happening at all.
     if (!parameter) { values[name] = target; continue; }
     const shared = number(document?.params?.[name]?.default, 0);
-    values[offset] = clamp(target - shared, number(parameter.min, -Infinity), number(parameter.max, Infinity));
+    values[offset] = round(clamp(target - shared, number(parameter.min, -Infinity), number(parameter.max, Infinity)));
   }
   return values;
 }
@@ -240,6 +248,7 @@ export function composeFaceState(document, {
     if (Number.isFinite(Number(parameter?.min)) && Number.isFinite(Number(parameter?.max))) {
       result[name] = clamp(result[name], Number(parameter.min), Number(parameter.max));
     }
+    result[name] = round(result[name]);
   }
   return result;
 }

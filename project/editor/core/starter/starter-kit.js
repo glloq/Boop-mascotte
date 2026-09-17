@@ -5,7 +5,8 @@
 // author would have built by hand, and one undo removes all of it.
 import { createExpression, findExpression } from '../expressions/expression-model.js';
 import { EXPRESSION_PRESETS, instantiatePreset, presetById as expressionPresetById } from '../expressions/expression-presets.js';
-import { REQUIRED_VISEME_KEYS, VISEME_KEYS, VISEME_PRESETS, resolveViseme, visemeExpressionId } from '../face-library/face-states.js';
+import { REQUIRED_VISEME_KEYS, VISEME_KEYS } from '../face-library/face-states.js';
+import { installVisemes, installedVisemes, visemeExpressionName } from '../face-library/face-state-install.js';
 import { createMotionClip } from '../motion/motion-model.js';
 import { MOTION_PRESETS, presetById as motionPresetById } from '../motion/motion-presets.js';
 import { createReaction, findReaction } from '../reactions/reaction-model.js';
@@ -100,16 +101,13 @@ export function buildStarterKit(document, kit = STARTER_KIT) {
   // gets the eight, a little less roundly, and the report says which movement
   // would make them exact.
   for (const key of kit.visemes || []) {
-    const preset = VISEME_PRESETS.find((item) => item.id === key);
-    if (!preset) continue;
-    const id = visemeExpressionId(key);
-    const name = `Say ${preset.name}`;
-    if (findExpression(document, id)) { entries.push(entry('viseme', key, name, 'have')); continue; }
-    const resolved = resolveViseme(document, key);
-    if (!resolved.usable) { entries.push(entry('viseme', key, name, 'skip', `needs ${resolved.missing.join(', ')}`)); continue; }
-    const created = createExpression(document, { name, id, controls: resolved.controls, source: 'viseme' });
-    created.viseme = key;
-    entries.push(entry('viseme', key, name, 'add', resolved.missing.length ? `without ${resolved.missing.join(', ')}` : null));
+    const name = visemeExpressionName(key);
+    const had = installedVisemes(document).includes(key);
+    const report = installVisemes(document, { keys: [key] });
+    if (had) { entries.push(entry('viseme', key, name, 'have')); continue; }
+    if (report.added.includes(key)) { entries.push(entry('viseme', key, name, 'add')); continue; }
+    const missing = report.skipped.find((item) => item.key === key)?.missing || [];
+    entries.push(entry('viseme', key, name, 'skip', `needs ${missing.length ? missing.join(', ') : 'a mouth'}`));
   }
 
   for (const id of kit.motions) {

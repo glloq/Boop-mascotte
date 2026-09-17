@@ -91,10 +91,11 @@ test('entering a workspace keeps the screen already open in it', () => {
   assert.equal(workspaceEntryMode('behavior', 'anything'), 'behavior.reactions');
 });
 
-test('the nine rig sections are filed across the four rig screens, each exactly once', () => {
+test('the ten rig sections are filed across the four rig screens, each exactly once', () => {
   const filed = workspaceModes('rig').flatMap((mode) => modeSections(mode));
   assert.deepEqual(filed.filter((section, index) => filed.indexOf(section) !== index), [], 'no section is on two screens');
-  assert.deepEqual([...filed].sort(), ['all-parts', 'face-parts', 'gaze', 'handles', 'hands', 'head-pose', 'holding', 'movements', 'warp'].sort());
+  assert.deepEqual([...filed].sort(), ['all-parts', 'face-parts', 'face-states', 'gaze', 'handles', 'hands', 'head-pose', 'holding', 'movements', 'warp'].sort());
+  assert.equal(sectionMode('face-states'), 'rig.controls', 'the states are made of the movements, so they are on the screen the movements are on');
   assert.equal(sectionMode('head-pose'), 'rig.head2d');
   assert.equal(sectionMode('warp'), 'rig.deform');
   assert.equal(sectionMode('nowhere'), null);
