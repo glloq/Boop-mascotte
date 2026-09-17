@@ -156,18 +156,18 @@ identical compiled frame, and the suite says so without a human looking.
   package carries both shapes or keeps export a separate action
   (`docs/PROJECT_FORMAT.md`).
 
-## Phase 1 — The asset model (6 PRs)
+## Phase 1 — The asset model (6 PRs) — **done**
 
 Still no raster on the canvas. This is the model, the store and the rules.
 
 | PR | What | Files | Size |
 | --- | --- | --- | --- |
-| **V4-010** | The `Asset` record (`id`, `kind`, `format`, `width`, `height`, `hash`, `ref`, `alpha`, `metadata`) and an `assets` entry in `PROJECT_DOMAINS`; normalizer and validation, no UI | new `core/assets/asset-model.js`, `state/project-document.js` | M |
-| **V4-011** | Binary store: blobs by hash in IndexedDB, with an in-memory implementation so Node tests exercise the same interface | new `core/assets/asset-store.js`, `core/assets/asset-store-memory.js` | M |
-| **V4-012** | Import validation as a pure function: real MIME by magic bytes, decode, dimensions, limits — the extension is never trusted | new `core/assets/asset-validate.js` | M |
-| **V4-013** | `AssetManager`: `import` / `resolve` / `replace` / `retain` / `release` / `findDuplicates` / `removeUnused`, refcounted from document references | new `core/assets/asset-manager.js` | L |
-| **V4-014** | Resize on import to the 512 px budget, and thumbnails | new `core/assets/asset-optimise.js` | M |
-| **V4-015** | The single `AssetResolver` (`asset:` → object URL, cached, revoked) that editor, preview and runtime all import | new `core/assets/asset-resolver.js` | M |
+| **V4-010** — done | The `Asset` record (`id`, `kind`, `format`, `width`, `height`, `hash`, `ref`, `alpha`, `metadata`) and an `assets` entry in `PROJECT_DOMAINS`; normalizer and validation, no UI | new `core/assets/asset-model.js`, `state/project-document.js` | M |
+| **V4-011** — done | Binary store: blobs by hash in IndexedDB, with an in-memory implementation so Node tests exercise the same interface | new `core/assets/asset-store.js`, `core/assets/asset-store-memory.js` | M |
+| **V4-012** — done | Import validation as a pure function: real MIME by magic bytes, decode, dimensions, limits — the extension is never trusted | new `core/assets/asset-validate.js` | M |
+| **V4-013** — done | `AssetManager`: `import` / `resolve` / `replace` / `retain` / `release` / `findDuplicates` / `removeUnused`, refcounted from document references | new `core/assets/asset-manager.js` | L |
+| **V4-014** — done | Resize on import to the 512 px budget, and thumbnails | new `core/assets/asset-optimise.js` | M |
+| **V4-015** — done | The single `AssetResolver` (`asset:` → object URL, cached, revoked) that editor, preview and runtime all import | new `core/assets/asset-resolver.js` | M |
 
 **Exit:** a PNG and a WebP can be imported in a test, produce an `assetId`,
 report their true dimensions, dedupe against a re-import of the same bytes,
@@ -177,13 +177,35 @@ V4-013 carries the lifecycle the survey flagged: deletion removes the *node*,
 and the file only when the last reference goes. Shared assets are the normal
 case, not the exception.
 
+### What building it corrected
+
+- **No `retain`/`release`, and no `findDuplicates`.** An editor with undo
+  cannot hand-count references: undo restores a whole document in one step, so
+  the count has to be a *function* of the document rather than a tally kept
+  beside it. And with the id being the content hash there is never a second
+  record to find — what survives is telling the author their import was
+  already here.
+- **`replace` is a node command, not an asset one.** Swapping a picture
+  changes which id a node points at; the old asset is untouched and may still
+  be in use. It belongs to V4-032.
+- **The id is the hash, with no second `hash` field.** Two fields holding one
+  answer is the drift V4-001 was about.
+- **`missingIn` was missing from the plan.** Ids the artwork points at that
+  the table has no record of: the shape a hand-assembled file or a damaged
+  package takes, and Phase 11's "corrupt project" case starts here.
+- **The reference lives in the runtime.** `runtime/asset-reference.js`, because
+  the runtime must read one and must never import the editor.
+- **Persistence is reported.** A browser without IndexedDB still gets a working
+  store, one that says `persistent: false`, because silently falling back to
+  memory means autosave stopping at the images while claiming to have saved.
+
 ## Phase 2 — Rigid raster nodes (6 PRs)
 
 The change becomes visible here.
 
 | PR | What | Files | Size |
 | --- | --- | --- | --- |
-| **V4-020** | **Security, alone.** The sanitizer accepts `asset:<id>` on `href`/`xlink:href` as an internal reference and keeps rejecting everything else; `findUnsafeSvg` reports by the same rule | `core/security/sanitize-svg.js` | S |
+| **V4-020** — done | **Security, alone.** The sanitizer accepts `asset:<id>` on `href`/`xlink:href` as an internal reference and keeps rejecting everything else; `findUnsafeSvg` reports by the same rule | `core/security/sanitize-svg.js` | S |
 | **V4-021** | The canvas resolves `asset:` at paint time and revokes on unload | `svg-editor/svg-canvas.js` (render pass only) | M |
 | **V4-022** | `<image>` as a selectable node: selection, move, scale, rotate. Path-only operations already guard on `element.type !== 'path'` — this PR audits every such guard and makes the message right | `svg-editor/svg-canvas.js`, `svg-editor/selection-overlay.js` | L |
 | **V4-023** | Parity for pivot, layer, depth, opacity, lock, visibility, duplication | `inspector/`, `svg-editor/layers-panel.js`, `core/commands/artwork-commands.js` | M |
@@ -192,6 +214,13 @@ The change becomes visible here.
 
 **Exit:** `head.webp` + `eye_L/R.webp` + `mouth.webp` + `hair.webp` rig, animate
 and turn exactly as their SVG equivalents do, in the editor and in the export.
+
+**What V4-020 corrected.** Restricting `asset:` to `<image>` was the first
+attempt and was dropped: it buys no safety (the scheme has no handler, so it
+is inert wherever it lands) and can only be enforced on the DOMParser branch,
+which would leave the cleaner and its scan answering one question two ways.
+The rule is the *value* — a strict hex id — applied identically in both
+branches.
 
 V4-022 is the largest PR in the plan and the one to watch. It does not
 refactor `svg-canvas.js` (3994 lines) — it walks its path assumptions and
