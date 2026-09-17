@@ -233,7 +233,12 @@ export function createEditorApp({ root = document.getElementById('app'), recover
   // it is not (docs/STILL_WHILE_DESIGNING.md): the service owns which workspaces
   // those are, this only tells it which one is open. Session-only in both
   // directions -- no document is read and none is written.
-  shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);syncPieceModel(workspace);editorContext.update({workspace});syncPuppetHandles();syncArtboard();syncSelectionActions();if(workspace!=='animate')timeline?.stopPlayback();previewService.holdStill(workspace);});
+  // The options bar reads the surface -- Grid, Snap, Group and Cut are the
+  // vector editor's and are not offered over a mascot -- and nothing redrew
+  // it when the surface changed, so the drawing chrome followed an author
+  // out of Artwork. Invisible until the editor started opening *on* Artwork
+  // (V5-07): before that, nobody reached another screen with it populated.
+  shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);syncPieceModel(workspace);editorContext.update({workspace});syncPuppetHandles();syncArtboard();syncSelectionActions();toolOptions.render();if(workspace!=='animate')timeline?.stopPlayback();previewService.holdStill(workspace);});
   shell.bindPuppetToggle(()=>syncPuppetHandles());
   shell.bindCanvasView((action)=>action==='fit'?canvas.fitToCanvas():action==='selection'?canvas.zoomToSelection():action==='reset'?canvas.resetView():canvas.zoomView(action==='in'?1.1:1/1.1));
   // The wheel zooms too, so the readout has to follow the canvas, not the

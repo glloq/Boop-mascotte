@@ -3297,15 +3297,34 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
    * follow by hand. The artboard edge used to sit where the first, smaller
    * layout had put it.
    */
+  /**
+   * Every layer drawn *over* the artwork, put back where the artwork now is.
+   *
+   * The artwork itself follows a changed layout because the browser lays it
+   * out; the chrome is positioned by `artworkMatrix()` and has to follow by
+   * hand. Two things move that matrix — the container being resized, and the
+   * working area being resized — and only one of them used to do this.
+   *
+   * Resizing the working area called `renderFrame()` alone, so the edge and
+   * the paper moved and every handle stayed where the mascot used to be: the
+   * pins, the warp lattice, the puppet handles and the gizmo all left behind,
+   * pointing at nothing. One function for both callers, so a layer added later
+   * cannot be given to one and forgotten by the other.
+   */
+  function placeChrome() {
+    if (!rootGroup?.node) return;
+    renderFrame(); syncDrawLayer(); renderMultiSelection(); gizmo.render(); placePuppetHandles();
+    // The deformation overlays are placed by the same matrix, and the resize
+    // observer was forgetting them too.
+    renderWarp(); renderMesh(); renderPins(); renderHandRig();
+    if (nodeEdit) { placeNodeHandles(); placeControlHandles(); }
+  }
+
   if (typeof ResizeObserver !== 'undefined') {
     let resizeFrame = 0;
     new ResizeObserver(() => {
       cancelAnimationFrame(resizeFrame);
-      resizeFrame = requestAnimationFrame(() => {
-        if (!rootGroup?.node) return;
-        renderFrame(); syncDrawLayer(); renderMultiSelection(); gizmo.render(); placePuppetHandles();
-        if (nodeEdit) { placeNodeHandles(); placeControlHandles(); }
-      });
+      resizeFrame = requestAnimationFrame(() => placeChrome());
     }).observe(container);
   }
 
@@ -3813,7 +3832,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       const content = this.getArtworkBounds();
       return { box, content, overflow: artboardOverflow(box, content), fitted: artboardAround(box, content, margin) };
     },
-    setArtboard(box) { commands.setArtboard(box); renderFrame(); return readArtboard(store.getDocument().svgMarkup || ''); },
+    // The whole chrome, not just the edge: a new working area is a new
+    // artwork matrix, and everything drawn over the mascot is placed by it.
+    setArtboard(box) { commands.setArtboard(box); placeChrome(); return readArtboard(store.getDocument().svgMarkup || ''); },
     /** Which element is clipping this one, and to what. Null when nothing is. */
     describeClip(id) {
       const clip = clipOwnerOf(id);

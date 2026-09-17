@@ -751,6 +751,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -773,6 +774,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -795,6 +797,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -817,6 +820,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -839,6 +843,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -861,6 +866,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -883,6 +889,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -905,6 +912,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -927,6 +935,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -949,6 +958,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -971,6 +981,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -993,6 +1004,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1015,6 +1027,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1037,6 +1050,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1059,6 +1073,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1081,6 +1096,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1103,6 +1119,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1125,6 +1142,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1147,6 +1165,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1169,6 +1188,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1191,6 +1211,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1213,6 +1234,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1235,6 +1257,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1257,6 +1280,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1279,6 +1303,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1301,6 +1326,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1323,6 +1349,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1345,6 +1372,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1367,6 +1395,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1389,6 +1418,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1411,6 +1441,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1433,6 +1464,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1455,6 +1487,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1477,6 +1510,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1499,6 +1533,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1521,6 +1556,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1543,6 +1579,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1565,6 +1602,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1587,6 +1625,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1609,6 +1648,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1631,6 +1671,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1653,6 +1694,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1675,6 +1717,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1697,6 +1740,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1719,6 +1763,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1741,6 +1786,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1763,6 +1809,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1785,6 +1832,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1807,6 +1855,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1829,6 +1878,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1851,6 +1901,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1873,6 +1924,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1895,6 +1947,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1917,6 +1970,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1939,6 +1993,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1961,6 +2016,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -1983,6 +2039,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2005,6 +2062,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2027,6 +2085,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2049,6 +2108,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2071,6 +2131,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2093,6 +2154,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2115,6 +2177,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2137,6 +2200,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2159,6 +2223,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2181,6 +2246,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2203,6 +2269,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2225,6 +2292,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2247,6 +2315,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2269,6 +2338,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2291,6 +2361,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2313,6 +2384,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2335,6 +2407,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2357,6 +2430,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2379,6 +2453,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2401,6 +2476,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2423,6 +2499,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2445,6 +2522,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2467,6 +2545,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2489,6 +2568,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2511,6 +2591,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2533,6 +2614,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2555,6 +2637,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2577,6 +2660,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2599,6 +2683,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2621,6 +2706,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2643,6 +2729,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2665,6 +2752,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2687,6 +2775,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "translateX": {
           "enabled": false,
@@ -2746,6 +2835,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "rotation": {
           "enabled": true,
@@ -2793,6 +2883,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "rotation": {
           "enabled": true,
@@ -2828,6 +2919,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2850,6 +2942,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2872,6 +2965,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2894,6 +2988,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "rotation": {
           "enabled": true,
@@ -2929,6 +3024,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2951,6 +3047,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2973,6 +3070,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -2995,6 +3093,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -3018,6 +3117,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -3040,6 +3140,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "opacity": {
           "enabled": true,
@@ -3071,6 +3172,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "opacity": {
           "enabled": true,
@@ -3102,6 +3204,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "translateX": {
           "enabled": true,
@@ -3141,6 +3244,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -3163,6 +3267,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "scaleX": {
           "enabled": true,
@@ -3199,6 +3304,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "translateX": {
           "enabled": true,
@@ -3279,6 +3385,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "scaleX": {
           "enabled": true,
@@ -3311,6 +3418,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "scaleY": {
           "enabled": true,
@@ -3346,6 +3454,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -3368,6 +3477,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "translateX": {
           "enabled": true,
@@ -3439,6 +3549,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -3461,6 +3572,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -3483,6 +3595,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "translateY": {
           "enabled": true,
@@ -3518,6 +3631,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "translateY": {
           "enabled": true,
@@ -3553,6 +3667,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "opacity": {
           "enabled": true,
@@ -3584,6 +3699,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "scaleY": {
           "enabled": true,
@@ -3619,6 +3735,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -3641,6 +3758,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "translateX": {
           "enabled": true,
@@ -3712,6 +3830,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -3734,6 +3853,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -3756,6 +3876,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "translateY": {
           "enabled": true,
@@ -3791,6 +3912,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "translateY": {
           "enabled": true,
@@ -3826,6 +3948,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "opacity": {
           "enabled": true,
@@ -3857,6 +3980,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -3879,6 +4003,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "translateY": {
           "enabled": true,
@@ -3927,6 +4052,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "translateY": {
           "enabled": true,
@@ -3975,6 +4101,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "translateY": {
           "enabled": true,
@@ -4018,6 +4145,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "rotation": {
           "enabled": true,
@@ -4065,6 +4193,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {},
       "symmetryPeer": null,
       "meta": {
@@ -4087,6 +4216,7 @@
         "rotate": true,
         "scale": true
       },
+      "rigging": "rigid",
       "bindings": {
         "rotation": {
           "enabled": true,
@@ -23195,6 +23325,7 @@
   ],
   "warps": [],
   "meshes": [],
+  "partStates": [],
   "hands": {
     "left": {
       "side": "left",

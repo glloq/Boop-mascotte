@@ -203,6 +203,10 @@ test('matrix · a rig asks by name for anything an older runtime would run wrong
   each((mascot, where) => {
     const rig = createExportRig(mascot.state);
     assert.deepEqual(rigRequirements(rig), rig.requires, `${where} what it needs and what it says it needs are the same list`);
+    // Read back through the rig rather than through the state it came from:
+    // `requires` was computed from the reactions alone for a while, so a block
+    // added later exported without declaring itself (V5-02).
+    assert.deepEqual(rigRequirements({ ...rig, requires: undefined }), rig.requires, `${where} and every block that can ask was asked`);
     assert.equal(rig.graphLayout, undefined, `${where} the runtime runs a state machine without drawing one`);
   });
 });

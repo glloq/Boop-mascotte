@@ -1,4 +1,5 @@
 import { normalizeMeshes } from '../../../runtime/mesh-warp.js';
+import { normalizePartStates } from '../../../runtime/part-states.js';
 import { RIG_SCHEMA_VERSION, rigRequirements, normalizeAnimations, normalizeExpressions, normalizeKeyforms, normalizeDeformers, normalizeExpressionBlend, normalizeHands, normalizeParallax, normalizeReactions, normalizeShapeKeys, normalizeWarps, normalizeFollowers, normalizeMotionBlend, normalizeGazeSolver, normalizeRigPins, normalizeRigConstraints, normalizeRigAttachments, normalizeRigHolds } from '../../../runtime/runtime.js';
 
 /** The hands, without the editor-only mark on one that still deforms. */
@@ -19,7 +20,13 @@ export function createExportRig(state) {
     // put anything in it, and a rig that uses neither asks for nothing. It is
     // named rather than versioned so a build missing one feature can say which
     // (VNX-65 splits the runtime into modules).
-    requires: rigRequirements({ reactions: normalizeReactions(state) }),
+    //
+    // **Every block that can carry a requirement is asked**, not just the
+    // reactions. This read one of them, so a mascot whose pieces have several
+    // drawings exported without saying so — and an older runtime, not knowing
+    // which drawing to show, would have shown all of them stacked. The matrix
+    // asserts that what a rig needs and what it says it needs are one list.
+    requires: rigRequirements({ reactions: normalizeReactions(state), partStates: normalizePartStates(state) }),
     params: state.params, states: state.states,
     elements: state.elements, activeState: state.activeState, transitions: state.transitions,
     transitionSettings: state.transitionSettings, globalConstraints: state.globalConstraints,
@@ -35,6 +42,9 @@ export function createExportRig(state) {
     // Pictures that bend (docs/V4_ROADMAP.md, Phase 7). Additive: a runtime
     // that does not know them draws every picture at rest.
     meshes: normalizeMeshes(state),
+    // Pieces that are several drawings with one showing (V5-01). The exported
+    // mascot has to be able to blink and to shape a mouth, so this ships.
+    partStates: normalizePartStates(state),
     // Additive block (docs/HAND_RIGGING.md, docs/HAND_STYLES.md): anchors, reach,
     // inertia, and the drawings a 2D hand swaps between. `legacyPseudo3D` is
     // not among them: it marks a hand the *editor* can offer to convert, and a

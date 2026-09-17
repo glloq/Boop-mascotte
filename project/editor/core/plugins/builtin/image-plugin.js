@@ -1,4 +1,5 @@
 import { parseAssetRef } from '../../../../runtime/asset-reference.js';
+import { DEFAULT_RIGGING } from '../../rig/rigging-types.js';
 
 /**
  * A picture on the canvas: rigged like anything else, reshaped like nothing.
@@ -30,6 +31,10 @@ export const imageElementPlugin = {
       baseTransform: transform,
       baseOpacity: Number(node.attr('opacity') ?? 1),
       constraints: { translate: true, rotate: true, scale: true },
+      // How this piece moves (V5-02, core/rig/rigging-types.js). Written here
+      // rather than left to the normalizer so the document the editor holds is
+      // already the document it saves: the round trip compares the two.
+      rigging: DEFAULT_RIGGING,
       bindings: {},
       symmetryPeer: null,
       // Declared and off, like every other non-path piece: a picture has no

@@ -1,13 +1,17 @@
 import { normalizeAssets } from '../assets/asset-model.js';
 import { normalizeGraphLayout } from '../state-machine/graph-layout.js';
 import { normalizeMeshes } from '../../../runtime/mesh-warp.js';
+import { normalizePartStates } from '../../../runtime/part-states.js';
 import { normalizeRigHandles } from '../puppet/handle-record.js';
 import { normalizeRigLinks } from '../puppet/control-links.js';
 import { normalizeArrangement } from '../animation/arrangement.js';
 import { RIG_SCHEMA_VERSION, normalizeDeformers, normalizeExpressionBlend, normalizeHands, normalizeParallax, normalizeFollowers, normalizeWarps, normalizeKeyforms, normalizeShapeKeys, normalizeMotionBlend, normalizeGazeSolver, normalizeRigPins, normalizeRigConstraints, normalizeRigAttachments, normalizeRigHolds } from '../../../runtime/runtime.js';
 
 export const PROJECT_DOMAINS = Object.freeze({
-  artwork: ['svgMarkup', 'elements'],
+  // `partStates` is here rather than in `keyforms` because a state set is about
+  // which *drawing* shows, not about deforming one: it changes with the artwork
+  // and it is invalidated by the artwork, so it is notified with the artwork.
+  artwork: ['svgMarkup', 'elements', 'partStates'],
   // What the artwork points at, never what it is made of (docs/V4_ROADMAP.md,
   // ASSET-REF): id -> record, and the bytes live outside the document so undo
   // and autosave stay cheap.
@@ -128,6 +132,8 @@ export function createProjectDocument(candidate = {}) {
     // Pictures that bend (docs/V4_ROADMAP.md, Phase 7). Empty for every
     // project made of paths, and for every raster one that only ever moved.
     meshes: normalizeMeshes(candidate),
+    // A piece that is several drawings with one showing (docs/V5_MASCOTTE_IMAGES_ETUDE.md).
+    partStates: normalizePartStates(candidate),
     // The structural points artwork is deformed around (docs/FACE_CONTROL_RIG.md).
     rigPins: normalizeRigPins(candidate),
     // What has to stay true whatever moved: follow, distance, orientation,

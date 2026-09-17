@@ -47,6 +47,37 @@ export function normalizeArtboard(box = {}) {
 }
 
 /**
+ * The same working area at a different size, framing the same place.
+ *
+ * A `viewBox` is an origin *and* a size, so changing only the size nails the
+ * top-left corner down and grows or shrinks towards the bottom right. On
+ * screen that is not a change of scale, it is a scale **and** a pan: halving
+ * the width of a 240-wide area does not show the mascot twice as large, it
+ * shows the left half of it twice as large. Measured, before this existed:
+ * 240 → 160 slid the head 107 px to the right, and 384 → 120 left it almost
+ * entirely below the canvas — with every handle drawn over it going the same
+ * way, because the chrome is placed by the same matrix.
+ *
+ * Resizing around the centre is what an author is asking for when they type a
+ * number into Width: the same thing, framed the same way, at a different
+ * scale. Growing is symmetric for the same reason — room appears on both
+ * sides rather than only on the right.
+ *
+ * `x` and `y` are still the artboard's own, and `Fit to artwork` still moves
+ * them where the drawing is: this is only about what a *size* means.
+ */
+export function resizeArtboard(box = DEFAULT, { width, height } = {}) {
+  const current = normalizeArtboard(box);
+  const next = normalizeArtboard({ ...current, width: width ?? current.width, height: height ?? current.height });
+  return normalizeArtboard({
+    x: current.x + (current.width - next.width) / 2,
+    y: current.y + (current.height - next.height) / 2,
+    width: next.width,
+    height: next.height
+  });
+}
+
+/**
  * The artboard that holds everything drawn, plus a margin.
  *
  * Growing only: **Fit** puts the border back around artwork that has escaped,

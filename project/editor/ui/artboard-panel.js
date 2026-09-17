@@ -17,7 +17,7 @@
  * the panel derives a flat model, and the component decides whether that model
  * is worth any DOM at all.
  */
-import { describeOverflow } from '../core/artwork/artboard.js';
+import { describeOverflow, resizeArtboard } from '../core/artwork/artboard.js';
 import { createComponent } from './component.js';
 
 const round = (value) => Math.round(Number(value) || 0);
@@ -38,7 +38,11 @@ export function createArtboardPanel(host, { canvas, onStatus = () => {} } = {}) 
       listen(host, 'change', (event) => {
         const field = event.target.closest?.('[data-artboard-field]')?.dataset.artboardField;
         if (!field || !report) return;
-        commit({ ...report.box, [field]: Math.max(1, round(event.target.value)) });
+        // Around the centre, not around the corner: a size typed here is meant
+        // to change the scale the mascot is seen at, and writing the size
+        // alone would pan it off the canvas as well
+        // (core/artwork/artboard.js, `resizeArtboard`).
+        commit(resizeArtboard(report.box, { [field]: Math.max(1, round(event.target.value)) }));
       });
     },
     render: (model) => {

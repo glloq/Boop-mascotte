@@ -6,6 +6,7 @@ import { pathElementPlugin } from '../plugins/builtin/path-plugin.js';
 import { createPluginRegistry } from '../plugins/plugin-registry.js';
 import { CONVERTIBLE_SHAPES, canBecomeAPath, pathOnlyMessage } from '../../svg-editor/path-only.js';
 import { assetRef } from '../../../runtime/asset-reference.js';
+import { normalizeRig } from '../rig/normalize-rig.js';
 
 const ID = '7f3c9a1b2c3d4e5f';
 /** The shape of node the plugins are handed: SVG.js wrappers, in miniature. */
@@ -71,4 +72,26 @@ test('being told why says what to do next, and never says the impossible',()=>{
   }
   // What wanted a path is said, not assumed.
   assert.match(pathOnlyMessage('head', 'image', 'a warp grid holds a path'),/a warp grid holds a path/);
+});
+
+/**
+ * What the editor makes is already what the editor saves.
+ *
+ * Saving normalizes the rig, so any field `normalizeRig` *always* writes but a
+ * factory does not is a field that appears out of nowhere on the way to disk.
+ * That is not theoretical: `rigging` was added to the normalizer alone (V5-02),
+ * and the save/reset/open round trip failed on a document whose elements had
+ * grown a key between the canvas and the file. A browser caught it; this is
+ * where it is caught from now on, for every plugin at once.
+ */
+test('an element the editor builds survives being normalized, unchanged',()=>{
+  const cases = [
+    ['path', pathElementPlugin, wrapper('path', { d: 'M0 0 L10 0 L10 10 Z' })],
+    ['image', imageElementPlugin, wrapper('image', { href: assetRef(ID), width: '48', height: '32' })],
+    ['default', defaultElementPlugin, wrapper('ellipse', { opacity: '0.5' })]
+  ];
+  for (const [name, plugin, node] of cases) {
+    const made = plugin.createRigData(node, transform);
+    assert.deepEqual(normalizeRig({ elements: { piece: made } }).elements.piece, made, name);
+  }
 });

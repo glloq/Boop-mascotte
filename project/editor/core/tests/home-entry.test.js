@@ -74,6 +74,30 @@ const visibleWords = (markup) => [
  * sentence explaining that Open Project and Import SVG were "in the ••• menu,
  * top right". A sentence pointing at a button is not an offer.
  */
+test('Home says what to prepare, in three lines, and never which parts to make', () => {
+  const markup = homeSurfaceMarkup();
+  const words = visibleWords(markup).toLowerCase();
+
+  // The one rule nobody guesses, and the two facts that stop an import being
+  // refused later.
+  assert.match(words, /anything that moves on its own is its own file/);
+  assert.match(words, /png or webp/);
+  assert.match(words, /transparent background/);
+
+  // And **not** a list of parts. "You need a head, two eyes and a mouth" is the
+  // constraint this refit exists to remove, and a page that says it puts it
+  // back: a mascot here can be a robot, an animal, an object or a photograph.
+  assert.match(words, /a person, an animal, a robot, an object, a photograph/);
+  assert.equal(/you (will )?need/.test(words), false, `Home tells nobody what parts to make: ${words}`);
+
+  // The poster is a schematic, for the same reason. A finished face says the
+  // editor already has a mascot; a human face makes every other kind a special
+  // case. Four boxes and the gaps between them is true of all of them.
+  assert.match(markup, /class="home-pieces"/);
+  assert.match(markup, /aria-label="A character cut into four pieces[^"]*"/);
+  assert.equal(/presetThumbnail|home-hero"[^>]*>\s*<svg viewBox="0 0 200 200"/.test(markup), false);
+});
+
 test('Home says what the editor is for, and offers one way to start and one to come back', () => {
   const markup = homeSurfaceMarkup();
   assert.match(markup, /Create and animate your mascot/);
@@ -85,11 +109,11 @@ test('Home says what the editor is for, and offers one way to start and one to c
   // the real preset, rather than an illustration that could promise anything.
   assert.match(markup, /class="home-hero"/);
   assert.match(markup, /<svg/);
-  // The three ways to begin that are not "make me one": a drawing somebody
-  // already has, a picture somebody already has, and the face this editor
-  // comes with. All three under *Otherwise*, none of them a second primary.
+  // Pictures are the way in (V5-04): they are the primary, and the three other
+  // beginnings sit under "No pictures to hand?".
+  assert.match(markup, /class="primary btn-lg home-start" data-home-action="picture"/);
   assert.match(markup, /data-home-action="import"/);
-  assert.match(markup, /data-home-action="picture"/, 'a mascot can be made of pictures, and Home has to say so (V4-092)');
+  assert.match(markup, /data-home-action="character"/);
   // The ready-made template stays reachable, as an alternative rather than as
   // an equal: `pages.spec.js` starts a project by pressing exactly this.
   assert.match(markup, /data-template-id="basic"/);

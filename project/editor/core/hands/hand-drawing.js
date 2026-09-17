@@ -32,6 +32,7 @@
 import { elementSpan, shapeSignature } from '../face-library/face-part-artwork.js';
 import { handFrame, installedHandLook } from '../sample/hand-feature.js';
 import { handStyleElementId, handStyleId, handStyleLabel, handStyleShapes, handStyleMarkup } from './hand-style-art.js';
+import { DEFAULT_RIGGING } from '../rig/rigging-types.js';
 
 const HAND_SIDES = Object.freeze(['left', 'right']);
 
@@ -140,6 +141,7 @@ export function restoreHandDrawing(state = {}, side = 'left', style = null, opti
     state.elements[id] ||= {
       baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1,
       constraints: { translate: true, rotate: true, scale: true }, bindings: {},
+      rigging: DEFAULT_RIGGING,
       meta: { nodeType: 'path' }, morph: { enabled: false, param: '', min: 0, max: 1, pathA: '', pathB: '' }
     };
   }
