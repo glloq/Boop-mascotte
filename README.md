@@ -47,6 +47,13 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
   ([shape keys](docs/SHAPE_KEYS.md))
 - **Head pose 2.5D**: capture the whole face at each position of a `headX × headY`
   grid and turn the head with an XY pad ([head pose](docs/HEAD_POSE_2_5D.md))
+- **Face states**: eight states an eye can be in and nine a mouth can say, all
+  from **one set of artwork** — a state is a handful of values for movements the
+  face already has, plus an optional shape-key corrective where they cannot hold
+  a shape on their own ([face states](docs/FACE_SVG_STATES.md))
+- **Speech**: a viseme is an expression record, which is why a mascot can say
+  something *while* it smiles — `setViseme`, `blendVisemes`, and a transition
+  that never passes through rest ([viseme system](docs/VISEME_SYSTEM.md))
 - **Floating hands**, Rayman style: anchors that follow the body, a soft reach,
   rotation, scale and a little cartoon inertia, resting behind the head until a
   reaction or `mascot.showHands()` asks. A hand is **one of a handful of whole
@@ -170,6 +177,7 @@ Install browsers once with `npx playwright install --with-deps`. E2E tests start
 
 - [User guide](docs/USER_GUIDE.md)
 - [Character Builder](docs/CHARACTER_BUILDER.md) and its [face part library](docs/FACE_PART_LIBRARY.md); the reader's guides to [face style presets](docs/FACE_PRESETS.md) and [custom face parts](docs/CUSTOM_FACE_PARTS.md)
+- [Face states](docs/FACE_SVG_STATES.md) and the [speech layer](docs/VISEME_SYSTEM.md)
 - [Rig format](docs/RIG_MODEL.md)
 - [Behaviors](docs/BEHAVIORS.md)
 - [Known limitations](docs/KNOWN_LIMITATIONS.md)

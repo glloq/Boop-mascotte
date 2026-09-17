@@ -144,8 +144,12 @@ test('the mouth is one shape that opens and smiles at the same time', () => {
   assert.equal(state.elements.mouth.morph?.enabled, undefined, 'and it is shaped by shape keys, not the one-per-element morph');
   assert.equal(state.elements.mouth.restPath, MOUTH_REST);
   assert.deepEqual(state.shapeKeys.map((key) => key.id),
-    ['mouth-open', 'mouth-smile', 'mouth-frown', 'mouth-skull', 'teeth-skull', 'tongue-skull',
-      'teeth-open', 'teeth-show', 'teeth-follow', 'tongue-open', 'tongue-show', 'tongue-follow', 'head-jaw']);
+    [// The lids: narrowed and curved, per lid, on each side's own sentence
+      // (docs/FACE_SVG_STATES.md).
+      'lidUpperLeft-eyeSquint', 'lidUpperLeft-eyeCurve', 'lidLowerLeft-eyeSquint', 'lidLowerLeft-eyeCurve',
+      'lidUpperRight-eyeSquint', 'lidUpperRight-eyeCurve', 'lidLowerRight-eyeSquint', 'lidLowerRight-eyeCurve',
+      'mouth-open', 'mouth-smile', 'mouth-frown', 'mouth-round', 'mouth-skull', 'teeth-skull', 'tongue-skull',
+      'teeth-open', 'teeth-show', 'teeth-follow', 'teeth-round', 'tongue-open', 'tongue-show', 'tongue-follow', 'tongue-round', 'head-jaw']);
   const part = Object.values(state.semanticParts).find((item) => item.type === 'mouth');
   assert.equal(part.controlDrivers.mouthOpen.method, 'shapeKey');
   assert.equal(part.controlDrivers.smile.method, 'shapeKey');
@@ -249,7 +253,7 @@ test('every part of the face has a movement, and the jaw is one of them', () => 
   assert.deepEqual(controls.ears, ['earWiggle']);
   assert.deepEqual(controls.jaw, ['jawOpen']);
   assert.deepEqual(controls.hair, ['hairSway', 'hairLift']);
-  assert.deepEqual(controls.mouth, ['mouthOpen', 'smile', 'mouthWidth', 'teeth', 'tongue']);
+  assert.deepEqual(controls.mouth, ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'teeth', 'tongue']);
 
   // One outline that lengthens, rather than a second shape sliding out from
   // behind the first: that is what a double chin was.

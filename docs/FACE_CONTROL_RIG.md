@@ -215,6 +215,29 @@ controls share a space".
 | Left / right pupil size | `pupilScaleLeft` / `pupilScaleRight` | radial |
 | Open and close | `eyeOpen` | slider |
 | Left / right eye | `eyeOpenLeft` / `eyeOpenRight` | slider |
+| Narrow | `eyeSquint` | slider |
+| Lid curve | `eyeCurve` | slider |
+
+### The two axes `eyeOpen` cannot carry
+
+`eyeOpen` is *how far* the lids have travelled, and two things an eye does are
+not that. A **narrowed** eye is the lower lid coming up nearly three times as
+far as the upper comes down; a half-shut one is both lids meeting in the middle,
+and the two read as *suspicious* and *sleepy*. And a **shut** eye is shut
+whatever the curve of the seam — arcing up is a happy squeeze, flat is a blink,
+drooping is tired — so without a second axis `closed` and `happyClosed` are the
+same numbers and only one of them can exist.
+
+So `eyeSquint` (0 → 1) and `eyeCurve` (−1 → 1), both resting at 0, and both the
+**lids'** rather than the eyes': neither is a thing that can be done to an
+eyeball, and the eye's own `scaleY` is spoken for by `eyeOpen` in any case.
+
+They are shaped rather than transformed, because `translateY` on a lid is spoken
+for by the blink and a squint that slid the whole lid would be a blink under
+another name. `eyeOpen` was deliberately **not** replaced by a shape key: a
+shape key has one weight and the lids have two sides, so swapping the structural
+closure for one would have taken the wink with it. The shapes go on top, as
+correctives do (docs/FACE_SVG_STATES.md).
 
 ### Per-eye offsets
 
@@ -230,10 +253,16 @@ the brow tilt use it too.
 
 It is switched on per movement, in the movement's **Advanced** section:
 **One side at a time** (`enableSemanticSideControl`). The face template
-arrives with it on for the eyes, the gaze, the pupils and the brows; an
-imported face gets it the same way, one tick, and its per-side handles, the
-Wink chip and the links with it. Only a movement that writes a transform can
-be split — a shaped movement has no side offset to add.
+arrives with it on for the eyes, the gaze, the pupils, the brows and the two lid
+axes; an imported face gets it the same way, one tick, and its per-side handles,
+the Wink chip and the links with it.
+
+A **shaped** movement takes a side offset the same way, in the one place that
+can see both words: its shape key's own driver expression reads
+`eyeSquint + eyeSquintLeft` exactly as a binding reads `eyeOpen + eyeOpenLeft`,
+and which side a key is on is read off the part's roles rather than guessed from
+an id. A legacy A/B morph is the one thing that cannot be split: it has one
+shape per element and no expression to put an offset in.
 
 ### Pupil size
 
@@ -655,6 +684,13 @@ lower lip with it, which is right for a yawn and wrong for tension, for
 anticipation, and for every line delivered through closed teeth. `mouthLock`
 lives inside the lower lip's own pin expression, so nothing else has to know.
 
+**The pucker** is the one control the mouth gained, and the axis between `AE`
+and `OO`. `mouthWidth` narrows a mouth by *scaling* it, which turns a wide
+shallow lens into a small wide shallow lens, and an `OO` is the opposite of
+shallow: what rounds a mouth is the corners coming in while the lip line bows
+out above and below them. `mouthRound` (0 → 1, resting at 0) says how far
+(docs/VISEME_SYSTEM.md).
+
 The tongue is a part of its own — `tongueX`, `tongueY`, `tongueOut`,
 `tongueCurl` — because the mouth's `tongue` control answers a different
 question (whether it shows).
@@ -718,6 +754,12 @@ like, so moving one is a deliberate act with a diff.
 Stages 1–3 are the mixer (`docs/PARAMETER_MIXER.md`). Stages 4–7 are this
 document. Stages 8–19 are `compileRigFrame` and the engine's own loop.
 
+**Nothing moved to add speech or the face states.** A viseme is an expression
+record, so it is mixed at stage 3 beside the faces — which is exactly why
+`happy + AE` keeps happy's smile (docs/VISEME_SYSTEM.md). A corrective is an
+additive shape key, so it runs at stage 14 where the correctives already ran
+(docs/FACE_SVG_STATES.md). There is no speech stage and no state stage.
+
 ---
 
 ## 15. Compatibility
@@ -731,6 +773,11 @@ individual offsets   0
 pupil scale          1
 mouth corners        0
 mouth lock           0
+eye squint / curve   0        → the lids as drawn
+mouth round          0        → the lips as drawn
+eye / mouth          absent   → the state is its controls alone
+  correctives
+viseme presets       absent   → getVisemes() is empty, and nothing speaks
 links                none
 pins                 []
 constraints          []
@@ -776,10 +823,14 @@ reaches every project that already exists.
 | `core/rig/constraint-model.js` | writing a relationship, and its order |
 | `core/rig/surface-pins.js` | the head's silhouette, baked from the projector |
 | `core/rig/mouth-rig.js` | two corners, a lower lip and the lock |
+| `core/face-library/face-states.js` | the eye states and the visemes, as data |
+| `core/face-library/face-correctives.js` | the corrective slots and their sentences |
+| `runtime/visemes.js` | the speech vocabulary and the naming rule |
 | `core/rig/brow-rig.js` | the two ends of each eyebrow |
 | `core/rig/attachment-model.js` | which points a project can offer |
 | `rig-editor/gaze/` | the gaze panel and its commands |
 | `rig-editor/holding/` | pins, points and holds |
+| `rig-editor/semantic-parts/face-states-panel.js` | the states, the visemes, and the two together |
 
 Tests: `core/tests/gaze-solver.test.js`, `core/tests/face-control-rig.test.js`,
 `core/tests/rig-pins.test.js`, `core/tests/rig-constraints.test.js`,
@@ -787,4 +838,9 @@ Tests: `core/tests/gaze-solver.test.js`, `core/tests/face-control-rig.test.js`,
 `core/tests/rig-constraint-authoring.test.js`,
 `core/tests/control-rig-order.test.js`,
 `core/tests/handle-controllers.test.js`, `core/tests/puppet-handles.test.js`,
-`core/tests/control-packing.test.js`, `core/tests/handle-glyph.test.js`.
+`core/tests/control-packing.test.js`, `core/tests/handle-glyph.test.js`,
+`core/tests/face-states.test.js`.
+
+The states an eye and a mouth can be in are their own document
+(`docs/FACE_SVG_STATES.md`), and so is the speech layer
+(`docs/VISEME_SYSTEM.md`). Both are built on this rig rather than beside it.

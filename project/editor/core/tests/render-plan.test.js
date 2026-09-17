@@ -73,7 +73,7 @@ test('the session plan is separate, because selection never makes a project dirt
 
 test('the fan-out is now measurable, which is the point of writing it down', () => {
   const width = Object.entries(DOCUMENT_RENDER_PLAN).map(([domain, list]) => [domain, list.length]);
-  // Changing one rig parameter redraws fourteen things. That number is the
+  // Changing one rig parameter redraws fifteen things. That number is the
   // argument for the ViewModel gate (VNX-04); it is recorded here so a later
   // change to it is deliberate and visible in a diff. It grew by two when the
   // gaze solver landed in this domain (docs/FACE_CONTROL_RIG.md): its own
@@ -86,8 +86,13 @@ test('the fan-out is now measurable, which is the point of writing it down', () 
     // And the bar of actions on the selection follows the artwork and the
     // layers: it is anchored to a box, so a piece that moved, grew or went away
     // leaves it pointing at where the piece was (ui/selection-actions.js).
-    artwork: 10, layers: 6, rig: 14, stateMachine: 3, semanticRig: 5, rigHandles: 2,
-    animation: 4, arrangement: 1, keyforms: 6, constraints: 3, hands: 3, hierarchy: 1, expressions: 3, reactions: 2,
+    // Five domains gained the Face states panel, and each for a reason of its
+    // own (docs/FACE_SVG_STATES.md): a corrective **is** a shape key, so it
+    // follows `keyforms`; a viseme **is** an expression record, so it follows
+    // `expressions`; and a piece of artwork going away takes the states it
+    // could be captured on with it, so it follows `artwork` too.
+    artwork: 11, layers: 6, rig: 15, stateMachine: 3, semanticRig: 6, rigHandles: 2,
+    animation: 4, arrangement: 1, keyforms: 7, constraints: 3, hands: 3, hierarchy: 1, expressions: 4, reactions: 2,
     // Zero, and decided rather than forgotten: nothing on screen reads the
     // asset table yet (docs/V4_ROADMAP.md, V4-010). It joins the artwork's
     // fan-out when the canvas resolves `asset:` references, in V4-021.

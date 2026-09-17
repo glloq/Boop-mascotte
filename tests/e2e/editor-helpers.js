@@ -79,7 +79,7 @@ export const goToRig = page => goToMode(page, 'rig.assign');
  * opens its screen and then the section, exactly as an author does.
  */
 export const SETUP_SECTION_MODES = {
-  'face-parts': 'rig.assign', movements: 'rig.controls', gaze: 'rig.controls', handles: 'rig.controls',
+  'face-parts': 'rig.assign', movements: 'rig.controls', 'face-states': 'rig.controls', gaze: 'rig.controls', handles: 'rig.controls',
   hands: 'rig.controls', 'head-pose': 'rig.head2d', holding: 'rig.deform', warp: 'rig.deform', 'all-parts': 'rig.deform'
 };
 export async function openSetupSection(page, id) {

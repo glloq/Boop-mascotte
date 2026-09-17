@@ -42,7 +42,7 @@ test('replacing a mouth is one write and one undo step, and the canvas is asked 
   const revision = ui.store.getPersistentRevision();
   const result = ui.commands.replace('mouth', 'mouth.wide');
   assert.equal(result.ok, true, result.reason);
-  assert.deepEqual([result.partId, result.rootId, result.ids, result.enabled, result.disabled, result.fitted], ['mouth', 'mouth-wide', ['mouth-wide', 'mouth', 'teeth'], ['mouthOpen', 'smile', 'mouthWidth', 'teeth'], ['tongue'], true]);
+  assert.deepEqual([result.partId, result.rootId, result.ids, result.enabled, result.disabled, result.fitted], ['mouth', 'mouth-wide', ['mouth-wide', 'mouth', 'teeth'], ['mouthOpen', 'smile', 'mouthWidth', 'teeth'], ['mouthRound', 'tongue'], true]);
   assert.deepEqual(ui.store.getDocument().elements['mouth-wide'].baseTransform, { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 120, pivotY: 179 }, 'on the template, fitting an asset drawn for the template moves nothing');
   assert.equal(ui.store.getPersistentRevision(), revision + 1, 'one write');
   assert.deepEqual(ui.installed.map((item) => item.rootId), ['mouth-wide'], 'the preview is told once, after the write');

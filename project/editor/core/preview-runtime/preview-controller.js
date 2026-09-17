@@ -1,6 +1,6 @@
 import { evaluateAnimationClip } from '../../animation-editor/timeline/clip-evaluator.js';
 import { compileFrame } from './frame-compiler.js';
-import { BEHAVIOR_TYPES, UNPROMPTED_REACTION_TRIGGERS, canTransition, composeBehaviorParams, composeExpressionParams, createBehaviorController, createControlRig, createFollowerGroup, createHandReveal, createHandStyleSwaps, createMotionLayer, createReactionController, createWeightBlender, easingValue, mixParameters, normalizeBehaviors, normalizeExpressions, normalizeFollowers, handStylesSettled, normalizeReactions, resolveStateParams } from '../../../runtime/runtime.js';
+import { BEHAVIOR_TYPES, UNPROMPTED_REACTION_TRIGGERS, VISEME_KEYS, canTransition, composeBehaviorParams, composeExpressionParams, createBehaviorController, createControlRig, createFollowerGroup, createHandReveal, createHandStyleSwaps, createMotionLayer, createReactionController, createWeightBlender, easingValue, mixParameters, normalizeBehaviors, normalizeExpressions, normalizeFollowers, handStylesSettled, normalizeReactions, resolveStateParams, visemeBlendWeights, visemeExpressionId, visemeKey } from '../../../runtime/runtime.js';
 import { lifecycleDiagnostics as diagnostics } from '../diagnostics/lifecycle-diagnostics.js';
 import { createPreviewSession } from '../state/preview-session.js';
 
@@ -232,6 +232,19 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
     clearExpression(id,options={}){expressionWeights.clear(id,blendOptions(options));compute();if(!expressionWeights.settled())wake();},
     clearExpressions(options={}){if(!Object.keys(expressionWeights.values()).length)return;expressionWeights.clearAll(blendOptions(options));compute();if(!expressionWeights.settled())wake();},
     getExpressionWeights:()=>expressionWeights.values(),getExpressionTargets:()=>expressionWeights.targets(),
+    /**
+     * Speech (docs/VISEME_SYSTEM.md), which is the expression layer with the
+     * naming rule applied: a viseme is an expression, so the mouth keeps the
+     * face it is wearing and speech is added to it. The same three calls the
+     * exported runtime offers, over the same blender, so the panel an author
+     * checks a combination in and the page a visitor sees cannot disagree.
+     */
+    setViseme(key,weight=1,options={}){const id=visemeExpressionId(visemeKey(key)||key);if(!normalizeExpressions(store.getDocument()).some(item=>item.id===id))return false;expressionWeights.set(id,Math.max(0,Math.min(1,Number(weight))),blendOptions(options));compute();if(!expressionWeights.settled())wake();return true;},
+    /** Where the mouth is between two visemes: both live at once, never via rest. */
+    blendVisemes(previous,next,blend=1,options={}){const wanted=visemeBlendWeights(previous,next,blend),have=normalizeExpressions(store.getDocument());let reached=false;
+      for(const key of VISEME_KEYS){const id=visemeExpressionId(key);if(!have.some(item=>item.id===id))continue;const weight=Number(wanted[id])||0;expressionWeights.set(id,Math.max(0,Math.min(1,weight)),blendOptions(options));if(weight>0)reached=true;}
+      compute();if(!expressionWeights.settled())wake();return reached;},
+    clearVisemes(options={}){for(const key of VISEME_KEYS)expressionWeights.clear(visemeExpressionId(key),blendOptions(options));compute();if(!expressionWeights.settled())wake();},
     clearBehaviorOverrides(){behaviorOverrides={};compute();if(continuous())wake();},
     getBehaviorOverrides:()=>({...behaviorOverrides}),
     /**

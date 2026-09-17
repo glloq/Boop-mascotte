@@ -426,6 +426,27 @@ button.link:hover{color:#a9c9ff}
 </style>
 <style>
 /* UX-07 Movements collection and Movement Inspector. */
+/* Face states (docs/FACE_SVG_STATES.md): the eyes' side switch, the corrective
+   rows and the combined expression-and-speech preview. A lit row is one the
+   pose on screen is actually asking for, which is what turns nine sentences
+   into something readable. */
+.expression-list-name{margin:8px 0 2px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9fb0c9}
+.face-side-switch{display:flex;gap:4px;margin:4px 0}
+.face-correctives{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:5px}
+.face-corrective{padding:5px 7px;border:1px solid var(--ux-border);border-radius:8px;background:#111a2c;display:grid;gap:2px}
+.face-corrective[data-face-lit=true]{border-color:#3b5a8a}
+.face-corrective>b{font-size:12px}
+.face-corrective>small{color:var(--ux-muted);font-size:11px}
+.face-corrective>code{color:#9cc3ff;font-size:10.5px;word-break:break-word}
+.face-corrective-target{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:3px;font-size:11px}
+.face-corrective-target>span{min-width:0;flex:1 1 60px;color:var(--ux-muted)}
+.face-corrective-target label{display:flex;gap:4px;align-items:center;min-height:0}
+.face-corrective-target input[type=range]{width:78px;min-height:18px;margin:0}
+.face-corrective-target button{padding:3px 7px;font-size:11px;min-height:0}
+.face-combination{display:grid;gap:4px;margin:4px 0}
+.face-combination label{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px;align-items:center;font-size:11px;min-height:0}
+.face-combination select,.face-combination input[type=range]{margin:0;min-height:26px}
+.face-combination output{font-variant-numeric:tabular-nums;color:var(--ux-muted);min-width:3.5ch;text-align:right}
 .movement-groups{list-style:none;margin:6px 0;padding:0;display:grid;gap:8px}.movement-group>b{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9fb0c9;margin:2px 0 4px}.movement-list{list-style:none;margin:0;padding:0;display:grid;gap:3px}.movement-row{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:8px;padding:3px 6px;border:1px solid var(--ux-border);border-radius:8px;background:#111a2c}.movement-row input{margin:0;width:18px;height:18px}.movement-row.active{outline:2px solid var(--ux-focus);outline-offset:1px}.movement-row[data-movement-status=calibrated]{border-color:#2f6b4f}.movement-row[data-movement-status=on]{border-color:#3b5a8a}.movement-label{min-width:0;justify-content:flex-start;text-align:left;background:transparent;border-color:transparent;padding:3px 4px;display:grid}.movement-label:hover:not(:disabled){background:#1d293e}.movement-label:disabled{opacity:.55}.movement-label span{font-size:13px;font-weight:600}.movement-label small{color:var(--ux-muted);font-weight:400}
 .movement-test,.movement-calibrate{padding:10px;margin:8px 0;border:1px solid var(--ux-border-strong);border-radius:9px}.movement-test .xy-pad{width:100%;max-width:220px;height:140px;margin:6px auto 10px}.pose-cards{display:grid;gap:6px}.pose-card{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 8px;border:1px solid var(--ux-border-strong);border-radius:8px;background:var(--ux-surface)}.pose-card[data-pose-captured=true]{border-color:#2f6b4f}.pose-card button{padding:5px 8px;white-space:nowrap}.movement-advanced{margin:8px 0}.movement-advanced ul{padding-left:16px;margin:6px 0}[data-movement-back]{margin-bottom:8px}
 </style>

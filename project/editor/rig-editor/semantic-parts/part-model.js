@@ -152,7 +152,13 @@ export function enableSemanticSideControl(rig, partId, control) {
   const part = requiredPart(rig, partId), definition = getSemanticPartDefinition(part.type);
   if (!supportsSideControl(definition, control)) throw new Error(`"${control}" has no sides to move on their own.`);
   if (!part.controls?.includes(control)) throw new Error(`Control "${control}" is not enabled.`);
-  if (part.controlDrivers?.[control]?.method !== 'transform') throw new Error('Only a movement that writes a transform can move one side on its own.');
+  const method = part.controlDrivers?.[control]?.method;
+  // A transform adds the offset inside its binding's expression; a shape adds
+  // it inside its shape key's driver expression. Same sentence, same summing,
+  // two places that can see both words (docs/FACE_SVG_STATES.md). A legacy A/B
+  // morph has one shape per element and no expression at all, so it has
+  // nowhere to put a side offset.
+  if (method !== 'transform' && method !== 'shapeKey') throw new Error('Only a movement that writes a transform or a shape can move one side on its own.');
   const shared = rig.params?.[control] || definition.parameters[control];
   // The offset that can take one side from any point of the shared range to
   // any other, which is what a wink from a fully open eye needs.
@@ -166,6 +172,7 @@ export function enableSemanticSideControl(rig, partId, control) {
   part.sides ||= {};
   part.sides[control] = true;
   rebuildGeneratedBindings(rig, part);
+  rebuildOwnedShapeDrivers(rig, part, control);
   return sideParametersFor(definition, control);
 }
 
@@ -176,8 +183,41 @@ export function disableSemanticSideControl(rig, partId, control) {
   delete part.sides[control];
   if (!Object.keys(part.sides).length) delete part.sides;
   rebuildGeneratedBindings(rig, part);
+  rebuildOwnedShapeDrivers(rig, part, control);
   for (const name of sideParametersFor(definition, control)) dropUnreferencedParameter(rig, name);
   return true;
+}
+
+/**
+ * Re-aim the shape keys one movement owns at the sentence its own side reads.
+ *
+ * A shaped movement's weight is an expression over the rig's parameters, so
+ * the side offset goes exactly where a binding's does: inside the sentence.
+ * Which side a key is on is not a guess -- a key names the element it deforms,
+ * the part names the role that element fills, and the registry names the side
+ * that role is on.
+ *
+ * Only the keys this part and this control generated, and only their driver
+ * expression: a corrective's amplitude, its curve and its delta are untouched,
+ * so linking and unlinking a pair costs nothing an author captured.
+ */
+function rebuildOwnedShapeDrivers(rig, part, control) {
+  if (!Array.isArray(rig.shapeKeys) || !rig.shapeKeys.length) return;
+  const definition = getSemanticPartDefinition(part.type);
+  const sideOf = new Map(Object.entries(part.roles || {}).map(([role, id]) => [id, definition.sides?.[role] || null]));
+  rig.shapeKeys = rig.shapeKeys.map((key) => {
+    if (key?.generatedBy?.semanticPart !== part.id || key.generatedBy?.control !== control) return key;
+    if (key.driver?.mode !== 'expression') return key;
+    const side = sideOf.get(key.target);
+    if (!side) return key;
+    const wanted = part.sides?.[control] ? `${control} + ${sideParameterName(control, side)}` : control;
+    // Only a driver that still reads the movement's own sentence is rewritten:
+    // an author who has written their own expression keeps it.
+    const current = String(key.driver.expression || '').replace(/\s+/g, ' ').trim();
+    const candidates = [control, `${control} + ${sideParameterName(control, side)}`];
+    if (!candidates.includes(current)) return key;
+    return current === wanted ? key : { ...key, driver: { ...key.driver, expression: wanted } };
+  });
 }
 
 /** Which movements of this part currently move one side at a time. */
@@ -214,6 +254,28 @@ export function setSemanticControlMethod(rig, partId, control, property) {
     // One shape slot per element: a morph owned by another control (or authored by hand) must be freed first, never replaced silently.
     const owned=roles.map((role)=>part.roles[role]).filter(Boolean).map((elementId)=>({elementId,morph:rig.elements?.[elementId]?.morph})).filter(({morph})=>authoredMorph(morph)&&!(morph.generatedBy?.semanticPart===part.id&&morph.generatedBy?.control===control));
     if(owned.length){const owner=owned[0].morph.generatedBy;const error=new Error(`${owned[0].elementId} shape is already used by ${owner?.control?humanControl(owner.control):'a manual morph'}. Switch it to another method first.`);error.name='SemanticMorphOwnershipConflict';error.conflicts=owned.map(({elementId,morph})=>({elementId,property:'morph',owner:morph.generatedBy||{manual:true}}));throw error;}
+    // And a shape key **wins over a morph** on the same path (`compileRigFrame`
+    // emits the summed outline and the morph is never read), so a movement
+    // switched to Morph on a path another *movement* already shapes would
+    // silently stop working. Refused for the same reason and with the same
+    // shape of message as the clash above: the author is told which movement
+    // holds the path, which is a thing they can go and change.
+    //
+    // Only a key a movement owns. A mouth's own bow as the head looks down is
+    // a shape key belonging to no control (`templates/template-project.js`),
+    // and so is a corrective (docs/FACE_SVG_STATES.md): refusing over those
+    // would ban the legacy morph on every template mouth while naming nothing
+    // an author could switch.
+    const shaped=roles.map((role)=>part.roles[role]).filter(Boolean)
+      .map((elementId)=>({elementId,keys:(rig.shapeKeys||[]).filter((key)=>key?.target===elementId&&key.generatedBy?.control&&!(key.generatedBy.semanticPart===part.id&&key.generatedBy.control===control))}))
+      .filter(({keys})=>keys.length);
+    if(shaped.length){
+      const owner=shaped[0].keys[0].generatedBy;
+      const error=new Error(`${shaped[0].elementId} is already shaped by ${humanControl(owner.control)}, which a morph cannot share. Switch that movement to another method first.`);
+      error.name='SemanticMorphOwnershipConflict';
+      error.conflicts=shaped.map(({elementId,keys})=>({elementId,property:'shapeKey',owner:keys[0].generatedBy}));
+      throw error;
+    }
   } else {
     const conflicts=roles.map((role)=>part.roles[role]).filter(Boolean).map((elementId)=>({elementId,binding:rig.elements?.[elementId]?.bindings?.[property]})).filter(({binding})=>binding&&!(binding.generatedBy?.semanticPart===part.id&&binding.generatedBy?.control===control));
     if(conflicts.length){const error=new Error(`${conflicts[0].elementId}.${property} is already controlled.`);error.name='SemanticBindingConflict';error.conflicts=conflicts.map(({elementId,binding})=>({elementId,property,owner:binding.generatedBy?binding.generatedBy:{manual:true}}));throw error;}

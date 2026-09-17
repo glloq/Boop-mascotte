@@ -5,6 +5,7 @@ import { createTemplateExport, createTemplateProjectState, parseTemplateArtwork 
 import { MASCOT_FACE_SVG } from '../sample/templates/mascot-artwork.js';
 import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
 import { EXPRESSION_PRESETS } from '../expressions/expression-presets.js';
+import { VISEME_KEYS, visemeExpressionId } from '../face-library/face-states.js';
 import { motionAvailability, MOTION_PRESETS } from '../motion/motion-presets.js';
 import { REACTION_PRESETS } from '../reactions/reaction-presets.js';
 import { normalizeRig } from '../rig/normalize-rig.js';
@@ -85,7 +86,15 @@ test('the template export is the rig the editor writes for the untouched face', 
     const preset = motionAvailability(createTemplateProjectState()).find((item) => item.id === id);
     assert.equal(preset.usable, true, id);
   }
-  assert.deepEqual(rig.expressions.map((item) => item.id), ['hands-out', ...EXPRESSION_PRESETS.map((preset) => preset.id)]);
+  // The faces, then the speech shapes. A viseme is an expression record like
+  // any other -- which is what lets a mascot say something *while* being happy
+  // (docs/VISEME_SYSTEM.md) -- installed under the naming rule so
+  // `mascot.setViseme('AE')` finds it on a rig it has never seen.
+  assert.deepEqual(rig.expressions.map((item) => item.id),
+    ['hands-out', ...EXPRESSION_PRESETS.map((preset) => preset.id), ...VISEME_KEYS.map(visemeExpressionId)]);
+  assert.deepEqual(rig.expressions.filter((item) => item.viseme).map((item) => item.viseme), [...VISEME_KEYS]);
+  assert.deepEqual(rig.expressions.find((item) => item.viseme === 'OO').controls,
+    { mouthOpen: 0.32, mouthWidth: -0.7, mouthRound: 1 }, 'a viseme is three numbers for the mouth\'s own movements, and no drawing');
   assert.deepEqual(rig.reactions.map((item) => item.id), REACTION_PRESETS.map((preset) => preset.id));
   // A hand is held to a named place on the face, position and angle together,
   // by one parameter each (docs/HAND_RIGGING.md, "Held to the face").
@@ -99,7 +108,12 @@ test('the template export is the rig the editor writes for the untouched face', 
   // A hand has **one** movement that decides its shape, not fifteen: which
   // drawing it is. Nothing curls, spreads, grips, flips, turns or animates it
   // (docs/HAND_STYLES.md).
-  assert.equal(Object.keys(rig.params).length, 70);
+  // Seventy, plus the two lid axes with a side offset each and the mouth's
+  // pucker (docs/FACE_SVG_STATES.md, docs/VISEME_SYSTEM.md). All seven rest at
+  // 0 and add nothing until something moves them.
+  assert.equal(Object.keys(rig.params).length, 77);
+  assert.deepEqual(Object.keys(rig.params).filter((name) => /^eyeSquint|^eyeCurve|^mouthRound/.test(name)).sort(),
+    ['eyeCurve', 'eyeCurveLeft', 'eyeCurveRight', 'eyeSquint', 'eyeSquintLeft', 'eyeSquintRight', 'mouthRound']);
   // Two of those seventy are the gaze target: the template ships the solver on
   // (V3-12), so looking somewhere turns the eyes and then the head. They rest
   // at 0 and add nothing until something moves them.
@@ -114,7 +128,10 @@ test('the template export is the rig the editor writes for the untouched face', 
   // drawings' own little animations. A drawing is chosen and never deformed, so
   // there is nothing at all left to measure on a hand (docs/HAND_STYLES.md).
   assert.equal(rig.keyforms.length, 157, 'the 2.5D turn is generated, and the hands hide and hold');
-  assert.equal(rig.shapeKeys.length, 13, "the face's own, and not one on a hand");
+  // Thirteen, plus eight on the four eyelids (narrowed and curved, per lid)
+  // and three on the mouth's pucker (the lips, the teeth and the tongue).
+  assert.equal(rig.shapeKeys.length, 24, "the face's own, and not one on a hand");
+  assert.equal(rig.shapeKeys.filter((key) => /^lid/.test(key.target)).length, 8);
   assert.equal(rig.shapeKeys.some((key) => /^hand/i.test(key.target || '')), false, 'nothing deforms a hand');
   assert.equal(rig.rigPins.length, 7);
   assert.ok(rig.gazeSolver, 'the gaze solver is configured');

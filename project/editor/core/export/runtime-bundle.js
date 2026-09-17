@@ -20,6 +20,10 @@ export const RUNTIME_MODULES = Object.freeze(['numeric.js', 'transform-2d.js', '
   // (docs/V4_ROADMAP.md). `asset-paint.js` reads `asset-reference.js`, so it
   // comes after it.
   'asset-reference.js', 'asset-paint.js', 'asset-resolver.js', 'mesh-warp.js', 'part-states.js', 'reaction-conditions.js',
+  // The speech layer's vocabulary: which visemes exist and the rule that names
+  // the expression record carrying each (docs/VISEME_SYSTEM.md). A leaf --
+  // `runtime.js` reads it and it reads nothing.
+  'visemes.js',
   'runtime.js']);
 
 const INTERNAL_IMPORT = /^\s*import\s[\s\S]*?from\s*['"]\.\/[^'"]+['"];?[ \t]*$/gm;

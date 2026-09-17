@@ -25,7 +25,7 @@
  */
 export const RENDER_TARGETS = Object.freeze([
   'artboardPanel', 'artboardSync', 'automaticPanel', 'canvasMenu', 'canvasSelection', 'canvasState',
-  'exporter', 'faceMovements', 'faceSetup', 'gazePanel', 'handSetup', 'handStates', 'handleBoard', 'headPose', 'holdingPanel', 'inspector',
+  'exporter', 'faceMovements', 'faceSetup', 'faceStates', 'gazePanel', 'handSetup', 'handStates', 'handleBoard', 'headPose', 'holdingPanel', 'inspector',
   'layerOrder', 'layers', 'motionStudio', 'previewPanel', 'projectShell', 'puppetHandles', 'puppetHandlesRefresh',
   'previewFrame', 'reactionStudio', 'rigPanel', 'selectionActions', 'expressionStudio', 'states', 'timeline', 'toolOptions', 'warpPanel'
 ]);
@@ -38,16 +38,16 @@ export const RENDER_TARGETS = Object.freeze([
 export const DOCUMENT_RENDER_PLAN = Object.freeze({
   // `selectionActions` because the bar sits *next to* the selection: artwork
   // that moved, grew or went away leaves it pointing at where the piece was.
-  artwork: Object.freeze(['canvasState', 'inspector', 'exporter', 'projectShell', 'faceSetup', 'faceMovements', 'handSetup', 'artboardSync', 'handStates', 'selectionActions']),
+  artwork: Object.freeze(['canvasState', 'inspector', 'exporter', 'projectShell', 'faceSetup', 'faceMovements', 'faceStates', 'handSetup', 'artboardSync', 'handStates', 'selectionActions']),
   layers: Object.freeze(['layerOrder', 'layers', 'faceSetup', 'canvasMenu', 'artboardPanel', 'selectionActions']),
   // Declared empty on purpose, not forgotten: nothing on screen reads the
   // asset table yet. The canvas joins when it resolves `asset:` references
   // (docs/V4_ROADMAP.md, V4-021) and the library when it lists them (V4-030).
   // The entry exists now so the domain is wired rather than silently absent.
   assets: Object.freeze([]),
-  rig: Object.freeze(['inspector', 'timeline', 'rigPanel', 'faceMovements', 'gazePanel', 'headPose', 'handSetup', 'warpPanel', 'expressionStudio', 'motionStudio', 'automaticPanel', 'handleBoard', 'puppetHandles', 'previewFrame']),
+  rig: Object.freeze(['inspector', 'timeline', 'rigPanel', 'faceMovements', 'faceStates', 'gazePanel', 'headPose', 'handSetup', 'warpPanel', 'expressionStudio', 'motionStudio', 'automaticPanel', 'handleBoard', 'puppetHandles', 'previewFrame']),
   stateMachine: Object.freeze(['states', 'automaticPanel', 'previewPanel']),
-  semanticRig: Object.freeze(['rigPanel', 'faceSetup', 'faceMovements', 'handleBoard', 'projectShell']),
+  semanticRig: Object.freeze(['rigPanel', 'faceSetup', 'faceMovements', 'faceStates', 'handleBoard', 'projectShell']),
   rigHandles: Object.freeze(['handleBoard', 'puppetHandles']),
   animation: Object.freeze(['timeline', 'motionStudio', 'reactionStudio', 'projectShell']),
   // Only the timeline shows an arrangement; moving a clip in time changes
@@ -57,7 +57,10 @@ export const DOCUMENT_RENDER_PLAN = Object.freeze({
   // parameter *produces*: the panels knew, and the mascot on the canvas went on
   // showing the shape it was showing before the edit until something unrelated
   // happened to recompile it.
-  keyforms: Object.freeze(['headPose', 'handSetup', 'warpPanel', 'holdingPanel', 'previewFrame', 'puppetHandlesRefresh']),
+  // `faceStates` because a corrective **is** a shape key
+  // (docs/FACE_SVG_STATES.md): capturing, reweighting or forgetting one writes
+  // this domain, and the panel that lists them has to say so.
+  keyforms: Object.freeze(['headPose', 'handSetup', 'warpPanel', 'holdingPanel', 'faceStates', 'previewFrame', 'puppetHandlesRefresh']),
   // A constraint or a hold changes what the mascot looks like and no panel's
   // own contents, so the frame is the whole of this one.
   constraints: Object.freeze(['holdingPanel', 'previewFrame', 'puppetHandlesRefresh']),
@@ -69,7 +72,9 @@ export const DOCUMENT_RENDER_PLAN = Object.freeze({
   // is the whole of this one: it used to be empty, and turning secondary motion
   // on left the canvas exactly as it was until something else recompiled it.
   hierarchy: Object.freeze(['previewFrame']),
-  expressions: Object.freeze(['expressionStudio', 'reactionStudio', 'previewPanel']),
+  // `faceStates` because a viseme **is** an expression record
+  // (docs/VISEME_SYSTEM.md): installing the speech shapes writes this domain.
+  expressions: Object.freeze(['expressionStudio', 'reactionStudio', 'faceStates', 'previewPanel']),
   reactions: Object.freeze(['reactionStudio', 'previewPanel'])
 });
 

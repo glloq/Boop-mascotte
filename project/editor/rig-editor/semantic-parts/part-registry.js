@@ -42,7 +42,19 @@ export const SEMANTIC_PART_REGISTRY = Object.freeze({
   // what puts the drawing back where it was drawn at 1. Left to the generic
   // `translate` default (`+8`, offset `0`) a lid hung over the open eye and
   // retracted to nothing as it shut, which is a blink played backwards.
-  eyelids: { displayName: 'Eyelids', sides: { leftUpper: 'Left', leftLower: 'Left', rightUpper: 'Right', rightLower: 'Right' }, sided: ['eyeOpen'], roles: ['leftUpper', 'leftLower', 'rightUpper', 'rightLower'], controls: ['eyeOpen'], parameters: { eyeOpen: number(0, 1, 1) }, bindings:{leftUpper:{eyeOpen:'translateY'},leftLower:{eyeOpen:'translateY'},rightUpper:{eyeOpen:'translateY'},rightLower:{eyeOpen:'translateY'}}, drivers:{eyeOpen:{property:'translateY',amplitude:-8,offset:8}}, strategies:{eyeOpen:['translateY','rotation','morph']}, calibration:{eyeOpen:binary('CLOSED','OPEN')}, morph: true, symmetry: true },
+  //
+  // `eyeSquint` and `eyeCurve` are the two axes `eyeOpen` cannot carry, and
+  // they are the **lids'** rather than the eyes' (docs/FACE_SVG_STATES.md):
+  // narrowing an eye is the lower lid coming up much further than the upper
+  // one comes down, and the arc of a shut eye is the shape of the line the two
+  // meet on. Neither is a thing that can be done to an eyeball, and the eye's
+  // own `scaleY` is spoken for by `eyeOpen` in any case.
+  //
+  // Both are shaped rather than transformed, for the same reason `mouthOpen`
+  // is: `translateY` is spoken for by the blink, and a squint that slid the
+  // whole lid would be a blink under another name. Both rest at 0, so a rig
+  // that has never heard of them draws the lids it always drew.
+  eyelids: { displayName: 'Eyelids', sides: { leftUpper: 'Left', leftLower: 'Left', rightUpper: 'Right', rightLower: 'Right' }, sided: ['eyeOpen', 'eyeSquint', 'eyeCurve'], roles: ['leftUpper', 'leftLower', 'rightUpper', 'rightLower'], controls: ['eyeOpen', 'eyeSquint', 'eyeCurve'], parameters: { eyeOpen: number(0, 1, 1), eyeSquint: number(0, 1), eyeCurve: number(-1, 1) }, bindings:{leftUpper:{eyeOpen:'translateY',eyeSquint:'shapeKey',eyeCurve:'shapeKey'},leftLower:{eyeOpen:'translateY',eyeSquint:'shapeKey',eyeCurve:'shapeKey'},rightUpper:{eyeOpen:'translateY',eyeSquint:'shapeKey',eyeCurve:'shapeKey'},rightLower:{eyeOpen:'translateY',eyeSquint:'shapeKey',eyeCurve:'shapeKey'}}, drivers:{eyeOpen:{property:'translateY',amplitude:-8,offset:8},eyeSquint:{property:'shapeKey'},eyeCurve:{property:'shapeKey'}}, strategies:{eyeOpen:['translateY','rotation','morph'],eyeSquint:['shapeKey'],eyeCurve:['shapeKey']}, calibration:{eyeOpen:binary('CLOSED','OPEN')}, morph: true, symmetry: true },
   // **Up is a negative translate**, because screen `y` grows downwards, and a
   // movement whose calibration says RAISED at +1 has to actually raise the
   // artwork. Without a driver of its own a translate falls back to +8, so
@@ -52,6 +64,11 @@ export const SEMANTIC_PART_REGISTRY = Object.freeze({
   // exactly this reason; these are the rest of the family.
   eyebrows: { displayName: 'Eyebrows', sides: { leftBrow: 'Left', rightBrow: 'Right' }, sided: ['browRaise', 'browTilt'], roles: ['leftBrow', 'rightBrow'], controls: ['browRaise', 'browTilt'], parameters: { browRaise: number(-1, 1), browTilt: number(-1, 1) }, bindings:{leftBrow:{browRaise:'translateY',browTilt:'rotation'},rightBrow:{browRaise:'translateY',browTilt:'rotation'}}, drivers:{browRaise:{property:'translateY',amplitude:-8,offset:0}}, calibration:{browRaise:tri('LOW','NEUTRAL','RAISED'),browTilt:tri('TILT LEFT','NEUTRAL','TILT RIGHT','tiltLeft','neutral','tiltRight')}, symmetry: true },
   nose: { displayName: 'Nose', roles: ['nose'], controls: ['noseScrunch'], parameters: { noseScrunch: number(0, 1) }, bindings:{nose:{noseScrunch:'translateY'}}, drivers:{noseScrunch:{property:'translateY',amplitude:-5,offset:0}}, strategies:{noseScrunch:['translateY','scaleY','rotation']}, calibration:{noseScrunch:binary('RELAXED','SCRUNCHED')} },
+  // `mouthRound` is how far the aperture is **puckered**: the one thing
+  // `mouthOpen` and `mouthWidth` together cannot say, and the whole difference
+  // between AE and OO (docs/VISEME_SYSTEM.md). Shaped rather than transformed,
+  // because narrowing a lens is not rounding it.
+  //
   // `cavity`, `teeth` and `tongue` are what an open mouth has inside it, when
   // the artwork draws them as their own shapes. They are optional, and what
   // they buy is that the 2.5D turn moves them with the lip line instead of
@@ -63,7 +80,7 @@ export const SEMANTIC_PART_REGISTRY = Object.freeze({
   // (`DRAWN_DRIVERS` in `face-part-install.js`). Listing only the first left
   // the installer writing a method the Movement Inspector then refused to set
   // -- "Method \"opacity\" is not supported by teeth" on a mouth wearing one.
-  mouth: { displayName: 'Mouth', roles: ['mouth', 'cavity', 'teeth', 'tongue'], requiredRoles: ['mouth'], controls: ['mouthOpen', 'smile', 'mouthWidth', 'teeth', 'tongue'], parameters: { mouthOpen: number(0, 1), smile: number(-1, 1), mouthWidth: number(-1, 1), teeth: number(0, 1), tongue: number(0, 1) }, bindings:{mouth:{mouthOpen:'scaleY',smile:'translateY',mouthWidth:'scaleX'},teeth:{teeth:'shapeKey'},tongue:{tongue:'shapeKey'}}, drivers:{mouthOpen:{property:'scaleY',amplitude:1,offset:1},smile:{property:'translateY',amplitude:8,offset:0},mouthWidth:{property:'scaleX',amplitude:.25,offset:1},teeth:{property:'shapeKey'},tongue:{property:'shapeKey'}}, strategies:{mouthOpen:['shapeKey','scaleY','morph'],smile:['shapeKey','translateY','morph'],mouthWidth:['scaleX'],teeth:['shapeKey','opacity'],tongue:['shapeKey','opacity']}, calibration:{mouthOpen:binary('CLOSED / NEUTRAL','OPEN')}, morph: true },
+  mouth: { displayName: 'Mouth', roles: ['mouth', 'cavity', 'teeth', 'tongue'], requiredRoles: ['mouth'], controls: ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'teeth', 'tongue'], parameters: { mouthOpen: number(0, 1), smile: number(-1, 1), mouthWidth: number(-1, 1), mouthRound: number(0, 1), teeth: number(0, 1), tongue: number(0, 1) }, bindings:{mouth:{mouthOpen:'scaleY',smile:'translateY',mouthWidth:'scaleX',mouthRound:'shapeKey'},teeth:{teeth:'shapeKey'},tongue:{tongue:'shapeKey'}}, drivers:{mouthOpen:{property:'scaleY',amplitude:1,offset:1},smile:{property:'translateY',amplitude:8,offset:0},mouthWidth:{property:'scaleX',amplitude:.25,offset:1},mouthRound:{property:'shapeKey'},teeth:{property:'shapeKey'},tongue:{property:'shapeKey'}}, strategies:{mouthOpen:['shapeKey','scaleY','morph'],smile:['shapeKey','translateY','morph'],mouthWidth:['scaleX'],mouthRound:['shapeKey'],teeth:['shapeKey','opacity'],tongue:['shapeKey','opacity']}, calibration:{mouthOpen:binary('CLOSED / NEUTRAL','OPEN')}, morph: true },
   // The tongue is its own part, not a fifth control on the mouth: the mouth's
   // `tongue` control says *whether it shows*, and these say where it is
   // (docs/FACE_CONTROL_RIG.md, CR-32 … CR-34). Two parts may share artwork so

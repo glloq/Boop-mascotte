@@ -15,6 +15,7 @@
  * catalogue in the editor.
  */
 import { BASIC_MOVEMENTS, deriveMovementChecklist, movementEntry } from '../../rig-editor/semantic-parts/face-movements.js';
+import { EYE_POSE_PRESETS, VISEME_PRESETS } from '../face-library/face-states.js';
 
 /** Named places on the movements of one part. */
 export const PART_POSES = Object.freeze({
@@ -27,13 +28,21 @@ export const PART_POSES = Object.freeze({
     Object.freeze({ id: 'tilt', name: 'Tilt', controls: Object.freeze({ headTilt: 0.7 }) }),
     Object.freeze({ id: 'peek', name: 'Peek', controls: Object.freeze({ headX: 0.7, headY: -0.4, headTilt: -0.4 }) })
   ]),
+  /**
+   * The eye states, and two compositions of them.
+   *
+   * The eight states come from the face library rather than being listed here
+   * (`core/face-library/face-states.js`), because the authoring panel, the
+   * chips and the tests all have to mean the same thing by *squint*.
+   *
+   * *Surprised* and *Wink* stay: neither is a state of the eye's own shape.
+   * Surprise is a `wide` eye with the pupils doing the widening, and a wink is
+   * one side's offset taking that eye down from wherever the pair is — which
+   * is precisely the composition the states are built to allow, and the
+   * clearest possible chip to show it with.
+   */
   eyes: Object.freeze([
-    Object.freeze({ id: 'open', name: 'Open', controls: Object.freeze({ eyeOpen: 1 }) }),
-    Object.freeze({ id: 'half', name: 'Half', controls: Object.freeze({ eyeOpen: 0.5 }) }),
-    Object.freeze({ id: 'squint', name: 'Squint', controls: Object.freeze({ eyeOpen: 0.25 }) }),
-    Object.freeze({ id: 'closed', name: 'Closed', controls: Object.freeze({ eyeOpen: 0 }) }),
-    // A pupil is part of how open an eye reads: wide eyes with pinpricks are
-    // fear, and the same eyes with big pupils are wonder.
+    ...EYE_POSE_PRESETS.map((pose) => Object.freeze({ id: pose.id, name: pose.name, controls: pose.controls })),
     Object.freeze({ id: 'surprised', name: 'Surprised', controls: Object.freeze({ eyeOpen: 1, pupilScale: 1.45 }) }),
     Object.freeze({ id: 'wink', name: 'Wink', controls: Object.freeze({ eyeOpen: 1, eyeOpenLeft: -1 }) })
   ]),
@@ -100,6 +109,17 @@ export const PART_POSES = Object.freeze({
     Object.freeze({ id: 'back', name: 'Back', controls: Object.freeze({ earWiggle: -1 }) })
   ])
 });
+
+/**
+ * The visemes, as poses of the mouth (docs/VISEME_SYSTEM.md).
+ *
+ * Kept out of `PART_POSES.mouth` on purpose: a viseme is a *speech* shape and
+ * the eleven mouth poses are expressive ones, and twenty chips in one row is a
+ * row nobody reads. They resolve through the very same `partPoses` machinery,
+ * so a panel showing them gets the same `usable` / `missing` report.
+ */
+export const MOUTH_VISEME_POSES = Object.freeze(VISEME_PRESETS.map((preset) =>
+  Object.freeze({ id: preset.id, name: preset.name, controls: preset.controls })));
 
 /** The order the groups are shown in, matching the movements panel. */
 export const PART_POSE_GROUPS = Object.freeze([

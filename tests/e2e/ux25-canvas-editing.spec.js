@@ -117,10 +117,10 @@ test('@critical a point can be added and removed, and the mouth keeps its poses'
   const rest = async () => (await documentOf(page)).elements.mouth.restPath;
   const keys = async () => (await documentOf(page)).shapeKeys.filter((key) => key.target === 'mouth');
   const before = await rest();
-  // Open, smile, frown, and the bow the mouth takes on when the head looks
-  // down (`docs/MASCOT_TEMPLATE.md`): every one of them a per-point delta
-  // against the outline a point is about to be added to.
-  expect((await keys()).length).toBe(4);
+  // Open, smile, frown, the pucker (docs/VISEME_SYSTEM.md) and the bow the mouth
+  // takes on when the head looks down (`docs/MASCOT_TEMPLATE.md`): every one of
+  // them a per-point delta against the outline a point is about to be added to.
+  expect((await keys()).length).toBe(5);
 
   // Adding a point is a change of topology, and every shape key on the mouth is
   // a per-point delta against that outline: they used to be dropped as a

@@ -56,7 +56,10 @@ test('a chip is only offered for movements the project has', async ({ page }) =>
   // every part of the face, not only the ones a beginner starts with.
   // The eyes, the gaze and the mouth gained the poses a rig with pupils that
   // size and corners that disagree can reach (docs/FACE_CONTROL_RIG.md).
-  for (const [part, count] of [['head', 7], ['eyes', 6], ['gaze', 9], ['eyebrows', 6], ['nose', 3], ['mouth', 11], ['jaw', 3], ['tongue', 6], ['hair', 4], ['ears', 3]]) {
+  // The eyes' ten are the eight states (docs/FACE_SVG_STATES.md) plus the two
+  // chips that are *compositions* of them rather than states: Surprised is a
+  // wide eye with the pupils doing the widening, and Wink is one side's offset.
+  for (const [part, count] of [['head', 7], ['eyes', 10], ['gaze', 9], ['eyebrows', 6], ['nose', 3], ['mouth', 11], ['jaw', 3], ['tongue', 6], ['hair', 4], ['ears', 3]]) {
     await expect(page.locator(`#face-movements [data-pose-chip^="${part}:"]`)).toHaveCount(count);
   }
 

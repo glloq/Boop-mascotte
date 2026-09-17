@@ -234,7 +234,25 @@ export function createExpressionStudio({ listHost, inspectorHost, store, history
     const gate = model.movementCount ? '' : '<p class="face-pick-notice" data-tone="warn">Turn on at least one movement in Face Setup: expressions are made of movements.</p>';
     const card = (preset) => { const existing = findExpression(state, preset.id); const kept = Object.keys(preset.controls).length; return `<article class="preset-card" data-expression-preset-card="${preset.id}" data-preset-usable="${preset.usable}" data-preset-missing="${preset.missing.length}"><div><b>${esc(preset.name)}</b><small>${esc(preset.description)}</small><small class="${preset.missing.length ? 'preset-missing' : ''}">${preset.usable ? `${kept} movement${kept === 1 ? '' : 's'}` : 'No matching movement yet'}${preset.missing.length ? ` · ${preset.missing.length} missing` : ''}</small></div>${existing ? `<button type="button" class="secondary" data-expression-preset-select="${esc(existing.id)}" aria-label="Select ${esc(preset.name)}">Select</button>` : `<button type="button" data-expression-preset="${preset.id}" aria-label="Add ${esc(preset.name)} preset" ${preset.usable ? '' : 'disabled'} title="${esc(preset.missing.length ? `Also uses: ${preset.missing.map((item) => item.label).join(', ')}` : 'Adds this face with your movements')}">Add</button>`}</article>`; };
     const presets = presetGroups(view.groups, card, { className: 'expression-presets' });
-    setPanelHtml(listHost, `<div role="status" aria-live="polite">${noticeMarkup(model)}</div>${gate}${starterKitMarkup(view.plan)}<section class="preset-catalogue" data-preset-catalogue="expressions"><h3>Ready-made faces</h3>${presets}</section><form class="expression-form" data-expression-form><label>New expression<input data-expression-name aria-label="New expression name" placeholder="Happy, Sad, Surprised…" value="${esc(model.draftName)}" ${enabled}></label><button type="submit" ${enabled}>Create</button></form><button type="button" class="secondary face-next" data-expression-capture-new ${enabled}>Capture current face as expression</button>${model.expressionCount ? `<ol class="expression-list" aria-label="Expressions">${view.list.map((item) => `<li><button type="button" class="expression-item" data-expression-select="${esc(item.id)}" aria-pressed="${item.id === model.activeId}"><span>${esc(item.name)}</span><small>${Object.keys(item.controls || {}).length} control${Object.keys(item.controls || {}).length === 1 ? '' : 's'}</small></button></li>`).join('')}</ol>` : `<p class="expression-empty">No expressions yet. An expression is a named face (Happy, Sad…) built from your movements; you can apply it at any intensity in Preview and in the exported mascot.</p>`}${blendMarkup(model)}`);
+    setPanelHtml(listHost, `<div role="status" aria-live="polite">${noticeMarkup(model)}</div>${gate}${starterKitMarkup(view.plan)}<section class="preset-catalogue" data-preset-catalogue="expressions"><h3>Ready-made faces</h3>${presets}</section><form class="expression-form" data-expression-form><label>New expression<input data-expression-name aria-label="New expression name" placeholder="Happy, Sad, Surprised…" value="${esc(model.draftName)}" ${enabled}></label><button type="submit" ${enabled}>Create</button></form><button type="button" class="secondary face-next" data-expression-capture-new ${enabled}>Capture current face as expression</button>${model.expressionCount ? `${expressionList(view.faces, model, 'Expressions')}${expressionList(view.speech, model, 'Speech shapes', 'A speech shape is an expression too, which is why a mascot can say something while it smiles (docs/VISEME_SYSTEM.md). Tune one here; strike one in Face states.')}` : `<p class="expression-empty">No expressions yet. An expression is a named face (Happy, Sad…) built from your movements; you can apply it at any intensity in Preview and in the exported mascot.</p>`}${blendMarkup(model)}`);
+  }
+
+  /**
+   * One list of expressions, headed.
+   *
+   * Two of them rather than one, because a face and a speech shape are two
+   * things an author is looking for: the template ships twenty-seven faces and
+   * nine visemes, and thirty-six rows beginning with *Happy* and *Say A · E* in
+   * one column is a column nobody reads. They are the same records in the same
+   * document, selected and edited the same way -- what is split is the reading.
+   */
+  function expressionList(items, model, label, hint = '') {
+    if (!items.length) return '';
+    const rows = items.map((item) => {
+      const count = Object.keys(item.controls || {}).length;
+      return `<li><button type="button" class="expression-item" data-expression-select="${esc(item.id)}" aria-pressed="${item.id === model.activeId}"><span>${esc(item.name)}</span><small>${count} control${count === 1 ? '' : 's'}</small></button></li>`;
+    }).join('');
+    return `<h3 class="expression-list-name">${esc(label)}</h3>${hint ? `<p class="small">${esc(hint)}</p>` : ''}<ol class="expression-list" aria-label="${esc(label)}">${rows}</ol>`;
   }
 
   function renderInspector(model) {
@@ -255,6 +273,10 @@ export function createExpressionStudio({ listHost, inspectorHost, store, history
     const movements = enabledMovements();
     return {
       state, hasArtwork: Boolean(state.svgMarkup), list: state.expressions || [], current: activeId() || '',
+      // The same list, read as the two things an author is looking for. The
+      // count above still says how many the project holds, all told.
+      faces: (state.expressions || []).filter((item) => !item.viseme && item.source !== 'viseme'),
+      speech: (state.expressions || []).filter((item) => item.viseme || item.source === 'viseme'),
       movements, groups: presetAvailabilityGroups(state), plan: starterKit.plan(), blend: expressionBlend(state), expression,
       // One row per movement: the value the slider sits at is the expression's
       // when it has one, neutral when it does not, and the row says which.

@@ -22,9 +22,13 @@ test('@critical user turns on gaze, tests it, and calibrates it by posing the pu
   await openSetupSection(page, 'movements');
   const panel = page.locator('#face-movements[data-face-movements-ready="true"]');
   await expect(panel).toBeVisible();
-  await expect(panel).toHaveAttribute('data-face-movements-available', '14');
+  // Fifteen of the twenty-six: the eight roles the suggestions accepted cover
+  // the head, the eyes, the pupils, the brows and the mouth. The lids' own two
+  // (Narrow, Lid curve) wait for an eyelid to be assigned
+  // (docs/FACE_SVG_STATES.md).
+  await expect(panel).toHaveAttribute('data-face-movements-available', '15');
   await expect(panel).toHaveAttribute('data-face-movements-enabled', '0');
-  await expect(panel.locator('[data-movement]')).toHaveCount(23);
+  await expect(panel.locator('[data-movement]')).toHaveCount(26);
   const before = await checkpoint(page);
 
   await page.getByLabel('Enable Look left / right (Gaze)').check();
@@ -98,8 +102,8 @@ test('@critical templates expose their movements, batch enabling and turning off
   await openSetupSection(page, 'movements');
   const panel = page.locator('#face-movements[data-face-movements-ready="true"]');
   // Every movement, because the template draws every part that carries one.
-  await expect(panel).toHaveAttribute('data-face-movements-available', '23');
-  await expect(panel).toHaveAttribute('data-face-movements-enabled', '23');
+  await expect(panel).toHaveAttribute('data-face-movements-available', '26');
+  await expect(panel).toHaveAttribute('data-face-movements-enabled', '26');
   await expect(page.locator('[data-movement="browRaise"]')).not.toHaveAttribute('data-movement-status', 'unassigned');
   await expect(page.getByLabel('Enable Raise (Eyebrows)')).toBeEnabled();
   const before = await checkpoint(page);

@@ -81,6 +81,22 @@ another method takes its shapes with it; without the mark they would stay,
 still deforming the artwork, with nothing pointing at them
 (`docs/SEMANTIC_RIGGING.md`).
 
+### A corrective carries which state it belongs to
+
+`faceState: { kind, slot, side }` marks a shape key as a graphical corrective
+for one state of an eye or a mouth (`docs/FACE_SVG_STATES.md`). It is editor
+metadata like `generatedBy`: a frame never reads it, because the driver
+expression is the whole of what a corrective does. What it buys is that the Face
+states panel can find one again — to show its weight, reshape it, forget it, or
+copy it onto the other eye.
+
+A corrective is an ordinary shape key in every other respect, and it is where
+the whole mechanism earns its keep: `eyeOpen 0` is already a shut eye, and the
+corrective is the arc that makes it a *nice* shut eye. Its driver is an
+expression over the semantic controls (`1 - eyeOpen - eyeOpenLeft`), so it is 0
+at rest and a project with none renders identically to one that has never heard
+of them.
+
 ### Generated shapes are exactly compatible
 
 Both places that ship shape keys — the mascot's mouth and the generated hands —

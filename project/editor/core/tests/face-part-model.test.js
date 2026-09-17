@@ -117,7 +117,7 @@ test('the artwork scanner reads elements, ids and balance from a fragment', () =
 });
 
 test('capabilities are read against the part: what is carried, what is not, what cannot be', () => {
-  assert.deepEqual(describeFacePartCapabilities(MOUTH_SIMPLE), { controls: ['mouthOpen', 'smile', 'mouthWidth', 'teeth', 'tongue'], supported: ['mouthOpen', 'smile', 'mouthWidth'], missing: ['teeth', 'tongue'], unsupported: [], complete: false });
+  assert.deepEqual(describeFacePartCapabilities(MOUTH_SIMPLE), { controls: ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'teeth', 'tongue'], supported: ['mouthOpen', 'smile', 'mouthWidth'], missing: ['mouthRound', 'teeth', 'tongue'], unsupported: [], complete: false });
   assert.deepEqual(describeFacePartCapabilities({ category: 'nose', capabilities: ['noseScrunch'] }).missing, []);
   assert.equal(describeFacePartCapabilities({ category: 'nose', capabilities: ['noseScrunch'] }).complete, true);
   assert.deepEqual(describeFacePartCapabilities({ category: 'nose', capabilities: ['smile'] }).unsupported, ['smile']);

@@ -306,7 +306,17 @@ export const PUPIL = Object.freeze({ r: 10.5, travel: 8 });
  * the viewer saw was a lid that had come down past the middle of the eye, and
  * a crease drawn where no eye closes.
  */
-const LID = Object.freeze({ bulge: 8, dip: 6, margin: 8, seam: 1 });
+const LID = Object.freeze({ bulge: 8, dip: 6, margin: 8, seam: 1,
+  /**
+   * How far each lid travels at `eyeSquint 1`, and how far the seam's edge
+   * bends at `eyeCurve ±1`.
+   *
+   * The lower lid comes up nearly three times as far as the upper comes down,
+   * because that is what a squint is: a real one is the cheek pushing the
+   * lower lid up, and two lids meeting in the middle is a blink. Getting this
+   * symmetric was the difference between *suspicious* and *sleepy*.
+   */
+  squintUpper: 3.5, squintLower: 9, arc: 11 });
 /** A shade below the middle of the socket, which is where a lash line sits. */
 const LID_SHUT = round(EYE.cy + LID.seam);
 export const LID_TRAVEL = Object.freeze({
@@ -335,16 +345,51 @@ export const LID_TRAVEL = Object.freeze({
  * @param {number} reach     how far the lid extends past the socket sideways
  * @param {1|-1} way         1 for the lower lid, -1 for the upper
  */
-const lid = (cx, shut, reach, way) => {
+const lid = (cx, shut, reach, way, { squint = 0, curve: bend = 0 } = {}) => {
   const travel = way < 0 ? -LID_TRAVEL.upper : LID_TRAVEL.lower;
   const curve = way < 0 ? LID.bulge * 2 : -LID.dip * 2;
   const left = round(cx - reach), right = round(cx + reach);
-  const edge = round(shut + travel - curve / 2), back = round(edge + way * 30);
+  // A narrowed eye is the two lids coming *towards each other* while the eye
+  // stays open: the upper one down a little, the lower one up more, which is
+  // the asymmetry that reads as effort rather than as a half blink. The lower
+  // lid does most of it, which is what a real squint does.
+  const narrow = squint * (way < 0 ? LID.squintUpper : -LID.squintLower);
+  // And the arc is the *edge* of the lid bending while its ends stay put: a
+  // shut eye that curves upwards is a happy squeeze, one that curves the other
+  // way is tired. Only the control point moves, which keeps the seam's two
+  // ends exactly where the travel put them.
+  //
+  // The **same** sign for both lids, which is the thing that is easy to get
+  // wrong: what the viewer reads as the arc is the two lid edges together, so
+  // both of them have to rise in the middle. Mirroring it the way the travel
+  // is mirrored draws the two edges apart instead, which is a shut eye with a
+  // lens of white in the middle of it.
+  const arc = -bend * LID.arc;
+  const edge = round(shut + travel - curve / 2 + narrow), back = round(edge + way * 30);
   // Absolute commands throughout: a relative `h`/`q` is a path the editor's own
   // node tools decline to edit, and an author reshaping an eyelid is exactly
   // the kind of thing this template is meant to be taken apart for.
-  return `M${left} ${back} L${right} ${back} L${right} ${edge} Q${cx} ${round(edge + curve)} ${left} ${edge} Z`;
+  return `M${left} ${back} L${right} ${back} L${right} ${edge} Q${cx} ${round(edge + curve + arc)} ${left} ${edge} Z`;
 };
+
+/**
+ * One eyelid's outline for a given state, by role.
+ *
+ * The rig deforms the drawn lid; this is what it deforms it *to*, and it is
+ * the one place the template says what a narrowed or arced lid looks like
+ * (`template-project.js` turns each into an additive shape key). Every
+ * parameter is 0 at rest, so `lidPath(role)` is the outline in the artwork.
+ */
+export function lidPath(role, pose = {}) {
+  const side = /Right$/.test(role) ? 'Right' : 'Left';
+  const cx = side === 'Right' ? EYE.right : EYE.left;
+  const way = /^lidUpper/.test(role) ? -1 : 1;
+  return lid(cx, LID_SHUT, round(EYE.rx + 22), way, pose);
+}
+
+/** The four lids the template draws, and the outlines they rest at. */
+export const LID_ROLES = Object.freeze(['lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight']);
+export const LID_RESTS = Object.freeze(Object.fromEntries(LID_ROLES.map((role) => [role, lidPath(role)])));
 
 /**
  * Left and right are the viewer's, which is how an author points at them.
@@ -500,7 +545,22 @@ const MOUTH = Object.freeze({
   lipY: 176, floorY: 183.5,
   smileRise: 8, smileDrop: 13, smileSpread: 2, openDrop: 62,
   /** How far the corners lift when the head looks down. See `arc` below. */
-  arcRise: 5
+  arcRise: 5,
+  /**
+   * A pucker, in three numbers (docs/VISEME_SYSTEM.md).
+   *
+   * `mouthWidth` narrows the mouth by *scaling* it, which makes a small lens
+   * out of a large one — and a small lens is not an O. What rounds a mouth is
+   * the corners coming **in** while the lip line bows **out** above and below
+   * them: the aperture stops being wide and shallow and becomes tall for its
+   * width, which is the whole difference between `AE` and `OO`.
+   *
+   * So `roundPull` draws the corners towards the middle, `roundTop` pushes the
+   * upper lip up away from them and `roundFloor` pushes the lower lip down.
+   * Every one of them is 0 at `mouthRound 0`, which is every mouth that has
+   * never been asked to pucker.
+   */
+  roundPull: 19, roundTop: 7, roundFloor: 9
 });
 
 /**
@@ -517,13 +577,14 @@ const MOUTH = Object.freeze({
  *
  * Only the corners move, which is what keeps it a bow rather than a smile.
  */
-export function mouthGeometry({ open = 0, smile = 0, arc = 0 } = {}) {
+export function mouthGeometry({ open = 0, smile = 0, arc = 0, round: pucker = 0 } = {}) {
   const cornerY = MOUTH.cornerY - MOUTH.smileRise * smile - MOUTH.arcRise * arc;
+  const half = MOUTH.half - MOUTH.roundPull * pucker;
   return {
-    left: { x: MOUTH.cx - MOUTH.half - MOUTH.smileSpread * smile, y: cornerY },
-    right: { x: MOUTH.cx + MOUTH.half + MOUTH.smileSpread * smile, y: cornerY },
-    top: { x: MOUTH.cx, y: MOUTH.lipY + MOUTH.smileDrop * smile },
-    bottom: { x: MOUTH.cx, y: MOUTH.floorY + MOUTH.smileDrop * smile + MOUTH.openDrop * open }
+    left: { x: MOUTH.cx - half - MOUTH.smileSpread * smile, y: cornerY },
+    right: { x: MOUTH.cx + half + MOUTH.smileSpread * smile, y: cornerY },
+    top: { x: MOUTH.cx, y: MOUTH.lipY + MOUTH.smileDrop * smile - MOUTH.roundTop * pucker },
+    bottom: { x: MOUTH.cx, y: MOUTH.floorY + MOUTH.smileDrop * smile + MOUTH.openDrop * open + MOUTH.roundFloor * pucker }
   };
 }
 
@@ -644,14 +705,14 @@ const band = (lip, from, to, offset, tuck, lift = 0) => {
     + ` Q${at(offset)} ${point({ x: a.x, y: a.y + lift })} Z`;
 };
 
-export function teethPath({ open = 0, smile = 0, arc = 0, show = 0 } = {}) {
-  const g = mouthGeometry({ open, smile, arc });
+export function teethPath({ open = 0, smile = 0, arc = 0, show = 0, round: pucker = 0 } = {}) {
+  const g = mouthGeometry({ open, smile, arc, round: pucker });
   const drop = BAND_REACH * BAND.teeth * show * 2;
   return band((t) => quad(g.left, g.top, g.right, t), BAND.teethFrom, BAND.teethTo, drop, drop * BAND.tuck);
 }
 
-export function tonguePath({ open = 0, smile = 0, arc = 0, show = 0 } = {}) {
-  const g = mouthGeometry({ open, smile, arc });
+export function tonguePath({ open = 0, smile = 0, arc = 0, show = 0, round: pucker = 0 } = {}) {
+  const g = mouthGeometry({ open, smile, arc, round: pucker });
   const rise = -BAND_REACH * BAND.tongue * show * 2;
   // The lower lip, walked right to left, so the tongue is wound the same way
   // round as the teeth and the two shapes stay comparable. It rests *above* the

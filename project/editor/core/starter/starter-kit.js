@@ -5,6 +5,8 @@
 // author would have built by hand, and one undo removes all of it.
 import { createExpression, findExpression } from '../expressions/expression-model.js';
 import { EXPRESSION_PRESETS, instantiatePreset, presetById as expressionPresetById } from '../expressions/expression-presets.js';
+import { REQUIRED_VISEME_KEYS, VISEME_KEYS } from '../face-library/face-states.js';
+import { installVisemes, installedVisemes, visemeExpressionName } from '../face-library/face-state-install.js';
 import { createMotionClip } from '../motion/motion-model.js';
 import { MOTION_PRESETS, presetById as motionPresetById } from '../motion/motion-presets.js';
 import { createReaction, findReaction } from '../reactions/reaction-model.js';
@@ -21,7 +23,11 @@ export const STARTER_KIT = Object.freeze({
   expressions: Object.freeze(['happy', 'sad', 'surprised', 'angry', 'curious', 'excited', 'sleepy', 'confused']),
   motions: Object.freeze(['nod', 'shake', 'bounce', 'tilt', 'blink', 'look-around']),
   reactions: Object.freeze(['surprise', 'greet', 'notice', 'glance']),
-  automatic: Object.freeze(['blink', 'natural-gaze', 'idle-head'])
+  automatic: Object.freeze(['blink', 'natural-gaze', 'idle-head']),
+  // The eight a mouth needs to read as speaking (docs/VISEME_SYSTEM.md). `WQ`
+  // is the ninth and is offered rather than shipped: a `w` is an `OO` that
+  // opens, and a mascot without it loses very little.
+  visemes: REQUIRED_VISEME_KEYS
 });
 
 /**
@@ -42,7 +48,8 @@ export const FULL_KIT = Object.freeze({
   expressions: Object.freeze(EXPRESSION_PRESETS.map((preset) => preset.id)),
   motions: Object.freeze(MOTION_PRESETS.map((preset) => preset.id)),
   reactions: Object.freeze(REACTION_PRESETS.map((preset) => preset.id)),
-  automatic: Object.freeze(['blink', 'natural-gaze', 'idle-head'])
+  automatic: Object.freeze(['blink', 'natural-gaze', 'idle-head']),
+  visemes: VISEME_KEYS
 });
 
 const entry = (kind, id, name, action, reason = null) => ({ kind, id, name, action, reason });
@@ -84,6 +91,25 @@ export function buildStarterKit(document, kit = STARTER_KIT) {
     entries.push(entry('expression', id, preset.name, 'add'));
   }
 
+  // Speech before the motions, and after the faces: a viseme is an expression
+  // record like any other (docs/VISEME_SYSTEM.md), so it goes in with them and
+  // the *Talk* clip that plays over them finds them already there.
+  //
+  // A viseme is installed under the naming rule and nothing else --
+  // `viseme-ae`, carrying `viseme: 'AE'` -- which is how `mascot.setViseme`
+  // finds it on a rig it has never seen. A mouth missing `mouthRound` still
+  // gets the eight, a little less roundly, and the report says which movement
+  // would make them exact.
+  for (const key of kit.visemes || []) {
+    const name = visemeExpressionName(key);
+    const had = installedVisemes(document).includes(key);
+    const report = installVisemes(document, { keys: [key] });
+    if (had) { entries.push(entry('viseme', key, name, 'have')); continue; }
+    if (report.added.includes(key)) { entries.push(entry('viseme', key, name, 'add')); continue; }
+    const missing = report.skipped.find((item) => item.key === key)?.missing || [];
+    entries.push(entry('viseme', key, name, 'skip', `needs ${missing.length ? missing.join(', ') : 'a mouth'}`));
+  }
+
   for (const id of kit.motions) {
     const preset = motionPresetById(id);
     if (!preset) continue;
@@ -118,9 +144,9 @@ export function buildStarterKit(document, kit = STARTER_KIT) {
   return { entries, added: count('add'), present: count('have'), skipped: count('skip') };
 }
 
-const KIND_WORDS = { expression: ['face', 'faces'], motion: ['motion', 'motions'], reaction: ['reaction', 'reactions'], automatic: ['automatic behaviour', 'automatic behaviours'] };
+const KIND_WORDS = { expression: ['face', 'faces'], viseme: ['speech shape', 'speech shapes'], motion: ['motion', 'motions'], reaction: ['reaction', 'reactions'], automatic: ['automatic behaviour', 'automatic behaviours'] };
 
-/** "8 faces, 6 motions, 4 reactions and 3 automatic behaviours" — for the notice. */
+/** "8 faces, 8 speech shapes, 6 motions, 4 reactions and 3 automatic behaviours". */
 export function starterKitSummary(report, action = 'add') {
   const parts = Object.keys(KIND_WORDS)
     .map((kind) => ({ kind, count: report.entries.filter((item) => item.kind === kind && item.action === action).length }))
