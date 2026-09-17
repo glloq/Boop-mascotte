@@ -2,6 +2,8 @@ import { createAppShell } from '../shell/app-shell.js';
 import { createStore } from '../core/state/store.js';
 import { createHistory } from '../core/undo/history.js';
 import { createSvgCanvas } from '../svg-editor/svg-canvas.js';
+import { openAssetStore } from '../core/assets/asset-store.js';
+import { createAssetResolver } from '../../runtime/asset-resolver.js';
 import { createNewMascotWizard } from '../ui/new-mascot/wizard.js';
 import { presetMorphology } from '../core/face-library/compatibility.js';
 import { createLayersPanel, siblingPosition } from '../svg-editor/layers-panel.js';
@@ -135,6 +137,18 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   pluginRegistry.register(pathElementPlugin);
   const canvas = createSvgCanvas(shell.canvasEl, store, history, pluginRegistry);
   canvas.setWorkspace(shell.getWorkspace());
+  /**
+   * The one resolver every `asset:` reference is drawn through, editor and
+   * preview alike (docs/V4_ROADMAP.md, V4-015).
+   *
+   * Opened without being awaited on purpose: the store is only needed the
+   * first time artwork points at an asset, and no project does yet. Making
+   * the whole editor wait on IndexedDB to show a mascot made of paths would
+   * be paying for a feature nobody in that project is using. `refreshAssets`
+   * is what awaits it, once there is something to fetch.
+   */
+  const assetStoreReady = openAssetStore();
+  canvas.setAssetResolver(createAssetResolver({ store: { get: async (id) => (await assetStoreReady).get(id) } }));
   // The options bar under the vector toolbar: what a new shape is painted
   // with, a polygon's sides, the grid, and the Node tool's point operations.
   // UI preferences, remembered in the browser, never part of the project.

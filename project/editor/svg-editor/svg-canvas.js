@@ -3,6 +3,7 @@ import 'svg.select.js';
 import 'svg.resize.js';
 import 'svg.draggable.js';
 import { sanitizeSvgMarkup } from '../core/security/sanitize-svg.js';
+import { collectAssetReferences, paintAssetReferences } from './asset-paint.js';
 import { SvgDocument } from '../core/svg-document/svg-document.js';
 import { lifecycleDiagnostics as diagnostics } from '../core/diagnostics/lifecycle-diagnostics.js';
 import { createArtworkCommands } from '../core/commands/artwork-commands.js';
@@ -69,7 +70,7 @@ function parseTransform(element) {
     scaleX: pick(matrix.scaleX) ?? 1, scaleY: pick(matrix.scaleY) ?? 1, pivotX: pick(matrix.originX) ?? 0, pivotY: pick(matrix.originY) ?? 0 };
 }
 
-export function createSvgCanvas(container, store, history, pluginRegistry) {
+export function createSvgCanvas(container, store, history, pluginRegistry, { assetResolver = null } = {}) {
   const commands = createArtworkCommands(store, history);
   const SVG_NS = 'http://www.w3.org/2000/svg';
   // SVG.js 2.x creates/attaches a drawing with SVG(container). addTo() is a
@@ -1286,6 +1287,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     showSelection(store.getSession().selectedId, store.getSession().selectedIds);
   }
 
+  /** Every `<image>` currently in the artwork, painted or not. */
+  const assetNodes = (root = rootGroup.node) => [...(root?.querySelectorAll?.('image') || [])];
+  const paintAssets = (root) => paintAssetReferences(assetNodes(root), assetResolver);
+
   function loadSvgText(svgText, metadata = {}, options = {}) {
     return previewOrder.authored(() => loadSvgTextNow(svgText, metadata, options));
   }
@@ -1295,6 +1300,12 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     rootGroup = draw.group().svg(safeMarkup);
     raiseGizmoLayer();
     const svgRoot = rootGroup.node.querySelector('svg');
+    // Before anything measures the artwork: a raster node carrying
+    // `asset:` cannot be drawn by a browser, so it is pointed at what the
+    // resolver already holds. Fetching is `refreshAssets`, which is
+    // asynchronous and is the caller's to await; this pass is not, because
+    // loading is not.
+    paintAssets(svgRoot);
     const tree = documentModel.load(svgRoot, metadata);
     loadedMarkup = documentModel.serialize();
     if (options.recordHistory !== false) history.snapshot();
@@ -3304,6 +3315,26 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
         throw new Error('The imported SVG contains no supported artwork.');
       }
       return safeMarkup;
+    },
+    /** The resolver every `asset:` reference is drawn through. One per editor. */
+    setAssetResolver(resolver) { assetResolver = resolver; },
+    /**
+     * Fetch what the artwork points at, then point it at what was fetched.
+     *
+     * Split from loading because loading is synchronous and reading bytes is
+     * not (`runtime/asset-resolver.js`). A caller that has changed which
+     * assets the artwork uses awaits this; a caller that has not does not have
+     * to, because the synchronous pass inside `loadSvgFromText` already drew
+     * whatever was primed.
+     */
+    async refreshAssets() {
+      const nodes = assetNodes();
+      const references = collectAssetReferences(nodes);
+      await assetResolver?.prime?.(references);
+      // Nothing on the canvas points at them any more: stop holding a URL for
+      // every picture that was ever here.
+      assetResolver?.retain?.(references);
+      return paintAssetReferences(nodes, assetResolver);
     },
     async loadSvgFromFile(file) { loadSvgText(await file.text()); },
     loadSvgFromText: loadSvgText,

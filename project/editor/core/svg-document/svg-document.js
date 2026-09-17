@@ -1,5 +1,7 @@
 export const LAYER_TAGS = new Set(['g', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'text', 'image', 'use']);
 
+import { restoreAssetReferences } from '../../svg-editor/asset-paint.js';
+
 const EDITOR_ATTRIBUTES = ['data-editor-selected', 'data-editor-preview', 'data-editor-handle', 'data-editor-scope'];
 
 function childrenOf(node) {
@@ -193,6 +195,11 @@ export class SvgDocument {
       Object.entries(attributes).forEach(([name, value]) => value == null ? node.removeAttribute(name) : node.setAttribute(name, value));
     });
     const clean = [clone, ...childrenOfDeep(clone)];
+    // Before anything else: a node painted from an object URL gets its
+    // `asset:` reference back. An object URL is valid for this tab and no
+    // longer, so one reaching `svgMarkup` is a project that opens tomorrow
+    // pointing at nothing (svg-editor/asset-paint.js).
+    restoreAssetReferences(clean);
     clean.forEach((node) => {
       EDITOR_ATTRIBUTES.forEach((name) => node.removeAttribute?.(name));
       // The canvas writes a full transform and opacity on every piece it
