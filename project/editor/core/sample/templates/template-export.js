@@ -20,6 +20,7 @@ import { createExportRig } from '../../export/export-rig.js';
 import { LAYER_TAGS } from '../../svg-document/svg-document.js';
 import { MASCOT_FACE_SVG } from './mascot-artwork.js';
 import { applyTemplateProject } from './template-project.js';
+import { DEFAULT_RIGGING } from '../../rig/rigging-types.js';
 
 const TAG = /<(\/?)([A-Za-z][\w:-]*)((?:\s+[\w:-]+="[^"]*")*)\s*(\/?)>/g;
 
@@ -29,6 +30,9 @@ const elementRecord = (tag, attributes) => ({
   baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 },
   baseOpacity: attribute(attributes, 'opacity') === undefined ? 1 : Number(attribute(attributes, 'opacity')),
   constraints: { translate: true, rotate: true, scale: true },
+  // The same field the canvas's plugins write (V5-02): this parser stands in
+  // for them, so a record it builds has to be the record they would build.
+  rigging: DEFAULT_RIGGING,
   bindings: {},
   symmetryPeer: null,
   meta: { nodeType: tag }

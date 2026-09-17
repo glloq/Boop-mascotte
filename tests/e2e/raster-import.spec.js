@@ -30,7 +30,10 @@ const watchForTrouble = (page) => {
 
 const openReadyMadeFace = async (page, options = {}) => {
   await openFreshEditor(page, options);
-  await page.getByRole('button', { name: 'Start from the ready-made face' }).click();
+  // By what it is rather than by what it is called: the finished mascot moved
+  // under "No pictures to hand?" when the first page started asking for
+  // pictures (V5-04), and these tests do not care what the link says.
+  await page.locator('[data-home] [data-template-id="basic"]').click();
   // The canvas has a project on it, which is the state every test below needs.
   await expect(page.locator('#app[data-project-loaded="true"], #app[data-mode]')).toHaveCount(1);
   await expect.poll(() => page.locator('#canvas svg, .canvas svg, svg').count()).toBeGreaterThan(0);
@@ -324,10 +327,11 @@ test('@critical a mascot can begin as a picture, from the first page', async ({ 
   const trouble = watchForTrouble(page);
   await openFreshEditor(page, { e2e: true });
 
-  // The third way to begin (V4-092). Before it, an author arriving with a PNG
-  // had to make a template mascot they did not want, find Artwork behind the
-  // Design chevron, and find "Import head / base" inside it.
-  const start = page.getByRole('button', { name: 'Start from a picture' });
+  // *The* way to begin (V4-092, promoted to the primary action by V5-04).
+  // Before it, an author arriving with a PNG had to make a template mascot
+  // they did not want, find Artwork behind the Design chevron, and find
+  // "Import head / base" inside it.
+  const start = page.getByRole('button', { name: 'Start with my pictures' });
   await expect(start).toBeVisible();
   await start.click();
   // The press opens the same picker the Artwork column has; Playwright cannot

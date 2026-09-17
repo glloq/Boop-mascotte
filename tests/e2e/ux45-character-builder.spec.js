@@ -1123,8 +1123,11 @@ test('@critical New mascot is the one-minute path: the kind, a character, then a
   await openFreshEditor(page, { e2e: true });
   const card = page.locator('[data-home] [data-home-action="character"]');
   await expect(card).toBeVisible();
-  await expect(card).toContainText('New mascot');
-  await expect(card).toHaveClass(/primary/, 'the one primary action on the page');
+  // One of the ways in under "No pictures to hand?" since V5-04, rather than
+  // the primary action: this editor's answer to "how do I start?" is now the
+  // author's own pictures. The path itself is unchanged, and is what this
+  // measures.
+  await expect(card).toContainText('Build one from shapes');
   const started = Date.now();
 
   // UI-REDESIGN-03: the press asks what kind of mascot before it shows any

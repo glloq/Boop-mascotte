@@ -46,7 +46,7 @@ test('@critical legacy empty state and demo bar are removed; Home, Artwork and P
   await expectNoLegacy(page, 'in Preview');
 });
 
-// The fixture has been re-signed four times, every time deliberately and
+// The fixture has been re-signed six times, every time deliberately and
 // every time after checking that *only* the intended keys moved -- which is
 // what makes re-signing a guard against drift rather than a way of hiding it.
 //
@@ -82,6 +82,15 @@ test('@critical legacy empty state and demo bar are removed; Home, Artwork and P
 // meshes and no conditions says so rather than leaving the reader to guess
 // whether the writer knew about them. `requires` is unchanged, because a rig
 // that uses no conditions asks for nothing (`runtime/reaction-conditions.js`).
+//
+// V5-01 and V5-02: 131 lines added, none removed, none reordered, and
+// `mascot.svg` byte for byte what it was. One is `partStates: []` -- the block
+// that lets a piece be several drawings with one showing, empty on a template
+// whose mouth is still a morph. The other 130 are one `rigging: "rigid"` per
+// element: how a piece is allowed to move became a property of the piece, and
+// every element written before the question existed answers it the way they
+// all behaved. `requires` is unchanged for the same reason as above -- a rig
+// with no part states asks for nothing.
 test('@critical Basic Face export artifacts are identical to the pre-removal fixtures', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);

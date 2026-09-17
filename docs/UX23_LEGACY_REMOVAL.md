@@ -36,6 +36,8 @@ Also removed: the `#empty-state` / `.try-animations` CSS blocks (including their
 
 Regenerated once since, by **3D-05** (the head turn became a projected rotation). `mascot.svg` did not move; `rig.json` differs in 108 head-pose keyform `value` numbers and in nothing else — no key added, removed or reordered — which is what the diff is worth reading for. 3D-03 then added one line to it — `parallax.drawOrder: true`, the new setting's default. This fixture is a *no unintended change* guard, not a frozen artefact: an intended change regenerates it and the diff has to be shown to be only that.
 
+Re-signed again by **V5-01/V5-02**: `partStates: []` at the top level, and one `rigging: "rigid"` on each of the 130 elements. 131 lines added, none removed, none reordered; `requires` unchanged, because a rig with no part states asks for nothing; `mascot.svg` untouched.
+
 ## Compatibility
 
 No schema or runtime change. No document field, command or export artifact changed; the Artwork visual baselines were regenerated because the demo bar no longer overlaps the canvas toolbar.
