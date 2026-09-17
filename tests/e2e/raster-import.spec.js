@@ -367,3 +367,45 @@ test('@critical the same picture can be added twice, because a face has two eyes
   expect(new Set(hrefs).size).toBe(1);
   expect(trouble).toEqual([]);
 });
+
+test('@critical a picture arrives knowing how it moves, and the choice stays changeable', async ({ page }) => {
+  const trouble = watchForTrouble(page);
+  await openReadyMadeFace(page, { e2e: true });
+  // The Inspector's Picture section is an Artwork-screen thing: elsewhere it is
+  // in the document and in a hidden column, which is enough to read and not
+  // enough to press.
+  await goToArtwork(page);
+  const selected = () => page.evaluate(() => window.__BOOP_E2E__.session().selectedId);
+  const documentOf = () => page.evaluate(() => window.__BOOP_E2E__.document());
+  const rigging = async () => (await documentOf()).elements[await selected()]?.rigging;
+
+  // The editor has read file names since V3 and only ever did it three screens
+  // later, in Rig ▸ Assign — which is why importing `eye-left.png` left every
+  // role reported as missing. A name that says what a piece is now says how it
+  // should move (V5-03).
+  await page.setInputFiles('#artwork-image-file', { name: 'oeil-gauche.webp', mimeType: 'image/webp', buffer: readFileSync(PICTURE) });
+  await expect.poll(selected).toBe('oeil-gauche');
+  await expect.poll(rigging).toBe('states');
+  await expect(page.locator('[data-rigging-type]')).toHaveValue('states');
+
+  // A name that says nothing proposes nothing, and moves as one piece.
+  await page.setInputFiles('#artwork-image-file', { name: 'IMG_2043.webp', mimeType: 'image/webp', buffer: readFileSync(OTHER) });
+  await expect.poll(selected).toBe('img-2043');
+  await expect.poll(rigging).toBe('rigid');
+
+  // What a picture cannot be is shown with its reason rather than left out: an
+  // absent option reads as a missing one.
+  const outline = page.locator('[data-rigging-type] option[value="outline"]');
+  await expect(outline).toContainText('not for a picture');
+  // Read the property rather than Playwright's idea of "disabled": the
+  // inspector rebuilds its markup on every selection, so the question worth
+  // asking is what the option says now.
+  await expect.poll(() => outline.evaluate((option) => option.disabled)).toBe(true);
+
+  // And it is a proposal, not a decision: one select, one undo step.
+  await page.locator('[data-rigging-type]').selectOption('bend');
+  await expect.poll(rigging).toBe('bend');
+  await page.keyboard.press('Control+z');
+  await expect.poll(rigging).toBe('rigid');
+  expect(trouble).toEqual([]);
+});

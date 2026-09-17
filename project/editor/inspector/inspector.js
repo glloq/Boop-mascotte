@@ -1,4 +1,5 @@
 import { mirrorTransformX } from '../core/rig/symmetry.js';
+import { normalizeRigging, riggingChoices } from '../core/rig/rigging-types.js';
 import { meshIsRest } from '../../runtime/mesh-warp.js';
 import { PART_PRESETS, suggestPresetForElement } from '../core/assets/part-presets.js';
 import { createArtworkCommands } from '../core/commands/artwork-commands.js';
@@ -186,6 +187,17 @@ export function createInspector(host, store, history, canvas, { openColour = nul
       return;
     }
 
+    // How this piece moves (V5-02). One `<select>`, on every piece, in the
+    // place the choice already lives for everything else about a piece —
+    // which is what makes it both the question asked at the moment a picture
+    // lands and the one an author comes back to.
+    if (target.dataset.riggingType !== undefined) {
+      const nodeType = store.getDocument().elements?.[id]?.meta?.nodeType;
+      commands.updateElement(id, 'set-rigging', (element) => { element.rigging = normalizeRigging(target.value, nodeType); });
+      renderCurrent({ force: true });
+      return;
+    }
+
     if (target.dataset.meshSize !== undefined) {
       setMesh?.(id, Number(target.value) || 0);
       renderCurrent({ force: true });
@@ -336,6 +348,17 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     const geometry=isMesh?[]:geometryFields(kind);
     if(geometry.length||kind==='text'||isMesh){
       rows.push(`<h4>${kind==='text'?'Text':isPicture?'Picture':'Shape'}</h4>`);
+      // Every piece answers this, picture or drawing: an option a piece cannot
+      // have is shown disabled with its reason rather than left out, because an
+      // absent option reads as a missing one (core/rig/rigging-types.js).
+      {
+        const nodeType=isPicture?'image':'path';
+        const current=normalizeRigging(store.getDocument().elements?.[selectedId]?.rigging,nodeType);
+        const options=riggingChoices(nodeType);
+        rows.push(`<label title="What this piece is allowed to do when the mascot moves">How it moves<select data-rigging-type aria-label="How this piece moves">${options.map(entry=>`<option value="${entry.id}"${entry.id===current?' selected':''}${entry.allowed?'':' disabled'}>${esc(entry.label)}${entry.allowed?'':' — not for a picture'}</option>`).join('')}</select></label>`);
+        const chosen=options.find(entry=>entry.id===current);
+        if(chosen)rows.push(`<p class="small" data-rigging-hint>${esc(chosen.hint)} ${esc(chosen.use)}</p>`);
+      }
       if(kind==='text')rows.push(`<label>Text<input type="text" data-text-content aria-label="Text content" value="${esc(node.textContent||'')}"></label>`);
       for(const [name,label,attrs] of geometry)rows.push(number(name,label,raw(name)??(name==='font-size'?'16':'0'),attrs));
       if(kind==='text')rows.push(choice('text-anchor','Anchor',[['start','Start'],['middle','Middle'],['end','End']],raw('text-anchor')||'start'));

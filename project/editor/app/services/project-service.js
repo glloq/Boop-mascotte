@@ -32,6 +32,7 @@ import { applyImportedRig } from '../../core/state/import-rig.js';
 import { identifyFaceParts } from '../../core/face-library/face-part-migration.js';
 import { imageNodeId, imageNodeMarkup, placeBaseInArtboard, placeImageInArtboard } from '../../core/assets/asset-placement.js';
 import { unusedAssets } from '../../core/assets/asset-manager.js';
+import { describeIntake, intakeFor } from '../../ui/picture-intake.js';
 import { parseAssetRef } from '../../../runtime/asset-reference.js';
 import { BOOP_EXTENSION, readBoopPackage, writeBoopPackage } from '../../core/export/boop-package.js';
 import { restMesh } from '../../../runtime/mesh-warp.js';
@@ -279,17 +280,40 @@ export function createProjectService({
     // picture* has no such point and lands in the middle, as it always has.
     const box = placeImageInArtboard(imported.asset, readArtboard(before.svgMarkup), { at });
     if (!box) { setStatus(`${file.name} has no size to place.`, 'error'); return false; }
+    /**
+     * What this is and how it moves, read from the name (V5-03,
+     * ui/picture-intake.js).
+     *
+     * The reading already existed and was only ever done three screens later,
+     * in Rig ▸ Assign, which is why importing `eye-left.png` used to leave
+     * every role reported as missing. What it buys here is the *movement*: a
+     * mouth arrives set to several drawings, an ear arrives bending, and a
+     * file nobody can read anything from arrives moving as one piece.
+     *
+     * The node keeps the file's own name. Naming it after the role was the
+     * first version and it was worse: `Head Front.webp` became `head-2` beside
+     * a head that was already there, and the author's own words — the only
+     * thing distinguishing two drawings of the same part — were thrown away.
+     * Which role a piece *plays* is assigned in Rig ▸ Assign, where it is one
+     * press and where it can be changed.
+     */
+    const intake = intakeFor(file.name, { nodeType: 'image' });
     const id = imageNodeId(file.name, new Set(Object.keys(before.elements || {})));
     const artwork = canvas.appendArtwork(imageNodeMarkup({ id, assetId: imported.asset.id, box }), null, { updateStore: false });
     if (!artwork) { setStatus(`Could not place ${file.name}.`, 'error'); return false; }
 
-    commands.syncSvg({ ...artwork, assets: { ...(before.assets || {}), [imported.asset.id]: imported.asset } },
+    const elements = { ...artwork.elements };
+    if (elements[id]) elements[id] = { ...elements[id], rigging: intake.rigging };
+    commands.syncSvg({ ...artwork, elements, assets: { ...(before.assets || {}), [imported.asset.id]: imported.asset } },
       { domains: ['artwork', 'layers', 'assets'], source: 'add-image' });
     await canvas.refreshAssets();
     preview.apply();
+    // Selected, because the two questions live in the Inspector and the piece
+    // that just arrived is the one they are about.
+    store.mutateSession?.('selectedId', (session) => { session.selectedId = id; });
     setStatus(imported.stored
-      ? `Added ${file.name}. Drag it, or resize it from the Inspector.`
-      : `Added ${file.name} — you already had this picture, so it is the same asset.`);
+      ? `Added ${file.name} as ${describeIntake(intake)}. Change either in the Inspector.`
+      : `Added ${file.name} as ${describeIntake(intake)} — you already had this picture, so it is the same asset.`);
     return true;
   };
 
