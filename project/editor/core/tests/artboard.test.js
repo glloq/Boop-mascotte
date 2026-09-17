@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { artboardAround, artboardOverflow, describeOverflow, normalizeArtboard, readArtboard, writeArtboard } from '../artwork/artboard.js';
+import { artboardAround, artboardOverflow, describeOverflow, normalizeArtboard, readArtboard, resizeArtboard, writeArtboard } from '../artwork/artboard.js';
 
 /**
  * The working area (docs/VECTOR_EDITING.md). A nested `<svg>` clips to its own
@@ -33,6 +33,43 @@ test('writing one changes the viewBox and leaves the rest of the markup alone', 
 test('a box is always a box', () => {
   assert.deepEqual(normalizeArtboard({ width: -5, height: 0 }), { x: 0, y: 0, width: 240, height: 240 });
   assert.deepEqual(normalizeArtboard({ x: '2.345', y: NaN, width: '10.005', height: 3 }), { x: 2.35, y: 0, width: 10.01, height: 3 });
+});
+
+test('a size is a scale, so the working area resizes around its own centre', () => {
+  // A `viewBox` is an origin *and* a size. Writing the size alone nails the
+  // top-left corner down, which on screen is a scale **and** a pan: measured
+  // before this existed, 240 → 160 slid the mascot's head 107 px to the right
+  // and 384 → 120 left it below the canvas entirely, with every handle drawn
+  // over it going the same way.
+  const box = { x: 0, y: -60, width: 240, height: 384 };
+  const centre = (value) => ({ x: value.x + value.width / 2, y: value.y + value.height / 2 });
+
+  const narrow = resizeArtboard(box, { width: 120 });
+  assert.deepEqual(narrow, { x: 60, y: -60, width: 120, height: 384 });
+  assert.deepEqual(centre(narrow), centre(box), 'the same place, framed smaller');
+
+  const short = resizeArtboard(narrow, { height: 120 });
+  assert.deepEqual(short, { x: 60, y: 72, width: 120, height: 120 });
+  assert.deepEqual(centre(short), centre(box));
+
+  // Growing is symmetric for the same reason: room appears on both sides
+  // rather than only on the right.
+  const wide = resizeArtboard(box, { width: 480 });
+  assert.deepEqual(wide, { x: -120, y: -60, width: 480, height: 384 });
+  assert.deepEqual(centre(wide), centre(box));
+
+  // One side at a time: the other keeps its own origin exactly.
+  assert.equal(resizeArtboard(box, { width: 100 }).y, box.y);
+  assert.equal(resizeArtboard(box, { height: 100 }).x, box.x);
+
+  // Nothing asked for is nothing moved, and a side that is not a size falls
+  // back the way every other box does rather than producing a negative origin.
+  assert.deepEqual(resizeArtboard(box), box);
+  assert.deepEqual(resizeArtboard(box, { width: undefined, height: undefined }), box);
+  assert.deepEqual(resizeArtboard(box, { width: 0 }), resizeArtboard(box, { width: 240 }), 'zero is a missing side, not a small one');
+
+  // An odd difference keeps the centre to the precision a box is rounded to.
+  assert.deepEqual(centre(resizeArtboard(box, { width: 101 })), centre(box));
 });
 
 test('Fit grows around what is drawn, and never crops it', () => {

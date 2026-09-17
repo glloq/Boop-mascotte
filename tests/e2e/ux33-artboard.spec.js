@@ -33,10 +33,12 @@ test('@critical the working area is drawn, resizable, and says when it is cuttin
   await expect(page.locator('[data-artboard-action="fit"]')).toBeDisabled();
 
   // Making it smaller cuts the drawing — and now the editor says so instead of
-  // leaving an author to wonder where their hair went.
+  // leaving an author to wonder where their hair went. The area shrinks around
+  // its own centre: 384 → 150 keeps the middle, so `y` moves by half the
+  // difference rather than the top-left corner staying nailed down.
   await page.locator('[data-artboard-field="height"]').fill('150');
   await page.locator('[data-artboard-field="height"]').press('Enter');
-  await expect.poll(() => viewBox(page)).toBe('0 -60 240 150');
+  await expect.poll(() => viewBox(page)).toBe('0 57 240 150');
   await expect(page.locator('[data-artboard-overflow]')).toContainText('past the bottom');
   await expect(page.locator('[data-artboard-action="fit"]')).toBeEnabled();
 
@@ -48,7 +50,64 @@ test('@critical the working area is drawn, resizable, and says when it is cuttin
 
   // One undo step each, and the working area is part of the artwork.
   await page.getByRole('button', { name: 'Undo' }).click();
-  await expect.poll(() => viewBox(page)).toBe('0 -60 240 150');
+  await expect.poll(() => viewBox(page)).toBe('0 57 240 150');
+});
+
+/**
+ * "Quand on change la dimension ça cache la mascotte et déplace les holdings
+ * hors de la vue... on doit seulement changer l'échelle."
+ *
+ * Two things were doing it. A `viewBox` is an origin *and* a size, so writing
+ * the size alone nailed the top-left corner down and the mascot slid away:
+ * measured, 240 → 160 moved the head 107 px right, and 384 → 120 left it below
+ * the canvas at three times its size. And `setArtboard` re-placed the artboard
+ * edge and nothing else, so every handle drawn over the mascot stayed where the
+ * mascot used to be — the selection chrome ended up at −9,−37, off the corner
+ * of the screen, pointing at nothing.
+ */
+test('@critical resizing the working area changes the scale, and nothing leaves the canvas', async ({ page }) => {
+  await openArtwork(page);
+  const canvas = await page.locator('#canvas').boundingBox();
+  const middle = canvas.x + canvas.width / 2;
+  // Selected, so the chrome that is placed by the artwork matrix is on screen.
+  await page.evaluate(() => window.__BOOP_E2E__.mutate((state) => { state.selectedId = 'head'; }));
+  const head = async () => page.locator('#canvas #head').boundingBox();
+  const chrome = async () => page.evaluate(() => {
+    const layer = document.querySelector('[data-gizmo-layer]');
+    if (!layer?.children.length) return null;
+    const box = layer.getBoundingClientRect();
+    return { x: box.x, y: box.y, width: box.width, height: box.height };
+  });
+  await expect.poll(chrome).not.toBe(null);
+
+  const before = await head();
+  for (const [field, value] of [['width', '160'], ['width', '120'], ['height', '200'], ['width', '480']]) {
+    await page.locator(`[data-artboard-field="${field}"]`).fill(value);
+    await page.locator(`[data-artboard-field="${field}"]`).press('Enter');
+    // Wait for the working area the document actually holds, not for a frame:
+    // everything below measures what the canvas drew from it.
+    const side = field === 'width' ? 2 : 3;
+    await expect.poll(async () => (await viewBox(page)).split(' ')[side]).toBe(value);
+
+    const now = await head();
+    // Still on the canvas, and still centred on it: only the scale changed.
+    expect(now.x + now.width, `${field}=${value} pushed the mascot off the left`).toBeGreaterThan(canvas.x);
+    expect(now.x, `${field}=${value} pushed the mascot off the right`).toBeLessThan(canvas.x + canvas.width);
+    expect(Math.abs(now.x + now.width / 2 - middle), `${field}=${value} slid the mascot sideways`).toBeLessThan(2);
+
+    // And the chrome went with it, instead of staying where the mascot was.
+    const marks = await chrome();
+    expect(Math.abs(marks.x - now.x), `${field}=${value} left the selection chrome behind`).toBeLessThan(12);
+    expect(Math.abs(marks.width - now.width)).toBeLessThan(24);
+  }
+
+  // Narrower means larger on screen, which is the whole of what a size means
+  // here: the same mascot, framed the same way, at a different scale.
+  await page.locator('[data-artboard-field="width"]').fill('120');
+  await page.locator('[data-artboard-field="width"]').press('Enter');
+  await page.locator('[data-artboard-field="height"]').fill('120');
+  await page.locator('[data-artboard-field="height"]').press('Enter');
+  await expect.poll(async () => (await head()).width > before.width).toBe(true);
 });
 
 test('a clipped piece says what is cutting it, and the clip can be taken off', async ({ page }) => {
