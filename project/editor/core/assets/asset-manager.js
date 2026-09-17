@@ -1,5 +1,6 @@
 import { assetRef, normalizeAsset, parseAssetRef } from './asset-model.js';
 import { validateAssetBytes } from './asset-validate.js';
+import { createAssetOptimiser } from './asset-optimise.js';
 
 /**
  * Importing assets, and knowing which of them anything still points at.
@@ -78,28 +79,35 @@ export const missingAssets = (document = {}) => {
   return [...assetReferencesIn(document)].filter((id) => !table[id]).sort();
 };
 
-export function createAssetManager({ store, hash = hashAssetBytes, now = () => new Date().toISOString() }) {
+export function createAssetManager({ store, hash = hashAssetBytes, optimiser = createAssetOptimiser(), now = () => new Date().toISOString() }) {
   return {
     /**
      * Bytes in, an asset record out -- or a refusal with the reason.
      *
-     * The bytes are validated before they are hashed and stored: nothing
-     * reaches the store that is not going to become an asset.
+     * Validated, then brought inside the budget, then hashed, and in that
+     * order: the id names the bytes that are *kept*, so resizing after hashing
+     * would leave every reference pointing at a picture nobody has. It also
+     * means two authors who import the same oversized original end up sharing
+     * one asset, because they resize to the same bytes.
      *
      * @returns {Promise<{ok: boolean, asset: object|null, stored: boolean, issues: object[]}>}
      */
     async import(bytes, { name = '', type = '' } = {}) {
       const checked = validateAssetBytes(bytes, { name, declaredType: type });
       if (!checked.ok) return { ok: false, asset: null, stored: false, issues: checked.issues };
-      const id = await hash(bytes);
-      const held = await store.put(id, bytes);
+      const fitted = await optimiser.optimise(bytes, checked);
+      // Only worth saying when it did not happen: an import the author was
+      // told would be resized, and then was not, is a surprise otherwise.
+      const issues = fitted.resized || !fitted.reason ? checked.issues : [...checked.issues, { code: 'not-resized', detail: fitted.reason }];
+      const id = await hash(fitted.bytes);
+      const held = await store.put(id, fitted.bytes);
       const asset = normalizeAsset({
-        id, format: checked.format, width: checked.width, height: checked.height,
+        id, format: checked.format, width: fitted.width, height: fitted.height,
         alpha: checked.alpha, bytes: held.bytes, name, importedAt: now()
       });
       // `stored: false` is the duplicate case, and the useful thing to say
       // about it: the author already had this picture.
-      return { ok: true, asset, stored: held.stored, issues: checked.issues };
+      return { ok: true, asset, stored: held.stored, issues };
     },
 
     /** The bytes behind an id, or null. Painting them is the resolver's job, not this one's. */

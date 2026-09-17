@@ -105,3 +105,30 @@ test('collecting nothing changes nothing',async()=>{
   assert.deepEqual(collected.removed,[]);
   assert.equal(collected.assets,document.assets,'the same table back, not a copy of it');
 });
+
+test('an oversized import is fitted before it is named',async()=>{
+  // The id names the bytes that are kept. Hashing the original and storing
+  // the resized one would leave every reference pointing at a picture nobody
+  // has, so the order is: validate, fit, hash, store.
+  const store = createMemoryAssetStore();
+  const fitted = new Uint8Array([1, 2, 3]);
+  const assets = createAssetManager({ store, optimiser: { optimise: async () => ({ bytes: fitted, width: 512, height: 384, resized: true, reason: '' }) } });
+  const big = Buffer.from(file('alpha-16x16.png')); big.writeUInt32BE(1024, 16); big.writeUInt32BE(768, 20);
+
+  const result = await assets.import(big, { name: 'huge.png' });
+  assert.deepEqual({ width: result.asset.width, height: result.asset.height, bytes: result.asset.bytes },{ width: 512, height: 384, bytes: 3 });
+  assert.equal(result.asset.id,await hashAssetBytes(fitted),'named after what was kept');
+  assert.equal((await store.get(result.asset.id)).size ?? (await store.get(result.asset.id)).length,3);
+});
+
+test('an author told a picture would be resized is told when it was not',async()=>{
+  const store = createMemoryAssetStore();
+  // No codec: the picture goes through at its original size, and the
+  // `over-budget` promise is answered rather than left hanging.
+  const assets = createAssetManager({ store });
+  const big = Buffer.from(file('alpha-16x16.png')); big.writeUInt32BE(1024, 16); big.writeUInt32BE(768, 20);
+  const result = await assets.import(big, { name: 'huge.png' });
+  assert.deepEqual(result.issues.map((i) => i.code),['over-budget','not-resized']);
+  assert.equal(result.issues[1].detail,'no-codec');
+  assert.equal(result.asset.width,1024,'and the record says the size it really is');
+});
