@@ -97,7 +97,7 @@ replaced, animation distinct from behavior, SVG compatibility mandatory.
    `projectVersion`; `RIG_SCHEMA_VERSION` moves only in Phase 7, and only if
    `mesh-image` proves it must.
 
-## Phase 0 — Stabilise (5 PRs)
+## Phase 0 — Stabilise (5 PRs) — **done**
 
 No user-visible change. The point is a baseline that later phases can be
 measured against.
@@ -107,8 +107,8 @@ measured against.
 | **V4-001** — done | One truth about which version a project file is: `PROJECT_VERSION`, `projectVersionOf`, `canOpenProjectVersion` | new `state/project-version.js`, `state/project-snapshot.js` | S |
 | **V4-002** — done | An ordered, named migration ladder, run once at the boundary a file arrives through; a step that throws fails the load rather than half-applying | new `state/migrations/project-migrations.js`, `state/project-snapshot.js` | M |
 | **V4-003** — done | Two real projects frozen as fixtures: open → edit → save → reload → the same compiled frame, anchored to a frozen digest | `core/tests/fixtures/projects/`, new `project-roundtrip.test.js` | M |
-| **V4-004** | Reference scenes and a measured baseline written down, so a later phase can show it did not regress | `runtime-performance.test.js`, `docs/PERFORMANCE_BUDGETS.md` | S |
-| **V4-005** | The current project format documented as it actually is | new `docs/PROJECT_FORMAT.md` | S |
+| **V4-004** — done | Three reference scenes with counted budgets and one generous ceiling each | new `fixtures/reference-scenes.js`, new `v4-reference-scenes.test.js`, `docs/PERFORMANCE_BUDGETS.md` | S |
+| **V4-005** — done | The current project format documented as it actually is | new `docs/PROJECT_FORMAT.md` | S |
 
 **Exit:** a project saved before V4-001 opens, edits, saves and reloads to an
 identical compiled frame, and the suite says so without a human looking.
@@ -144,6 +144,17 @@ identical compiled frame, and the suite says so without a human looking.
 - **A known hole:** warps, deformers and hands are empty in both fixtures, so
   no *project* in the corpus carries one. Closing it belongs to V4-060 and
   V4-070, where those domains change.
+- **Node count is the cost, not deformation.** Two hundred nodes that only
+  move cost about what a hundred and thirty that deform do: ~7 µs a node
+  against ~11 µs. So the scene to guard through Phase 2 is the rigid one and
+  V4-022 must not add per-node compile work; Phase 7 starts with more headroom
+  than it appears to. There is a test for that ratio.
+- **`.boop` inherits a decision, not a format.** `createExportRig` does not
+  write the file's `rig` block: it moves expressions and reactions in, renames
+  clips to `animations`, adds `requires`, and drops every authoring-only
+  domain. The export is lossy on purpose, so V4-040 has to choose whether the
+  package carries both shapes or keeps export a separate action
+  (`docs/PROJECT_FORMAT.md`).
 
 ## Phase 1 — The asset model (6 PRs)
 
