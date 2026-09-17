@@ -315,3 +315,50 @@ test('selecting a state clears a track selected earlier, so the inspector follow
   assert.equal(context.get().selectedTrackParameter, null, 'the stale track still outranks the state');
   assert.equal(context.get().selectedKey, null);
 });
+
+/** A canvas node, in the shape the appearance section reads one. */
+const nodeOf = (localName, attributes = {}) => ({ node: {
+  localName,
+  getAttribute: (name) => (name in attributes ? String(attributes[name]) : null),
+  textContent: ''
+} });
+
+const appearanceFor = (localName, attributes) => {
+  const { store, history } = riggedStore();
+  store.mutateSession('selectedId', (session) => { session.selectedId = 'mouth'; });
+  const host = fakeHost();
+  createInspector(host, store, history, { getNode: () => nodeOf(localName, attributes), applyElementTransform() {}, setAppearance() {} }).render();
+  return host.innerHTML;
+};
+
+test('a picture is offered its own numbers, and not paint that would do nothing',()=>{
+  const html = appearanceFor('image', { width: 48, height: 32, x: 10, y: 4, opacity: '0.8' });
+  // Fill and stroke paint nothing on a raster image: the pixels are the paint,
+  // and offering the controls is an author changing a colour and watching
+  // nothing happen.
+  assert.doesNotMatch(html,/data-paint="fill"/);
+  assert.doesNotMatch(html,/data-paint="stroke"/);
+  // Opacity does work on one, so it stays.
+  assert.match(html,/data-appearance="opacity"/);
+  // Its box is the thing an author actually drags.
+  assert.match(html,/<h4>Picture<\/h4>/);
+  for (const name of ['width','height','x','y']) assert.match(html,new RegExp(`data-appearance="${name}"`),name);
+  // And there is no outline to convert, so the action that would decline it is
+  // not offered.
+  assert.doesNotMatch(html,/data-convert-path/);
+});
+
+test('nothing changed for the shapes that were already right',()=>{
+  const rect = appearanceFor('rect', { width: 10, height: 10, fill: '#f00' });
+  assert.match(rect,/data-paint="fill"/);
+  assert.match(rect,/<h4>Shape<\/h4>/);
+  assert.match(rect,/data-convert-path/);
+
+  const text = appearanceFor('text', { 'font-size': 16 });
+  assert.match(text,/<h4>Text<\/h4>/);
+  assert.doesNotMatch(text,/data-convert-path/,'text was never convertible either');
+
+  const path = appearanceFor('path', { d: 'M0 0 L1 1', fill: '#0f0' });
+  assert.match(path,/data-paint="fill"/);
+  assert.doesNotMatch(path,/<h4>Shape<\/h4>/,'a path has no geometry section: it is already one');
+});

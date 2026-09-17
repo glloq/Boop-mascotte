@@ -25,6 +25,12 @@ export function geometryFields(localName) {
   if (localName === 'circle') return [['r', 'Radius', 'min="0" step="0.5"']];
   if (localName === 'ellipse') return [['rx', 'Radius X', 'min="0" step="0.5"'], ['ry', 'Radius Y', 'min="0" step="0.5"']];
   if (localName === 'text') return [['font-size', 'Font size', 'min="1" step="1"']];
+  // A picture's own numbers. `x`/`y` are here and not on a rectangle because a
+  // rect is placed by its transform like every other piece, while an `<image>`
+  // is the one element whose box and whose artwork are the same thing: a
+  // author dragging its corner is changing `width`, not a scale
+  // (docs/V4_ROADMAP.md, Phase 2).
+  if (localName === 'image') return [['width', 'Width', 'min="0" step="1"'], ['height', 'Height', 'min="0" step="1"'], ['x', 'X', 'step="0.5"'], ['y', 'Y', 'step="0.5"']];
   return [];
 }
 
@@ -254,6 +260,10 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     const paint=(name)=>raw(name)??computed(name)??'';
     const kind=node.localName||'';
     const isGroup=kind==='g';
+    // Fill and stroke paint nothing on a raster `<image>`: the pixels are the
+    // paint. Offering the controls anyway is an author changing a colour and
+    // watching nothing happen, which is worse than not offering them.
+    const isPicture=kind==='image';
     // The swatch opens the colour dialog (`ui/colour-picker.js`), which leads
     // with the colours this mascot already uses -- the system picker knew
     // nothing about the drawing, so matching the skin or the line colour meant
@@ -264,12 +274,12 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     const choice=(name,label,options,current)=>`<label>${label}<select data-appearance="${name}" aria-label="${label}">${options.map(([value,text])=>`<option value="${value}"${current===value?' selected':''}>${text}</option>`).join('')}</select></label>`;
     const rows=[];
     const fill=paint('fill'), stroke=paint('stroke');
-    if(!isGroup){
+    if(!isGroup&&!isPicture){
       rows.push(paintRow('fill','Fill',fill));
       if(fill&&fill!=='none')rows.push(number('fill-opacity','Fill opacity',raw('fill-opacity')??'1','min="0" max="1" step="0.05"'));
     }
-    rows.push(paintRow('stroke','Stroke',stroke));
-    if(stroke&&stroke!=='none'){
+    if(!isPicture)rows.push(paintRow('stroke','Stroke',stroke));
+    if(!isPicture&&stroke&&stroke!=='none'){
       rows.push(number('stroke-width','Stroke width',raw('stroke-width')??(computed('stroke-width').replace('px','')||'1'),'min="0" step="0.5"'));
       rows.push(number('stroke-opacity','Stroke opacity',raw('stroke-opacity')??'1','min="0" max="1" step="0.05"'));
       rows.push(choice('stroke-linecap','Line ends',[['butt','Flat'],['round','Round'],['square','Square']],raw('stroke-linecap')||'butt'));
@@ -280,13 +290,15 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     rows.push(`<label>Opacity <output data-appearance-output="opacity">${Math.round(Number(opacity)*100)}%</output><input type="range" data-appearance="opacity" data-live aria-label="Opacity" min="0" max="1" step="0.01" value="${esc(opacity)}"></label>`);
     const geometry=geometryFields(kind);
     if(geometry.length||kind==='text'){
-      rows.push(`<h4>${kind==='text'?'Text':'Shape'}</h4>`);
+      rows.push(`<h4>${kind==='text'?'Text':isPicture?'Picture':'Shape'}</h4>`);
       if(kind==='text')rows.push(`<label>Text<input type="text" data-text-content aria-label="Text content" value="${esc(node.textContent||'')}"></label>`);
       for(const [name,label,attrs] of geometry)rows.push(number(name,label,raw(name)??(name==='font-size'?'16':'0'),attrs));
       if(kind==='text')rows.push(choice('text-anchor','Anchor',[['start','Start'],['middle','Middle'],['end','End']],raw('text-anchor')||'start'));
       // Everything that reshapes artwork — the Node tool, a pin, a shape key, a
       // warp — works on a path's points, and a rectangle has none.
-      if(kind!=='text')rows.push(`<button type="button" class="secondary" data-convert-path title="The same outline as a path: it can then be reshaped point by point, pinned, warped and given shape keys">Convert to a path</button>`);
+      // Not offered to a picture: there is no outline to convert, and the
+      // action would decline it (svg-editor/path-only.js).
+      if(kind!=='text'&&!isPicture)rows.push(`<button type="button" class="secondary" data-convert-path title="The same outline as a path: it can then be reshaped point by point, pinned, warped and given shape keys">Convert to a path</button>`);
     }
     return rows.join('');
   }
