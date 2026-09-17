@@ -281,7 +281,12 @@ export function createEditorApp({ root = document.getElementById('app'), recover
   // One dialog for every colour in the editor: the artwork's own palette first
   // (`ui/colour-picker.js`), then a standard set, then a hex field.
   const colourPicker = createColourPicker(shell.colourPickerEl, { palette: () => paletteFromSvg(store.getDocument().svgMarkup) });
-  const inspector = createInspector(shell.inspectorEl, store, history, canvas, { openColour: (options) => colourPicker.open(options) });
+  const inspector = createInspector(shell.inspectorEl, store, history, canvas, {
+    openColour: (options) => colourPicker.open(options),
+    // Declared later in this same scope; the callback only runs once someone
+    // has a picture selected, which is long after the wiring is done.
+    replacePicture: (id, file) => projectService.replaceImageFile(id, file)
+  });
   // The Character Builder (docs/CHARACTER_BUILDER.md): the parts a person
   // names, on the same canvas and the same document, editing through the same
   // commands the Artwork inspector runs. Its presets load a template through

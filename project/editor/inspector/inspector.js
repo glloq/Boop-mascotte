@@ -53,7 +53,7 @@ export function inspectorSubject(state, id) {
   };
 }
 
-export function createInspector(host, store, history, canvas, { openColour = null } = {}) {
+export function createInspector(host, store, history, canvas, { openColour = null, replacePicture = null } = {}) {
   // The Inspector is rebuilt whenever the selection or the document changes:
   // the disclosures the author opened outlive it, and the view stays put.
   const sections = rememberOpen(host);
@@ -166,6 +166,15 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     const selected = selectedElement();
     if (!selected) return;
     const { id, element, document } = selected;
+
+    if (target.dataset.replacePicture !== undefined) {
+      const file = target.files?.[0];
+      // The input is cleared either way, so picking the same file twice is
+      // two replacements rather than one and a silence.
+      target.value = '';
+      if (file) Promise.resolve(replacePicture?.(id, file)).then(() => renderCurrent({ force: true }));
+      return;
+    }
 
     if (target.dataset.appearanceNone !== undefined) {
       const property = target.dataset.appearanceNone;
@@ -299,6 +308,11 @@ export function createInspector(host, store, history, canvas, { openColour = nul
       // Not offered to a picture: there is no outline to convert, and the
       // action would decline it (svg-editor/path-only.js).
       if(kind!=='text'&&!isPicture)rows.push(`<button type="button" class="secondary" data-convert-path title="The same outline as a path: it can then be reshaped point by point, pinned, warped and given shape keys">Convert to a path</button>`);
+      // Swapping the drawing and keeping everything else is the whole point of
+      // a picture being a node: the rig, the movements, the pivot, the depth
+      // and the place in the paint order all belong to the piece and none of
+      // them knows what it draws (docs/V4_ROADMAP.md, V4-032).
+      if(isPicture&&replacePicture)rows.push(`<label class="button secondary" title="A different picture on this same piece. Its movements, its pivot and its depth are unchanged.">Replace picture<input hidden type="file" data-replace-picture accept=".png,.webp,.svg,image/png,image/webp,image/svg+xml"></label>`);
     }
     return rows.join('');
   }
