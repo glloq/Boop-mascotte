@@ -4,6 +4,8 @@ import { createHistory } from '../core/undo/history.js';
 import { imageElementPlugin } from '../core/plugins/builtin/image-plugin.js';
 import { createSvgCanvas } from '../svg-editor/svg-canvas.js';
 import { openAssetStore } from '../core/assets/asset-store.js';
+import { createAssetManager } from '../core/assets/asset-manager.js';
+import { createAssetOptimiser, createBrowserCodec } from '../core/assets/asset-optimise.js';
 import { createAssetResolver } from '../../runtime/asset-resolver.js';
 import { createNewMascotWizard } from '../ui/new-mascot/wizard.js';
 import { presetMorphology } from '../core/face-library/compatibility.js';
@@ -151,6 +153,14 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
    */
   const assetStoreReady = openAssetStore();
   canvas.setAssetResolver(createAssetResolver({ store: { get: async (id) => (await assetStoreReady).get(id) } }));
+  /**
+   * Importing a picture. Also deferred: the codec is only needed for a file
+   * big enough to resize, and the store only when one arrives.
+   */
+  const assets = createAssetManager({
+    store: { put: async (...args) => (await assetStoreReady).put(...args), get: async (id) => (await assetStoreReady).get(id), remove: async (id) => (await assetStoreReady).remove(id) },
+    optimiser: createAssetOptimiser({ codec: createBrowserCodec() })
+  });
   // The options bar under the vector toolbar: what a new shape is painted
   // with, a polygon's sides, the grid, and the Node tool's point operations.
   // UI preferences, remembered in the browser, never part of the project.
@@ -601,7 +611,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // stop, swap, clear undo and re-baseline in the same order, and that can be
   // exercised without a browser.
   const projectService = createProjectService({
-    store, history, canvas, preview, timeline, autosave,
+    store, history, canvas, preview, timeline, autosave, assets,
     setStatus: (message, tone) => shell.setStatus(message, tone),
     setProjectLoaded: (loaded) => shell.setProjectLoaded(loaded),
     closeHome: () => shell.closeHome(),
@@ -629,6 +639,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
 
 
   shell.bindLoadSvg((file) => projectService.loadSvgFile(file));
+  shell.bindAddImage((file) => projectService.addImageFile(file));
 
   shell.bindLoadSample((kind) => projectService.loadTemplate(kind));
 

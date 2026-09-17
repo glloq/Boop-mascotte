@@ -81,6 +81,8 @@ export function wireTopbar({ root, q }) {
     openSvgFilePicker() { q('#svg-file').click(); },
     bindLoadProject(handler) { bindFile('#project-file', handler); },
     bindLoadSvg(handler) { bindFile('#svg-file', handler); bindFile('#artwork-svg-file', handler); },
+    /** Adding a picture to the artwork that is open, as opposed to replacing the project with one. */
+    bindAddImage(handler) { bindFile('#artwork-image-file', handler); },
     bindLoadRig(handler) { bindFile('#rig-file', handler); },
     bindLoadFacePack(handler) { bindFile('#face-pack-file', handler); }
   };

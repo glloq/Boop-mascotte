@@ -30,6 +30,28 @@ import { buildFaceProjectTemplate } from '../../core/assets/face-builder.js';
 import { validateRig } from '../../core/validation/rig-validator.js';
 import { applyImportedRig } from '../../core/state/import-rig.js';
 import { identifyFaceParts } from '../../core/face-library/face-part-migration.js';
+import { imageNodeId, imageNodeMarkup, placeImageInArtboard } from '../../core/assets/asset-placement.js';
+import { readArtboard } from '../../core/artwork/artboard.js';
+import { createArtworkCommands } from '../../core/commands/artwork-commands.js';
+
+/**
+ * Why a picture was refused, in words rather than in codes.
+ *
+ * The validator speaks in codes so that tests and callers can branch on them
+ * (core/assets/asset-validate.js); an author needs a sentence, and one that
+ * says what to do next where there is anything to do.
+ */
+const REFUSALS = Object.freeze({
+  empty: 'the file is empty',
+  'unknown-format': 'this is not a picture this editor can read — PNG, WebP or SVG',
+  'convert-first': 'JPEG and GIF have to be saved as PNG or WebP first',
+  'no-dimensions': 'the file looks damaged — its size could not be read',
+  'too-large': 'it is far larger than a mascot needs',
+  'too-many-pixels': 'it is far larger than a mascot needs',
+  'too-many-bytes': 'the file is too big to import',
+  'unsafe-svg': 'this SVG carries something executable, which cannot be imported'
+});
+const importRefusal = (issues = []) => REFUSALS[issues[0]?.code] || 'it could not be imported';
 
 /** Every domain `applyImportedRig` can write, so every panel that shows one redraws. */
 const RIG_IMPORT_DOMAINS = Object.freeze(['artwork', 'rig', 'stateMachine', 'keyforms', 'constraints', 'hands', 'hierarchy']);
@@ -52,6 +74,9 @@ export const browserDownload = (name, text) => {
 
 export function createProjectService({
   store, history, canvas, preview, timeline, autosave,
+  // How a picture becomes an asset. Absent in a service wired without one, and
+  // `addImageFile` then says so rather than throwing.
+  assets = null,
   // The shell, as the four things this service actually asks of it.
   setStatus = () => {}, setProjectLoaded = () => {}, closeHome = () => {},
   navigate = () => {},
@@ -69,6 +94,9 @@ export function createProjectService({
   // self reference, and the DOM timer needs the global as its receiver.
   requestAnimationFrame: afterPaint = (callback) => globalThis.requestAnimationFrame(callback)
 } = {}) {
+  // Its own instance, as the canvas has: a command is a document mutation plus
+  // a history step, and both are stateless.
+  const commands = createArtworkCommands(store, history);
   /**
    * The one destructive path. `commit` prepares nothing and validates nothing:
    * whatever can fail must have failed before this is called, so a bad file
@@ -139,6 +167,45 @@ export function createProjectService({
     // A recovered draft matches the record it came from, so the version token
     // would call it clean — yet the author has never saved it anywhere.
     if (recovered) { autosave.markDirty(); setStatus('Recovered local copy — unsaved changes.', 'warn'); }
+    return true;
+  };
+
+  /**
+   * Add a picture to the artwork that is already open.
+   *
+   * Not `loadSvgFile`, which replaces the project: this puts one more piece on
+   * the canvas, in the middle, at a size its author can see all of
+   * (core/assets/asset-placement.js).
+   *
+   * The node and the asset record are written in one command, so one undo takes
+   * both back. Splitting them would leave a step where the artwork points at a
+   * record the project does not list.
+   */
+  const addImageFile = async (file) => {
+    if (!assets) { setStatus('Pictures cannot be added in this editor build.', 'error'); return false; }
+    let imported;
+    try {
+      imported = await assets.import(new Uint8Array(await file.arrayBuffer()), { name: file.name, type: file.type });
+    } catch {
+      setStatus(`Could not read ${file.name}.`, 'error');
+      return false;
+    }
+    if (!imported.ok) { setStatus(`${file.name}: ${importRefusal(imported.issues)}`, 'error'); return false; }
+
+    const before = store.getDocument();
+    const box = placeImageInArtboard(imported.asset, readArtboard(before.svgMarkup));
+    if (!box) { setStatus(`${file.name} has no size to place.`, 'error'); return false; }
+    const id = imageNodeId(file.name, new Set(Object.keys(before.elements || {})));
+    const artwork = canvas.appendArtwork(imageNodeMarkup({ id, assetId: imported.asset.id, box }), null, { updateStore: false });
+    if (!artwork) { setStatus(`Could not place ${file.name}.`, 'error'); return false; }
+
+    commands.syncSvg({ ...artwork, assets: { ...(before.assets || {}), [imported.asset.id]: imported.asset } },
+      { domains: ['artwork', 'layers', 'assets'], source: 'add-image' });
+    await canvas.refreshAssets();
+    preview.apply();
+    setStatus(imported.stored
+      ? `Added ${file.name}. Drag it, or resize it from the Inspector.`
+      : `Added ${file.name} — you already had this picture, so it is the same asset.`);
     return true;
   };
 
@@ -244,5 +311,5 @@ export function createProjectService({
     }
   };
 
-  return { replaceProject, restoreSnapshot, saveProject, downloadJson, loadSvgFile, loadTemplate, generateFace, loadProjectFile, importRigFile };
+  return { replaceProject, restoreSnapshot, saveProject, downloadJson, addImageFile, loadSvgFile, loadTemplate, generateFace, loadProjectFile, importRigFile };
 }

@@ -59,7 +59,12 @@ export function createArtworkCommands(store, history) {
     },
     syncSvg(payload, options = {}) {
       return run('artwork/sync-svg', options.domains || ['artwork', 'layers'], options.source || 'canvas', document => {
-        for (const key of ['svgMarkup', 'elements', 'layers', 'layerMetadata', 'svgWarnings']) if (key in payload) document[key] = structuredClone(payload[key]);
+        // `assets` rides along so that adding a picture is *one* step: the node
+        // and the record it points at have to arrive and leave together, or an
+        // undo leaves artwork pointing at an asset the project no longer lists
+        // (docs/V4_ROADMAP.md, ASSET-REF). A caller sending it must name the
+        // domain too, or nothing redraws.
+        for (const key of ['svgMarkup', 'elements', 'layers', 'layerMetadata', 'svgWarnings', 'assets']) if (key in payload) document[key] = structuredClone(payload[key]);
       }, options);
     }
   };
