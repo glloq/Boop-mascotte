@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyProjectSnapshot, canOpenProjectVersion, createProjectSnapshot, PROJECT_VERSION, prepareProjectSnapshot, projectVersionOf } from '../state/project-snapshot.js';
+import { applyProjectSnapshot, createProjectSnapshot, prepareProjectSnapshot } from '../state/project-snapshot.js';
+import { canOpenProjectVersion, PROJECT_VERSION, projectVersionOf } from '../state/project-version.js';
 import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
 
 function baseState() {
@@ -91,4 +92,20 @@ test('a file a newer editor wrote is declined, and declined the same way at ever
   }
   // Every version this editor wrote, it can still open.
   for(let version=1;version<=PROJECT_VERSION;version++) assert.ok(canOpenProjectVersion(version),`v${version} declined`);
+});
+
+test('the file boundary migrates once, and says what it did',()=>{
+  const current=createProjectSnapshot(baseState());
+  // Already current: nothing to report.
+  assert.equal(prepareProjectSnapshot(current,value=>value).migratedFrom,undefined);
+  // An older file arrives at the current version, and carries the record of
+  // how it got there -- session information, never written back to a file.
+  const old={...structuredClone(current),version:1};
+  const prepared=prepareProjectSnapshot(old,value=>value);
+  assert.equal(prepared.version,PROJECT_VERSION);
+  assert.equal(prepared.migratedFrom.version,1);
+  assert.equal(prepared.migratedFrom.applied.length,PROJECT_VERSION-1);
+  assert.equal(old.version,1);
+  const target=baseState();applyProjectSnapshot(target,prepared);
+  assert.equal(createProjectSnapshot(target).migratedFrom,undefined);
 });
