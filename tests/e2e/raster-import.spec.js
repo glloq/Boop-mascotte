@@ -126,3 +126,22 @@ test('@critical a project with pictures saves as a package and opens without the
   expect(trouble).toEqual([]);
   await fresh.close();
 });
+
+test('@critical a mascot of pictures exports as one archive that carries them', async ({ page }) => {
+  const trouble = watchForTrouble(page);
+  await openReadyMadeFace(page);
+  await page.setInputFiles('#artwork-image-file', PICTURE);
+  await expect(page.locator('svg image')).toHaveCount(1);
+
+  await page.getByRole('button', { name: 'Export' }).first().click();
+  // A dozen files that each have to land in `assets/` or nothing draws is a
+  // way of handing someone a broken mascot, so the archive is offered first.
+  await expect(page.locator('[data-download-artifact]').first()).toHaveText(/mascot-export\.zip/);
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.locator('[data-download-artifact="mascot-export.zip"]').click()
+  ]);
+  expect(download.suggestedFilename()).toBe('mascot-export.zip');
+  expect(trouble).toEqual([]);
+});

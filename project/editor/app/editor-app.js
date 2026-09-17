@@ -594,7 +594,9 @@ export function createEditorApp({ root = document.getElementById('app'), recover
   // is built once they all exist.
   let workspaceManager = null;
   editorContext.subscribe((context)=>workspaceManager?.apply(context));
-  const exporter = createExporter(shell.exportEl, store, canvas);
+  // Export ships the pictures beside the artwork, so it needs to be able to
+  // read them (docs/V4_ROADMAP.md, V4-024).
+  const exporter = createExporter(shell.exportEl, store, canvas, { assetBytes: (id) => assets.bytes(id) });
 
   function reportFatalError(error) {
     console.error(error);

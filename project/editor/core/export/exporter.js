@@ -22,7 +22,8 @@ import effectiveParamsSource from '../../../runtime/effective-params.js?raw';
 import runtimeModuleSource from '../../../runtime/runtime.js?raw';
 import { bundleRuntimeSource } from './runtime-bundle.js';
 import { createExportRig } from './export-rig.js';
-import { createExportArtifacts as buildExportArtifacts, createExportUiModel } from './export-policy.js';
+import { EXPORT_BUNDLE, createExportArtifacts as buildExportArtifacts, createExportUiModel } from './export-policy.js';
+import { writeZip } from './zip.js';
 import { createExportReadinessModel } from './export-readiness.js';
 import { READINESS_SYMBOLS } from '../validation/task-readiness.js';
 
@@ -33,14 +34,15 @@ const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp
 export function createExporter(host, store, canvas, options = {}) {
   if (!host) throw new Error('Missing required UI element: #export-panel');
   // Readiness sources and deep-link handlers are configured once the validation cache and router exist (UX-16).
-  let config = { readiness: () => null, issues: () => [], onFix: () => {}, onGo: () => {}, ...options };
+  let config = { readiness: () => null, issues: () => [], onFix: () => {}, onGo: () => {}, assetBytes: async () => null, ...options };
   let current = null;
 
-  const createExportArtifacts = () => {
+  const createExportArtifacts = (assetBytes = () => null) => {
     return buildExportArtifacts({
       state: store.getState(),
       serializeSvg: () => canvas.serializeCurrentSvg(),
       createRig: createExportRig,
+      assetBytes,
       // One standalone file even though the runtime is authored as modules.
       runtimeSource: bundleRuntimeSource([
         { name: 'numeric.js', source: numericSource },
@@ -74,8 +76,28 @@ export function createExporter(host, store, canvas, options = {}) {
     const go=event.target.dataset.readinessGo; if (go) { const section=(current?.sections||[]).find(item=>item.id===go); host.hidden=true; if (section) config.onGo(section); return; }
     const name=event.target.dataset.downloadArtifact;
     if (!name) return;
-    const artifact=createExportArtifacts().find(item=>item.name===name);
-    if (artifact) download(artifact);
+    // Reading the pictures out of the store is asynchronous, so every download
+    // is: a mascot of paths asks for nothing and resolves at once.
+    void (async () => {
+      const held = new Map();
+      for (const id of Object.keys(store.getDocument?.()?.assets || {})) {
+        const bytes = await config.assetBytes?.(id);
+        if (bytes) held.set(id, bytes);
+      }
+      const artifacts = createExportArtifacts((id) => held.get(id) ?? null);
+      if (name === EXPORT_BUNDLE.name) {
+        const bytes = await writeZip(artifacts.map((item) => ({
+          name: item.name,
+          bytes: typeof item.content === 'string' ? new TextEncoder().encode(item.content) : item.content,
+          // A picture is compressed already; deflating it costs time to grow it.
+          compress: !item.name.startsWith('assets/') || item.type === 'image/svg+xml'
+        })));
+        download({ name, type: 'application/zip', content: bytes });
+        return;
+      }
+      const artifact = artifacts.find((item) => item.name === name);
+      if (artifact) download(artifact);
+    })();
   });
 
   return {
