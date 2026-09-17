@@ -104,18 +104,46 @@ measured against.
 
 | PR | What | Files | Size |
 | --- | --- | --- | --- |
-| **V4-001** | `projectVersion` on the document, distinct from `schemaVersion`; written on save, absent on old files and read as 1 | `state/project-document.js`, `state/project-snapshot.js`, `export/export-rig.js` | S |
-| **V4-002** | An ordered, named migration chain; the implicit fixups move behind it; non-destructive (the pre-migration document is kept for the session and the report names every step applied) | new `state/migrations/`, `state/import-rig.js`, `state/project-document.js` | M |
-| **V4-003** | Historic SVG projects frozen as round-trip fixtures: open → edit → save → reload → identical render plan | `core/tests/fixtures/projects/`, new `project-roundtrip.test.js` | M |
+| **V4-001** — done | One truth about which version a project file is: `PROJECT_VERSION`, `projectVersionOf`, `canOpenProjectVersion` | new `state/project-version.js`, `state/project-snapshot.js` | S |
+| **V4-002** — done | An ordered, named migration ladder, run once at the boundary a file arrives through; a step that throws fails the load rather than half-applying | new `state/migrations/project-migrations.js`, `state/project-snapshot.js` | M |
+| **V4-003** — done | Two real projects frozen as fixtures: open → edit → save → reload → the same compiled frame, anchored to a frozen digest | `core/tests/fixtures/projects/`, new `project-roundtrip.test.js` | M |
 | **V4-004** | Reference scenes and a measured baseline written down, so a later phase can show it did not regress | `runtime-performance.test.js`, `docs/PERFORMANCE_BUDGETS.md` | S |
 | **V4-005** | The current project format documented as it actually is | new `docs/PROJECT_FORMAT.md` | S |
 
 **Exit:** a project saved before V4-001 opens, edits, saves and reloads to an
-identical render plan, and the suite says so without a human looking.
+identical compiled frame, and the suite says so without a human looking.
 
-V4-002 is the one with a real decision in it: the chain must be able to run
-*forward only*, and a migration that cannot complete must fail the load
-loudly rather than half-apply. V4-003 exists to make that testable.
+### What building it corrected
+
+- **There was no new field to add.** The separation V4 asks for already
+  existed: the file carries `version` (the private `SNAPSHOT_VERSION`, 3) and
+  the rig inside it carries `schemaVersion`. What was missing is that the
+  file's version was unnamed and its accepted range written out twice. So
+  V4-001 named it and unified the predicate rather than adding a third number,
+  and it stays on the file rather than moving onto `ProjectDocument`: which
+  format a document was stored in is not something the document means.
+- **The ladder declares every rung, including the empty ones.** Opening an old
+  project works today by accident -- every field a newer format added is
+  defaulted when absent -- and that holds exactly as long as changes stay
+  additive. So a rung with nothing to do still gets an entry, because "no
+  entry" has to mean someone forgot; `projectMigrationLadderGaps` makes that a
+  failing test rather than a comment.
+- **Migration runs at `prepareProjectSnapshot`, and only there.** Not in
+  `applyProjectSnapshot`: its callers load the canvas from
+  `document.svgMarkup` *before* they apply, so a step that rewrote the markup
+  there would rewrite it after the canvas had read the old one. This matters
+  from V4-020 on, when a step will rewrite exactly that markup.
+- **A round trip alone proves less than it looks.** Comparing a reloaded
+  project against the same project in memory is symmetric: a reader that
+  drops a domain drops it on both sides and the test still passes. Emptying
+  `keyforms` on the way in passed every relative check. The fixtures are
+  therefore anchored to a frozen frame digest and frozen domain counts.
+- **`render-plan.js` is not the render.** It is the table of which panel
+  redraws for which domain. The testable visual invariant is the compiled
+  frame (`preview-runtime/frame-compiler.js`), which is what the fixtures use.
+- **A known hole:** warps, deformers and hands are empty in both fixtures, so
+  no *project* in the corpus carries one. Closing it belongs to V4-060 and
+  V4-070, where those domains change.
 
 ## Phase 1 — The asset model (6 PRs)
 
