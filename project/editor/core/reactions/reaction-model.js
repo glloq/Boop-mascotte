@@ -3,7 +3,7 @@
 // gestures) → Timing (attack / hold / release) → After (return or stay).
 // Reactions reference expressions, clips and hand poses by id and never create
 // or alter them. Normalization is shared with the runtime.
-import { REACTION_TIMINGS, REACTION_TRIGGERS, normalizeReaction } from '../../../runtime/runtime.js';
+import { REACTION_TIMINGS, REACTION_TRIGGERS, describeCondition, normalizeCondition, normalizeReaction } from '../../../runtime/runtime.js';
 import { slugify } from '../expressions/expression-model.js';
 import { handStyleId } from '../../../runtime/hand-vocabulary.js';
 
@@ -44,11 +44,31 @@ function requireTargets(document, { expressionId, clipId, gestures }) {
   }
 }
 
+/**
+ * A condition the author half-filled in.
+ *
+ * `normalizeConditions` drops anything it cannot read, which is right for a
+ * file written elsewhere and wrong for a row somebody is typing into: the row
+ * would vanish under the pointer with no word about why. The command refuses
+ * instead, and the panel shows the refusal where the row is.
+ */
+function requireConditions(conditions) {
+  if (conditions === undefined) return;
+  const list = Array.isArray(conditions) ? conditions : [];
+  list.forEach((candidate, index) => {
+    if (normalizeCondition(candidate)) return;
+    throw new Error(candidate?.kind === 'state'
+      ? `Condition ${index + 1} has no state to test. Pick one, or remove the row.`
+      : `Condition ${index + 1} has no movement to test. Pick one, or remove the row.`);
+  });
+}
+
 const fromOptions = (options, current = {}) => normalizeReaction({
   ...current,
   ...(options.name !== undefined ? { name: String(options.name).trim() } : {}),
   ...(options.enabled !== undefined ? { enabled: Boolean(options.enabled) } : {}),
   ...(options.trigger !== undefined ? { trigger: options.trigger } : {}),
+  ...(options.conditions !== undefined ? { conditions: options.conditions || [] } : {}),
   ...(options.expressionId !== undefined || options.weight !== undefined
     ? (() => { const id = options.expressionId === undefined ? current.expression?.id : options.expressionId; return { expression: id ? { id, weight: options.weight ?? current.expression?.weight ?? 1 } : null }; })() : {}),
   ...(options.clipId !== undefined ? { motion: options.clipId ? { clipId: options.clipId } : null } : {}),
@@ -65,6 +85,7 @@ export function createReaction(document, options = {}) {
   if (!name) throw new Error('Give the reaction a name (Surprise, Wave hello…).');
   if (options.trigger && typeof options.trigger === 'object' && !TRIGGER_TYPES.includes(options.trigger.type)) throw new Error(`Unknown trigger "${options.trigger.type}".`);
   requireTargets(document, options);
+  requireConditions(options.conditions);
   const reaction = fromOptions({ ...options, name }, { id: uniqueId(document, options.id || name) });
   (document.reactions ||= []).push(reaction);
   return reaction;
@@ -77,6 +98,7 @@ export function updateReaction(document, id, patch = {}) {
   if (patch.trigger && typeof patch.trigger === 'object' && !TRIGGER_TYPES.includes(patch.trigger.type)) throw new Error(`Unknown trigger "${patch.trigger.type}".`);
   if (patch.timing !== undefined && typeof patch.timing === 'string' && !TIMING_PRESETS[patch.timing]) throw new Error(`Unknown timing "${patch.timing}".`);
   requireTargets(document, patch);
+  requireConditions(patch.conditions);
   const next = fromOptions(patch, document.reactions[index]);
   document.reactions[index] = next;
   return next;
@@ -122,6 +144,12 @@ export function handGesture(document = {}, side = 'left', wanted = '') {
 /** Non-blocking problems: targets that no longer exist, or a reaction that does nothing. */
 export function reactionIssues(document) {
   const expressions = new Set((document?.expressions || []).map((item) => item.id)), clips = new Set((document?.animationClips || []).map((item) => item.id));
+  // What a condition can name (V4-090): a movement the project has a value
+  // for, or a state it can be in. A condition naming neither is not a broken
+  // reaction — it is a reaction that will never run, which is worse to leave
+  // unsaid, because nothing about the mascot looks wrong when it happens.
+  const parameters = new Set(Object.keys(document?.params || {})), states = new Set(Object.keys(document?.states || {}));
+  const unreachable = (condition) => (condition.kind === 'state' ? !states.has(condition.state) : !parameters.has(condition.parameter));
 
   return (document?.reactions || []).map((reaction) => ({
     id: reaction.id, name: reaction.name,
@@ -136,9 +164,23 @@ export function reactionIssues(document) {
     empty: !SELF_ACTING_TRIGGERS.includes(reaction.trigger?.type) && !reaction.expression && !reaction.motion && !(reaction.gestures || []).length,
     // A trigger the runtime cannot run: the project was written by a newer
     // editor, and saying so beats quietly treating it as a click.
-    unsupportedTrigger: reaction.trigger?.type === 'unsupported' ? reaction.trigger.of : null
-  })).filter((item) => item.missingExpression || item.missingClip || item.missingGesture || item.empty || item.unsupportedTrigger);
+    unsupportedTrigger: reaction.trigger?.type === 'unsupported' ? reaction.trigger.of : null,
+    // Reported, never repaired: which of the two the author meant — a movement
+    // that should exist, or a condition that should go — is not a guess the
+    // panel gets to make.
+    unknownCondition: (reaction.conditions || []).find(unreachable) || null
+  })).filter((item) => item.missingExpression || item.missingClip || item.missingGesture || item.empty || item.unsupportedTrigger || item.unknownCondition);
 }
+
+/**
+ * The IF of one reaction, as one clause, or `''` when it has none.
+ *
+ * "only if" rather than "if": the word that matters is the one saying this
+ * reaction is narrower than its trigger, and an author skimming a list reads
+ * the narrowing, not the grammar.
+ */
+export const describeConditions = (conditions = []) =>
+  (conditions.length ? `only if ${conditions.map(describeCondition).join(' and ')}` : '');
 
 /**
  * Human summary of a trigger for lists and chips.

@@ -442,8 +442,8 @@ workspace exists (`app/workspaces/behavior.js`, `animation-editor/behaviors/`,
 
 | PR | What | Size |
 | --- | --- | --- |
-| **V4-090** | One vocabulary behind both surfaces: simple and graph edit the same objects | M |
-| **V4-091** | The simple surface: `WHEN → IF → DO` | L |
+| **V4-090** | ✅ The **IF**: conditions in the runtime, behind `reaction:condition` | M |
+| **V4-091** | ✅ The simple surface: `WHEN → IF → DO`, as four clauses of one sentence | L |
 | **V4-092** | The four labels made true in the UI: Design / Rig / Animation / Behavior | S |
 | **V4-100** | Nodes carry a saved position. `state-machine/transition-graph.js` computes positions itself today (43 lines, one row, lanes above it) — this replaces that with stored layout | M |
 | **V4-101** | Pan, zoom, drag | M |
@@ -452,6 +452,32 @@ workspace exists (`app/workspaces/behavior.js`, `animation-editor/behaviors/`,
 | **V4-104** | Trigger simulation — MIDI, audio, timers | M |
 | **V4-105** | Multi-selection, groups, auto-layout | M |
 | **V4-106** | Comments | S |
+
+### What building V4-090/091 corrected
+
+- **The IF was never a UI problem.** The panel had refused to draw one for
+  three roadmaps, and the comment saying why is still at the top of
+  `ui/reaction-studio.js`: the runtime had no conditions, so a condition in the
+  panel would be UI for something that cannot run (VNX-39). The work was
+  therefore 90 % runtime and 10 % panel, in that order — `runtime/reaction-conditions.js`
+  first, the clause second.
+- **A condition is not additive, and that decides the whole design.** A runtime
+  that does not know about one does not skip the reaction; it fires it
+  unconditionally, which is the reaction behaving as something else. So a rig
+  carrying one asks for `reaction:condition` in `requires`, exactly as a
+  `gaze-follow` trigger does, and an older build declines the rig by name.
+- **A condition nobody can read is dropped by the runtime and refused by the
+  command.** The two are not in conflict: a file written elsewhere must not
+  cost the mascot its other conditions, and a row somebody is typing into must
+  not vanish under the pointer with no word about why.
+- **Every, not any.** An author listing two things is describing one situation.
+  "Or" is two reactions, which this panel could already make; an expression
+  language in a fieldset is a programming language with no error messages.
+- **The vocabulary is the project's own.** A condition names a movement from
+  `document.params` rather than a fixed table, so a hand pose added this
+  morning is testable this afternoon. A condition naming something the mascot
+  has no way to be is reported — a reaction that never runs looks exactly like
+  a reaction nobody noticed.
 
 ## Phase 11 — Validation and release (2 PRs)
 

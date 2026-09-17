@@ -105,7 +105,10 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
   // due one either. The prompted ones are untouched: a click or a hover is the
   // author asking for something, which is never what holding still is about.
   const liveReactions=()=>{const list=normalizeReactions(store.getDocument());return heldStill?list.filter(item=>!UNPROMPTED_REACTION_TRIGGERS.includes(item.trigger?.type)):list;};
-  const reactionController=createReactionController(()=>({reactions:liveReactions(),clips:store.getDocument().animationClips||[],hands:store.getDocument().hands}));
+  const reactionController=createReactionController(()=>({reactions:liveReactions(),clips:store.getDocument().animationClips||[],hands:store.getDocument().hands}),
+    // The same question the exported runtime asks, from the editor's own
+    // state: a condition tested here and there has to mean the same thing.
+    { context: () => ({ params: effective, state: store.getDocument().activeState }) });
   // Session-only event log for the Preview simulator (newest first, bounded).
   let eventLog=[];const EVENT_LOG_LIMIT=40;const logEvent=(entry)=>{eventLog=[{at:Number(previewElapsed.toFixed(2)),...entry},...eventLog].slice(0,EVENT_LOG_LIMIT);};
   // A reaction nobody has to do anything for — a timer, or one waiting for the

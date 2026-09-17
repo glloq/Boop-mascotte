@@ -7,7 +7,7 @@ const effective = (page, name) => page.evaluate((n) => window.__BOOP_E2E__.effec
 const activeReaction = (page) => page.evaluate(() => window.__BOOP_E2E__.activeReaction());
 const mutations = (page) => page.evaluate(() => window.__BOOP_E2E__.diagnostics().store.documentMutations);
 const fastTiming = { attack: .1, hold: .6, release: .3 };
-const surprise = (extra = {}) => ({ id: 'surprise', name: 'Surprise', enabled: true, trigger: { type: 'click' }, expression: { id: 'surprised', weight: 1 }, motion: null, gestures: [], timing: { attack: .2, hold: 1.2, release: .5 }, after: 'return', priority: 0, interrupt: 'replace', ...extra });
+const surprise = (extra = {}) => ({ id: 'surprise', name: 'Surprise', enabled: true, trigger: { type: 'click' }, conditions: [], expression: { id: 'surprised', weight: 1 }, motion: null, gestures: [], timing: { attack: .2, hold: 1.2, release: .5 }, after: 'return', priority: 0, interrupt: 'replace', ...extra });
 
 async function prepare(page) {
   await openFreshEditor(page, { e2e: true });
@@ -236,4 +236,62 @@ test('@critical a reaction sets a hand state, and says so in those words', async
   await expect(page.locator('#reactions-panel')).toContainText('Set left hand state → Point');
   const stored = await page.evaluate(() => window.__BOOP_E2E__.document().reactions.at(-1).gestures);
   expect(stored).toEqual([{ side: 'left', pose: 'point', weight: 1 }]);
+});
+
+test('@critical the IF: a reaction that runs only in the situation you describe', async ({ page }) => {
+  await prepare(page);
+  await page.getByLabel('New reaction name').fill('Grin back');
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+
+  // The clause is offered on every reaction, empty. A reaction with no
+  // conditions runs every time, and its sentence says nothing about an IF —
+  // which is what keeps every reaction authored before V4-090 reading as it did.
+  const clause = page.locator('[data-reaction-clause="if"]');
+  await expect(clause).toContainText('Only if');
+  await expect(clause.locator('[data-reaction-conditions]')).toHaveAttribute('data-reaction-conditions', '0');
+  await expect(clause).toContainText('Without one, this runs every time.');
+  await expect(page.locator('[data-reaction-sentence]')).not.toContainText('only if');
+
+  // "+ Only if…" adds a row that already holds, rather than one the command
+  // would refuse the moment it appeared.
+  await clause.getByRole('button', { name: 'Add a condition' }).click();
+  await expect(clause.locator('[data-reaction-conditions]')).toHaveAttribute('data-reaction-conditions', '1');
+  await clause.locator('[data-reaction-condition-parameter="0"]').selectOption('smile');
+  await clause.locator('[data-reaction-condition-operator="0"]').selectOption('>=');
+  await clause.locator('[data-reaction-condition-value="0"]').fill('0.5');
+  await clause.locator('[data-reaction-condition-value="0"]').blur();
+  await expect.poll(async () => (await documentOf(page)).reactions[0].conditions)
+    .toEqual([{ kind: 'parameter', parameter: 'smile', operator: '>=', value: .5 }]);
+
+  // The sentence gains the clause, in the row and above the fields, in the same
+  // words. A movement is named as the project names it.
+  await expect(page.locator('[data-reaction-sentence]')).toContainText('only if smile is at least 0.5');
+  await expect(page.locator('[data-reaction-select="grin-back"]')).toContainText('only if smile is at least 0.5');
+
+  // And it is the runtime's IF, not the panel's: the reaction does not fire
+  // while the mascot is not smiling, and does once it is.
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('smile', 0));
+  await page.locator('[data-reaction-test]').click();
+  await expect.poll(() => activeReaction(page)).toBe(null);
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('smile', 1));
+  await page.locator('[data-reaction-test]').click();
+  await expect.poll(() => activeReaction(page).then((item) => item?.id)).toBe('grin-back');
+
+  // A second row is joined with "and", never "or": two things is one situation.
+  await clause.getByRole('button', { name: 'Add a condition' }).click();
+  await clause.locator('[data-reaction-condition-kind="1"]').selectOption('state');
+  await expect(page.locator('[data-reaction-sentence]')).toContainText('and the mascot is in idle');
+
+  // Exporting says what it needs, by name: a page loading this with a runtime
+  // that has no conditions is told, rather than shown a mascot that reacts to
+  // everything (VNX-39).
+  const rig = await page.evaluate(() => JSON.parse(window.__BOOP_E2E__.exportArtifacts().find((item) => item.name === 'rig.json').content));
+  expect(rig.requires).toContain('reaction:condition');
+  expect(rig.reactions[0].conditions).toHaveLength(2);
+
+  // Removing the last one puts the reaction back to running every time.
+  await clause.getByRole('button', { name: 'Remove condition 2' }).click();
+  await clause.getByRole('button', { name: 'Remove condition 1' }).click();
+  await expect(clause.locator('[data-reaction-conditions]')).toHaveAttribute('data-reaction-conditions', '0');
+  await expect(page.locator('[data-reaction-sentence]')).not.toContainText('only if');
 });

@@ -15,13 +15,17 @@ import { createHistory } from '../undo/history.js';
  * A reaction already *was* a trigger, an expression, a motion, gestures, timing
  * and an after-state; what it was not was readable. These tests pin the reading
  * rather than the layout: the same sentence in the list row and above the
- * fields, three clauses named When / Do / Then, and — the case that decides
- * whether it is a sentence or a form — a reaction that is missing pieces, which
- * must still say something rather than offer empty slots.
+ * fields, four clauses named When / Only if / Do / Then, and — the case that
+ * decides whether it is a sentence or a form — a reaction that is missing
+ * pieces, which must still say something rather than offer empty slots.
  *
- * IF is deliberately absent. The runtime has no conditions (`createReactionController`
- * filters candidates by trigger type and priority, nothing else), so a
- * condition here would be UI for something that cannot run. That is VNX-39.
+ * IF was deliberately absent until V4-090. The runtime had no conditions
+ * (`createReactionController` filtered candidates by trigger type and priority,
+ * nothing else), so a condition here would have been UI for something that
+ * cannot run — VNX-39. It has them now, behind a `reaction:condition`
+ * requirement, and the rule these tests keep is the same one stated the other
+ * way round: the panel draws exactly the IF the runtime can answer, and a rig
+ * using one says so in its `requires`.
  *
  * These run in Node with no DOM, like `studio-lifecycle.test.js`: a host is an
  * object with the handful of properties the panels touch.
@@ -111,11 +115,14 @@ test('a whole reaction reads as one sentence: when, do, then', () => {
   // change it: one string, two places, so the two cannot drift.
   assert.match(it.inspector(), /data-reaction-sentence>When clicked → Surprised → Head Pop → then return to idle</);
 
-  // Three clauses, named and in reading order. `Timing` and `After` are gone as
+  // Four clauses, named and in reading order. `Timing` and `After` are gone as
   // separate fieldsets: how long the doing lasts belongs to Do, and what comes
-  // after it is Then.
-  assert.deepEqual([...it.inspector().matchAll(/data-reaction-clause="(\w+)"/g)].map((match) => match[1]), ['when', 'do', 'then']);
-  assert.deepEqual([...it.inspector().matchAll(/<legend>(\w+)<\/legend>/g)].map((match) => match[1]), ['When', 'Do', 'Then']);
+  // after it is Then. `Only if` sits where it is read — between what happened
+  // and what is done about it (V4-090).
+  assert.deepEqual([...it.inspector().matchAll(/data-reaction-clause="(\w+)"/g)].map((match) => match[1]), ['when', 'if', 'do', 'then']);
+  // A clause's own legend, not every legend on the panel: `Hand state` is a
+  // `<fieldset>` inside Do, and nesting one has never made it a clause.
+  assert.deepEqual([...it.inspector().matchAll(/data-reaction-clause="\w+"><legend>([\w ]+)<\/legend>/g)].map((match) => match[1]), ['When', 'Only if', 'Do', 'Then']);
   assert.equal(it.inspector().includes('<legend>Timing</legend>'), false);
   assert.equal(it.inspector().includes('<legend>After</legend>'), false);
   // One clause is everything between its marker and the next one, gestures
@@ -149,10 +156,67 @@ test('every trigger the runtime has opens the sentence, and no condition does', 
     it.edit({ reactionTrigger: '' }, type);
     assert.match(it.row(), new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `${type} opens the sentence with "${phrase}"`);
   }
-  // IF is not in the runtime, so it is not in the vocabulary: no condition
-  // control, and no clause between When and Do (VNX-39).
-  assert.equal(/data-reaction-(if|condition)/.test(it.inspector()), false);
-  assert.equal(/<legend>If<\/legend>/.test(it.inspector()), false);
+  // A reaction with no conditions has no IF clause *in its sentence*: the
+  // fieldset is offered, the words are not, so every sentence written before
+  // conditions existed reads exactly as it did.
+  assert.equal(/only if/.test(it.row()), false);
+  assert.match(it.inspector(), /data-reaction-conditions="0"/);
+});
+
+test('the IF is one clause, and it says what it will and will not run', () => {
+  const it = withTargets(studio());
+  it.create('Surprise');
+  it.edit({ reactionMotion: '' }, 'head-pop');
+
+  // "+ Only if…" adds a row that already holds: a row that starts empty is a
+  // row the command refuses the moment it is added.
+  it.inspectorHost.dispatch('click', { target: clickTarget({ dataset: { reactionConditionAdd: '' } }) });
+  it.render();
+  assert.match(it.inspector(), /data-reaction-conditions="1"/);
+  const [condition] = it.studio.snapshot().reactions[0].conditions;
+  assert.deepEqual(condition, { kind: 'parameter', parameter: 'eyeOpen', operator: '>=', value: 0 });
+
+  // The sentence gains the clause, in the same place and the same words in the
+  // row and above the fields.
+  assert.match(it.row(), /When clicked → only if eyeOpen is at least 0 → Surprised → Head Pop → then return to idle/);
+  assert.match(it.inspector(), /data-reaction-sentence>When clicked → only if eyeOpen is at least 0 → /);
+
+  // Each field writes its own key and leaves the rest of the row alone.
+  it.edit({ reactionConditionParameter: '0' }, 'smile');
+  it.edit({ reactionConditionOperator: '0' }, '<');
+  it.edit({ reactionConditionValue: '0' }, '0.25');
+  assert.deepEqual(it.studio.snapshot().reactions[0].conditions, [{ kind: 'parameter', parameter: 'smile', operator: '<', value: .25 }]);
+  assert.match(it.row(), /only if smile is less than 0.25/);
+
+  // A second row is joined with **and**, never "or": two things is one
+  // situation, and "or" is two reactions.
+  it.inspectorHost.dispatch('click', { target: clickTarget({ dataset: { reactionConditionAdd: '' } }) });
+  it.render();
+  it.edit({ reactionConditionKind: '1' }, 'state');
+  assert.deepEqual(it.studio.snapshot().reactions[0].conditions[1], { kind: 'state', state: 'idle', operator: '==' });
+  assert.match(it.row(), /only if smile is less than 0.25 and the mascot is in idle/);
+  assert.match(it.inspector(), /reaction-condition-join">and</);
+
+  // And removing the last one puts the reaction back to running every time.
+  it.inspectorHost.dispatch('click', { target: clickTarget({ dataset: { reactionConditionRemove: '1' } }) });
+  it.inspectorHost.dispatch('click', { target: clickTarget({ dataset: { reactionConditionRemove: '0' } }) });
+  it.render();
+  assert.deepEqual(it.studio.snapshot().reactions[0].conditions, []);
+  assert.equal(/only if/.test(it.row()), false);
+});
+
+test('a condition the mascot can never satisfy is reported, not repaired', () => {
+  const it = withTargets(studio());
+  it.create('Surprise');
+  it.inspectorHost.dispatch('click', { target: clickTarget({ dataset: { reactionConditionAdd: '' } }) });
+  it.render();
+  // The movement goes; the condition stays, saying what it says. Which of the
+  // two the author meant — a movement that should exist, or a condition that
+  // should go — is not a guess the panel gets to make.
+  it.mutate('rig/params', (document) => { delete document.params.eyeOpen; });
+  assert.match(it.inspector(), /data-reaction-guidance/);
+  assert.match(it.inspector(), /runs only if eyeOpen is at least 0, which this mascot has no way to be/);
+  assert.match(it.inspector(), /Missing: eyeOpen/, 'and the select still says what the row says');
 });
 
 test('a reaction missing its pieces still reads as a sentence, and offers no empty slot', () => {
@@ -284,7 +348,14 @@ const HOOKS_ADDED = Object.freeze([
   // `data-reaction-focus` is gone with UIR-17: the link to the automatic
   // behaviours had to name a panel inside somebody else's task, and Automatic
   // is a screen of its own now, so the route is the whole answer.
-  'data-motion-card', 'data-motion-when', 'data-motion-run', 'data-reaction-idle-after'
+  'data-motion-card', 'data-motion-when', 'data-motion-run', 'data-reaction-idle-after',
+  // The IF (V4-090): the clause, its rows, and the five fields one row is made
+  // of. `data-reaction-conditions-summary` is the clause said back in words,
+  // for the same reason the sentence is said back above the fields.
+  'data-reaction-conditions', 'data-reaction-conditions-summary', 'data-reaction-condition-add',
+  'data-reaction-condition', 'data-reaction-condition-remove', 'data-reaction-condition-kind',
+  'data-reaction-condition-parameter', 'data-reaction-condition-state',
+  'data-reaction-condition-operator', 'data-reaction-condition-value'
 ]);
 
 /**
@@ -311,6 +382,16 @@ function everyHook() {
   it.edit({ reactionMotion: '' }, 'head-pop');
   it.edit({ reactionGesture: 'right:wave' }, undefined, true);
   collect(it.listHost, it.inspectorHost);
+
+  // A condition row, and a second one testing the state: the two kinds offer
+  // different fields, so neither alone shows the whole clause.
+  it.inspectorHost.dispatch('click', { target: clickTarget({ dataset: { reactionConditionAdd: '' } }) });
+  it.render();
+  collect(it.inspectorHost);
+  it.inspectorHost.dispatch('click', { target: clickTarget({ dataset: { reactionConditionAdd: '' } }) });
+  it.render();
+  it.edit({ reactionConditionKind: '1' }, 'state');
+  collect(it.inspectorHost);
 
   // The trigger fields are exclusive, and so is custom timing.
   for (const type of ['custom', 'timer', 'idle']) { it.edit({ reactionTrigger: '' }, type); collect(it.inspectorHost); }

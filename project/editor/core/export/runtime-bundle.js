@@ -19,7 +19,7 @@ export const RUNTIME_MODULES = Object.freeze(['numeric.js', 'transform-2d.js', '
   // reference becomes something paintable, and how a picture bends
   // (docs/V4_ROADMAP.md). `asset-paint.js` reads `asset-reference.js`, so it
   // comes after it.
-  'asset-reference.js', 'asset-paint.js', 'asset-resolver.js', 'mesh-warp.js',
+  'asset-reference.js', 'asset-paint.js', 'asset-resolver.js', 'mesh-warp.js', 'reaction-conditions.js',
   'runtime.js']);
 
 const INTERNAL_IMPORT = /^\s*import\s[\s\S]*?from\s*['"]\.\/[^'"]+['"];?[ \t]*$/gm;

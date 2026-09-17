@@ -49,6 +49,8 @@ import { hasRigConstraints, normalizeRigConstraints, solveRigConstraints } from 
 import { normalizeRigAttachments, normalizeRigHolds, solveRigHolds } from './rig-attachments.js';
 import { collectAssetReferences, paintAssetReferences } from './asset-paint.js';
 import { applyMeshesToDom, normalizeMeshes } from './mesh-warp.js';
+import { CONDITION_REQUIREMENT, conditionsHold, normalizeConditions } from './reaction-conditions.js';
+export { CONDITION_OPERATORS, CONDITION_REQUIREMENT, conditionsHold, describeCondition, normalizeCondition, normalizeConditions } from './reaction-conditions.js';
 export { applyMeshesToDom, meshPointsAt, meshWeight, normalizeMeshes, restMesh } from './mesh-warp.js';
 export { assetRef, isAssetRef, parseAssetRef } from './asset-reference.js';
 export { createAssetResolver } from './asset-resolver.js';
@@ -881,7 +883,7 @@ export const UNPROMPTED_REACTION_TRIGGERS = Object.freeze(['idle', 'timer']);
  * The schema version is bumped alongside, for runtimes old enough to read
  * neither.
  */
-export const RUNTIME_FEATURES = Object.freeze(['trigger:gaze-follow', 'trigger:idle']);
+export const RUNTIME_FEATURES = Object.freeze(['trigger:gaze-follow', 'trigger:idle', CONDITION_REQUIREMENT]);
 
 /** The feature marker one trigger needs, or `null` when every runtime has it. */
 export const triggerRequirement = (type) => (type === 'idle' || type === 'gaze-follow' ? `trigger:${type}` : null);
@@ -892,6 +894,11 @@ export function rigRequirements(rig = {}) {
   for (const reaction of Array.isArray(rig.reactions) ? rig.reactions : []) {
     const marker = triggerRequirement(reaction?.trigger?.type ?? reaction?.trigger);
     if (marker) found.add(marker);
+    // A condition is not safely additive for the reason a trigger is not: a
+    // runtime that does not know about one does not skip the reaction, it
+    // fires it unconditionally -- the reaction behaving as something else
+    // (VNX-39, runtime/reaction-conditions.js).
+    if (normalizeConditions(reaction?.conditions).length) found.add(CONDITION_REQUIREMENT);
   }
   return [...found].sort();
 }
@@ -933,6 +940,10 @@ export function normalizeReaction(source = {}) {
   // "when nobody is doing anything" is seconds, and a tenth of a second of
   // stillness is not idleness, it is the gap between two mouse moves.
   if (type === 'idle') trigger.after = Math.max(1, finite(rawTrigger.after, 8));
+  // The **IF**: and only when these hold (runtime/reaction-conditions.js).
+  // Empty for every reaction written before they existed, which is what keeps
+  // those behaving exactly as they did.
+  const conditions = normalizeConditions(source.conditions);
   const timingSource = source.timing && typeof source.timing === 'object' ? source.timing : REACTION_TIMINGS[source.timing] || REACTION_TIMINGS.normal;
   const expression = source.expression && typeof source.expression === 'object' && typeof source.expression.id === 'string' && source.expression.id
     ? { id: source.expression.id, weight: clamp(finite(source.expression.weight, 1), 0, 1) } : null;
@@ -945,7 +956,7 @@ export function normalizeReaction(source = {}) {
     .map((item) => ({ side: item.side, pose: item.pose, weight: clamp(finite(item.weight, 1), 0, 1) }));
   const id = typeof source.id === 'string' && source.id ? source.id : `reaction-${Math.random().toString(36).slice(2, 8)}`;
   return {
-    id, name: typeof source.name === 'string' && source.name ? source.name : id, enabled: source.enabled !== false, trigger, expression, motion, gestures,
+    id, name: typeof source.name === 'string' && source.name ? source.name : id, enabled: source.enabled !== false, trigger, conditions, expression, motion, gestures,
     timing: { attack: Math.max(0, finite(timingSource.attack, .2)), hold: Math.max(0, finite(timingSource.hold, 1.2)), release: Math.max(0, finite(timingSource.release, .5)) },
     after: source.after === 'stay' ? 'stay' : 'return', priority: Math.round(finite(source.priority, 0)), interrupt: source.interrupt === 'ignore' ? 'ignore' : 'replace'
   };
@@ -971,7 +982,7 @@ export function normalizeReactions(rig = {}) {
  * - **`idle`** measures the time since `notifyActivity` was last called, so it
  *   answers "nothing has happened for a while" rather than "the clock struck".
  */
-export function createReactionController(source = () => ({ reactions: [], clips: [] })) {
+export function createReactionController(source = () => ({ reactions: [], clips: [] }), { context = () => ({}) } = {}) {
   let active = null;
   // A reaction that is replaced mid-flight keeps releasing here instead of
   // vanishing, so two reactions cross-fade rather than passing through neutral
@@ -1099,7 +1110,13 @@ export function createReactionController(source = () => ({ reactions: [], clips:
     // reaction restarts its attack on every single pointer move and never
     // reaches its hold, and a second `pointerenter` cuts a hover in half.
     if (HELD_REACTION_TRIGGERS.includes(type) && active && active.holdUntil === Infinity && active.reaction.trigger.type === type) return null;
-    const candidates = reactions.filter((item) => item.enabled && item.trigger.type === type && (type !== 'custom' || item.trigger.name === name)).sort((a, b) => b.priority - a.priority);
+    // WHEN, then IF: the trigger says something happened and the conditions
+    // say whether this is the reaction for it. A reaction whose conditions do
+    // not hold is not an error and not a refusal -- it is simply not this
+    // one, so the next candidate gets its turn.
+    const situation = context();
+    const candidates = reactions.filter((item) => item.enabled && item.trigger.type === type && (type !== 'custom' || item.trigger.name === name)
+      && conditionsHold(item.conditions, situation)).sort((a, b) => b.priority - a.priority);
     for (const reaction of candidates) if (fire(reaction, at)) return reaction.id;
     return null;
   }
@@ -1209,7 +1226,12 @@ export function createMascotEngine({ svgRoot, rig, assetResolver = null, fps = 2
   const expressionBlend = normalizeExpressionBlend(rig.expressionBlend);
   const activeExpressions = createWeightBlender(expressionBlend);
   // Reactions and animations (docs/ADR_REACTIONS.md): additive blocks, absent in older rigs.
-  const animations = normalizeAnimations(rig), reactions = normalizeReactions(rig), reactionController = createReactionController(() => ({ reactions, clips: animations, hands }));
+  const animations = normalizeAnimations(rig), reactions = normalizeReactions(rig);
+  // What a condition is asked about: the parameters as they stand and the
+  // state the mascot is in. Read at the moment of the trigger rather than kept,
+  // because a condition is about now.
+  const reactionController = createReactionController(() => ({ reactions, clips: animations, hands }),
+    { context: () => ({ params: paramsAt(now()), state: activeState }) });
   // Compiled once at construction; the render loop never revisits the records.
   const keyforms = normalizeKeyforms(rig), shapeKeys = normalizeShapeKeys(rig), hands = normalizeHands(rig), deformers = normalizeDeformers(rig), parallax = normalizeParallax(rig.parallax), warps = normalizeWarps(rig), rigPins = normalizeRigPins(rig), rigConstraints = normalizeRigConstraints(rig), rigAttachments = normalizeRigAttachments(rig), rigHolds = normalizeRigHolds(rig);
   const depthBands = {};
