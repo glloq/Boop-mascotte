@@ -4,6 +4,7 @@ import 'svg.resize.js';
 import 'svg.draggable.js';
 import { sanitizeSvgMarkup } from '../core/security/sanitize-svg.js';
 import { collectAssetReferences, paintAssetReferences } from './asset-paint.js';
+import { pathOnlyMessage } from './path-only.js';
 import { SvgDocument } from '../core/svg-document/svg-document.js';
 import { lifecycleDiagnostics as diagnostics } from '../core/diagnostics/lifecycle-diagnostics.js';
 import { createArtworkCommands } from '../core/commands/artwork-commands.js';
@@ -1256,7 +1257,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       if (rigTool?.kind === 'role') { rigTool.pick(element.id()); return; }
       if (rigTool?.kind === 'pin-place') {
         const tool = rigTool, id = element.id();
-        if (!tool.target && element.type !== 'path') { showMode(`${id} is not a path, and a pin holds a path. Click a path, or convert this shape to one first (Artwork → Inspector → Shape).`); return; }
+        if (!tool.target && element.type !== 'path') { showMode(pathOnlyMessage(id, element.node?.localName || element.type)); return; }
         const point = artworkPoint(event);
         if (!point) return;
         api.cancelRigTool(false);

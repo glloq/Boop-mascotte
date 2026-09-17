@@ -1,6 +1,7 @@
 import { createAppShell } from '../shell/app-shell.js';
 import { createStore } from '../core/state/store.js';
 import { createHistory } from '../core/undo/history.js';
+import { imageElementPlugin } from '../core/plugins/builtin/image-plugin.js';
 import { createSvgCanvas } from '../svg-editor/svg-canvas.js';
 import { openAssetStore } from '../core/assets/asset-store.js';
 import { createAssetResolver } from '../../runtime/asset-resolver.js';
@@ -135,6 +136,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   const pluginRegistry = createPluginRegistry();
   pluginRegistry.register(defaultElementPlugin);
   pluginRegistry.register(pathElementPlugin);
+  pluginRegistry.register(imageElementPlugin);
   const canvas = createSvgCanvas(shell.canvasEl, store, history, pluginRegistry);
   canvas.setWorkspace(shell.getWorkspace());
   /**
