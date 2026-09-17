@@ -15,6 +15,7 @@
  */
 import { SEMANTIC_PART_REGISTRY, requiredSemanticRoles } from '../../rig-editor/semantic-parts/part-registry.js';
 import { normalizeHeadTurnProfile } from '../head-pose/head-pose-turn.js';
+import { assetRef, parseAssetRef } from '../../../runtime/asset-reference.js';
 
 /**
  * Where a part mounts on a face (roadmap phase 5). Names only, for now: the
@@ -226,6 +227,64 @@ function compositeParts(value) {
   return Object.freeze(out);
 }
 
+/**
+ * A reference to a stored picture, or null.
+ *
+ * Null rather than a repaired object for the same reason an asset record is
+ * (core/assets/asset-model.js): a part whose picture cannot be addressed is a
+ * part that would install as a hole, and keeping it out is better than drawing
+ * one.
+ */
+function pictureReference(input) {
+  if (!input || typeof input !== 'object') return null;
+  const reference = typeof input.assetId === 'string' ? input.assetId.trim() : '';
+  const id = parseAssetRef(reference) ?? (/^[0-9a-f]{8,64}$/i.test(reference) ? reference.toLowerCase() : null);
+  if (!id) return null;
+  const side = (value) => (Number.isFinite(Number(value)) && Number(value) > 0 ? Math.round(Number(value)) : 0);
+  const width = side(input.width), height = side(input.height);
+  if (!width || !height) return null;
+  return Object.freeze({ assetId: id, width, height });
+}
+
+/**
+ * What draws this part: its own markup, or a picture out of the store.
+ *
+ * The question every caller that used to assume SVG has to ask now, in one
+ * place so that they cannot each answer it differently.
+ */
+export const partRenderer = (part) => (part?.picture ? 'image' : 'svg');
+
+/**
+ * The single element a picture-drawn part installs as.
+ *
+ * A markup part carries its own root id; a picture has no markup to carry one
+ * in, so it borrows the id of the one role it plays. That is also why such a
+ * part may only play one: a picture is one rectangle, and a drawing that has
+ * to be an upper lid *and* a lower one is a drawing, not a picture.
+ */
+export const pictureNodeId = (part) => {
+  const ids = [...new Set(Object.values(part?.roles || {}))].filter(Boolean);
+  return ids.length === 1 ? ids[0] : '';
+};
+
+const escapeAttribute = (value) => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+
+/**
+ * What a part puts on the canvas, whichever way it is drawn.
+ *
+ * The one place that used to be "the part's markup" and is now a question.
+ * A picture becomes an `<image>` at the size the part was authored against --
+ * its `referenceBox` where it has one, its own pixels otherwise -- which is
+ * what the installer then fits onto the face like any other fragment.
+ */
+export function partArtworkMarkup(part) {
+  if (!part?.picture) return part?.artwork || '';
+  const id = pictureNodeId(part);
+  if (!id) return '';
+  const box = part.referenceBox?.width && part.referenceBox?.height ? part.referenceBox : { x: 0, y: 0, width: part.picture.width, height: part.picture.height };
+  return `<image id="${escapeAttribute(id)}" href="${escapeAttribute(assetRef(part.picture.assetId))}" x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}" preserveAspectRatio="xMidYMid meet"/>`;
+}
+
 export function normalizeFacePart(input = {}) {
   const source = input && typeof input === 'object' ? input : {};
   const category = typeof source.category === 'string' ? source.category.trim() : '';
@@ -237,6 +296,20 @@ export function normalizeFacePart(input = {}) {
     name: typeof source.name === 'string' ? source.name.trim() : '',
     description: typeof source.description === 'string' ? source.description.trim() : '',
     artwork: typeof source.artwork === 'string' ? source.artwork.trim() : '',
+    /* ── What the part is drawn with (docs/V4_ROADMAP.md, Phase 5) ────────
+     *
+     * `artwork` is an SVG fragment and always was. `picture` is the other
+     * answer: a reference into the project's asset store, drawn as an
+     * `<image>`.
+     *
+     * Added beside `artwork` rather than by widening it. `artwork` is read as
+     * a string in the installer, the validator, the scanner and the pack
+     * reader; making it sometimes an object would have been a type change
+     * across a subsystem to express something a second field expresses
+     * exactly. A part has one or the other, and `partRenderer` is the one
+     * place that asks which.
+     */
+    picture: pictureReference(source.picture),
     roles: roleMap(source.roles),
     capabilities: Object.freeze([...new Set(strings(source.capabilities))]),
     drivers: driverHints(source.drivers),
