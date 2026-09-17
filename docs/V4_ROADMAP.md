@@ -199,18 +199,18 @@ case, not the exception.
   store, one that says `persistent: false`, because silently falling back to
   memory means autosave stopping at the images while claiming to have saved.
 
-## Phase 2 — Rigid raster nodes (6 PRs)
+## Phase 2 — Rigid raster nodes (6 PRs) — **done**
 
 The change becomes visible here.
 
 | PR | What | Files | Size |
 | --- | --- | --- | --- |
 | **V4-020** — done | **Security, alone.** The sanitizer accepts `asset:<id>` on `href`/`xlink:href` as an internal reference and keeps rejecting everything else; `findUnsafeSvg` reports by the same rule | `core/security/sanitize-svg.js` | S |
-| **V4-021** | The canvas resolves `asset:` at paint time and revokes on unload | `svg-editor/svg-canvas.js` (render pass only) | M |
-| **V4-022** | `<image>` as a selectable node: selection, move, scale, rotate. Path-only operations already guard on `element.type !== 'path'` — this PR audits every such guard and makes the message right | `svg-editor/svg-canvas.js`, `svg-editor/selection-overlay.js` | L |
-| **V4-023** | Parity for pivot, layer, depth, opacity, lock, visibility, duplication | `inspector/`, `svg-editor/layers-panel.js`, `core/commands/artwork-commands.js` | M |
-| **V4-024** | Preview and the exported runtime resolve through the *same* resolver | `runtime/runtime.js`, `core/preview-runtime/`, `core/export/runtime-bundle.js` | M |
-| **V4-025** | A fully raster mascot as an e2e fixture: head, eyes, mouth, hair, with the current rig and head pose | `tests/e2e/`, fixtures | M |
+| **V4-021** — done | The canvas resolves `asset:` at paint time and revokes on unload | `svg-editor/svg-canvas.js` (render pass only) | M |
+| **V4-022** — done | `<image>` as a selectable node: selection, move, scale, rotate. Path-only operations already guard on `element.type !== 'path'` — this PR audits every such guard and makes the message right | `svg-editor/svg-canvas.js`, `svg-editor/selection-overlay.js` | L |
+| **V4-023** — done | Parity for pivot, layer, depth, opacity, lock, visibility, duplication | `inspector/`, `svg-editor/layers-panel.js`, `core/commands/artwork-commands.js` | M |
+| **V4-024** — done | Preview and the exported runtime resolve through the *same* resolver | `runtime/runtime.js`, `core/preview-runtime/`, `core/export/runtime-bundle.js` | M |
+| **V4-025** — done | A fully raster mascot as an e2e fixture: head, eyes, mouth, hair, with the current rig and head pose | `tests/e2e/`, fixtures | M |
 
 **Exit:** `head.webp` + `eye_L/R.webp` + `mouth.webp` + `hair.webp` rig, animate
 and turn exactly as their SVG equivalents do, in the editor and in the export.
@@ -222,10 +222,27 @@ which would leave the cleaner and its scan answering one question two ways.
 The rule is the *value* — a strict hex id — applied identically in both
 branches.
 
-V4-022 is the largest PR in the plan and the one to watch. It does not
-refactor `svg-canvas.js` (3994 lines) — it walks its path assumptions and
-handles the raster case at each. If it grows past a reviewable diff, split it
-by gesture (select/move, then scale/rotate).
+### What building it corrected
+
+- **V4-022 was not the largest PR; it was mostly an audit.** Every path-only
+  guard in the canvas was already correct, because the rig never asked what a
+  piece was drawn with. What was wrong was the *message*: it told a picture's
+  author to convert the shape to a path, an action that would have declined.
+- **The document must never hold what paints it.** An object URL lives as long
+  as the tab; `svgMarkup` outlives it. So the reference moves aside into
+  `data-editor-asset` and `SvgDocument.serialize` puts it back — the DOM
+  carries its own answer, so any path that serializes gets it right.
+- **Loading stays synchronous.** Reading bytes is not, so fetching is a
+  separate `refreshAssets`, in the canvas and in the engine alike. A mascot
+  made of paths never waits for a picture.
+- **The preview needed nothing.** It draws through `canvas.applyFrame` onto the
+  DOM the canvas already painted, so it has resolved assets since V4-021.
+- **The inspector was wrong in both directions**: it offered a picture paint
+  that does nothing, and not the box an author actually drags.
+- **Parity is proved as numbers, not screenshots.** A raster mascot and its
+  vector twin are built from one rig and their compiled frames compared. The
+  browser-level spec is still owed: the Chromium build available in this
+  environment does not match the one Playwright expects.
 
 ## Phase 3 — Import that a person can use (3 PRs)
 
