@@ -198,7 +198,14 @@ export function createEditorApp({ root = document.getElementById('app'), recover
         // out of the selection too: a selection naming a piece nobody can see
         // is a selection every panel has to guess about.
         if(result.ok&&result.targets?.length)store.mutateSession('selectedIds',state=>{state.selectedIds=result.targets;});
-        shell.setStatus(result.ok?'Cut to the shape in front. The shape is now doing the cutting; "Stop cutting" brings it back.':result.message,result.ok?'info':'error');},
+        // Two kinds of cut, so two sentences: a shape cuts to its outline and
+        // a picture cuts to where it is not transparent, and an author told
+        // the wrong one looks for a mistake that is not there.
+        shell.setStatus(result.ok
+          ?(result.byAlpha
+            ?'Cut to the picture in front, where it is not transparent. "Stop cutting" brings it back.'
+            :'Cut to the shape in front. The shape is now doing the cutting; "Stop cutting" brings it back.')
+          :result.message,result.ok?'info':'error');},
       // A cut is drawn on the canvas as a dashed outline, so the way to take it
       // off belongs beside the drawing rather than only in a menu.
       cutOn:(id)=>(shell.getWorkspace()==='create'?canvas.describeClip(id):null),

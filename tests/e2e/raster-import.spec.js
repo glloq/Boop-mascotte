@@ -171,3 +171,42 @@ test('@critical a picture dropped on the mascot is added where it was dropped on
   await expect(page.locator('#canvas.picture-drop-over')).toHaveCount(0);
   expect(trouble).toEqual([]);
 });
+
+test('@critical a picture cuts by its transparency, and the cut survives a reload', async ({ page }) => {
+  const trouble = watchForTrouble(page);
+  await openFreshEditor(page, { e2e: true });
+  await page.evaluate(() => window.__BOOP_E2E__.openProject.template('basic'));
+  await page.setInputFiles('#artwork-image-file', fixture('opaque-48x32.webp'));
+  await expect(page.locator('svg image')).toHaveCount(1);
+  await page.setInputFiles('#artwork-image-file', PICTURE);
+  await expect(page.locator('svg image')).toHaveCount(2);
+  await page.evaluate(() => window.__BOOP_E2E__.navigate('design.artwork'));
+
+  const ids = await page.locator('svg image').evaluateAll((nodes) => nodes.map((node) => node.id));
+  await page.evaluate((ids) => window.__BOOP_E2E__.mutate((state) => { state.selectedId = ids[0]; state.selectedIds = ids; }), ids);
+  await page.locator('[data-arrange="clip:selection"]').click({ force: true });
+
+  // A `<clipPath>` cuts to an outline, and a picture's outline is its
+  // rectangle -- never what anybody means. A picture cuts by its alpha.
+  await expect(page.locator('svg defs mask')).toHaveCount(1);
+  const mask = page.locator('svg defs mask').first();
+  await expect(mask).toHaveAttribute('mask-type', 'alpha');
+  await expect(mask.locator('image')).toHaveCount(1);
+  await expect(page.locator('svg [mask]')).toHaveCount(1);
+
+  // And the mask's own picture is stored as a reference, not as this tab's
+  // object URL: it is inside `<defs>`, which is exactly where a serializer is
+  // easiest to forget about.
+  const markup = await page.evaluate(() => window.__BOOP_E2E__.document().svgMarkup || '');
+  expect(markup).not.toMatch(/blob:/);
+  expect(markup).toMatch(/<mask[^>]*mask-type="alpha"/);
+  expect(markup).toMatch(/<image href="asset:[0-9a-f]{8,}"/);
+
+  await expect(page.locator('#save-state')).toContainText(/Autosaved/i);
+  await page.reload();
+  await page.locator('.file-menu > summary').first().click();
+  await page.locator('#recover-autosave').click();
+  await expect(page.locator('svg [mask]')).toHaveCount(1);
+  await expect(page.locator('svg defs mask image').first()).toHaveAttribute('href', /^blob:/);
+  expect(trouble).toEqual([]);
+});

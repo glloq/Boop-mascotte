@@ -350,14 +350,27 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
    * replaced, and a clip read off a piece nobody can see any more is a cut
    * drawn on a canvas that no longer has one.
    */
+  /**
+   * What is cutting this piece, whether it is cut to a shape or to a picture.
+   *
+   * Two attributes because there are two kinds of cut and they are not
+   * interchangeable. A `clip-path` cuts to an outline, which is what a shape
+   * has. A picture's outline is its rectangle, so cutting to one would be
+   * cutting to a box -- never what anybody means by "the iris inside the eye".
+   * What a picture has instead is transparency, and cutting to *that* is a
+   * `mask` (docs/V4_ROADMAP.md, V4-062).
+   */
+  const CUT_ATTRIBUTES = ['clip-path', 'mask'];
   function clipOwnerOf(id) {
     const host = rootGroup.node.querySelector('svg');
     const from = (id && host?.querySelector?.(`#${CSS.escape(id)}`)) || documentModel.getNode(id);
     for (let node = from; node && node !== host?.parentNode; node = node.parentElement) {
-      const reference = /url\(['"]?#([^)'"]+)['"]?\)/.exec(node.getAttribute?.('clip-path') || '')?.[1];
-      if (!reference) continue;
-      const shape = host?.querySelector?.(`#${CSS.escape(reference)} > *`) || null;
-      return { ownerId: node.getAttribute('id') || null, clipId: reference, owner: node, shape };
+      for (const attribute of CUT_ATTRIBUTES) {
+        const reference = /url\(['"]?#([^)'"]+)['"]?\)/.exec(node.getAttribute?.(attribute) || '')?.[1];
+        if (!reference) continue;
+        const shape = host?.querySelector?.(`#${CSS.escape(reference)} > *`) || null;
+        return { ownerId: node.getAttribute('id') || null, clipId: reference, owner: node, shape, attribute };
+      }
     }
     return null;
   }
@@ -3628,6 +3641,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
         const used = new Set([...host.querySelectorAll('[id]')].map((node) => node.getAttribute('id')));
         let counter = 0;
         const clipId = () => { let id; do { counter += 1; id = `cut-${counter}`; } while (used.has(id)); used.add(id); return id; };
+        // A picture cuts by its transparency, not by its rectangle. Anything
+        // else cuts by its outline, exactly as it always did.
+        const byAlpha = cutter.localName === 'image';
         for (const target of targets) {
           const shape = cutter.cloneNode(true);
           shape.removeAttribute('id');
@@ -3635,19 +3651,27 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
           const into = invertMatrix(matrixToArtwork(target));
           if (!into) return { ok: false, message: 'This piece is flattened to nothing, so there is nothing to cut.' };
           shape.setAttribute('transform', matrixString(multiplyMatrix(into, cutterMatrix)));
-          const clip = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
-          clip.setAttribute('id', clipId());
-          clip.setAttribute('clipPathUnits', 'userSpaceOnUse');
-          clip.append(shape);
-          defs.append(clip);
-          target.setAttribute('clip-path', `url(#${clip.getAttribute('id')})`);
+          const definition = document.createElementNS('http://www.w3.org/2000/svg', byAlpha ? 'mask' : 'clipPath');
+          definition.setAttribute('id', clipId());
+          if (byAlpha) {
+            definition.setAttribute('maskUnits', 'userSpaceOnUse');
+            // A `<mask>` reads luminance by default, so a dark picture would
+            // erase what it was meant to keep. `mask-type` says to read the
+            // alpha instead; written twice because the attribute is newer than
+            // the property and neither is everywhere yet.
+            definition.setAttribute('mask-type', 'alpha');
+            definition.setAttribute('style', 'mask-type:alpha');
+          } else definition.setAttribute('clipPathUnits', 'userSpaceOnUse');
+          definition.append(shape);
+          defs.append(definition);
+          target.setAttribute(byAlpha ? 'mask' : 'clip-path', `url(#${definition.getAttribute('id')})`);
         }
         // The cutter is a shape now, not a drawing: out of the artwork and into
         // the definitions, the way it went in every editor that has this tool.
         cutter.remove();
         refreshDocument(targets[0]?.getAttribute('id') || null);
         renderFrame();
-        return { ok: true, cutter: cutter.getAttribute('id'), targets: targets.map((node) => node.getAttribute('id')) };
+        return { ok: true, byAlpha, cutter: cutter.getAttribute('id'), targets: targets.map((node) => node.getAttribute('id')) };
       });
     },
     /**
@@ -3667,11 +3691,14 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
         const host = rootGroup.node.querySelector('svg');
         history.snapshot();
         const owner = clip.owner, reference = clip.clipId;
-        owner.removeAttribute('clip-path');
+        owner.removeAttribute(clip.attribute || 'clip-path');
         // Only when nothing else is cut by it: a shape shared by both eyes is
-        // still doing its job for the other one.
+        // still doing its job for the other one. Both attributes are searched,
+        // because a definition is shared by whoever points at it and not by
+        // whoever points at it the same way.
         const definition = host?.querySelector?.(`#${CSS.escape(reference)}`);
-        const stillUsed = [...(host?.querySelectorAll('[clip-path]') || [])].some((node) => (node.getAttribute('clip-path') || '').includes(`#${reference}`));
+        const stillUsed = CUT_ATTRIBUTES.some((attribute) => [...(host?.querySelectorAll(`[${attribute}]`) || [])]
+          .some((node) => (node.getAttribute(attribute) || '').includes(`#${reference}`)));
         if (definition && !stillUsed && definition.firstElementChild) {
           const shape = definition.firstElementChild;
           // It was drawn in the owner's user space; put it back beside the

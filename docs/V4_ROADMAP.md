@@ -335,17 +335,36 @@ shape to break.
   key for a picture part is its asset id, and it belongs with whatever asks
   next.
 
-## Phase 6 — Pseudo-3D parity, and masks (4 PRs)
+## Phase 6 — Pseudo-3D parity, and masks (4 PRs) — **done**
 
 | PR | What | Size |
 | --- | --- | --- |
-| **V4-060** | `headYaw` / `headPitch` / `headRoll`, depth, parallax, scale and draw order verified on raster nodes | M |
-| **V4-061** | Far-side compression, scale by yaw, dynamic order | M |
-| **V4-062** | `MaskNode` and clipping in the model and the canvas | L |
-| **V4-063** | The library's parts that need one use it: iris in eye, mouth, hair, muzzle, visor | M |
+| **V4-060** — done | The turn and depth proved on raster nodes against a vector twin, frame by frame | S |
+| **V4-061** — done | Already there: the turn is authored transforms and draw order is depth bands, neither of which asks what a piece is drawn with | S |
+| **V4-062** — done | A picture cuts by its transparency: `<mask mask-type="alpha">` where a shape gives a `<clipPath>` | M |
+| **V4-063** — done | Nothing to do: those all want a *shape* clip, which the cut tool has given them since V3 | S |
 
 **Exit:** a rigid raster face reads at least as well through a full turn as
 the SVG one does.
+
+### What building it corrected
+
+- **Most of this phase already existed.** The turn is a grid of authored
+  per-element transforms and the draw order is depth bands; neither ever asked
+  what a piece was drawn with. V4-060 became a proof rather than a build: the
+  same turn over a raster mascot and its vector twin, compared at every corner
+  of the grid.
+- **Clipping already existed too.** The cut tool has been able to clip any
+  piece to any shape since V3, so the parts V4-063 named — iris, mouth, hair,
+  muzzle, visor — were already served.
+- **What was actually missing is alpha.** A `<clipPath>` cuts to an outline,
+  and a picture's outline is its rectangle, so cutting *with* a picture cut to
+  a box — never what anyone means. A picture now becomes a
+  `<mask mask-type="alpha">`, and `releaseClip` takes off whichever attribute
+  is doing the cutting.
+- **A mask lives in `<defs>`,** which is exactly where a serializer is easiest
+  to forget: the test asserts the mask's own picture is stored as a reference
+  and comes back painted after a reload.
 
 ## Phase 7 — `mesh-image` (4 PRs)
 
