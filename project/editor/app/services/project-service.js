@@ -416,8 +416,13 @@ export function createProjectService({
       // A package and a snapshot arrive through the same button, because to
       // the author they are the same thing: their project. `PK\x03\x04` is a
       // ZIP, and a name is not asked because a name can be anything.
-      const head = new Uint8Array(await file.slice(0, 4).arrayBuffer());
-      if (head[0] === 0x50 && head[1] === 0x4b && head[2] === 0x03 && head[3] === 0x04) return await loadBoopFile(file);
+      //
+      // Read through `text()` and not `slice()`: a `File` has both, but this
+      // service is also handed file-*likes* -- by the e2e hooks and by the
+      // tests -- and the one method all of them have is the one that was
+      // always used here. The four bytes are ASCII, so they survive being
+      // decoded whatever follows them does.
+      if ((await file.text()).startsWith('PK\u0003\u0004')) return await loadBoopFile(file);
       const imported = JSON.parse(await file.text());
       // Parsed, versioned and normalized against a throwaway state first, so an
       // unsupported snapshot never reaches the live store.
