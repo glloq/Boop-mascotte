@@ -8,15 +8,15 @@ intended; this is what is there.*
 
 | | |
 | --- | --- |
-| Commits | 46 |
-| Files touched | 120 |
-| Lines | +10 455 / −217 |
+| Commits | 48 |
+| Files touched | 124 |
+| Lines | +11 057 / −219 |
 | New modules (non-test) | 23 |
 | New test files | 41 |
 | Unit tests | 2 143 → **2 336**, all passing |
-| Browser tests | 193 `@critical`, plus the new raster and graph specs |
+| Browser tests | **194 `@critical`, all passing** against one build |
 
-The ratio is the first thing worth noticing: **217 lines deleted against 10 455
+The ratio is the first thing worth noticing: **219 lines deleted against 11 057
 added.** This programme almost never rewrote anything. Where a decision was
 wrong it was replaced whole (the 43-line lane renderer, the `localStorage`
 recovery path), and everything else was reached by adding a module beside what
