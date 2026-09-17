@@ -92,7 +92,14 @@ import { createProjectSelectors } from '../core/selectors/project-selectors.js';
  * the canvas and its tools (§5, Règle A), the one Inspector (Règle B), the
  * project services, and the command surfaces that reach every screen.
  */
-export function createEditorApp({ root = document.getElementById('app') } = {}) {
+/**
+ * @param {object} [options]
+ * @param {Element} [options.root]
+ * @param {object} [options.recoveryStorage] where the local draft lives. Opened
+ *   by the entry point, because IndexedDB is asynchronous and this is not; a
+ *   caller that passes nothing gets `localStorage`, which is what this was.
+ */
+export function createEditorApp({ root = document.getElementById('app'), recoveryStorage = localStorage } = {}) {
   const store = createStore();
   // One memoised set of ViewModels per editor (docs/VNEXT_ROADMAP.md, VNX-04):
   // a panel asks for its model at a revision and gets the same object back until
@@ -596,7 +603,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // variables and five closures. It is created here so its baseline is taken at
   // the same moment the old `savedVersionToken` was.
   const autosave = createAutosaveService({
-    store, storage: localStorage,
+    store, storage: recoveryStorage,
     serializeSvg: () => canvas.serializeCurrentSvg(),
     prepareSnapshot: (snapshot) => prepareProjectSnapshot(snapshot, (svg) => canvas.prepareSvgImport(svg)),
     createSnapshot: createProjectSnapshot,
