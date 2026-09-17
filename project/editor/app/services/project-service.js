@@ -171,6 +171,12 @@ export function createProjectService({
       preview.apply();
     }, { keepRecovery: recovered });
     if (!committed) return false;
+    // Every path that puts a project on the canvas fetches its pictures, not
+    // just the one that opens a package. A draft recovered after a browser
+    // restart is the case this was missing: the canvas paints as it loads,
+    // synchronously, so without this the raster pieces come back blank and
+    // stay blank until something unrelated redraws them.
+    const short = (await canvas.refreshAssets?.())?.missing ?? [];
     navigate('design.artwork');
     setProjectLoaded(true);
     closeHome();
@@ -178,6 +184,10 @@ export function createProjectService({
     // A recovered draft matches the record it came from, so the version token
     // would call it clean — yet the author has never saved it anywhere.
     if (recovered) { autosave.markDirty(); setStatus('Recovered local copy — unsaved changes.', 'warn'); }
+    // Said, not drawn as a hole. A project whose pictures are gone is a
+    // specific thing that happened -- site data cleared, a package opened
+    // without them -- and the author can only act on it if they are told.
+    if (short.length) setStatus(`${sourceLabel} restored, but ${short.length} picture${short.length === 1 ? '' : 's'} could not be found. ${short.length === 1 ? 'That piece is' : 'Those pieces are'} blank until it is added again.`, 'warn');
     return true;
   };
 
@@ -350,9 +360,11 @@ export function createProjectService({
 
     const restored = await restoreSnapshot(prepared, `Package ${file.name}`);
     if (!restored) return false;
-    await canvas.refreshAssets();
+    // What the package itself could not give, on top of whatever the canvas
+    // then could not find: a picture refused for failing its checksum never
+    // reached the store, so it would show up in both, and is counted once.
     const short = [...new Set([...read.missing, ...read.damaged, ...refused])];
-    if (short.length) setStatus(`Opened ${file.name} — ${short.length} picture${short.length === 1 ? '' : 's'} could not be read, and ${short.length === 1 ? 'that piece is' : 'those pieces are'} blank.`, 'warn');
+    if (short.length) setStatus(`Opened ${file.name} — ${short.length} picture${short.length === 1 ? '' : 's'} in it could not be read.`, 'warn');
     return true;
   };
 

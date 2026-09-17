@@ -112,7 +112,7 @@ test('a package whose picture is not the picture it claims opens with the piece 
   const { bytes } = await writeBoopPackage({ snapshot, bytesFor: async () => file('alpha-16x16.png') });
   const target = await harness({ withPicture: false });
   assert.equal(await target.service.loadProjectFile(fileOf('tampered.boop', bytes)),true);
-  assert.match(target.status.at(-1)[0],/1 picture could not be read/);
+  assert.match(target.status.at(-1)[0],/1 picture in it could not be read/);
   assert.equal(target.status.at(-1)[1],'warn');
   assert.equal(await target.assetStore.has(source.id),false,'and nothing that failed the check was kept');
 });
@@ -125,4 +125,52 @@ test('something that is not a project says which file was the problem',async()=>
   assert.match(status.at(-1)[0],/broken\.boop/);
   assert.equal(status.at(-1)[1],'error');
   assert.equal(store.getDocument().svgMarkup,before);
+});
+
+test('every path that opens a project fetches its pictures',async()=>{
+  // The gap this closes: a draft recovered after a browser restart went
+  // through `restoreSnapshot` and not through the package reader, so nothing
+  // ever fetched what its `asset:` references pointed at.
+  const { service, calls } = await harness();
+  const snapshot = { version: 3, document: { svgMarkup: '<svg><circle id="head" r="4"/></svg>', layers: [], layerMetadata: {}, rig: { params: {}, states: {}, elements: {} }, editor: {} } };
+  calls.length = 0;
+  await service.restoreSnapshot(snapshot, 'Local draft', { recovered: true });
+  assert.ok(calls.includes('refresh'),'a recovered draft fetches its pictures like any other project');
+});
+
+test('a project whose pictures are gone says so instead of drawing holes',async()=>{
+  const built = await harness();
+  // Site data cleared between sessions: the draft survives, the pictures do not.
+  const service = createProjectService({
+    store: built.store, history: createHistory(built.store),
+    assets: createAssetManager({ store: createMemoryAssetStore() }),
+    canvas: {
+      serializeCurrentSvg: () => built.store.getDocument().svgMarkup,
+      prepareSvgImport: (svg) => svg, loadSvgFromText: async () => {}, fitToCanvas: () => {},
+      refreshAssets: async () => ({ painted: [], missing: ['asset:05f4ab45729a82a7', 'asset:aabbccdd11223344'] })
+    },
+    preview: { apply() {}, setClip() {}, seek() {}, stop() {}, reset() {} },
+    timeline: { reset() {} },
+    autosave: { isDirty: () => false, markSaved() {}, markDirty() {} },
+    setStatus: (message, tone) => built.status.push([message, tone]),
+    requestAnimationFrame: (callback) => callback()
+  });
+  built.status.length = 0;
+  const snapshot = { version: 3, document: { svgMarkup: '<svg><circle id="head" r="4"/></svg>', layers: [], layerMetadata: {}, rig: { params: {}, states: {}, elements: {} }, editor: {} } };
+  await service.restoreSnapshot(snapshot, 'Local draft');
+  assert.match(built.status.at(-1)[0],/2 pictures could not be found/);
+  assert.match(built.status.at(-1)[0],/blank until it is added again/);
+  assert.equal(built.status.at(-1)[1],'warn');
+});
+
+test('a package cut off mid-download is refused, not half-opened',async()=>{
+  const source = await harness();
+  await source.service.saveBoopPackage();
+  const whole = source.downloads[0].data;
+  const target = await harness({ withPicture: false });
+  const before = target.store.getDocument().svgMarkup;
+  // A download that stopped: the directory at the end is exactly what is gone.
+  assert.equal(await target.service.loadProjectFile(fileOf('cut.boop', whole.slice(0, Math.floor(whole.length * 0.6)))),false);
+  assert.match(target.status.at(-1)[0],/cut\.boop/);
+  assert.equal(target.store.getDocument().svgMarkup,before,'and the project that was open is untouched');
 });
