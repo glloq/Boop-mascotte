@@ -25,7 +25,7 @@ test('workspace preferences are UI-only, persisted and safely normalized', () =>
   writeUiPreferences({ timelineCollapsed: false }, storage);
   assert.equal(readUiPreferences(storage).timelineCollapsed, false, 'a chosen state is remembered');
   values.set('boop-mascotte-ui-v2', '{"workspace":"engine"}');
-  assert.deepEqual([readUiPreferences(storage).mode, readUiPreferences(storage).workspace], ['design.face', 'character'],
+  assert.deepEqual([readUiPreferences(storage).mode, readUiPreferences(storage).workspace], ['design.artwork', 'create'],
     'a name nothing knows falls back to where the editor opens');
 });
 

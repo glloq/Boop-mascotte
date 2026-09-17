@@ -58,10 +58,19 @@ function setupSectionsMarkup(openSections = {}) {
 const rigGatesMarkup = () => [['face-setup', 'rig.assign'], ['calibration', 'rig.controls'], ['head-pose', 'rig.head2d'], ['deform', 'rig.deform']]
   .map(([area, mode]) => gateMarkup(area, 'mobile', { mode })).join('');
 
+/**
+ * The left column, one section per surface.
+ *
+ * Artwork's three ways in are in the order an author needs them since V5-07,
+ * which is the order they are written: *Add picture* first, because the editor
+ * opens on this screen now and a mascot is pictures. *Import / Replace SVG*
+ * went from first to last for the same reason -- it is the way in for somebody
+ * who already has a drawing, which is no longer the common case.
+ */
 export const sideNavMarkup = (openSections) => `      <aside class="panel" id="left" aria-label="Tasks and tools"><button class="collapse-panel" id="collapse-left" aria-label="Collapse left panel">‹</button><div class="workspace-hint" data-hint hidden></div>
         <section class="character-tools"><h2>Face</h2><div id="part-browser"></div></section>
         <section class="hand-tools"><h2>Hands</h2>${gateMarkup('hands', 'mobile')}<div id="hand-states"></div></section>
-        <section class="create-tools"><h2>Artwork</h2><label class="button secondary artwork-import">Import / Replace SVG<input hidden type="file" id="artwork-svg-file" accept=".svg"></label><label class="button secondary artwork-import">Import head / base<input hidden type="file" id="artwork-base-file" accept=".png,.webp,.svg,image/png,image/webp,image/svg+xml"></label><label class="button secondary artwork-import">Add picture<input hidden type="file" id="artwork-image-file" accept=".png,.webp,.svg,image/png,image/webp,image/svg+xml"></label>${gateMarkup('artwork', 'mobile')}<div id="artboard-panel"></div><details class="artwork-create"><summary>Add / Create artwork</summary>${buildStartArtworkSection()}<div class="core-list"><h3>Ready</h3><div id="core-status"></div><button id="continue-rigging">Continue to Rig</button></div>${buildAddPartSection()}</details></section>
+        <section class="create-tools"><h2>Artwork</h2><label class="button secondary artwork-import">Add picture<input hidden type="file" id="artwork-image-file" accept=".png,.webp,.svg,image/png,image/webp,image/svg+xml"></label><label class="button secondary artwork-import">Import head / base<input hidden type="file" id="artwork-base-file" accept=".png,.webp,.svg,image/png,image/webp,image/svg+xml"></label><label class="button secondary artwork-import">Import / Replace SVG<input hidden type="file" id="artwork-svg-file" accept=".svg"></label>${gateMarkup('artwork', 'mobile')}<div id="artboard-panel"></div><details class="artwork-create"><summary>Add / Create artwork</summary>${buildStartArtworkSection()}<div class="core-list"><h3>Ready</h3><div id="core-status"></div><button id="continue-rigging">Continue to Rig</button></div>${buildAddPartSection()}</details></section>
         <section class="rig-tools"><h2 data-column-heading="rig">Assign</h2><div id="deform-bench" class="deform-bench-host" hidden></div>${rigGatesMarkup()}${setupSectionsMarkup(openSections)}</section>
         <section class="expressions-tools"><h2>Expressions</h2><div id="expressions-panel"></div></section>
         <section class="animate-tools"><h2 data-column-heading="animate">Motions</h2><div id="motion-panel"></div>${gateMarkup('timeline', 'mobile')}</section>

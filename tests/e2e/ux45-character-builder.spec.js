@@ -45,10 +45,12 @@ async function dragBy(page, from, dx, dy) {
 test('@critical the Character Builder is a screen of Design: parts, the canvas, and the part in hand', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  // The template lands here: a mascot opens where a mascot is dressed
-  // (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §1.5). The builder is the screen,
-  // not a tab away from one.
-  await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'character');
+  // The template lands on Artwork, where its pieces are (V5-07). The builder is
+  // a screen of Design reached by name -- it was the screen the editor opened
+  // on while dressing one out of the library was the way to make a mascot, and
+  // it stopped being that when bringing pictures became the way
+  // (docs/V5_MASCOTTE_IMAGES_ETUDE.md).
+  await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'create');
   await openCharacter(page);
   // The top bar takes four workspace buttons, the open workspace's screens and
   // Preview without wrapping or overlapping: everything below it is measured at

@@ -16,7 +16,7 @@ import { ringTarget } from '../ui/character-builder/ring-keys.js';
 const HINTS = {
   'design.face': 'Pick a part on the left, or click it on the mascot, then move it, resize it or recolour it here. Advanced opens every control.',
   'design.hands': 'The drawings a hand can show. Drop an SVG in to add one, import a whole set, or save yours out to share. Each hand keeps its own.',
-  'design.artwork': 'Start simple, then add one expressive feature at a time.',
+  'design.artwork': 'Every piece of your mascot is here. Add a picture for each part that moves, stack them in order, and say how each one moves.',
   'rig.assign': 'Tell the editor what each part of the face is: click its artwork on the canvas, or accept what it has already worked out.',
   'rig.controls': 'Turn on what the face can move, then calibrate each movement by posing it on the canvas.',
   'rig.head2d': 'Capture the head looking left, right, up and down. The editor fills in everything between.',

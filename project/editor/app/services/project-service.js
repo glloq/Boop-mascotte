@@ -562,15 +562,16 @@ export function createProjectService({
    * @param {{ mode?: string }} [options]  where the new project lands: Artwork, or the
    *   Character Builder for the one-minute path (docs/CHARACTER_BUILDER.md)
    */
-  // A template is a mascot, so it opens where a mascot is dressed. It used to
-  // open in the vector editor, which is where an author who wanted to *draw*
-  // one would go (docs/AUDIT_UI_2026-09/§1.5).
+  // A template opens on Artwork, whichever one it is (V5-07). It used to open
+  // on Design ▸ Face, where a character is dressed out of the library, with
+  // only the blank artboard landing on the drawing tools — a split that made
+  // sense while the library was the way to make a mascot.
   //
-  // Except the blank one, which is not a mascot: there is nothing for Design
-  // ▸ Face to show and nothing to swap, and the only reason to ask for an
-  // empty artboard is to draw on it. It lands where the drawing tools are, for
-  // the same reason an imported SVG does.
-  const loadTemplate = async (kind, { mode = kind === 'blank' ? 'design.artwork' : 'design.face' } = {}) => {
+  // It is one answer now, and Artwork is the honest one for both: the blank
+  // artboard is somewhere to put pictures, and the finished mascot is there to
+  // be taken apart, which is a thing done to its pieces. Callers that need
+  // another screen still name it — the builder's own path does.
+  const loadTemplate = async (kind, { mode = 'design.artwork' } = {}) => {
     const template = PROJECT_TEMPLATES[kind] || PROJECT_TEMPLATES.basic;
     const committed = await replaceProject(() => loadProjectTemplate(template, { store, canvas, history, preview, validate: validateRig }));
     if (!committed) return false;

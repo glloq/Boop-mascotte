@@ -41,11 +41,16 @@ export const SURFACES = Object.freeze(['character', 'hands', 'create', 'rig', 'e
  */
 export const MODES = Object.freeze({
   /* ── Design: what does the mascot look like? ─────────────────────────────── */
+  // Artwork is first, and is where the editor opens (V5-07,
+  // docs/V5_MASCOTTE_IMAGES_ETUDE.md): the pieces a mascot is made of are the
+  // first thing an author brings and the last thing they change. It is not
+  // `advanced` any more for the same reason -- a screen the simple set has to
+  // fold away cannot be the screen everybody lands on.
+  'design.artwork': { id: 'design.artwork', label: 'Artwork', workspace: 'design', surface: 'create', navigable: true },
   'design.face': { id: 'design.face', label: 'Face', workspace: 'design', surface: 'character', navigable: true },
   // Hands are designed away from the face (docs/HAND_STYLES.md): a library of
   // drawings an author owns, not a section inside somebody else's panel.
   'design.hands': { id: 'design.hands', label: 'Hands', workspace: 'design', surface: 'hands', navigable: true },
-  'design.artwork': { id: 'design.artwork', label: 'Artwork', workspace: 'design', surface: 'create', navigable: true, advanced: true },
 
   /* ── Rig: how can its face move? ─────────────────────────────────────────── */
   'rig.assign': { id: 'rig.assign', label: 'Assign', workspace: 'rig', surface: 'rig', navigable: true, sections: ['face-parts'] },
@@ -183,16 +188,25 @@ const TARGET_KINDS = new Set(['artwork-element', 'semantic-part', 'semantic-cont
 /**
  * Where the editor opens.
  *
- * It was `design.artwork` — the vector editor, nine drawing tools — so a
- * template loaded from Home, a project opened, or a face generated all landed
- * somebody who wanted a mascot in front of a Pen and a Bézier node tool. Only
- * *New Character* passed `design.face` explicitly, and it was the one path
- * that did (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §1.5).
+ * `design.artwork`, and it has been both this and `design.face` before, which
+ * is worth writing down because the reason changed and the value went back.
  *
- * Importing an SVG still lands on Artwork, and should: that is the one case
- * where the author arrives holding a drawing to work on.
+ * It was Artwork, and that was wrong: a template loaded from Home, a project
+ * opened or a face generated all landed somebody who wanted *a mascot* in
+ * front of a Pen and a Bézier node tool, while the one screen that dressed a
+ * character had to be asked for by name (docs/AUDIT_UI_2026-09/02_PROBLEMES.md
+ * §1.5). So it became `design.face`, the Character Builder's screen.
+ *
+ * It is Artwork again, and not because that argument was wrong. The argument
+ * assumed the editor's answer to "how do I start?" was "pick one of ours", and
+ * V5 replaces that answer with "bring your pieces"
+ * (docs/V5_MASCOTTE_IMAGES_ETUDE.md). Artwork is where pieces arrive, where
+ * they are named, ordered and told how they move. Landing anywhere else means
+ * landing away from the mascot you brought.
+ *
+ * Importing an SVG lands here too, and always did.
  */
-export const DEFAULT_MODE = 'design.face';
+export const DEFAULT_MODE = 'design.artwork';
 
 /** A mode id, whatever it was called when the caller learned it. */
 export function normalizeMode(value, fallback = DEFAULT_MODE) {

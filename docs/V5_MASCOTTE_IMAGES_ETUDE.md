@@ -315,7 +315,8 @@ Onze PR, dans un ordre où chaque étape laisse l'éditeur utilisable.
 | **V5-02** | Le type de rigging comme donnée de la pièce, et *États* dans le registre des stratégies | M |
 | **V5-03** | Le flux d'ajout : fichier → rôle → rigging, avec les défauts déduits du nom | L |
 | **V5-04** | La nouvelle page d'arrivée | M |
-| **V5-07** | Retrait du Character Builder et de l'assistant, et nouveau mode par défaut | **XL** |
+| **V5-07a** | L'éditeur ouvre sur Artwork : `DEFAULT_MODE`, l'ordre des écrans de Design, la colonne Artwork | M |
+| **V5-07b** | Retrait du Character Builder et de l'assistant | **L** |
 | **V5-05** | Retrait des 22 presets et des morphologies | M |
 | **V5-06** | Retrait des dessins non conservés et des catalogues par espèce | L |
 | **V5-08** | Le jeu d'yeux SVG, avec les quatre apparences fermées | L |
@@ -342,6 +343,25 @@ c'est aussi choisir le nouveau défaut (`design.artwork`, là où les images
 arrivent), et reprendre le routeur, la barre d'écrans et la quarantaine de
 tests qui y naviguent. D'où **XL** plutôt que L, et d'où le fait que ce soit la
 seule PR de ce plan qui mérite d'être découpée elle-même.
+
+#### Le découpage de V5-07
+
+**V5-07a — l'éditeur ouvre là où sont les pièces.** `DEFAULT_MODE` passe à
+`design.artwork`, qui cesse d'être `advanced` (un écran que le mode simple doit
+replier ne peut pas être l'écran d'arrivée) et passe en tête de Design. Un
+template chargé depuis l'accueil y atterrit aussi : ouvrir un projet y menait
+déjà. Le Character Builder reste joignable, par son onglet et par l'accueil.
+Six tests unitaires disaient « Face », ils disent « Artwork ».
+
+**V5-07b — le Character Builder et l'assistant s'en vont.** 3 560 lignes, mais
+deux d'entre elles ne sont pas à supprimer : `ring-keys.js` (la navigation au
+clavier en anneau, lue par `shell/workspace-nav.js`) et `hand-placement-panel.js`
+(`HAND_LABELS`, lu par `ui/artwork-scope.js` et `ui/hands/hand-states.js`) ne
+sont dans ce dossier que par accident d'écriture. Elles **déménagent**. Le reste
+part : sept importateurs dans le code produit, quinze fichiers de tests
+unitaires, quatorze specs navigateur — dont trois qui n'existent que pour lui
+(`ux45`, `ux48`, `ux49`) et onze qui le traversent pour aller ailleurs et qu'il
+faut reformuler, pas supprimer.
 
 ---
 

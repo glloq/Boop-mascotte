@@ -25,10 +25,11 @@ test('a mode resolves from its own id, from every older name, and from nonsense 
   assert.equal(normalizeMode('character'), 'design.face');
   assert.equal(normalizeMode('create'), 'design.artwork');
   assert.equal(normalizeMode('animate'), 'animate.motions', 'the Motions task, not the Animate workspace');
-  // The editor opens on Face, not on the vector editor: a template loaded from
-  // Home used to land somebody who wanted a mascot in front of a Pen
-  // (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §1.5).
-  assert.equal(normalizeMode('unknown'), 'design.face');
+  // The editor opens on Artwork, where the pieces an author brought are
+  // (V5-07). It opened there before, moved to Design ▸ Face when the way to
+  // make a mascot was to pick one out of the library, and came back when that
+  // stopped being the way (docs/V5_MASCOTTE_IMAGES_ETUDE.md).
+  assert.equal(normalizeMode('unknown'), 'design.artwork');
   assert.equal(normalizeMode('unknown', 'rig.deform'), 'rig.deform', 'a caller may name its own fallback');
 });
 
@@ -57,7 +58,7 @@ test('the four workspaces hold every screen but the global ones, each exactly on
 });
 
 test('a workspace resolves to its screens, and a screen to its workspace and its panels', () => {
-  assert.deepEqual([...workspaceModes('design')], ['design.face', 'design.hands', 'design.artwork']);
+  assert.deepEqual([...workspaceModes('design')], ['design.artwork', 'design.face', 'design.hands'], 'Artwork first: it is where a mascot arrives');
   assert.deepEqual([...workspaceModes('rig')], ['rig.assign', 'rig.controls', 'rig.head2d', 'rig.deform']);
   assert.deepEqual([...workspaceModes('animate')], ['animate.expressions', 'animate.motions', 'animate.timeline']);
   assert.deepEqual([...workspaceModes('behavior')], ['behavior.reactions', 'behavior.automatic', 'behavior.stateMachine']);
@@ -113,7 +114,7 @@ test('a route normalizes a mode, a workspace, a target and a focus', () => {
   // A caller written before the four workspaces passes a surface under the same
   // key, and it still means what it meant.
   assert.equal(normalizeRoute({ workspace: 'expressions' }).mode, 'animate.expressions');
-  assert.equal(normalizeRoute({ stage: 'publish' }).mode, 'design.face', 'stage is gone with UIR-17: it names nothing and falls back');
+  assert.equal(normalizeRoute({ stage: 'publish' }).mode, 'design.artwork', 'stage is gone with UIR-17: it names nothing and falls back');
 });
 
 test('a route may focus a known panel, and only a known one', () => {
@@ -178,7 +179,7 @@ test('UI preference migration accepts every older workspace id', () => {
   assert.equal(readUiPreferences(storage({ workspace: 'rig' })).mode, 'rig.assign');
   assert.equal(readUiPreferences(storage({ workspace: 'face-setup' })).mode, 'rig.assign');
   assert.equal(readUiPreferences(storage({ mode: 'rig.deform' })).mode, 'rig.deform');
-  assert.equal(readUiPreferences(storage({ workspace: 'nonsense' })).mode, 'design.face');
+  assert.equal(readUiPreferences(storage({ workspace: 'nonsense' })).mode, 'design.artwork');
   assert.equal(readUiPreferences(storage({ mode: 'rig.head2d', workspace: 'create' })).workspace, 'rig', 'the surface follows the screen');
 });
 

@@ -80,10 +80,11 @@ test('@critical dirty New Project supports Cancel, Discard, and Save then replac
   await page.getByRole('button', { name: 'Discard' }).click();
   await expect(page.locator('#canvas svg svg')).toBeVisible();
   await expect(page.locator('[data-home]')).toBeHidden();
-  // A template opens on Face, where a mascot is dressed. It used to open in the
-  // vector editor, so *Mascot Face* from Home put somebody who wanted a mascot
-  // in front of a Pen (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §1.5).
-  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('design.face');
+  // A template opens on Artwork, where its pieces are (V5-07). It has been both
+  // this and Design ▸ Face: Face while the way to make a mascot was to dress
+  // one out of the library, Artwork now that the way is to bring pictures
+  // (docs/V5_MASCOTTE_IMAGES_ETUDE.md).
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('design.artwork');
 
   await dirtyProject();
   await requestNew();
