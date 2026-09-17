@@ -3,6 +3,7 @@ import { createStore } from '../core/state/store.js';
 import { createHistory } from '../core/undo/history.js';
 import { imageElementPlugin } from '../core/plugins/builtin/image-plugin.js';
 import { createSvgCanvas } from '../svg-editor/svg-canvas.js';
+import { createPictureDrop } from './picture-drop.js';
 import { openAssetStore } from '../core/assets/asset-store.js';
 import { createAssetManager } from '../core/assets/asset-manager.js';
 import { createAssetOptimiser, createBrowserCodec } from '../core/assets/asset-optimise.js';
@@ -654,6 +655,13 @@ export function createEditorApp({ root = document.getElementById('app'), recover
 
   shell.bindLoadSvg((file) => projectService.loadSvgFile(file));
   shell.bindAddImage((file) => projectService.addImageFile(file));
+  // The gesture people reach for first. A button alone works and still reads
+  // as a missing feature (app/picture-drop.js).
+  createPictureDrop(shell.canvasEl, {
+    isReady: () => Boolean(store.getDocument()?.svgMarkup),
+    onPicture: (file) => projectService.addImageFile(file),
+    setStatus: (message, tone) => shell.setStatus(message, tone)
+  });
   shell.bindAddBaseImage((file) => projectService.addBaseImageFile(file));
 
   shell.bindLoadSample((kind) => projectService.loadTemplate(kind));

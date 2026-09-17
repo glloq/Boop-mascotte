@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { goToArtwork, openFreshEditor } from './editor-helpers.js';
 
@@ -143,5 +144,30 @@ test('@critical a mascot of pictures exports as one archive that carries them', 
     page.locator('[data-download-artifact="mascot-export.zip"]').click()
   ]);
   expect(download.suggestedFilename()).toBe('mascot-export.zip');
+  expect(trouble).toEqual([]);
+});
+
+test('@critical a picture dropped on the mascot is added where it was dropped on', async ({ page }) => {
+  const trouble = watchForTrouble(page);
+  await openReadyMadeFace(page);
+
+  // The gesture people reach for first. Built in the page, because a real
+  // `DataTransfer` is the only thing the handler is written against.
+  const bytes = [...readFileSync(PICTURE)];
+  const hinted = await page.evaluate(({ bytes }) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([new Uint8Array(bytes)], 'dropped.webp', { type: 'image/webp' }));
+    const canvas = document.querySelector('#canvas');
+    canvas.dispatchEvent(new DragEvent('dragenter', { dataTransfer: transfer, bubbles: true }));
+    canvas.dispatchEvent(new DragEvent('dragover', { dataTransfer: transfer, bubbles: true }));
+    const showed = canvas.classList.contains('picture-drop-over');
+    canvas.dispatchEvent(new DragEvent('drop', { dataTransfer: transfer, bubbles: true }));
+    return showed;
+  }, { bytes });
+
+  expect(hinted, 'the canvas says it will take the drop').toBe(true);
+  await expect(page.locator('svg image')).toHaveCount(1);
+  await expect(page.locator('svg image').first()).toHaveAttribute('href', /^blob:/);
+  await expect(page.locator('#canvas.picture-drop-over')).toHaveCount(0);
   expect(trouble).toEqual([]);
 });

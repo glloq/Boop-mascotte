@@ -280,3 +280,27 @@
 #app.home-open #save-project-top,
 #app.home-open #export-top,
 #app.home-open #save-state{display:none}
+
+/* ── A picture dragged over the mascot (app/picture-drop.js) ──────────────
+ *
+ * The drop is allowed before this is seen -- `dragover` decides that -- so the
+ * outline is only ever saying so out loud. Drawn with `outline` and not
+ * `border`, because a border would move the canvas by two pixels at the exact
+ * moment somebody is aiming at it.
+ */
+#canvas.picture-drop-over {
+  outline: 2px dashed var(--accent, #60a5fa);
+  outline-offset: -6px;
+  background-color: color-mix(in srgb, var(--accent, #60a5fa) 8%, transparent);
+}
+
+#canvas.picture-drop-over::after {
+  content: 'Drop a picture to add it';
+  position: absolute;
+  inset-inline: 0;
+  bottom: 1rem;
+  text-align: center;
+  font-size: .85rem;
+  color: var(--text, #e5e7eb);
+  pointer-events: none;
+}
