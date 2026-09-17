@@ -1,6 +1,34 @@
 # Implementation status
 
-Updated 2026-09-10 after the Character Builder program (`docs/CHARACTER_BUILDER.md`); per-slice records of the UX program and of the Character Builder program are listed in `docs/UX_UI_IMPLEMENTATION_ROADMAP.md`.
+Updated 2026-09-17 after the V4 programme (`docs/V4_ROADMAP.md`,
+`docs/V4_RELEASE_NOTES.md`); previously updated 2026-09-10 after the Character Builder program (`docs/CHARACTER_BUILDER.md`); per-slice records of the UX program and of the Character Builder program are listed in `docs/UX_UI_IMPLEMENTATION_ROADMAP.md`.
+
+## V4 complete — a mascot can be made of pictures
+
+- **Raster artwork** (`docs/V4_ROADMAP.md`, Phases 1–5): PNG and WebP imported as
+  pieces or as the head/body everything is placed on, from Home, from the
+  Artwork column or by dropping a file on the canvas; replaced without losing
+  the rig; cut to another picture's alpha; deduplicated by content; never
+  carried inside the document (`ASSET-REF`), so undo stays cheap, the autosave
+  snapshot stays JSON and the sanitizer's no-external-references rule stays
+  literally true. A whole project saves as one `.boop` package, pictures
+  included.
+- **Meshes** (Phase 7): a picture bends on a 3×3 or 4×4 grid of draggable
+  points, driven by a parameter, rendered as clipped affine triangles of the
+  same `<image>`.
+- **The IF** (Phase 9): a reaction runs *only if* its conditions hold — a
+  movement against a number, or the state the mascot is in, joined with `and`.
+  Named in `requires` as `reaction:condition`, because a runtime that ignores a
+  condition fires the reaction unconditionally.
+- **The state graph** (Phase 10): positions are authored data — dragged, saved,
+  undone — with pan, zoom, fit, drawn links, marquee selection, groups, notes,
+  auto-arrange, and a live highlight on the state the mascot is in and the
+  transition playing.
+- **The matrix** (Phase 11): five reference mascots — paths, pictures, both,
+  a photograph with features on it, and a bent picture behind an alpha mask —
+  run through versioning, round-trips, `.boop`, export, runtime parity,
+  deduplication, sanitising and corruption in
+  `project/editor/core/tests/v4-matrix.test.js`.
 
 ## Character Builder complete
 

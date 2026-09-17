@@ -151,6 +151,7 @@ export function prepareProjectSnapshot(snapshot, sanitizeSvg) {
   prepared.document.editor.rigHandles = candidate.rigHandles;
   prepared.document.editor.rigLinks = candidate.rigLinks;
   prepared.document.editor.arrangement = candidate.arrangement;
+  prepared.document.editor.graphLayout = candidate.graphLayout;
   delete prepared.document.selectedId;
   return prepared;
 }

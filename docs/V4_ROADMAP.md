@@ -520,8 +520,28 @@ workspace exists (`app/workspaces/behavior.js`, `animation-editor/behaviors/`,
 
 | PR | What | Size |
 | --- | --- | --- |
-| **V4-110** | Four reference mascots plus one hybrid, through the whole matrix: historic SVG, raster, mixed, replaced asset, shared asset, personal head, `.boop`, autosave, mesh, masks, pseudo-3D, behavior, runtime parity, memory, FPS, corrupt project | L |
-| **V4-111** | Release notes, `docs/IMPLEMENTATION_STATUS.md`, `docs/KNOWN_LIMITATIONS.md` | S |
+| **V4-110** | ✅ Five reference mascots through the whole matrix: historic SVG, raster, mixed, personal head, bent-and-masked; versions, round-trips, `.boop`, shared and replaced assets, export, runtime parity, sanitising, corruption, one frame ceiling | L |
+| **V4-111** | ✅ `docs/V4_RELEASE_NOTES.md`, `docs/IMPLEMENTATION_STATUS.md`, `docs/KNOWN_LIMITATIONS.md` | S |
+
+### What building Phase 11 corrected
+
+- **A fixture assembled by hand is not a project.** The first version of
+  `tests/helpers/reference-mascots.js` built its states from
+  `createCleanProjectState`, which leaves `parallax` null — and
+  `createProjectDocument`, which every real project goes through, normalizes it
+  into a block. So the matrix reported that the editor and the exported rig
+  disagreed about depth, and the disagreement was entirely in the fixture. The
+  reference mascots go through `normalizeRig` and `createProjectDocument` now,
+  which is the pair a template load goes through.
+- **"The document does not carry pixels" has to be measured scale-free.**
+  Comparing the document's size against the bytes of its pictures fails on a
+  mascot with one small fixture, for no reason anybody cares about. What the
+  matrix measures instead is the difference the asset table makes — under 300
+  bytes per picture — which is the claim ASSET-REF actually makes and is true of
+  a 4 MB photograph.
+- **The five reference mascots are a fixture, not a test.** They live in
+  `tests/helpers/` so anything else can reach them; a fixture only one file can
+  use is a fixture that rots.
 
 ## Dependencies
 
