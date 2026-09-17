@@ -209,6 +209,44 @@ export function createProjectService({
     return true;
   };
 
+  /**
+   * Put a different picture on a piece that is already rigged.
+   *
+   * What the raster model is for: the rig, the animations, the pivot, the
+   * depth and the place in the paint order all belong to the node, and none of
+   * them knows which picture it draws. So this changes one reference and
+   * nothing else -- a redrawn mouth arrives already animated.
+   *
+   * **The picture that was there is kept.** Collecting it here would be
+   * correct right up until the author pressed undo: undo restores the
+   * document, and nothing restores bytes deleted from the store, so the piece
+   * would come back pointing at an asset that no longer exists. A record is a
+   * few dozen bytes; the bytes themselves go when collection is asked for
+   * deliberately (`assets.collect`), where there is nothing to undo.
+   */
+  const replaceImageFile = async (id, file) => {
+    if (!assets) { setStatus('Pictures cannot be replaced in this editor build.', 'error'); return false; }
+    const before = store.getDocument();
+    let imported;
+    try {
+      imported = await assets.import(new Uint8Array(await file.arrayBuffer()), { name: file.name, type: file.type });
+    } catch {
+      setStatus(`Could not read ${file.name}.`, 'error');
+      return false;
+    }
+    if (!imported.ok) { setStatus(`${file.name}: ${importRefusal(imported.issues)}`, 'error'); return false; }
+
+    const artwork = canvas.replaceImageAsset(id, assets.reference(imported.asset.id));
+    if (!artwork) { setStatus(`${id} is not a picture, so there is nothing to replace.`, 'error'); return false; }
+
+    commands.syncSvg({ ...artwork, assets: { ...(before.assets || {}), [imported.asset.id]: imported.asset } },
+      { domains: ['artwork', 'assets'], source: 'replace-image' });
+    await canvas.refreshAssets();
+    preview.apply();
+    setStatus(`${id} now draws ${file.name}. Its movements are unchanged.`);
+    return true;
+  };
+
   const loadSvgFile = async (file) => {
     try {
       // Read and sanitized before the confirm dialog: an unreadable file must
@@ -311,5 +349,5 @@ export function createProjectService({
     }
   };
 
-  return { replaceProject, restoreSnapshot, saveProject, downloadJson, addImageFile, loadSvgFile, loadTemplate, generateFace, loadProjectFile, importRigFile };
+  return { replaceProject, restoreSnapshot, saveProject, downloadJson, addImageFile, replaceImageFile, loadSvgFile, loadTemplate, generateFace, loadProjectFile, importRigFile };
 }

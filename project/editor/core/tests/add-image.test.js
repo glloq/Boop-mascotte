@@ -125,3 +125,72 @@ test('every reference the service writes is one the sanitizer keeps',async()=>{
   const reference = /href="([^"]+)"/.exec(store.getDocument().svgMarkup)[1];
   assert.ok(parseAssetRef(reference),`${reference} must parse as a reference or the cleaner will remove it`);
 });
+
+/** The harness above, with a canvas that can also swap a picture's reference. */
+function replaceHarness() {
+  const built = harness();
+  const store = built.store;
+  built.service = createProjectService({
+    store, history: built.history, assets: createAssetManager({ store: built.assetStore }),
+    canvas: {
+      appendArtwork: (markup) => {
+        const document = store.getDocument();
+        const id = /id="([^"]+)"/.exec(markup)[1];
+        return { svgMarkup: document.svgMarkup.replace('</svg>', `${markup}</svg>`), layers: document.layers, layerMetadata: {},
+          elements: { ...document.elements, [id]: { baseTransform: { x: 3, y: 4 }, depth: 0.5, bindings: { translateX: { expression: 'headX', amplitude: 6 } }, meta: { nodeType: 'image', assetRef: /href="([^"]+)"/.exec(markup)[1] } } } };
+      },
+      replaceImageAsset: (id, reference) => {
+        const document = store.getDocument();
+        const element = document.elements[id];
+        if (element?.meta?.nodeType !== 'image') return false;
+        return {
+          svgMarkup: document.svgMarkup.replace(new RegExp(`(<image id="${id}" href=")[^"]+`), `$1${reference}`),
+          elements: { ...document.elements, [id]: { ...element, meta: { ...element.meta, assetRef: reference } } }
+        };
+      },
+      refreshAssets: async () => ({ painted: [], missing: [] })
+    },
+    preview: { apply() {} },
+    setStatus: (message, tone) => built.status.push([message, tone])
+  });
+  return built;
+}
+
+test('a piece redrawn keeps everything except what it draws',async()=>{
+  const { service, store, status } = replaceHarness();
+  await service.addImageFile(fileOf('mouth.webp', file('alpha-24x17.webp'), 'image/webp'));
+  const before = store.getDocument().elements.mouth;
+  const firstId = parseAssetRef(before.meta.assetRef);
+
+  assert.equal(await service.replaceImageFile('mouth', fileOf('mouth-v2.png', file('alpha-16x16.png'), 'image/png')),true);
+  const after = store.getDocument().elements.mouth;
+  // The rig, the depth, the transform: all properties of the node, none of
+  // which knows which picture it draws.
+  assert.deepEqual(after.baseTransform,before.baseTransform);
+  assert.equal(after.depth,before.depth);
+  assert.deepEqual(after.bindings,before.bindings);
+  // Only the reference moved.
+  assert.notEqual(after.meta.assetRef,before.meta.assetRef);
+  assert.match(store.getDocument().svgMarkup,new RegExp(`<image id="mouth" href="${after.meta.assetRef}"`));
+  assert.match(status.at(-1)[0],/Its movements are unchanged/);
+
+  // The picture it used to draw is still listed, because undo has to be able
+  // to put it back: the document comes back and nothing restores deleted bytes.
+  assert.ok(store.getDocument().assets[firstId],'the old asset is kept for undo');
+});
+
+test('undo puts the old picture back, bytes and all',async()=>{
+  const { service, store, history, assetStore } = replaceHarness();
+  await service.addImageFile(fileOf('mouth.webp', file('alpha-24x17.webp'), 'image/webp'));
+  const original = store.getDocument().elements.mouth.meta.assetRef;
+  await service.replaceImageFile('mouth', fileOf('mouth-v2.png', file('alpha-16x16.png'), 'image/png'));
+  history.undo();
+  assert.equal(store.getDocument().elements.mouth.meta.assetRef,original);
+  assert.ok(await assetStore.has(parseAssetRef(original)),'and the bytes were never taken away');
+});
+
+test('only a picture can be redrawn',async()=>{
+  const { service, status } = replaceHarness();
+  assert.equal(await service.replaceImageFile('head', fileOf('x.png', file('alpha-16x16.png'), 'image/png')),false);
+  assert.match(status.at(-1)[0],/is not a picture/);
+});

@@ -3317,6 +3317,34 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       }
       return safeMarkup;
     },
+    /**
+     * Point a picture at a different asset, keeping the node.
+     *
+     * The whole value of the raster model in one method: the id, the
+     * transform, the pivot, the depth, the bindings and the place in the paint
+     * order are all properties of the *node*, and none of them knows which
+     * picture it draws. So replacing artwork is writing one attribute
+     * (docs/V4_ROADMAP.md, V4-032).
+     *
+     * Writes the reference, never a resolved URL: repainting is
+     * `refreshAssets`, and a blob written here would be captured as authored.
+     * Returns the artwork for a command to write together with the asset
+     * table, and touches neither the store nor the history itself.
+     */
+    replaceImageAsset(id, reference) { return previewOrder.authored(() => api.replaceImageAssetNow(id, reference)); },
+    replaceImageAssetNow(id, reference) {
+      const node = documentModel.getNode(id);
+      if (!node || node.localName !== 'image') return false;
+      const attribute = node.hasAttribute?.('xlink:href') && !node.hasAttribute?.('href') ? 'xlink:href' : 'href';
+      node.removeAttribute('data-editor-asset');
+      node.removeAttribute('data-editor-asset-missing');
+      node.setAttribute(attribute, reference);
+      documentModel.captureAuthoringAttribute(id, attribute);
+      const elements = structuredClone(store.getDocument().elements);
+      if (elements[id]) elements[id].meta = { ...(elements[id].meta || {}), assetRef: reference };
+      loadedMarkup = documentModel.serialize();
+      return { svgMarkup: loadedMarkup, elements };
+    },
     /** The resolver every `asset:` reference is drawn through. One per editor. */
     setAssetResolver(resolver) { assetResolver = resolver; },
     /**
