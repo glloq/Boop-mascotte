@@ -244,3 +244,42 @@ test('@critical a picture bends, changes grid and goes flat again', async ({ pag
   await expect(page.locator('svg defs clipPath[id^="mesh-"]')).toHaveCount(0);
   expect(trouble).toEqual([]);
 });
+
+test('@critical a mesh point is dragged, bends the picture, and flattens again', async ({ page }) => {
+  const trouble = watchForTrouble(page);
+  await openFreshEditor(page, { e2e: true });
+  await page.evaluate(() => window.__BOOP_E2E__.openProject.template('basic'));
+  await page.setInputFiles('#artwork-image-file', PICTURE);
+  await expect(page.locator('svg image')).toHaveCount(1);
+  await page.evaluate(() => window.__BOOP_E2E__.navigate('design.artwork'));
+  const id = await page.locator('svg image').first().evaluate((node) => node.id);
+  await page.evaluate((id) => window.__BOOP_E2E__.mutate((state) => { state.selectedId = id; state.selectedIds = [id]; }), id);
+  await page.locator('[data-mesh-size]').first().selectOption('3');
+
+  // Nine points and the grid between them, so an author sees a lattice rather
+  // than a constellation of dots.
+  await expect(page.locator('[data-mesh-point]:not([hidden])')).toHaveCount(9);
+  expect(await page.locator('.mesh-layer line').count()).toBe(12);
+
+  const handle = page.locator('[data-mesh-point="4"]');
+  const box = await handle.boundingBox();
+  const before = await page.evaluate(() => window.__BOOP_E2E__.document().meshes[0].points[4]);
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 30, box.y + box.height / 2 + 10, { steps: 6 });
+  await page.mouse.up();
+
+  const after = await page.evaluate(() => window.__BOOP_E2E__.document().meshes[0].points[4]);
+  expect(after).not.toEqual(before);
+  // And the picture actually bent: the triangles stopped being identities.
+  const bent = await page.locator(`svg g#${id} image`).evaluateAll((nodes) =>
+    nodes.filter((node) => !/matrix\(1 0 0 1 0 0\)/.test(node.getAttribute('transform') || '')).length);
+  expect(bent).toBeGreaterThan(0);
+
+  // One drag is one undo step, whatever the pointer did on the way.
+  expect(await page.evaluate(() => window.__BOOP_E2E__.history().canUndo)).toBe(true);
+
+  await page.locator('[data-mesh-reset]').click();
+  expect(await page.evaluate(() => window.__BOOP_E2E__.document().meshes[0].points[4])).toEqual(before);
+  expect(trouble).toEqual([]);
+});

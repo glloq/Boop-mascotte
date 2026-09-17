@@ -29,6 +29,7 @@ import { renderPartGlyph } from '../ui/rig-controls/part-glyph.js';
 import { handStyleThumbnail } from '../core/hands/hand-style-art.js';
 import { installedHandLook } from '../core/sample/hand-feature.js';
 import { createWarpGesture, isWarpEdgePoint, warpLattice, warpOverlay, warpedPath } from '../core/warp/warp-handles.js';
+import { createMeshGesture, isMeshEdgePoint, meshLattice, meshOverlay } from '../core/mesh/mesh-handles.js';
 import { createPinGesture, pinReachEllipse } from '../core/rig/pin-handles.js';
 import { pinOverlay } from '../core/rig/pin-model.js';
 import { createPinCommands } from '../core/rig/pin-commands.js';
@@ -709,6 +710,112 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
   // canvas being told.
   store.subscribeDocument?.('keyforms', () => renderWarp());
 
+  /* ── Mesh points ──────────────────────────────────────────────────────────
+   *
+   * The same gesture as the warp, over a picture instead of a path
+   * (core/mesh/mesh-handles.js). Simpler in one way that matters: a mesh's
+   * triangles already carry their own transforms, so the live preview is
+   * writing those again rather than re-running a deformation over a path.
+   */
+  const meshLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  meshLayer.setAttribute('class', 'mesh-layer');
+  meshLayer.style.display = 'none';
+  draw.node.append(meshLayer);
+  const meshEdges = [], meshHandles = [];
+  const meshHandle = (index) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'rig-node-handle';
+    button.dataset.meshPoint = String(index);
+    button.hidden = true;
+    container.append(button);
+    return button;
+  };
+
+  /** A mesh's box is the box of the copies inside it -- they all share one. */
+  const meshBoxFor = (id) => {
+    const group = documentModel.getNode(id);
+    const image = group?.localName === 'g' && group.hasAttribute('data-mesh') ? group.querySelector('image') : null;
+    if (!image) return null;
+    const side = (name) => Number(image.getAttribute(name)) || 0;
+    return { x: side('x'), y: side('y'), width: side('width'), height: side('height') };
+  };
+
+  const meshGesture = createMeshGesture({
+    document: () => store.getDocument(),
+    box: (id) => meshBoxFor(id),
+    commands: { moveMeshPoints: (target, points) => api.moveMeshPoints?.(target, points) }
+  });
+
+  /** Whether the canvas should be showing a mesh at all, and which one. */
+  const openMesh = () => meshOverlay(store.getDocument(), selectedId, meshBoxFor(selectedId));
+
+  /** Write a live shape onto the triangles, so the picture bends under the pointer. */
+  const paintMeshPieces = (target, pieces) => {
+    const group = documentModel.getNode(target);
+    if (!group || !pieces) return;
+    const children = [...group.children];
+    pieces.forEach((piece, index) => {
+      const cell = children[index];
+      const image = cell?.querySelector?.('image');
+      if (image) image.setAttribute('transform', `matrix(${piece.transform.map((value) => Math.round(value * 1000) / 1000).join(' ')})`);
+      const reference = /url\(['"]?#([^)'"]+)['"]?\)/.exec(cell?.getAttribute?.('clip-path') || '')?.[1];
+      const polygon = reference ? rootGroup.node.querySelector(`#${CSS.escape(reference)} > polygon`) : null;
+      if (polygon) polygon.setAttribute('points', piece.clip.map((point) => `${Math.round(point.x * 1000) / 1000},${Math.round(point.y * 1000) / 1000}`).join(' '));
+    });
+  };
+
+  function renderMesh() {
+    const live = meshGesture.preview();
+    const overlay = live || openMesh();
+    meshLayer.style.display = overlay ? '' : 'none';
+    if (!overlay) { for (const button of meshHandles) button.hidden = true; return null; }
+    // A rebuild appends the artwork after this layer, which would leave the
+    // lattice drawn underneath the picture it is about.
+    draw.node.append(meshLayer);
+    const matrix = artworkMatrix();
+    const ctm = rootGroup.node.querySelector('svg')?.getScreenCTM();
+    if (!matrix || !ctm) { for (const button of meshHandles) button.hidden = true; return null; }
+    meshLayer.setAttribute('transform', `matrix(${matrix.a} ${matrix.b} ${matrix.c} ${matrix.d} ${matrix.e} ${matrix.f})`);
+    if (live?.pieces) paintMeshPieces(overlay.target, live.pieces);
+
+    const edges = meshLattice(overlay.size);
+    while (meshEdges.length < edges.length) {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('class', 'warp-lattice');
+      line.setAttribute('stroke-width', '1');
+      line.setAttribute('stroke-dasharray', '3 3');
+      meshEdges.push(line);
+      meshLayer.append(line);
+    }
+    meshEdges.forEach((line, index) => {
+      const edge = edges[index];
+      line.style.display = edge ? '' : 'none';
+      if (!edge) return;
+      const [a, b] = [overlay.points[edge[0]], overlay.points[edge[1]]];
+      line.setAttribute('x1', a.x); line.setAttribute('y1', a.y);
+      line.setAttribute('x2', b.x); line.setAttribute('y2', b.y);
+    });
+    while (meshHandles.length < overlay.points.length) meshHandles.push(meshHandle(meshHandles.length));
+    const box = container.getBoundingClientRect();
+    meshHandles.forEach((button, index) => {
+      const point = overlay.points[index];
+      if (!point) { button.hidden = true; return; }
+      const label = `Mesh point ${index + 1} of ${overlay.points.length}${isMeshEdgePoint(index, overlay.size) ? ', on the edge of the picture' : ''}. Drag to bend it. Hold Alt to move its mirror with it.`;
+      button.title = label;
+      button.setAttribute('aria-label', label);
+      button.setAttribute('aria-valuetext', `${Math.round(point.x)}, ${Math.round(point.y)}`);
+      button.dataset.warpEdge = String(isMeshEdgePoint(index, overlay.size));
+      placeHandRigHandle(button, point, ctm, box);
+    });
+    return overlay;
+  }
+
+  // A mesh is document geometry like a warp, so the lattice follows the
+  // document: an undo, a change of grid size or a reset all move it.
+  store.subscribeDocument?.('keyforms', () => renderMesh());
+  store.subscribeDocument?.('artwork', () => renderMesh());
+
   /* ── Pins ─────────────────────────────────────────────────────────────────
    *
    * The structural points the artwork is held by (docs/FACE_CONTROL_RIG.md).
@@ -881,6 +988,19 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
         return;
       }
     }
+    const meshPoint = event.target.closest?.('[data-mesh-point]');
+    if (meshPoint && event.button === 0) {
+      const overlay = openMesh();
+      // Alt moves the mirror with it: a face is symmetrical far more often
+      // than not, and bending one cheek alone is the rarer thing to want.
+      if (overlay && meshGesture.start(overlay.target, Number(meshPoint.dataset.meshPoint), { mirror: event.altKey })) {
+        event.preventDefault();
+        event.stopPropagation();
+        meshPoint.setPointerCapture(event.pointerId);
+        meshPoint.focus?.();
+        return;
+      }
+    }
     const point = event.target.closest?.('[data-warp-point]');
     if (point && event.button === 0) {
       const overlay = openWarp();
@@ -910,6 +1030,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       return;
     }
     if (pinGesture.active()) { pinGesture.to(artworkPoint(event)); renderPins(); return; }
+    if (meshGesture.preview()) { meshGesture.move(artworkPoint(event)); renderMesh(); return; }
     if (warpGesture.active()) { warpGesture.to(artworkPoint(event)); renderWarp(); return; }
     if (!handRigGesture.active()) return;
     handRigGesture.to(artworkPoint(event));
@@ -933,6 +1054,13 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       renderPins();
       return;
     }
+    if (meshGesture.preview()) {
+      event.target.releasePointerCapture?.(event.pointerId);
+      // One command for the whole gesture, not one per frame.
+      meshGesture.commit();
+      renderMesh();
+      return;
+    }
     if (warpGesture.active()) {
       event.target.releasePointerCapture?.(event.pointerId);
       // One command for the whole gesture, not one per frame.
@@ -947,7 +1075,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
     renderHandRig();
   }, true);
 
-  container.addEventListener('pointercancel', () => { if (reachDrag) { reachDrag = null; renderPins(); } if (pinGesture.cancel()) renderPins(); if (warpGesture.cancel()) renderWarp(); if (handRigGesture.cancel()) renderHandRig(); });
+  container.addEventListener('pointercancel', () => { if (reachDrag) { reachDrag = null; renderPins(); } if (pinGesture.cancel()) renderPins(); if (meshGesture.cancel()) renderMesh(); if (warpGesture.cancel()) renderWarp(); if (handRigGesture.cancel()) renderHandRig(); });
 
   // Escape abandons a drag in progress. It is caught here, in the capture
   // phase, because the shell's own Escape closes whatever surface is on top and
@@ -956,6 +1084,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
     if (event.key !== 'Escape') return;
     if (reachDrag) { event.stopPropagation(); reachDrag = null; renderPins(); return; }
     if (pinGesture.active()) { event.stopPropagation(); pinGesture.cancel(); renderPins(); return; }
+    if (meshGesture.preview()) { event.stopPropagation(); meshGesture.cancel(); renderMesh(); return; }
     if (warpGesture.active()) { event.stopPropagation(); warpGesture.cancel(); renderWarp(); return; }
     if (!handRigGesture.active()) return;
     event.stopPropagation();
@@ -3426,6 +3555,29 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       refreshDocument(id);
       return { svgMarkup: documentModel.serialize(), elements: structuredClone(store.getDocument().elements) };
     },
+    /**
+     * A whole drag, written once.
+     *
+     * The deformation and the record of it go together, as they do when
+     * bending is switched on: an undo that put the triangles back without the
+     * mesh, or the mesh back without the triangles, would leave a piece
+     * nothing can edit.
+     */
+    moveMeshPoints(target, points) {
+      const before = store.getDocument();
+      const mesh = (before.meshes || []).find((item) => item.target === target);
+      if (!mesh) return false;
+      const next = { ...mesh, points: points.map((point) => ({ x: point.x, y: point.y })) };
+      history.snapshot();
+      const artwork = api.setMeshNow(target, next);
+      if (!artwork) return false;
+      commands.syncSvg({ ...artwork, meshes: (before.meshes || []).map((item) => (item.target === target ? next : item)) },
+        { domains: ['artwork', 'keyforms'], source: 'mesh-drag', snapshot: false });
+      renderMesh();
+      return true;
+    },
+    /** Back to the grid it started as, in one step. */
+    resetMesh(target) { return meshGesture.reset(target); },
     /** The sizes a mesh may be, for whoever is offering the choice. */
     meshSizes: () => [...MESH_PRESETS],
     restMeshFor: (id, size = DEFAULT_MESH_SIZE) => restMesh(id, size),

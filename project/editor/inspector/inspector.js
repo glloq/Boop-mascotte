@@ -1,4 +1,5 @@
 import { mirrorTransformX } from '../core/rig/symmetry.js';
+import { meshIsRest } from '../../runtime/mesh-warp.js';
 import { PART_PRESETS, suggestPresetForElement } from '../core/assets/part-presets.js';
 import { createArtworkCommands } from '../core/commands/artwork-commands.js';
 import { rememberOpen, setPanelHtml } from '../ui/panel-render.js';
@@ -101,6 +102,12 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     const tab = event.target.dataset.tab;
     if (tab) {
       activeTab = tab;
+      renderCurrent({ force: true });
+      return;
+    }
+    if (event.target.dataset.meshReset !== undefined) {
+      const id = store.getSession().selectedId;
+      if (id) canvas.resetMesh?.(id);
       renderCurrent({ force: true });
       return;
     }
@@ -335,6 +342,9 @@ export function createInspector(host, store, history, canvas, { openColour = nul
       if(isPicture&&setMesh){
         const mesh=(store.getDocument().meshes||[]).find(item=>item.target===selectedId);
         rows.push(choiceOf('mesh','Bends',[['0','No — a flat picture'],['3','Yes, 3 × 3 points'],['4','Yes, 4 × 4 points']],String(mesh?.size||0),'data-mesh-size'));
+        // Only where there is something to undo: an author who has bent
+        // nothing does not need to be offered a way to unbend it.
+        if(mesh&&!meshIsRest(mesh))rows.push(`<button type="button" class="secondary" data-mesh-reset title="Every point back where it started, in one step">Flatten the points</button>`);
       }
     }
     return rows.join('');
