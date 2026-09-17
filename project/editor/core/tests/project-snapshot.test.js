@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyProjectSnapshot, createProjectSnapshot, prepareProjectSnapshot } from '../state/project-snapshot.js';
+import { applyProjectSnapshot, canOpenProjectVersion, createProjectSnapshot, PROJECT_VERSION, prepareProjectSnapshot, projectVersionOf } from '../state/project-snapshot.js';
 import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
 
 function baseState() {
@@ -63,4 +63,32 @@ test('snapshot restore preserves a valid active clip and falls back deterministi
   const source=baseState();source.animationClips=[{id:'gaze',duration:1,tracks:{headX:[{time:0,value:-1},{time:1,value:1}]}}];source.animationEditor={activeClipId:'gaze',playhead:.25,panel:'preview'};
   const snapshot=createProjectSnapshot(source),target=baseState();applyProjectSnapshot(target,snapshot);assert.equal(target.animationEditor.activeClipId,'gaze');assert.equal(target.animationEditor.playhead,.25);
   snapshot.document.editor.animationEditor.activeClipId='missing';snapshot.document.editor.animationEditor.playhead=4;applyProjectSnapshot(target,snapshot);assert.equal(target.animationEditor.activeClipId,'gaze');assert.equal(target.animationEditor.playhead,1);
+});
+
+test('the project file version is its own axis, and one predicate gates every way in',()=>{
+  const current=createProjectSnapshot(baseState());
+  // Two versions, two reasons to move: the file's, and the rig's inside it.
+  // Neither is stamped from the other.
+  assert.equal(current.version,PROJECT_VERSION);
+  assert.equal(current.document.rig.schemaVersion,RIG_SCHEMA_VERSION);
+  assert.equal(projectVersionOf(current),PROJECT_VERSION);
+  // A file that declares none is the first format, which never wrote one.
+  for(const absent of [undefined,null]){
+    const fixture={...structuredClone(current),version:absent};
+    assert.equal(projectVersionOf(fixture),1);
+    const target=baseState();applyProjectSnapshot(target,fixture);
+    assert.equal(createProjectSnapshot(target).version,PROJECT_VERSION);
+  }
+});
+
+test('a file a newer editor wrote is declined, and declined the same way at every door',()=>{
+  const current=createProjectSnapshot(baseState());
+  for(const version of [PROJECT_VERSION+1,0,-1,2.5,'3']){
+    assert.equal(canOpenProjectVersion(version),false,`v${version} opens`);
+    const fixture={...structuredClone(current),version};
+    assert.throws(()=>applyProjectSnapshot(baseState(),fixture),/Unsupported project snapshot version/,`apply v${version}`);
+    assert.throws(()=>prepareProjectSnapshot(fixture,value=>value),/Unsupported project snapshot version/,`prepare v${version}`);
+  }
+  // Every version this editor wrote, it can still open.
+  for(let version=1;version<=PROJECT_VERSION;version++) assert.ok(canOpenProjectVersion(version),`v${version} declined`);
 });

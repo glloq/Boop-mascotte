@@ -1,6 +1,37 @@
-const SNAPSHOT_VERSION = 3;
 import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
 import { normalizeRig } from '../rig/normalize-rig.js';
+
+/**
+ * The version of the project *file* -- `mascot-project.json`, the autosave
+ * record, and the `.boop` package that will carry both.
+ *
+ * It is not `RIG_SCHEMA_VERSION` and it never moves with it. The rig schema
+ * says what a rig means; this says what the file around it looks like, and
+ * the two change for different reasons: adding a domain to the document is a
+ * project change, adding a runtime concept is a rig change
+ * (docs/V4_ROADMAP.md, "Two corrections to the frozen values"). Written on
+ * every save; a file that carries none is the first format, which never wrote
+ * one.
+ *
+ * It lives on the file rather than on `ProjectDocument` on purpose: which
+ * format a document was *stored* in is not something the document means, and
+ * the document holds nothing that is not authored (docs/V3_ROADMAP.md, the
+ * cross-cutting invariant).
+ */
+export const PROJECT_VERSION = 3;
+
+/** The version a file declares, or 1 for the format that declared none. */
+export const projectVersionOf = (snapshot) => snapshot?.version ?? 1;
+
+/**
+ * Whether this editor can open a file of that version at all.
+ *
+ * Below `PROJECT_VERSION` is a file to migrate forward. Above it is a file a
+ * newer editor wrote, whose meaning this one cannot invent -- so it declines
+ * rather than guesses. One predicate, because the answer was written out
+ * twice and a third format would have had to remember both.
+ */
+export const canOpenProjectVersion = (version) => Number.isInteger(version) && version >= 1 && version <= PROJECT_VERSION;
 
 /**
  * A project is valid once it has an SVG document, drawn on or not: a blank
@@ -22,7 +53,7 @@ export function createProjectSnapshot(state, serializeSvg) {
     runtimeConfig: state.runtimeConfig, behaviors: state.behaviors, keyforms: state.keyforms, shapeKeys: state.shapeKeys, warps: state.warps, rigPins: state.rigPins, rigConstraints: state.rigConstraints, rigAttachments: state.rigAttachments, rigHolds: state.rigHolds, hands: state.hands, deformers: state.deformers, parallax: state.parallax, followers: state.followers, expressionBlend: state.expressionBlend, motionBlend: state.motionBlend, gazeSolver: state.gazeSolver
   });
   return {
-    version: SNAPSHOT_VERSION,
+    version: PROJECT_VERSION,
     capturedAt: new Date().toISOString(),
     document: {
       svgMarkup: serializeSvg ? serializeSvg() : (state.svgMarkup || ''),
@@ -36,7 +67,7 @@ export function createProjectSnapshot(state, serializeSvg) {
 
 export function applyProjectSnapshot(state, snapshot) {
   if (!snapshot?.document?.rig) throw new Error('Invalid project snapshot');
-  if (![1, 2, 3].includes(snapshot.version ?? 1)) throw new Error('Unsupported project snapshot version');
+  if (!canOpenProjectVersion(projectVersionOf(snapshot))) throw new Error('Unsupported project snapshot version');
   const { svgMarkup } = snapshot.document;
   const rig = normalizeRig(snapshot.document.rig);
 
@@ -98,7 +129,7 @@ export function applyProjectSnapshot(state, snapshot) {
 /** Purely validates and normalizes a snapshot before the live editor is touched. */
 export function prepareProjectSnapshot(snapshot, sanitizeSvg) {
   if (!snapshot || typeof snapshot !== 'object') throw new Error('Invalid project snapshot');
-  if (![1, 2, 3].includes(snapshot.version ?? 1)) throw new Error('Unsupported project snapshot version');
+  if (!canOpenProjectVersion(projectVersionOf(snapshot))) throw new Error('Unsupported project snapshot version');
   if (!snapshot.document || typeof snapshot.document !== 'object' || !snapshot.document.rig) throw new Error('Invalid project snapshot');
   if (typeof snapshot.document.svgMarkup !== 'string' || !snapshot.document.svgMarkup.trim()) throw new Error('Project has no SVG document');
   const prepared = structuredClone(snapshot);
