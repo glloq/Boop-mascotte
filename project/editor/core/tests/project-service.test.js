@@ -210,16 +210,16 @@ test('a rig.json lands on the current artwork as one undo step, and a project fi
   assert.match(harness.shell.status.at(-1)[0], /artwork first/);
 });
 
-test('New Character is the template landing in the Character Builder: the same load, routed there (docs/CHARACTER_BUILDER.md, "The one-minute path")', async () => {
+test('a template is loaded, routed, and says so — and a caller may name the screen', async () => {
   const harness = createHarness();
-  assert.equal(await harness.service.loadTemplate('basic', { mode: 'design.face' }), true);
-  assert.deepEqual(harness.shell.routes, ['design.face']);
+  assert.equal(await harness.service.loadTemplate('basic', { mode: 'design.hands' }), true);
+  assert.deepEqual(harness.shell.routes, ['design.hands']);
   assert.equal(harness.shell.closedHome, 1);
   assert.deepEqual(harness.shell.projectLoaded, [true]);
   assert.match(harness.shell.status.at(-1)[0], / created\.$/);
-  // Asked for by name, though. A template with nobody naming a screen lands on
-  // Artwork (V5-07): the builder's path is the one that wants Design ▸ Face,
-  // and it is the one that says so.
+  // And with nobody naming one it lands on Artwork, where its pieces are
+  // (V5-07). It used to land on Design ▸ Face, the Character Builder's screen,
+  // which was the only caller that wanted anywhere else.
   const plain = createHarness();
   assert.equal(await plain.service.loadTemplate('basic'), true);
   assert.deepEqual(plain.shell.routes, ['design.artwork']);

@@ -1,12 +1,15 @@
 /**
  * DESIGN — what does the mascot look like? (UIR-16, docs/UIR_REFACTOR_BASELINE.md)
  *
- * Three screens: the face an author dresses, the states each hand can show, and
- * the vector tools underneath both. The tools themselves are not here: the
- * canvas is central to every screen (§5, Règle A), so it stays in the editor
- * and this workspace asks it for what it needs.
+ * Two screens: the states each hand can show, and the artwork underneath --
+ * the pieces a mascot is made of, which is where an author lands (V5-07). The
+ * tools themselves are not here: the canvas is central to every screen (§5,
+ * Règle A), so it stays in the editor and this workspace asks it for what it
+ * needs.
+ *
+ * There were three. The Character Builder dressed a face out of the library,
+ * and it went with the library's turn as the way to make a mascot.
  */
-import { createCharacterBuilder } from '../../ui/character-builder/character-builder.js';
 import { createFacePartCommands } from '../../core/face-library/face-part-commands.js';
 import { createHandStatesPanel } from '../../ui/hands/hand-states.js';
 import { HAND_LOOKS } from '../../core/hands/hand-style-art.js';
@@ -32,20 +35,6 @@ export function createDesignWorkspace({
   runPieceAction
 }) {
   const facePartCommands = createFacePartCommands(store, history, canvas, { presetStorage: (() => { try { return globalThis.localStorage || null; } catch { return null; } })(), onInstalled: () => applyPreview() });
-  const characterBuilder = createCharacterBuilder({
-    browserHost: shell.partBrowserEl, inspectorHost: shell.partInspectorEl, store, history, canvas, dropHost: shell.canvasEl, isActive: () => shell.getWorkspace() === 'character',
-    navigate,
-    drawHandStyle,
-    revealInspector,
-    setDesignTool,
-    openColour,
-    loadTemplate,
-    facePartCommands,
-    onStatus: setStatus,
-    // The six gestures of a piece are the editor's, not this workspace's
-    // (ui/piece-actions.js): the inspector offers them, the runner runs them.
-    runPieceAction
-  });
   /* ── Design ▸ Hands (UIR-05, docs/HAND_STYLES.md) ────────────────────────
    *
    * The states each hand can show, one library per hand, and the six things an
@@ -59,7 +48,7 @@ export function createDesignWorkspace({
   const handStateCommands = createHandStateCommands(store, history, { measure: (id) => canvas.getElementBounds?.(id) });
   /** One of the six verbs, then redraw everything that shows a hand. */
   const afterHandState = (ok, message, tone) => {
-    if (ok) { applyPreview(); characterBuilder.render(); }
+    if (ok) applyPreview();
     handStates.say(ok ? 'ok' : 'error', message);
     return ok;
   };
@@ -72,7 +61,7 @@ export function createDesignWorkspace({
       'Two hands drawn and rigged, with a state for every drawing in the set. Pick one, or set where they sit in Rig › Controls.') : null,
     looks: () => HAND_LOOK_LIST,
     // Where a hand is *drawn from* is here; where it *is* is Rig ▸ Controls (§16).
-    onRoute: (name) => navigate(name === 'character' ? { mode: 'design.face' } : { mode: 'rig.controls', focus: 'hand-setup' }),
+    onRoute: () => navigate({ mode: 'rig.controls', focus: 'hand-setup' }),
     onUse: (side, id) => afterHandState(createHandCommands(store, history).setStyles(side, { showing: id }),
       `The ${side} hand rests on ${id} now.`),
     onEdit: (side, id) => {
@@ -103,10 +92,8 @@ export function createDesignWorkspace({
         const result = addHandGesture(gesture, { storage: handStorage });
         if (result.ok) added.push(result.gesture.label); else refused.push(`${file.name}: ${result.reason}`);
       }
-      // Every card everywhere reads the same library, so one render each.
-      characterBuilder.render();
       handStates.say(refused.length && !added.length ? 'error' : refused.length ? 'warn' : 'ok',
-        [added.length ? `${added.join(', ')} ${added.length === 1 ? 'is' : 'are'} in the set now, kept in this browser. Put ${added.length === 1 ? 'it' : 'one'} on a hand from the Character Builder.` : '',
+        [added.length ? `${added.join(', ')} ${added.length === 1 ? 'is' : 'are'} in the set now, kept in this browser. Put ${added.length === 1 ? 'it' : 'one'} on a hand from the row above.` : '',
           ...refused].filter(Boolean).join(' '));
     },
     onImportSet: async (file) => {
@@ -116,12 +103,10 @@ export function createDesignWorkspace({
       if (!set) { handStates.say('error', `Not a hand set: ${file.name} is not JSON.`); return; }
       const result = installHandSet(set, { storage: handStorage });
       if (!result.ok) { handStates.say('error', `Hand set refused: ${result.reason}`); return; }
-      characterBuilder.render();
       handStates.say('ok', `"${result.set.name}" is the set now: ${result.set.gestures.length} gesture${result.set.gestures.length === 1 ? '' : 's'}. Hands already wearing drawings keep them; the next one you draw comes from here.`);
     },
     onForget: (id) => {
       const result = removeHandGesture(id, { storage: handStorage });
-      characterBuilder.render();
       handStates.say(result.ok ? 'ok' : 'error', result.ok
         ? `${result.gesture.label} is forgotten. A hand wearing it keeps its drawing.`
         : result.reason);
@@ -135,15 +120,12 @@ export function createDesignWorkspace({
 
   return {
     id: 'design',
-    surfaces: ['character', 'hands', 'create'],
-    panels: { characterBuilder, handStates, facePartCommands },
-    targets: {
-      characterBuilder: () => characterBuilder.render(),
-      handStates: () => handStates.render()
-    },
+    surfaces: ['hands', 'create'],
+    panels: { handStates, facePartCommands },
+    targets: { handStates: () => handStates.render() },
     enter() {},
     leave() {},
-    render() { characterBuilder.render(); handStates.render(); },
-    destroy() { characterBuilder.destroy?.(); handStates.destroy?.(); }
+    render() { handStates.render(); },
+    destroy() { handStates.destroy?.(); }
   };
 }

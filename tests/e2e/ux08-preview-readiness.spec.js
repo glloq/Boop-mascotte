@@ -128,8 +128,8 @@ test('@critical Preview poses, animations and automatic behaviors are preview-on
 test('@critical the reset is in the project bar, works on any tab, and touches nothing authored', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  await goToMode(page, 'design.face');
-  await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'character');
+  await goToMode(page, 'design.artwork');
+  await expect(page.locator('#app')).toHaveAttribute('data-workspace', 'create');
   const before = await checkpoint(page);
   await page.evaluate(() => { window.__BOOP_E2E__.setLiveParam('lookX', .8); window.__BOOP_E2E__.setLiveParam('headX', .5); });
   await expect.poll(() => effective(page, 'lookX')).toBeCloseTo(.8);

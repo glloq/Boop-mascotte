@@ -20,13 +20,13 @@
  * keeps the bindings.
  */
 import { createCleanProjectState } from '../../core/state/store.js';
+import { buildFaceProjectTemplate } from '../../core/assets/face-builder.js';
 import { createProjectDocument } from '../../core/state/project-document.js';
 import { createEditorSession } from '../../core/state/editor-session.js';
 import { applyProjectSnapshot, createProjectSnapshot, hasValidProjectDocument, prepareProjectSnapshot } from '../../core/state/project-snapshot.js';
 import { commitProjectReplacement } from '../../core/state/project-replacement.js';
 import { PROJECT_TEMPLATES } from '../../core/sample/templates/index.js';
 import { loadProjectTemplate } from '../../core/sample/template-loader.js';
-import { buildFaceProjectTemplate } from '../../core/assets/face-builder.js';
 import { validateRig } from '../../core/validation/rig-validator.js';
 import { applyImportedRig } from '../../core/state/import-rig.js';
 import { identifyFaceParts } from '../../core/face-library/face-part-migration.js';
@@ -197,7 +197,7 @@ export function createProjectService({
     navigate('design.artwork');
     setProjectLoaded(true);
     closeHome();
-    setStatus(identified.length ? `${sourceLabel} restored. ${identified.length === 1 ? 'One part is' : `${identified.length} parts are`} the library's own drawing, and the Character Builder knows ${identified.length === 1 ? 'it' : 'them'}.` : `${sourceLabel} restored.`);
+    setStatus(identified.length ? `${sourceLabel} restored. ${identified.length === 1 ? 'One part is' : `${identified.length} parts are`} the library's own drawing.` : `${sourceLabel} restored.`);
     // A recovered draft matches the record it came from, so the version token
     // would call it clean — yet the author has never saved it anywhere.
     if (recovered) { autosave.markDirty(); setStatus('Recovered local copy — unsaved changes.', 'warn'); }
@@ -559,8 +559,8 @@ export function createProjectService({
 
   /**
    * @param {string} kind  a `PROJECT_TEMPLATES` key
-   * @param {{ mode?: string }} [options]  where the new project lands: Artwork, or the
-   *   Character Builder for the one-minute path (docs/CHARACTER_BUILDER.md)
+   * @param {{ mode?: string }} [options]  where the new project lands; Artwork
+   *   unless a caller names another screen
    */
   // A template opens on Artwork, whichever one it is (V5-07). It used to open
   // on Design ▸ Face, where a character is dressed out of the library, with
@@ -580,13 +580,14 @@ export function createProjectService({
     return true;
   };
 
-  // The face builder produces a template, so generation and templates are the
-  // same path -- including what happens afterwards. It is offered on Home now,
-  // beside the other two ways to start, so a generated face opens its project
-  // the way a template does: Home closes and Artwork is where you land.
+  /**
+   * A face built from a head, a pair of eyes and a mouth (V3-08). It produces a
+   * template, so generation and templates are the same path -- including where
+   * they land, which is Artwork (V5-07).
+   */
   const generateFace = async (options) => {
     const committed = await replaceProject(() => loadProjectTemplate(buildFaceProjectTemplate(options), { store, canvas, history, preview, validate: validateRig }));
-    if (committed) { openProject('design.face'); setStatus('Face built. Swap any part for another in Design ▸ Face, or give it movements in Rig ▸ Controls.'); }
+    if (committed) { openProject(); setStatus('Face built. Every piece of it is in Artwork, and Rig \u25b8 Controls gives it movements.'); }
     return committed;
   };
 

@@ -11,10 +11,9 @@
  */
 import { DEFAULT_MODE, MODES, WORKSPACES, WORKSPACE_ORDER, modeToSurface, modeToWorkspace, normalizeMode, workspaceEntryMode, workspaceModes, SIMPLE_WORKSPACES, isSimpleMode} from '../ui/task-router.js';
 import { worstStatus } from '../core/validation/task-readiness.js';
-import { ringTarget } from '../ui/character-builder/ring-keys.js';
+import { ringTarget } from '../ui/ring-keys.js';
 
 const HINTS = {
-  'design.face': 'Pick a part on the left, or click it on the mascot, then move it, resize it or recolour it here. Advanced opens every control.',
   'design.hands': 'The drawings a hand can show. Drop an SVG in to add one, import a whole set, or save yours out to share. Each hand keeps its own.',
   'design.artwork': 'Every piece of your mascot is here. Add a picture for each part that moves, stack them in order, and say how each one moves.',
   'rig.assign': 'Tell the editor what each part of the face is: click its artwork on the canvas, or accept what it has already worked out.',
@@ -245,7 +244,7 @@ export function createWorkspaceNav({ root, preferences, savePreferences, enter, 
    * are two rings: left and right walk the row, Home and End reach its ends,
    * and down and up cross between the questions and the screens of the one
    * open. Tab still reaches every button exactly as it did -- this is the
-   * faster way through the nav, never the only one (ui/character-builder/ring-keys.js).
+   * faster way through the nav, never the only one (ui/ring-keys.js).
    *
    * A screen tab's ring is what the eye sees: the steps of the open workspace
    * and Preview beside them. The tabs of a closed workspace are `display:none`,

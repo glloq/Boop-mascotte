@@ -39,31 +39,32 @@ export const ACTION_LEVELS = Object.freeze(['simple', 'more', 'advanced']);
  * {@link pieceActionsFor}:
  *
  * ```text
- * row       it belongs to a part of the face, so the library has cards for it
- * library   its drawing came from the library, so there is a drawing to reset to
  * path      an outline with points
  * shape     a primitive that could become one
  * clip      something is cutting it
  * group     a <g>
  * ```
  *
- * `row` and `library` are deliberately not the same test. The template face
- * ships its own artwork, so **nothing on it came from the library** — and
- * *Replace* still has six mouths to offer, because the row is what the cards
- * are listed under. Gating Replace on `library` would have hidden it on exactly
- * the face every new author starts from. No `needs` means any unlocked piece.
+ * No `needs` means any unlocked piece.
  *
- * `bar` marks the six that ride on the canvas next to the selection. Six is a
- * decision, not a limit that happened: a seventh button is one more thing to
- * read every time anything is selected, and the menu is one keystroke away.
+ * Two entries left with the Character Builder (V5-07): *Replace…*, which
+ * offered the library's other drawings for a part, and *Reset position*, which
+ * put a library drawing back where its fit had placed it. Both opened the
+ * builder, and neither has anything to act on without it -- a piece of a V5
+ * mascot is a file somebody made, and the editor has no other drawing of it to
+ * offer.
+ *
+ * `bar` marks the five that ride on the canvas next to the selection. It was
+ * six while *Replace* was among them, and the count is a decision rather than
+ * a limit that happened: another button is one more thing to read every time
+ * anything is selected, and the menu is one keystroke away.
  */
 export const PIECE_ACTIONS = Object.freeze([
   Object.freeze({ id: 'duplicate', label: 'Duplicate', glyph: '⧉', keys: 'Ctrl/Cmd + D', level: 'simple', bar: 1 }),
-  Object.freeze({ id: 'replace', label: 'Replace…', glyph: '⇄', level: 'simple', needs: 'row', bar: 2, hint: 'Another drawing for this part' }),
-  Object.freeze({ id: 'flip-x', label: 'Flip horizontally', glyph: '⇋', level: 'simple', bar: 3 }),
-  Object.freeze({ id: 'forward', label: 'Bring forward', glyph: '↑', keys: ']', level: 'simple', bar: 4, hint: 'Paint it in front of the next piece' }),
-  Object.freeze({ id: 'backward', label: 'Send backward', glyph: '↓', keys: '[', level: 'simple', bar: 5, hint: 'Paint it behind the previous piece' }),
-  Object.freeze({ id: 'delete', label: 'Delete', glyph: '🗑', keys: 'Delete', level: 'simple', danger: true, bar: 6 }),
+  Object.freeze({ id: 'flip-x', label: 'Flip horizontally', glyph: '⇋', level: 'simple', bar: 2 }),
+  Object.freeze({ id: 'forward', label: 'Bring forward', glyph: '↑', keys: ']', level: 'simple', bar: 3, hint: 'Paint it in front of the next piece' }),
+  Object.freeze({ id: 'backward', label: 'Send backward', glyph: '↓', keys: '[', level: 'simple', bar: 4, hint: 'Paint it behind the previous piece' }),
+  Object.freeze({ id: 'delete', label: 'Delete', glyph: '🗑', keys: 'Delete', level: 'simple', danger: true, bar: 5 }),
 
   Object.freeze({ id: 'flip-y', label: 'Flip vertically', glyph: '⇵', level: 'more' }),
   Object.freeze({ id: 'front', label: 'Bring to front', keys: 'Ctrl/Cmd + Shift + ]', level: 'more' }),
@@ -71,7 +72,6 @@ export const PIECE_ACTIONS = Object.freeze([
   Object.freeze({ id: 'visibility', label: 'Hide', altLabel: 'Show', glyph: '◐', level: 'more' }),
   Object.freeze({ id: 'lock', label: 'Lock', altLabel: 'Unlock', glyph: '🔒', level: 'more' }),
   Object.freeze({ id: 'isolate', label: 'Isolate', altLabel: 'Stop isolating', glyph: '⊙', level: 'more', hint: 'Dim everything else while you work on it' }),
-  Object.freeze({ id: 'reset-position', label: 'Reset position', level: 'more', needs: 'library', hint: 'Back where the fit put it, unturned' }),
 
   // The five that name a rigging concept. They were at the top of the canvas
   // menu, in front of Duplicate, on every screen (UIR-04's complaint about
@@ -94,14 +94,18 @@ export const BAR_ACTIONS = Object.freeze(PIECE_ACTIONS.filter((action) => action
 /**
  * The surfaces a gesture reaches, and how much of the catalogue each shows.
  *
- * `character` is the whole point of this module: it is an editing surface and
- * it had none of these. `create` is the vector editor, so it sees everything
- * including the five rigging entries. `rig` is where artwork is named, so it
- * sees them too. `preview` and the studios see nothing — in Preview the canvas
- * is a test bench, and a Delete there would be a trap.
+ * `create` is the vector editor, so it sees everything including the five
+ * rigging entries. `rig` is where artwork is named, so it sees them too.
+ * `hands` is where hands are designed, and a hand is handled rather than
+ * rigged, so it sees the simple half. `preview` and the studios see nothing —
+ * in Preview the canvas is a test bench, and a Delete there would be a trap.
+ *
+ * `character` was the first of them and the reason this module exists: an
+ * editing surface with none of these gestures on it. It is gone with the
+ * Character Builder (V5-07), and what it argued for is now true of Artwork,
+ * which every author lands on.
  */
 export const GESTURE_SURFACES = Object.freeze({
-  character: 'simple',
   create: 'advanced',
   rig: 'advanced',
   hands: 'simple'
@@ -128,8 +132,6 @@ export const LEVEL_RANK = Object.freeze({ simple: 0, more: 1, advanced: 2 });
  * @param {boolean} [piece.locked]
  * @param {boolean} [piece.visible]
  * @param {boolean} [piece.isolated]  whether the canvas is already scoped to it
- * @param {boolean} [piece.row]       it belongs to a part of the face
- * @param {boolean} [piece.library]   its drawing came from the face library
  * @param {boolean} [piece.path]      it is a path
  * @param {boolean} [piece.shape]     it is a primitive that could become one
  * @param {boolean} [piece.clip]      something is cutting it
@@ -142,8 +144,6 @@ export function pieceActionsFor(piece = {}, depth = 'advanced') {
   if (piece.locked) return [{ ...pieceAction('lock'), label: 'Unlock' }];
   return PIECE_ACTIONS.filter((action) => {
     if ((LEVEL_RANK[action.level] ?? 9) > max) return false;
-    if (action.needs === 'row') return Boolean(piece.row);
-    if (action.needs === 'library') return Boolean(piece.library);
     if (action.needs === 'path') return Boolean(piece.path);
     if (action.needs === 'shape') return Boolean(piece.shape);
     if (action.needs === 'clip') return Boolean(piece.clip);

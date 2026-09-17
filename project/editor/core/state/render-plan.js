@@ -24,7 +24,7 @@
  * move them somewhere less visible.
  */
 export const RENDER_TARGETS = Object.freeze([
-  'artboardPanel', 'artboardSync', 'automaticPanel', 'canvasMenu', 'canvasSelection', 'canvasState', 'characterBuilder',
+  'artboardPanel', 'artboardSync', 'automaticPanel', 'canvasMenu', 'canvasSelection', 'canvasState',
   'exporter', 'faceMovements', 'faceSetup', 'gazePanel', 'handSetup', 'handStates', 'handleBoard', 'headPose', 'holdingPanel', 'inspector',
   'layerOrder', 'layers', 'motionStudio', 'previewPanel', 'projectShell', 'puppetHandles', 'puppetHandlesRefresh',
   'previewFrame', 'reactionStudio', 'rigPanel', 'selectionActions', 'expressionStudio', 'states', 'timeline', 'toolOptions', 'warpPanel'
@@ -38,8 +38,8 @@ export const RENDER_TARGETS = Object.freeze([
 export const DOCUMENT_RENDER_PLAN = Object.freeze({
   // `selectionActions` because the bar sits *next to* the selection: artwork
   // that moved, grew or went away leaves it pointing at where the piece was.
-  artwork: Object.freeze(['canvasState', 'inspector', 'exporter', 'projectShell', 'faceSetup', 'faceMovements', 'handSetup', 'artboardSync', 'characterBuilder', 'handStates', 'selectionActions']),
-  layers: Object.freeze(['layerOrder', 'layers', 'faceSetup', 'canvasMenu', 'artboardPanel', 'characterBuilder', 'selectionActions']),
+  artwork: Object.freeze(['canvasState', 'inspector', 'exporter', 'projectShell', 'faceSetup', 'faceMovements', 'handSetup', 'artboardSync', 'handStates', 'selectionActions']),
+  layers: Object.freeze(['layerOrder', 'layers', 'faceSetup', 'canvasMenu', 'artboardPanel', 'selectionActions']),
   // Declared empty on purpose, not forgotten: nothing on screen reads the
   // asset table yet. The canvas joins when it resolves `asset:` references
   // (docs/V4_ROADMAP.md, V4-021) and the library when it lists them (V4-030).
@@ -47,7 +47,7 @@ export const DOCUMENT_RENDER_PLAN = Object.freeze({
   assets: Object.freeze([]),
   rig: Object.freeze(['inspector', 'timeline', 'rigPanel', 'faceMovements', 'gazePanel', 'headPose', 'handSetup', 'warpPanel', 'expressionStudio', 'motionStudio', 'automaticPanel', 'handleBoard', 'puppetHandles', 'previewFrame']),
   stateMachine: Object.freeze(['states', 'automaticPanel', 'previewPanel']),
-  semanticRig: Object.freeze(['rigPanel', 'faceSetup', 'faceMovements', 'handleBoard', 'projectShell', 'characterBuilder']),
+  semanticRig: Object.freeze(['rigPanel', 'faceSetup', 'faceMovements', 'handleBoard', 'projectShell']),
   rigHandles: Object.freeze(['handleBoard', 'puppetHandles']),
   animation: Object.freeze(['timeline', 'motionStudio', 'reactionStudio', 'projectShell']),
   // Only the timeline shows an arrangement; moving a clip in time changes
@@ -63,7 +63,7 @@ export const DOCUMENT_RENDER_PLAN = Object.freeze({
   constraints: Object.freeze(['holdingPanel', 'previewFrame', 'puppetHandlesRefresh']),
   // The workshop reads which gestures are on a hand and which drawing each
   // hand rests on, so it follows the pair like the other two.
-  hands: Object.freeze(['handSetup', 'puppetHandles', 'characterBuilder', 'handStates']),
+  hands: Object.freeze(['handSetup', 'puppetHandles', 'handStates']),
   // Deformers, the depth parallax and what trails behind the head (3D-10) all
   // change what the mascot *looks* like without changing a panel, so the frame
   // is the whole of this one: it used to be empty, and turning secondary motion
@@ -82,10 +82,10 @@ export const DOCUMENT_RENDER_PLAN = Object.freeze({
  * than no offer at all.
  */
 export const SESSION_RENDER_PLAN = Object.freeze({
-  selectedId: Object.freeze(['canvasSelection', 'layers', 'inspector', 'rigPanel', 'headPose', 'toolOptions', 'holdingPanel', 'characterBuilder', 'selectionActions']),
+  selectedId: Object.freeze(['canvasSelection', 'layers', 'inspector', 'rigPanel', 'headPose', 'toolOptions', 'holdingPanel', 'selectionActions']),
   // Several pieces at once: the canvas frames the set, the Layers show it, the
   // Inspector counts it, and the options bar offers Align and Group.
-  selectedIds: Object.freeze(['canvasSelection', 'layers', 'inspector', 'toolOptions', 'characterBuilder', 'selectionActions'])
+  selectedIds: Object.freeze(['canvasSelection', 'layers', 'inspector', 'toolOptions', 'selectionActions'])
 });
 
 /**

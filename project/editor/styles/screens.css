@@ -1,5 +1,5 @@
 /*
- * The two surfaces the redesign added: Home and the new-mascot wizard
+ * The surface the redesign added: Home
  * (UI-REDESIGN-02 and 03).
  *
  * A file per region, in the `--ux-*` vocabulary, with selectors nothing else
@@ -14,7 +14,7 @@
  * action. Only the size of a first-run action is new, and that is `.btn-lg`.
  */
 
-/* ══ The three shapes Home and the wizard share ════════════════════════════ */
+/* ══ The three shapes Home is built from ══════════════════════════════════ */
 /*
  * A card an author presses to choose something: a picture, a name, a note. It
  * is a `button` — so it is keyboard-reachable, it answers Enter, and it is in
@@ -116,136 +116,6 @@
   .home-panel h1{font-size:21px}
   .home-actions{flex-direction:column;align-self:stretch;width:100%}
   .home-actions>button{width:100%}
-}
-
-/* ══ The new-mascot wizard ═════════════════════════════════════════════════
- *
- * Above the project bar, not under it (z-index 95 against the bar's 90, and
- * Home's 80). Choosing a mascot is a flow with its own way out; leaving Export
- * and Project check pressable over it would offer a project that does not exist
- * yet, and cancelling the first step goes back to the page it was opened from
- * rather than to a blank editor.
- */
-.wizard{
-  position: fixed;
-  z-index: 95;
-  inset: 0;
-  display: grid;
-  grid-template-rows: 56px minmax(0,1fr);
-  background: var(--ux-canvas-void);
-  color: var(--ux-text);
-}
-.wizard[hidden]{display:none}
-.wizard-bar{
-  display: flex;
-  align-items: center;
-  gap: var(--ux-gap-3);
-  padding: 0 var(--ux-gap-4);
-  border-bottom: 1px solid var(--ux-border);
-  background: var(--ux-bar);
-}
-.wizard-name{flex:1;margin:0;text-align:center;font-size:var(--ux-size-small);color:var(--ux-muted)}
-.wizard-dots{display:flex;gap:var(--ux-gap-1);margin:0;padding:0;list-style:none}
-.wizard-dot{width:8px;height:8px;border-radius:999px;background:var(--ux-border-popover)}
-.wizard-dot-current{background:var(--ux-focus)}
-.wizard-body{overflow:auto;min-height:0;display:grid;align-content:center}
-/*
- * `justify-items: stretch` and not `center`: a centred grid item is sized to
- * its own content, so the card grid was as wide as the heading above it and
- * four kinds wrapped to two rows on a 1440px screen. The row is centred by the
- * step's own margin instead.
- */
-.wizard-step{
-  display: grid;
-  justify-items: stretch;
-  text-align: center;
-  gap: 28px;
-  padding: 36px var(--ux-gap-4);
-  width: 100%;
-  max-width: 1100px;
-  margin: 0 auto;
-}
-.wizard-step h1{margin:0;font-size:26px;line-height:1.2;color:var(--ux-text-strong);outline:none;justify-self:center}
-.wizard-otherwise{margin:0;font-size:var(--ux-size-small);color:var(--ux-muted)}
-
-/* Step one — the kinds. */
-.wizard-types{
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: var(--ux-gap-4);
-  width: 100%;
-  max-width: 1000px;
-  margin: 0 auto;
-}
-.wizard-type{justify-items:center;text-align:center;padding:var(--ux-gap-4)}
-.wizard-type-art{
-  display: grid;
-  place-items: center;
-  width: 100%;
-  aspect-ratio: 1;
-  border-radius: var(--ux-radius-3);
-  background: var(--ux-thumb-ground);
-  margin-bottom: var(--ux-gap-2);
-}
-.wizard-type-art svg{width:86%;height:86%;background:transparent}
-.wizard-type-name{font-size:var(--ux-size-heading)}
-
-/*
- * Step two — the characters on the left, the result on the right.
- *
- * The result takes the greater share on purpose: it is what the author is
- * choosing, and six faces cannot be told apart from six small pictures.
- */
-.wizard-step-character{
-  grid-template-columns: minmax(280px, 34%) minmax(0, 1fr);
-  align-items: start;
-  justify-items: stretch;
-  gap: 36px;
-  max-width: 1200px;
-  width: 100%;
-}
-.wizard-choices{display:grid;gap:var(--ux-gap-3);justify-items:start;text-align:left}
-.wizard-step-character h1{justify-self:start}
-.wizard-characters{
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: var(--ux-gap-3);
-  width: 100%;
-}
-.wizard-character{justify-items:center;text-align:center;padding:var(--ux-gap-2)}
-.wizard-character-art{
-  display: grid;
-  place-items: center;
-  width: 100%;
-  aspect-ratio: 1;
-  border-radius: var(--ux-radius-2);
-  background: var(--ux-thumb-ground);
-}
-.wizard-character-art svg{width:92%;height:92%;background:transparent}
-.wizard-preview{display:grid;justify-items:center;gap:var(--ux-gap-3);position:sticky;top:var(--ux-gap-4)}
-.wizard-preview-art{
-  display: grid;
-  place-items: center;
-  width: 100%;
-  max-width: 420px;
-  aspect-ratio: 1;
-  border-radius: var(--ux-radius-4);
-  background: var(--ux-thumb-ground);
-}
-.wizard-preview-art svg{width:88%;height:88%;background:transparent}
-.wizard-preview-name{margin:0;font-size:var(--ux-size-heading);font-weight:600;color:var(--ux-text-strong)}
-
-@media (max-width:900px){
-  /* Centred content taller than the viewport hides its own top: on a phone the
-   * preview sits above the grid, and centring pushed it off the screen. */
-  .wizard-body{align-content:start}
-  .wizard-step{padding:28px var(--ux-gap-4);gap:var(--ux-gap-4)}
-  .wizard-step h1{font-size:21px}
-  .wizard-step-character{grid-template-columns:1fr}
-  .wizard-preview{position:static;order:-1}
-  .wizard-preview-art{max-width:260px}
-  .wizard-step-character h1{text-align:center}
-  .wizard-choices{justify-items:stretch}
 }
 
 /* ══ Home chrome ═══════════════════════════════════════════════════════════

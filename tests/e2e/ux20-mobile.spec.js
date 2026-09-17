@@ -127,7 +127,7 @@ test('@critical the capability sheet is grouped by workspace, and names every sc
     }
     return out;
   });
-  expect(filed.design).toEqual(['character', 'hands', 'artwork']);
+  expect(filed.design).toEqual(['hands', 'artwork']);
   expect(filed.rig).toEqual(['face-setup', 'calibration', 'head-pose', 'deform']);
   expect(filed.global).toContain('preview');
   await page.locator('[data-close-capabilities]').click();

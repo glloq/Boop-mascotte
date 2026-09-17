@@ -8,11 +8,10 @@
  */
 import { describeFix, describeRemedy } from '../core/validation/issue-guidance.js';
 import { homeSurfaceMarkup, renderHomeRecovery } from '../ui/home-surface.js';
-import { wizardMarkup } from '../ui/new-mascot/wizard.js';
 import { esc } from '../ui/escape-html.js';
 import { groupReadiness } from '../core/validation/task-readiness.js';
 
-export const overlaysMarkup = () => `${homeSurfaceMarkup()}${wizardMarkup()}<div id="toast" class="toast" role="status" aria-live="polite"></div><button id="exit-focus" class="exit-focus">Exit Preview</button><button id="return-export" class="return-export" hidden>↩ Back to Export</button><section id="problems-panel" class="problems-popover" hidden></section><section id="advanced-panel" class="problems-popover advanced-popover" role="dialog" hidden></section><dialog id="command-palette" class="command-palette" aria-label="Command palette"></dialog><dialog id="shortcut-help" class="shortcut-help"></dialog><dialog id="colour-picker" class="colour-picker" aria-label="Choose a colour"></dialog><section id="capability-panel" class="problems-popover capability-popover" role="dialog" hidden></section><dialog id="delete-dialog" class="confirm-dialog" aria-labelledby="delete-heading"><form method="dialog"><h2 id="delete-heading" data-delete-question></h2><p data-delete-detail></p><div class="dialog-actions"><button value="cancel">Cancel</button><button value="delete" class="danger">Delete</button></div></form></dialog><dialog id="unsaved-dialog" aria-labelledby="unsaved-heading"><form method="dialog"><h2 id="unsaved-heading">Unsaved changes</h2><p>Your current project has changes that have not been saved.</p><div class="dialog-actions"><button value="cancel">Cancel</button><button value="discard">Discard</button><button value="save" class="primary">Save Project</button></div></form></dialog>
+export const overlaysMarkup = () => `${homeSurfaceMarkup()}<div id="toast" class="toast" role="status" aria-live="polite"></div><button id="exit-focus" class="exit-focus">Exit Preview</button><button id="return-export" class="return-export" hidden>↩ Back to Export</button><section id="problems-panel" class="problems-popover" hidden></section><section id="advanced-panel" class="problems-popover advanced-popover" role="dialog" hidden></section><dialog id="command-palette" class="command-palette" aria-label="Command palette"></dialog><dialog id="shortcut-help" class="shortcut-help"></dialog><dialog id="colour-picker" class="colour-picker" aria-label="Choose a colour"></dialog><section id="capability-panel" class="problems-popover capability-popover" role="dialog" hidden></section><dialog id="delete-dialog" class="confirm-dialog" aria-labelledby="delete-heading"><form method="dialog"><h2 id="delete-heading" data-delete-question></h2><p data-delete-detail></p><div class="dialog-actions"><button value="cancel">Cancel</button><button value="delete" class="danger">Delete</button></div></form></dialog><dialog id="unsaved-dialog" aria-labelledby="unsaved-heading"><form method="dialog"><h2 id="unsaved-heading">Unsaved changes</h2><p>Your current project has changes that have not been saved.</p><div class="dialog-actions"><button value="cancel">Cancel</button><button value="discard">Discard</button><button value="save" class="primary">Save Project</button></div></form></dialog>
 <div id="drawer-scrim" class="drawer-scrim" hidden></div>`;
 
 /** The export sheet, which opens over the canvas rather than beside it. */
@@ -60,7 +59,7 @@ export function wireOverlays({ root, q, qAll }) {
     root.classList.add('home-open');
     q('[data-home]').hidden = false;
     q('.home-back').hidden = !projectLoaded;
-    requestAnimationFrame(() => q(focus === 'new' ? '[data-home-action=character]' : '#home-heading').focus());
+    requestAnimationFrame(() => q(focus === 'new' ? '[data-home-action=picture]' : '#home-heading').focus());
   };
   const closeHome = () => {
     if (!projectLoaded) return false;
@@ -85,7 +84,6 @@ export function wireOverlays({ root, q, qAll }) {
 
   return {
     homeEl: q('[data-home]'),
-    wizardEl: q('[data-wizard]'),
     advancedEl: q('#advanced-panel'),
     colourPickerEl: q('#colour-picker'),
     paletteEl: q('#command-palette'),
@@ -185,9 +183,7 @@ export function wireOverlays({ root, q, qAll }) {
     bindHomeImportSvg(handler) { onHomeAction('import', handler); },
     /** Begin with a picture instead of a drawing (V4-092). */
     bindHomeStartFromPicture(handler) { onHomeAction('picture', handler); },
-    bindHomeExample(handler) { q('[data-home]').addEventListener('click', (event) => { const button = event.target?.closest?.('[data-home-example]'); if (button) handler(button.dataset.homeExample, button); }); },
     bindLoadSample(handler) { qAll('[data-template-id]').forEach((button) => { button.onclick = () => handler(button.dataset.templateId, button); }); q('#empty-basic').onclick = () => handler('basic'); },
-    bindNewCharacter(handler) { q('[data-home-action=character]').onclick = () => handler(); },
     /** Preview is a place the canvas goes to, so this follows the composition rather than a button. */
     bindPreview(handler) { root.addEventListener('workspacechange', (event) => handler(event.detail.workspace === 'preview')); }
   };

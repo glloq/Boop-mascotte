@@ -1,13 +1,16 @@
 /**
- * The arrow keys in the Character Builder (docs/CHARACTER_BUILDER.md,
- * "Keyboard and small screens"; roadmap phase 50).
+ * The arrow keys in a row of buttons (roadmap phase 50).
  *
- * A row of cards, a row of chips, the colour rows and the category rows are
- * each a ring: Right and Down go to the next button, Left and Up to the
- * previous, wrapping; Home and End to the ends. Tab still reaches every
- * button as it did -- nothing is taken out of the tab order -- so this is
- * the faster way through a row, never the only one. Keys with a modifier,
- * keys in a field, and every other key are left to the browser.
+ * A row of screen tabs, a row of hand drawings, a row of cards: each is a
+ * ring. Right and Down go to the next button, Left and Up to the previous,
+ * wrapping; Home and End to the ends. Tab still reaches every button as it
+ * did -- nothing is taken out of the tab order -- so this is the faster way
+ * through a row, never the only one. Keys with a modifier, keys in a field,
+ * and every other key are left to the browser.
+ *
+ * It was written for the Character Builder and lived in its folder, which
+ * read as ownership it never had: the screen bar and the hand library were
+ * calling it from outside all along (V5-07).
  */
 
 /**
@@ -38,13 +41,11 @@ export function ringTarget(count, index, key) {
 export function ringOf(button) {
   const ring = button?.closest?.('[role="group"],[role="list"]');
   if (!ring) return null;
-  // The star on a drawing is not a stop on the ring: the arrows walk the
-  // drawings, and the star of the card you are on is a Tab away, which is
-  // where a control that belongs *to* the focused thing belongs (audit §8.3).
-  const selector = ring.classList?.contains?.('part-browser')
-    ? '.part-category-button:not([disabled])'
-    : 'button:not([disabled]):not(.part-style-favourite)';
-  const buttons = Array.from(ring.querySelectorAll?.(selector) || []);
+  // Every enabled button in the group, in document order. It had two branches
+  // while the Character Builder's part browser was a ring of rings and its
+  // cards carried a favourite star that was a Tab away rather than a stop
+  // (audit §8.3); neither exists now (V5-07).
+  const buttons = Array.from(ring.querySelectorAll?.('button:not([disabled])') || []);
   const index = buttons.indexOf(button);
   return index < 0 ? null : { buttons, index };
 }

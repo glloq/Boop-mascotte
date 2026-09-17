@@ -224,33 +224,37 @@ test('@critical the view can be panned, zoomed and fitted', async ({ page }) => 
 /**
  * Alt+click reaches what is behind (audit §5).
  *
- * Nothing could select a piece under another one. On a mascot that is not a
- * corner case: hair is drawn over a head, glasses over a face, a highlight over
- * an eye — and once a click resolves to the *piece* rather than the deepest
- * shape, the piece in front is the only one a pointer can name.
+ * Nothing could select something under something else. On a mascot that is not
+ * a corner case: hair is drawn over a head, glasses over a face, a highlight
+ * over an eye — and whatever is in front is otherwise the only thing a pointer
+ * can name.
  */
 test('@critical Alt+click steps down the stack and wraps at the bottom', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  await goToMode(page, 'design.face');
+  await goToMode(page, 'design.artwork');
   const selected = () => page.evaluate(() => window.__BOOP_E2E__.session().selectedId);
 
   const box = await page.locator('#canvas svg svg #glintLeft').boundingBox();
   const on = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   await page.mouse.click(on.x, on.y);
-  await expect.poll(selected).toBe('eyeLeft');
+  await expect.poll(selected).toBe('glintLeft', 'the vector editor names the shape under the pointer');
 
-  // Each Alt+click at the same place is one further down, and each is a piece
-  // rather than a shape inside one.
+  // Each Alt+click at the same place is one further down the stack. How deep
+  // the stack is here is the drawing's business -- an eye of the template is
+  // several shapes over a head over a face -- so this walks until something
+  // repeats rather than assuming a number.
   const walk = [];
-  for (let step = 0; step < 5; step += 1) {
+  for (let step = 0; step < 12; step += 1) {
     await page.keyboard.down('Alt');
     await page.mouse.click(on.x, on.y);
     await page.keyboard.up('Alt');
     await page.waitForTimeout(120);
-    walk.push(await selected());
+    const now = await selected();
+    if (walk.includes(now)) { walk.push(now); break; }
+    walk.push(now);
   }
-  expect(new Set(walk.slice(0, 3)).size, 'three different pieces under one point').toBe(3);
+  expect(new Set(walk.slice(0, 3)).size, 'three different shapes under one point').toBe(3);
   expect(walk[walk.length - 1], 'and it wraps rather than sticking at the bottom').toBe(walk[0]);
 });
 

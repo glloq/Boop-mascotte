@@ -139,7 +139,7 @@ test('@critical @smoke editor loads from the Pages base and reloads cleanly', as
   await expect(page.getByRole('heading', { name: 'Create and animate your mascot' })).toBeVisible();
   await page.reload();
   await expect(page.locator('[data-home] [data-template-id="basic"]')).toBeVisible();
-  await expect(page.locator('[data-home] [data-home-action="character"]')).toBeVisible();
+  await expect(page.locator('[data-home] [data-home-action="picture"]')).toBeVisible();
   await expect(page.locator('.workspace-tab[data-mode="preview"]')).toHaveCount(1);
   await expect(page.locator('#layers-panel')).toHaveCount(1);
   await expect(page.locator('#state-editor')).toHaveCount(1);

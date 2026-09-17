@@ -187,10 +187,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
     }
     return null;
   };
-  // Where a piece is picked, framed and dragged: Artwork, and the Character
-  // Builder, which is Artwork's selection with the drawing tools put away
-  // (docs/CHARACTER_BUILDER.md). Drawing itself stays Artwork's alone.
-  const EDIT_WORKSPACES = new Set(['create', 'character']);
+  // Where a piece is picked, framed and dragged: Artwork. The Character
+  // Builder was the other one, being Artwork's selection with the drawing
+  // tools put away (V5-07). Drawing itself was always Artwork's alone.
+  const EDIT_WORKSPACES = new Set(['create']);
   const editing = () => EDIT_WORKSPACES.has(workspace);
   let selectedId = null;
   /** Everything selected, the piece in hand last (core/state/selection.js). */
@@ -1931,9 +1931,9 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
     const a = corner(box.x, box.y), b = corner(box.x + box.width, box.y + box.height);
     return { id: 'artboard', ...boxFromCorners(a, b) };
   };
-  /* ── Edit scope (docs/CHARACTER_BUILDER.md, "Edit Shape") ────────────────
+  /* ── Edit scope (ui/piece-actions.js, "Isolate") ──────────────────────────
    *
-   * The Character Builder's Edit Shape limits the visible edit to one piece:
+   * Isolating a piece limits the visible edit to it:
    * everything outside it is dimmed and inert, a marquee and Ctrl/Cmd+A pass
    * it by, and a shape drawn goes inside it. It is session chrome, not the
    * document: the marks are editor attributes the serializer strips, and a
@@ -3208,7 +3208,13 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
    */
   container.addEventListener('click', (event) => {
     if (!event.altKey || event.shiftKey || event.ctrlKey || event.metaKey) return;
-    if (!pieces?.resolve || activeTool !== 'select' || rigTool || !editing()) return;
+    // A piece model is not required: `clickTargetOf` answers with the element
+    // itself where there is none, so the stack is the shapes under the pointer.
+    // It *was* required, which quietly turned the gesture off in the vector
+    // editor -- the one surface with things drawn over each other on purpose --
+    // and left it working only where a piece model happened to be installed
+    // (V5-07, where the last such surface but Hands went).
+    if (activeTool !== 'select' || rigTool || !editing()) return;
     const next = behind(event);
     if (!next) return;
     event.preventDefault();
@@ -3331,7 +3337,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
   const api = {
     /** Told when the canvas changes tool on its own, so the toolbar can follow. */
     onToolChange(handler) { toolChangeHandler = typeof handler === 'function' ? handler : () => {}; },
-    /** Limit the visible edit to one piece (docs/CHARACTER_BUILDER.md, "Edit Shape"); null lifts it. */
+    /** Limit the visible edit to one piece (`Isolate`, ui/piece-actions.js); null lifts it. */
     setEditScope(id) { return setEditScope(id); },
     getEditScope() { return editScope; },
     onEditScopeChange(handler) { editScopeHandler = typeof handler === 'function' ? handler : () => {}; },

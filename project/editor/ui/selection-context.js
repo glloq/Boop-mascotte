@@ -8,7 +8,7 @@ import { normalizeSurface } from './task-router.js';
  * a face part on both of them (UIR-01).
  */
 const SURFACE_SUBJECTS = Object.freeze({
-  create: 'artwork', character: 'character', hands: 'hands', rig: 'face-setup',
+  create: 'artwork', hands: 'hands', rig: 'face-setup',
   expressions: 'expressions', animate: 'animate', reactions: 'reactions', preview: 'preview'
 });
 
@@ -22,9 +22,6 @@ export const surfaceSubject = (value) => SURFACE_SUBJECTS[normalizeSurface(value
 export function resolveSelectionContext(session = {}, task = session.workspace) {
   const currentTask = surfaceSubject(task);
   if (currentTask === 'artwork') return session.selectedId ? { kind: 'artwork', id: session.selectedId } : { kind: 'none', task: currentTask };
-  // The Character Builder edits the same selection Artwork does; the inspector
-  // decides which adapter answers for it.
-  if (currentTask === 'character') return session.selectedId ? { kind: 'artwork', id: session.selectedId } : { kind: 'none', task: currentTask };
   if (currentTask === 'face-setup') {
     if (session.activeSemanticPartId && session.activeControl) return { kind: 'semantic-control', part: session.activeSemanticPartId, control: session.activeControl };
     if (session.activeSemanticPartId) return { kind: 'semantic-part', id: session.activeSemanticPartId };

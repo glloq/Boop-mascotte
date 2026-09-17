@@ -1,5 +1,17 @@
 # Character Builder
 
+> **Removed by V5-07** (`docs/V5_MASCOTTE_IMAGES_ETUDE.md`). The screen, its
+> part browser, its inspector and the *New mascot* wizard are gone; a mascot is
+> the pieces an author brings, and the editor opens on Artwork where those
+> pieces are. This page is kept as the record of what the screen was and why,
+> because the library it read is still here until V5-06 and several of its
+> ideas outlived it: a click resolving to the piece a person would name, the
+> gestures of one piece (`ui/piece-actions.js`), the arrow keys in a row of
+> buttons (`ui/ring-keys.js`) and what deleting a piece costs
+> (`ui/piece-facts.js`).
+>
+> Everything below describes the editor before that removal.
+
 > *Character Builder simple en surface + éditeur SVG avancé existant en
 > profondeur.* — the roadmap's one-line brief.
 

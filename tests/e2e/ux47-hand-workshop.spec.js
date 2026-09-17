@@ -131,14 +131,17 @@ test('@critical a ninth gesture is a file: it becomes a card, goes on a hand, an
   await expect(workshop(page).locator('[data-hand-gesture="salute"]')).toContainText('Mine');
   await expect(workshop(page).locator('[data-hand-set-notice]')).toContainText('Salute is in the set now');
 
-  // It is a card in the Character Builder at once -- one library, read by both.
-  await goToMode(page, 'design.face');
-  await page.locator('[data-part-category="hands"]').click();
-  await expect(page.locator('#part-browser [data-hand-style="left:salute"]')).toHaveCount(1);
-
-  // And it can be drawn on a hand, which is the whole promise.
-  await page.locator('#part-browser [data-hand-style="left:salute"]').click();
-  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.document().hands.left.styles.showing)).toBe('salute');
+  // And the hand it is not on yet offers it, which is the whole promise: one
+  // set, read by the workshop that took the file and by the hand beside it.
+  // (It was also a card in the Character Builder, which is where this used to
+  // press; the builder is gone and the hand is where the drawing goes anyway.)
+  const leftHand = workshop(page).locator('[data-hand-states="left"]');
+  // "+ Add a state" is a disclosure: a hand's own states come first, and what
+  // the set has that it does not is one press below them.
+  await leftHand.locator('details.hand-state-add > summary').click();
+  await expect(leftHand.locator('[data-hand-state-add="left:salute"]')).toBeVisible();
+  await leftHand.locator('[data-hand-state-add="left:salute"]').click();
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.document().hands.left.styles.library.map((entry) => entry.id))).toContain('salute');
   await expect(page.locator('#canvas g#handLeftStyle-salute')).toHaveCount(1);
   await expect(page.locator('#canvas #handLeftStyle-salute > path')).toHaveCount(2, 'the layers the file drew');
   await expect(page.locator('#canvas #handLeftStyle-salute-palm')).toHaveCount(1);

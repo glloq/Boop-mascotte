@@ -42,13 +42,15 @@ test('the right hand is its own scope, at the same state id', () => {
   assert.notDeepEqual(left.crumbs, right.crumbs, 'two hands are never one place');
 });
 
-test('a piece of the face names itself and goes back to Face', () => {
+test('an ordinary piece names itself, and has nowhere to go back to', () => {
   const document = createTemplateProjectState();
   const scope = describeArtworkScope(document, 'mouth');
   assert.equal(scope.kind, 'element');
-  assert.equal(scope.back.mode, 'design.face');
-  assert.equal(scope.crumbs[0], 'Design');
-  assert.equal(scope.crumbs.at(-1), document.layerMetadata?.mouth?.name || 'mouth');
+  assert.deepEqual(scope.crumbs, ['Design', 'Artwork', document.layerMetadata?.mouth?.name || 'mouth']);
+  // It is isolated inside Artwork, which is where the author already is, so
+  // the bar says what is open and offers no route (V5-07). A hand drawing is
+  // the one that came from somewhere else, and it keeps its way back.
+  assert.equal(scope.back, null);
 });
 
 test('a state an author made is scoped by its own id, not by the set\'s', () => {

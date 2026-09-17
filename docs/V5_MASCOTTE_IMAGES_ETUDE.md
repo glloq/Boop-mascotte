@@ -354,14 +354,54 @@ déjà. Le Character Builder reste joignable, par son onglet et par l'accueil.
 Six tests unitaires disaient « Face », ils disent « Artwork ».
 
 **V5-07b — le Character Builder et l'assistant s'en vont.** 3 560 lignes, mais
-deux d'entre elles ne sont pas à supprimer : `ring-keys.js` (la navigation au
-clavier en anneau, lue par `shell/workspace-nav.js`) et `hand-placement-panel.js`
-(`HAND_LABELS`, lu par `ui/artwork-scope.js` et `ui/hands/hand-states.js`) ne
-sont dans ce dossier que par accident d'écriture. Elles **déménagent**. Le reste
-part : sept importateurs dans le code produit, quinze fichiers de tests
-unitaires, quatorze specs navigateur — dont trois qui n'existent que pour lui
-(`ux45`, `ux48`, `ux49`) et onze qui le traversent pour aller ailleurs et qu'il
-faut reformuler, pas supprimer.
+tout n'est pas à supprimer. Quatre choses ont survécu, parce qu'elles n'étaient
+dans ce dossier que par accident d'écriture :
+
+- `ring-keys.js` → `ui/ring-keys.js` : les flèches dans une rangée de boutons,
+  lues par la barre d'écrans et par la bibliothèque de mains ;
+- `HAND_LABELS` → `core/hands/hand-model.js` : le nom d'un côté n'appartient
+  pas à un écran ;
+- `instanceIsCustom` → `core/face-library/face-part-artwork.js` : la question
+  est celle de la bibliothèque, pas du panneau qui la posait ;
+- ce que coûte une suppression (rôles, pièces portées) → `ui/piece-facts.js` :
+  c'est demandé de chaque pièce de chaque mascotte, sur chaque surface qui
+  offre *Supprimer*.
+
+Et une chose a été réécrite : la surface Mains avait besoin du modèle de pièce
+du builder pour qu'un clic tombe sur le dessin plutôt que sur un doigt. Elle a
+le sien maintenant (`ui/hands/hand-pieces.js`), plus petit, sans bibliothèque :
+le document dit déjà quels dessins chaque main possède.
+
+Le reste part : sept importateurs dans le code produit, onze fichiers de tests
+unitaires, et côté navigateur quatre specs supprimées (`ux45`, `ux46`, `ux48`,
+`ux49`) et neuf reformulées. Deux mesures que ces specs portaient et qui ne
+concernaient pas le builder ont été **déplacées, pas perdues** : la barre du
+haut qui tient à 1280 (→ `ux35`) et la portée d'édition qu'un nouveau projet
+n'hérite pas (→ `ux44`).
+
+Une porte plus petite est partie avec : *Build one from shapes* sur l'accueil
+et les trois exemples, qui ouvraient le builder. *Replace…* et *Reset position*
+quittent le catalogue des gestes d'une pièce pour la même raison : ils
+offraient les autres dessins de la bibliothèque, et une pièce de mascotte V5
+est un fichier que quelqu'un a fait.
+
+*Build a face*, dans la colonne Artwork, **reste** : j'ai commencé par le
+retirer — même réponse, porte plus petite — et c'était sortir du périmètre.
+Ce n'est pas le Character Builder : il assemble un gabarit à partir de trois
+choix, il ne parcourt pas les 150 dessins. Son sort appartient à V5-05/V5-06.
+
+### Deux bugs trouvés en retirant
+
+Les deux existaient avant, cachés par l'écran supprimé.
+
+**Alt+clic n'atteignait ce qu'il y a derrière que là où un modèle de pièce
+était installé** — donc jamais dans l'éditeur vectoriel, la seule surface où
+des formes sont dessinées les unes sur les autres exprès. La garde exigeait
+`pieces.resolve` alors que le code dessous répond déjà « l'élément lui-même »
+quand il n'y en a pas.
+
+**La barre d'options gardait le chrome de dessin en quittant Artwork** (V5-07a) :
+elle lit la surface, et rien ne la redessinait quand la surface changeait.
 
 ---
 

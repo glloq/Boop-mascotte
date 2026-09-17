@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { homeExamples, homeSurfaceMarkup, renderHomeRecovery } from '../../ui/home-surface.js';
+import { homeSurfaceMarkup, renderHomeRecovery } from '../../ui/home-surface.js';
 import { FACE_PRESET_LIBRARY } from '../face-library/face-presets.js';
 import { buildAddPartSection, buildPluginSection, buildStartArtworkSection } from '../../ui/sidebar-sections.js';
 import { gateMarkup } from '../../ui/mobile-capabilities.js';
@@ -102,23 +102,22 @@ test('Home says what the editor is for, and offers one way to start and one to c
   const markup = homeSurfaceMarkup();
   assert.match(markup, /Create and animate your mascot/);
   // One primary action, and the one the brief asks to sit beside it.
-  assert.match(markup, /data-home-action="character"/);
   assert.match(markup, /data-home-action="open"/);
   assert.equal(countOf(markup, /class="primary btn-lg/g), 1, 'exactly one primary action on the page');
-  // A mascot editor whose first page shows a mascot: the real drawings, from
-  // the real preset, rather than an illustration that could promise anything.
   assert.match(markup, /class="home-hero"/);
   assert.match(markup, /<svg/);
-  // Pictures are the way in (V5-04): they are the primary, and the three other
+  // Pictures are the way in (V5-04): they are the primary, and the two other
   // beginnings sit under "No pictures to hand?".
   assert.match(markup, /class="primary btn-lg home-start" data-home-action="picture"/);
   assert.match(markup, /data-home-action="import"/);
-  assert.match(markup, /data-home-action="character"/);
   // The ready-made template stays reachable, as an alternative rather than as
   // an equal: `pages.spec.js` starts a project by pressing exactly this.
   assert.match(markup, /data-template-id="basic"/);
   assert.equal(countOf(markup, /data-template-id="/g), 1, 'one template on Home, under Otherwise');
-  for (const gone of ['home-svg-file', 'home-project-file', 'data-template-id="blank"', 'data-home-action="builder"', 'id="face-builder"']) {
+  // The two ways in that opened the Character Builder went with it (V5-07),
+  // and this page asks the face library nothing at all now.
+  for (const gone of ['home-svg-file', 'home-project-file', 'data-template-id="blank"', 'data-home-action="builder"',
+    'data-home-action="character"', 'data-home-example']) {
     assert.equal(markup.includes(gone), false, `${gone} is not a way to start a mascot from nothing`);
   }
   // And nothing a person can read on it names a part of the machine. Read from
@@ -128,20 +127,6 @@ test('Home says what the editor is for, and offers one way to start and one to c
     assert.equal(visibleWords(markup).toLowerCase().includes(jargon.toLowerCase()), false,
       `"${jargon}" is the software's word, not the author's`);
   }
-});
-
-/** A first run has something to press, rather than a panel saying "no". */
-test('Home offers examples, and each one is a character the library really holds', () => {
-  const markup = homeSurfaceMarkup();
-  const examples = homeExamples();
-  assert.ok(examples.length >= 3, 'three ready-made characters to try');
-  for (const example of examples) {
-    assert.ok(FACE_PRESET_LIBRARY.get(example.id), `${example.id} is a preset the library holds`);
-    assert.match(markup, new RegExp(`data-home-example="${example.id}"`));
-  }
-  // An example names a character, never a preset id.
-  assert.match(markup, /Fox/);
-  assert.equal(markup.includes('robot-screen<'), false);
 });
 
 test('Home keeps the local draft, and offers Discard rather than deleting an unreadable one', () => {
@@ -201,10 +186,19 @@ test('every element the shell binds is in the markup the shell renders', () => {
   assert.ok(selectors.length > 50, 'the binding block is still read from the source');
   const missing = selectors.flatMap((selector) => markupTokens(selector).filter((token) => !markup.includes(token)).map((token) => `${selector} (${token})`));
   assert.deepEqual(missing, [], 'mustQuery throws at construction, so a missing element is an editor that never boots');
-  // The Face Builder moved, so the binding moved with it.
+  // Nothing binds the Face Builder or the wizard any more (V5-07).
+  // The Face Builder moved to Artwork, so the binding moved with it.
   assert.ok(selectors.includes('[data-face-builder]'));
-  assert.equal(selectors.includes('[data-home-action=builder]'), false);
-  // The two Home controls resolve on Home still: the focus target of
-  // `showHome({focus:'new'})` and the way back out of it.
-  for (const selector of ['[data-home-action=character]', '[data-home-action=back]', '.home-back', '.home-recovery']) assert.ok(selectors.includes(selector), selector);
+  // Nothing binds the Character Builder's card or the wizard any more (V5-07).
+  for (const gone of ['[data-wizard]', '[data-home-action=builder]', '[data-home-action=character]']) {
+    assert.equal(selectors.includes(gone), false, gone);
+  }
+  // The Home controls the shell queries by name resolve on Home still.
+  for (const selector of ['[data-home-action=back]', '.home-back', '.home-recovery']) assert.ok(selectors.includes(selector), selector);
+  // And the one it focuses is on the page. It is focused through a ternary
+  // rather than bound, so the selector list cannot see it: `showHome({focus:
+  // 'new'})` puts the caret on the way in, which is *Start with my pictures*
+  // since the Character Builder's card stopped being it (V5-07).
+  assert.match(SHELL_SOURCE, /focus === 'new' \? '\[data-home-action=picture\]'/);
+  assert.ok(markup.includes('data-home-action="picture"'));
 });
