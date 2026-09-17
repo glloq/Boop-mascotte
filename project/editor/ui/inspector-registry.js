@@ -40,17 +40,16 @@
 
 /**
  * In order. The first adapter that answers decides the heading when it wants
- * one of its own, which is why Character is first: it is the only adapter that
- * answers for its whole column, selection or not (docs/CHARACTER_BUILDER.md).
+ * one of its own.
+ *
+ * `character` was first and is gone (V5-07): the Character Builder's inspector
+ * answered for its whole column, selection or not, and was the reason Artwork's
+ * adapter carried an `except`. Nothing stands Artwork down any more.
  */
 export const INSPECTOR_ADAPTERS = Object.freeze([
-  // The Character Builder's own inspector answers for the whole column, empty
-  // or not: it names the part in hand, or invites one.
-  Object.freeze({ id: 'character', subjects: ['character'], except: [], kinds: null }),
-  // Artwork follows the selection rather than the column -- a piece of artwork
-  // picked anywhere is edited the same way -- except in the builder, whose own
-  // inspector answers for the same selection in simpler words.
-  Object.freeze({ id: 'artwork', subjects: null, except: ['character'], kinds: ['artwork'] }),
+  // Artwork follows the selection rather than the column: a piece of artwork
+  // picked anywhere is edited the same way.
+  Object.freeze({ id: 'artwork', subjects: null, except: [], kinds: ['artwork'] }),
   Object.freeze({ id: 'semantic', subjects: ['face-setup'], except: [], kinds: ['none', 'semantic-part', 'semantic-control'] }),
   Object.freeze({ id: 'expression', subjects: ['expressions'], except: [], kinds: ['none', 'expression'] }),
   Object.freeze({ id: 'motion', subjects: ['animate'], except: [], kinds: ['clip', 'timeline-track', 'timeline-key'] }),

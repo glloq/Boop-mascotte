@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ringOf, ringTarget, walkRing } from '../../ui/character-builder/ring-keys.js';
+import { ringOf, ringTarget, walkRing } from '../../ui/ring-keys.js';
 
 /**
- * The arrow keys in the Character Builder (docs/CHARACTER_BUILDER.md,
+ * The arrow keys in a row of buttons (docs/CHARACTER_BUILDER.md,
  * "Keyboard and small screens"; roadmap phase 50): a row of buttons is a
  * ring the arrows walk, wrapping, Home and End at the ends; Tab is untouched.
  */
@@ -62,11 +62,16 @@ test('walkRing leaves alone a modifier, another key, a field, and a button in no
   assert.deepEqual(items.map((item) => item.focused), [0, 0]);
 });
 
-test('in the parts list, the ring is the category rows only: a button of the open body is not a stop, and does not walk', () => {
-  const { items } = fakeRing({ role: 'list', className: 'part-browser', count: 5, categories: 3 });
+test('every enabled button in the group is a stop, and nothing outside one is', () => {
+  // It had a second reading while the Character Builder's part browser was a
+  // ring of category rows with open bodies inside them, and its cards carried
+  // a favourite star that was a Tab away rather than a stop (V5-07). One rule
+  // now: the buttons of the group, in document order.
+  const { items } = fakeRing({ role: 'list', count: 3 });
   assert.deepEqual(ringOf(items[0]).buttons, [items[0], items[1], items[2]]);
   press(items[2], 'ArrowDown');
-  assert.equal(items[0].focused, 1, 'from the last row to the first');
-  assert.equal(ringOf(items[4]), null, 'a route button inside a body belongs to no ring here');
-  assert.equal(press(items[4], 'ArrowDown').moved, false);
+  assert.equal(items[0].focused, 1, 'from the last to the first');
+  const outside = { closest: () => null };
+  assert.equal(ringOf(outside), null, 'a button in no group belongs to no ring');
+  assert.equal(press(outside, 'ArrowDown').moved, false);
 });

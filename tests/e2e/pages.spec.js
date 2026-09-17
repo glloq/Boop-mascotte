@@ -22,7 +22,7 @@ test('@pages deployed editor loads its assets and a starter project', async ({ p
   await expect(home).toBeVisible();
   await expect(home.getByRole('heading', { name: 'New Mascot' })).toBeVisible();
   await expect(home.locator('[data-template-id="basic"]')).toBeVisible();
-  await expect(home.locator('[data-home-action="character"]')).toBeVisible();
+  await expect(home.locator('[data-home-action="picture"]')).toBeVisible();
   await startBasicFaceFromHome(page);
   await expect(page.locator('#canvas svg svg')).toBeVisible();
 

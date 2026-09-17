@@ -2,7 +2,7 @@
  * The one inspector, and what it is showing right now.
  *
  * The right-hand panel is a single section with six adapters inside it
- * (artwork, semantic, expression, motion, reaction, character). This decides which one is
+ * (artwork, semantic, expression, motion, reaction). This decides which one is
  * on, what the heading says, and what the empty line says — when nothing is
  * picked, and equally when what is picked has no adapter of its own, because a
  * heading over an empty column is the failure VNX-11 is about. It owns no
@@ -93,10 +93,9 @@ export function resolveInspectorPresentation(task, context) {
   // gets the column's invitation, a selection nobody adapts gets named, and an
   // adapter that is on says the rest itself.
   const adapted = on.size > 0;
-  const character = on.has('character');
   return {
     hidden,
-    heading: character ? (context.kind === 'none' ? 'Character' : 'Part Inspector') : CONTEXT_HEADINGS[context.kind] || 'Inspector',
+    heading: CONTEXT_HEADINGS[context.kind] || 'Inspector',
     emptyCopy: adapted ? '' : context.kind === 'none' ? EMPTY_COPY[task] || '' : describeSelection(context),
     ...Object.fromEntries(INSPECTOR_IDS.map((id) => [id, on.has(id)]))
   };

@@ -132,7 +132,7 @@ test('@critical the face holds still where it is designed, and moves again where
   const held = () => page.evaluate(() => window.__BOOP_E2E__.previewSession().heldStill);
   const eyes = async (samples = 16) => { const seen = new Set(); for (let i = 0; i < samples; i += 1) { seen.add(await page.evaluate(() => window.__BOOP_E2E__.effectiveParams().eyeOpen)); await page.waitForTimeout(60); } return seen.size; };
 
-  for (const [task, still] of [['character', true], ['artwork', true], ['face-setup', false], ['expressions', false], ['animate', false], ['reactions', false], ['preview', false]]) {
+  for (const [task, still] of [['artwork', true], ['hands', false], ['face-setup', false], ['expressions', false], ['animate', false], ['reactions', false], ['preview', false]]) {
     await openTask(page, task);
     await expect.poll(held, `${task} holds the mascot still: ${still}`).toBe(still);
   }
@@ -141,7 +141,7 @@ test('@critical the face holds still where it is designed, and moves again where
   await expect.poll(eyes, { timeout: 4000 }).toBeGreaterThan(1);
   const before = await page.evaluate(() => ({ document: window.__BOOP_E2E__.document(), revisions: window.__BOOP_E2E__.documentRevisions(), history: window.__BOOP_E2E__.history() }));
 
-  for (const task of ['character', 'artwork']) {
+  for (const task of ['artwork']) {
     await openTask(page, task);
     expect(await eyes(), `${task}: the eyes stay open`).toBe(1);
     await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.previewOverrides())).toEqual({});
@@ -151,7 +151,7 @@ test('@critical the face holds still where it is designed, and moves again where
   expect((await documentOf(page)).behaviors.find((item) => item.id === 'auto-blink').enabled).toBe(true);
 
   // And a held mascot is still posable: the hold stops what it does by itself.
-  await goToMode(page, 'design.face');
+  await goToMode(page, 'design.artwork');
   await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('headX', .4));
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.effectiveParams().headX)).toBeCloseTo(.4);
   await page.waitForTimeout(400);

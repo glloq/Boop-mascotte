@@ -25,18 +25,19 @@ test('every inspector adapter has a host in the shell, and every host has an ada
     'an adapter with no host never shows, and a host no adapter names never hides');
 });
 
-test('the registry answers exactly as the six conditions it replaces did', () => {
+test('the registry answers exactly as the conditions it replaces did', () => {
   // The old chain, written out. If the table and this disagree, the table is
-  // wrong: this is what the editor did before UIR-03 turned it into data.
+  // wrong: this is what the editor did before UIR-03 turned it into data. It
+  // was six conditions; the Character Builder's was the sixth, and the `except`
+  // on Artwork existed only to stand down for it (V5-07).
   const before = (subject, kind) => ({
-    character: subject === 'character',
-    artwork: kind === 'artwork' && subject !== 'character',
+    artwork: kind === 'artwork',
     semantic: subject === 'face-setup' && (kind === 'none' || kind.startsWith('semantic-')),
     expression: subject === 'expressions' && (kind === 'none' || kind === 'expression'),
     motion: subject === 'animate' && ['clip', 'timeline-track', 'timeline-key'].includes(kind),
     reaction: subject === 'reactions' && (kind === 'none' || kind === 'reaction')
   });
-  const subjects = ['artwork', 'character', 'hands', 'face-setup', 'expressions', 'animate', 'reactions', 'preview'];
+  const subjects = ['artwork', 'hands', 'face-setup', 'expressions', 'animate', 'reactions', 'preview'];
   const kinds = ['none', 'artwork', 'semantic-part', 'semantic-control', 'expression', 'reaction', 'clip', 'timeline-track', 'timeline-key', 'state', 'diagnostic'];
   for (const subject of subjects) {
     for (const kind of kinds) {

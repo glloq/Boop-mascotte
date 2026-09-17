@@ -227,3 +227,43 @@ test('@critical a face somebody drew can be given the turn the template ships wi
   const [turnedHead, turnedMouth] = [await centre('ellipse-1'), await centre('rect-1')];
   expect(turnedMouth - restMouth).toBeGreaterThan(turnedHead - restHead);
 });
+
+/**
+ * Isolating a piece, and the scope not following the project out.
+ *
+ * The scope is the canvas's, not the document's, and a new project that
+ * happens to have an element by the same name must not arrive already limited
+ * to it -- the mascot would open with everything but one piece dimmed and
+ * inert, for no reason an author could see.
+ *
+ * It was pressed through the Character Builder's *Edit Shape*, which is gone
+ * (V5-07). Isolate is the gesture that scopes the canvas now, on any piece,
+ * from the menu the author already has over it.
+ */
+test('@critical a new project does not inherit the edit scope of the last one', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await goToMode(page, 'design.artwork');
+  // Isolate is a `more` action, so it is in the menu over the piece rather than
+  // on the bar beside it (ui/piece-actions.js).
+  const mouth = await page.locator('#canvas svg svg #mouth').boundingBox();
+  await page.mouse.click(mouth.x + mouth.width / 2, mouth.y + mouth.height / 2);
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.session().selectedId)).toBe('mouth');
+  await page.mouse.click(mouth.x + mouth.width / 2, mouth.y + mouth.height / 2, { button: 'right' });
+  await page.locator('[data-canvas-menu-advanced] summary').click();
+  await page.locator('[data-canvas-menu-action="isolate"]').click();
+  await expect(page.locator('#canvas')).toHaveAttribute('data-edit-scope', 'mouth');
+  await expect(page.locator('#canvas [data-editor-scope="out"]').first()).toBeAttached();
+
+  // Another project with an element called "mouth" too: the template again.
+  await page.getByLabel('More project actions').click();
+  await page.getByRole('button', { name: 'New Project' }).click();
+  await expect(page.locator('[data-home]')).toBeVisible();
+  await page.locator('[data-home] [data-template-id="basic"]').click();
+  await expect(page.locator('#app.has-project')).toHaveCount(1);
+  await expect(page.locator('[data-home]')).toBeHidden();
+  await expect(page.locator('#canvas svg svg #mouth')).toBeVisible();
+  await expect(page.locator('#canvas')).not.toHaveAttribute('data-edit-scope', /.+/);
+  await expect(page.locator('#canvas [data-editor-scope="out"]')).toHaveCount(0);
+  await expect(page.locator('#artwork-scope')).toBeHidden();
+});

@@ -7,7 +7,7 @@
  *
  * ```text
  * workspace   Design · Rig · Animate · Behavior     the four questions
- * mode        design.face, rig.controls, …          a route inside one
+ * mode        design.artwork, rig.controls, …       a route inside one
  * surface     character, rig, animate, …            the panels a mode mounts
  * ```
  *
@@ -29,7 +29,7 @@
  */
 
 /** The panel compositions the shell can mount. Held by `data-workspace`. */
-export const SURFACES = Object.freeze(['character', 'hands', 'create', 'rig', 'expressions', 'animate', 'reactions', 'preview']);
+export const SURFACES = Object.freeze(['hands', 'create', 'rig', 'expressions', 'animate', 'reactions', 'preview']);
 
 /**
  * Every route the editor has.
@@ -47,7 +47,6 @@ export const MODES = Object.freeze({
   // `advanced` any more for the same reason -- a screen the simple set has to
   // fold away cannot be the screen everybody lands on.
   'design.artwork': { id: 'design.artwork', label: 'Artwork', workspace: 'design', surface: 'create', navigable: true },
-  'design.face': { id: 'design.face', label: 'Face', workspace: 'design', surface: 'character', navigable: true },
   // Hands are designed away from the face (docs/HAND_STYLES.md): a library of
   // drawings an author owns, not a section inside somebody else's panel.
   'design.hands': { id: 'design.hands', label: 'Hands', workspace: 'design', surface: 'hands', navigable: true },
@@ -168,7 +167,11 @@ export const MODE_ALIASES = Object.freeze({
   // preference saved before UIR-01, whose `workspace` was a task id, and
   // `fix.workspace` in `core/validation/validate-project.js`, which names a
   // domain in validation's own words rather than a screen in the router's.
-  character: 'design.face',
+  // Design ▸ Face and its surface, gone with the Character Builder (V5-07).
+  // Kept pointing somewhere real, which is what this table is for: a saved
+  // preference or a deep link naming the screen an author dressed a face on
+  // lands on the pieces that face is made of.
+  character: 'design.artwork',
   hands: 'design.hands',
   artwork: 'design.artwork',
   'face-setup': 'rig.assign',
@@ -294,7 +297,7 @@ export const PANEL_MODES = Object.freeze({
   'automatic-panel': 'behavior.automatic',
   'state-editor': 'behavior.stateMachine',
   'motion-panel': 'animate.motions',
-  'face-builder': 'design.face'
+  'face-builder': 'design.artwork'
 });
 
 /**

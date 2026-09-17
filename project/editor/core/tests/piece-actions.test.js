@@ -17,23 +17,29 @@ import { SURFACES } from '../../ui/task-router.js';
  * screen where none of them answered.
  */
 
-test('the catalogue is well formed: unique ids, known levels, six on the bar', () => {
+test('the catalogue is well formed: unique ids, known levels, five on the bar', () => {
   assert.equal(new Set(PIECE_ACTION_IDS).size, PIECE_ACTION_IDS.length, 'an id appears twice');
   for (const action of PIECE_ACTIONS) {
     assert.ok(ACTION_LEVELS.includes(action.level), `${action.id} has an unknown level`);
     assert.ok(action.label, `${action.id} has no label`);
     if (action.altLabel) assert.notEqual(action.altLabel, action.label, `${action.id}'s two labels are the same word`);
   }
-  assert.equal(BAR_ACTIONS.length, 6, 'the canvas bar is six buttons, deliberately');
+  // Five, deliberately. It was six while *Replace…* was among them, and that
+  // one offered the face library's other drawings for a part -- gone with the
+  // Character Builder (V5-07).
+  assert.equal(BAR_ACTIONS.length, 5, 'the canvas bar is five buttons, deliberately');
   assert.deepEqual(BAR_ACTIONS.map((action) => action.id),
-    ['duplicate', 'replace', 'flip-x', 'forward', 'backward', 'delete']);
+    ['duplicate', 'flip-x', 'forward', 'backward', 'delete']);
   for (const action of BAR_ACTIONS) assert.ok(action.glyph, `${action.id} rides the canvas and needs a glyph`);
 });
 
 test('the surface that needed these gestures most is the one that takes them', () => {
-  // The bug this module exists for: `character` is an editing surface.
-  assert.ok(takesGestures('character'), 'Design ▸ Face is where a beginner edits');
-  assert.equal(gestureDepth('character'), 'simple', 'and it never shows a rigging entry');
+  // The bug this module exists for was that `character` -- an editing surface,
+  // and the one a beginner landed on -- had none of these gestures. That
+  // surface is gone with the Character Builder (V5-07) and what it argued for
+  // is now true of Artwork, which every author lands on instead.
+  assert.equal(takesGestures('character'), false, 'the surface itself no longer exists');
+  assert.equal(gestureDepth('hands'), 'simple', 'a hand is handled, so it never shows a rigging entry');
   assert.equal(gestureDepth('create'), 'advanced', 'the vector editor sees everything');
   assert.equal(gestureDepth('rig'), 'advanced', 'so does the screen where artwork is named');
   // Preview is a test bench: a delete there would be a trap.
@@ -49,16 +55,16 @@ test('the surface that needed these gestures most is the one that takes them', (
 });
 
 test('a simple surface offers the everyday gestures and none of the rigging ones', () => {
-  const simple = pieceActionsFor({ row: true, library: true, path: true, shape: true, clip: true }, 'simple');
+  const simple = pieceActionsFor({ path: true, shape: true, clip: true }, 'simple');
   const ids = simple.map((action) => action.id);
-  assert.deepEqual(ids, ['duplicate', 'replace', 'flip-x', 'forward', 'backward', 'delete']);
+  assert.deepEqual(ids, ['duplicate', 'flip-x', 'forward', 'backward', 'delete']);
   for (const id of ['points', 'pin', 'to-path', 'release-clip', 'part']) {
     assert.ok(!ids.includes(id), `${id} names a rigging concept and must not reach a simple menu`);
   }
 });
 
 test('the full surface offers the rigging entries, but only where they apply', () => {
-  const onAPath = pieceActionsFor({ row: true, path: true, part: true }, 'advanced').map((action) => action.id);
+  const onAPath = pieceActionsFor({ path: true, part: true }, 'advanced').map((action) => action.id);
   assert.ok(onAPath.includes('points'), 'a path can be node-edited');
   assert.ok(onAPath.includes('pin'), 'and pinned');
   assert.ok(!onAPath.includes('to-path'), 'it is already a path');
@@ -70,26 +76,23 @@ test('the full surface offers the rigging entries, but only where they apply', (
   assert.ok(!onARect.includes('points'), 'but it has no points yet');
 });
 
-test('Replace follows the row, Reset follows the drawing', () => {
-  // The template face ships its own artwork, so nothing on it came *from* the
-  // library -- and Replace still has six mouths to offer, because the row is
-  // what the cards are listed under. Gating Replace on `library` hid it on
-  // exactly the face every new author starts from.
-  const template = pieceActionsFor({ row: true, library: false }, 'advanced').map((action) => action.id);
-  assert.ok(template.includes('replace'), 'a mouth somebody drew can still be swapped for a library mouth');
-  assert.ok(!template.includes('reset-position'), 'and there is no library placement to reset it to');
-
-  const installed = pieceActionsFor({ row: true, library: true }, 'advanced').map((action) => action.id);
-  assert.ok(installed.includes('replace'));
-  assert.ok(installed.includes('reset-position'));
-
-  const loose = pieceActionsFor({ row: false, library: false }, 'advanced').map((action) => action.id);
-  assert.ok(!loose.includes('replace'), 'a shape that plays no part of the face has nothing to swap for');
-  assert.ok(loose.includes('delete'), 'but it is still a piece, and still deletable');
+test('the two library gestures are gone, and nothing is left asking about a row', () => {
+  // *Replace…* offered the library's other drawings for a part and *Reset
+  // position* put one back where its fit had placed it. Both opened the
+  // Character Builder, and a piece of a V5 mascot is a file somebody made --
+  // the editor has no other drawing of it to offer (V5-07).
+  for (const piece of [{ row: true, library: false }, { row: true, library: true }, {}]) {
+    const ids = pieceActionsFor(piece, 'advanced').map((action) => action.id);
+    assert.ok(!ids.includes('replace'));
+    assert.ok(!ids.includes('reset-position'));
+    assert.ok(ids.includes('delete'), 'every unlocked piece is still a piece, and still deletable');
+  }
+  // And the catalogue no longer asks a piece anything only the library knew.
+  for (const action of PIECE_ACTIONS) assert.ok(!['row', 'library'].includes(action.needs), `${action.id} still needs ${action.needs}`);
 });
 
 test('a locked piece offers exactly one thing: unlocking it', () => {
-  const actions = pieceActionsFor({ locked: true, library: true, path: true }, 'advanced');
+  const actions = pieceActionsFor({ locked: true, path: true }, 'advanced');
   assert.deepEqual(actions.map((action) => action.id), ['lock']);
   assert.equal(actions[0].label, 'Unlock');
 });

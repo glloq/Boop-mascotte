@@ -6,18 +6,20 @@ const CANVAS_CONTROLS = 'button,input,select,label,.canvas-toolbar,.design-toolb
  * Where the mascot is *designed* rather than watched, and therefore holds still
  * (docs/STILL_WHILE_DESIGNING.md).
  *
- * The Character Builder places the parts of the face and Artwork draws them,
- * and both are done by clicking the mascot itself: a face that blinks, glances
- * away and drifts its head under the pointer is a moving target, and nobody can
- * judge where an eye sits while the eye is moving. Every other task either
- * watches the mascot (Preview) or edits what it does (Face Setup, Expressions,
- * Motions, Reactions), where the movement is the work rather than in the way.
+ * Artwork draws the pieces of the mascot and places them, by clicking the
+ * mascot itself: a face that blinks, glances away and drifts its head under
+ * the pointer is a moving target, and nobody can judge where an eye sits while
+ * the eye is moving. Every other task either watches the mascot (Preview) or
+ * edits what it does (Face Setup, Expressions, Motions, Reactions), where the
+ * movement is the work rather than in the way.
+ *
+ * The Character Builder was the other one, for the same reason, until V5-07.
  *
  * These are workspace names because a workspace is what the shell dispatches;
  * the task router maps the `artwork` task onto the legacy `create` workspace
- * (docs/UX02_TASK_ROUTER_SELECTION_INSPECTOR.md) and `character` onto its own.
+ * (docs/UX02_TASK_ROUTER_SELECTION_INSPECTOR.md).
  */
-const STILL_WORKSPACES = new Set(['character', 'create']);
+const STILL_WORKSPACES = new Set(['create']);
 
 // The DOM half of `bindCanvas`, shaped like the component contract's `listen`
 // (VNX-03) so the gestures can move into a workspace lifecycle unchanged.

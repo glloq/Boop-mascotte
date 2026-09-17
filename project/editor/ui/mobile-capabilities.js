@@ -15,7 +15,6 @@ export const CAPABILITY_GROUPS = Object.freeze({ design: 'Design', rig: 'Rig', a
 
 export const MOBILE_POLICY = Object.freeze({
   /* -- Design ------------------------------------------------------------- */
-  character: Object.freeze({ workspace: 'design', level: 'full', label: 'Face', note: 'Pick a part, swap it, recolour it and move it. The parts are the drawer and the inspector the sheet.' }),
   hands: Object.freeze({ workspace: 'design', level: 'limited', label: 'Hands', note: 'Use, rename, duplicate, mirror and delete a hand state, and add one from a file. Reshaping a drawing needs the vector tools.', handoff: 'Edit a state\u2019s drawing on a tablet or desktop.' }),
   artwork: Object.freeze({ workspace: 'design', level: 'limited', label: 'Artwork', note: 'Import, select, rename, show or hide layers and nudge transforms. Drawing tools and node editing are off on phones.', handoff: 'Edit shapes and transforms on a tablet or desktop.' }),
 

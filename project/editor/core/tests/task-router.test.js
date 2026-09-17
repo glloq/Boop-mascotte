@@ -22,7 +22,7 @@ test('a mode resolves from its own id, from every older name, and from nonsense 
   assert.equal(normalizeMode('rig.assign'), 'rig.assign');
   assert.equal(normalizeMode('face-setup'), 'rig.assign', 'the task id Face Setup had');
   assert.equal(normalizeMode('rig'), 'rig.assign', 'and the surface id it had before that');
-  assert.equal(normalizeMode('character'), 'design.face');
+  assert.equal(normalizeMode('character'), 'design.artwork', 'Design ▸ Face is gone with the Character Builder, and its name still lands somewhere real');
   assert.equal(normalizeMode('create'), 'design.artwork');
   assert.equal(normalizeMode('animate'), 'animate.motions', 'the Motions task, not the Animate workspace');
   // The editor opens on Artwork, where the pieces an author brought are
@@ -58,7 +58,7 @@ test('the four workspaces hold every screen but the global ones, each exactly on
 });
 
 test('a workspace resolves to its screens, and a screen to its workspace and its panels', () => {
-  assert.deepEqual([...workspaceModes('design')], ['design.artwork', 'design.face', 'design.hands'], 'Artwork first: it is where a mascot arrives');
+  assert.deepEqual([...workspaceModes('design')], ['design.artwork', 'design.hands'], 'Artwork first: it is where a mascot arrives');
   assert.deepEqual([...workspaceModes('rig')], ['rig.assign', 'rig.controls', 'rig.head2d', 'rig.deform']);
   assert.deepEqual([...workspaceModes('animate')], ['animate.expressions', 'animate.motions', 'animate.timeline']);
   assert.deepEqual([...workspaceModes('behavior')], ['behavior.reactions', 'behavior.automatic', 'behavior.stateMachine']);
@@ -67,7 +67,7 @@ test('a workspace resolves to its screens, and a screen to its workspace and its
   // Four screens over one column of panels: that is what makes 342 controls
   // into four screens without moving a panel.
   assert.deepEqual(workspaceModes('rig').map(modeToSurface), ['rig', 'rig', 'rig', 'rig']);
-  assert.equal(modeToSurface('design.face'), 'character', 'the builder composes its own column');
+  assert.equal(modeToSurface('design.hands'), 'hands', 'and Hands composes its own column');
   assert.equal(modeToSurface('behavior.automatic'), 'reactions');
 });
 

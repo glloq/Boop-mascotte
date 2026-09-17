@@ -99,15 +99,22 @@ test('@critical an arrangement plays, and it is the engine that was always able 
  * was missing exactly where pieces are placed by eye; and there was no way to
  * get close to the piece in hand except by wheeling towards it and hoping.
  */
-test('@critical Face lines pieces up, zooms to them, and can isolate one', async ({ page }) => {
+test('@critical a mascot surface lines pieces up, zooms to them, and can isolate one', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
-  await goToMode(page, 'design.face');
+  // Design ▸ Hands is the mascot surface now: the one where a person handles a
+  // mascot rather than restructures its drawing. It was Design ▸ Face, and
+  // this test pressed a row of its part browser to take a pair in hand
+  // (V5-07); the pair is taken directly instead.
+  await goToMode(page, 'design.hands');
+  await page.evaluate(() => window.__BOOP_E2E__.mutate((state) => {
+    state.selectedId = 'pupilLeft';
+    state.selectedIds = ['pupilLeft', 'pupilRight'];
+  }));
 
   // Align, where pieces are placed by eye — and only align: making two pieces
   // one SVG group, or cutting one to the shape of another, restructures a
   // drawing the rig is bound to, so both stay in the vector editor.
-  await page.locator('[data-part-category="pupils"]').click();
   await expect.poll(() => page.evaluate(() => (window.__BOOP_E2E__.session().selectedIds || []).length)).toBe(2);
   const arrange = page.locator('.tool-arrange');
   await expect(arrange).toBeVisible();

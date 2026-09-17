@@ -22,7 +22,7 @@ test('@critical first run offers two ways to start a mascot, and changes nothing
   // where the Open Project button was.
   await expect(home.getByRole('heading', { name: 'Create and animate your mascot' })).toBeVisible();
   await expect(home.locator('.home-hero svg')).toBeVisible();
-  await expect(home.locator('[data-home-action="character"]')).toBeVisible();
+  await expect(home.locator('[data-home-action="picture"]')).toBeVisible();
   await expect(home.locator('[data-home-action="open"]'), 'opening a project is a button, not a sentence').toBeVisible();
   await expect(home.locator('.primary'), 'one primary action on the page').toHaveCount(1);
   await expect(home.locator('[data-template-id="basic"]')).toBeVisible();

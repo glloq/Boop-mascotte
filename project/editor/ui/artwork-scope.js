@@ -4,7 +4,7 @@
  *
  * ```text
  * Design / Hands / Left hand / Point          ← editing one state of one hand
- * Design / Face / Mouth                       ← editing one piece of the face
+ * Design / Artwork / Mouth                    ← editing one piece on its own
  * Design / Artwork                            ← the whole drawing
  * ```
  *
@@ -20,7 +20,7 @@
  * That is the whole reason it is a pure function -- there is no third place
  * holding "what am I editing" to come apart from the other two.
  */
-import { HAND_LABELS } from './character-builder/hand-placement-panel.js';
+import { HAND_LABELS } from '../core/hands/hand-model.js';
 import { handStateElementId, handStates } from '../core/hands/hand-state-model.js';
 
 /** The scope an author is in, from the element the canvas is limited to. */
@@ -47,7 +47,12 @@ export function describeArtworkScope(document = {}, elementId = null) {
     id: elementId,
     crumbs: ['Design', 'Artwork', name],
     label: name,
-    back: { mode: 'design.face', label: 'Back to Face' }
+    // No route out, because there is nowhere else to go: an ordinary piece is
+    // isolated *within* Artwork, which is what its own crumbs say. It said
+    // "Back to Face" while Design ▸ Face existed, and that was already a
+    // different screen from the one the crumbs named (V5-07). The way out is
+    // *Stop isolating*, in the menu that offered *Isolate*.
+    back: null
   };
 }
 

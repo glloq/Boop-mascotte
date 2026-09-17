@@ -25,19 +25,17 @@
  *                              one run where the impression matters most
  * ```
  *
- * The hero is a real preset drawn by `presetThumbnail` from the real assets:
- * the first thing an author sees is something the library can actually make.
- *
  * The rest of what used to live here — Import SVG, Open Project, the blank
  * canvas — is still reachable. Two of them are one press from this page now
  * rather than a sentence pointing at the ••• menu.
  *
  * V4-092 added the third way to begin, and V5-04 made it the first
  * (docs/V5_MASCOTTE_IMAGES_ETUDE.md). Pictures were a way in among four; they
- * are now *the* way in, because that is what this editor is for. The three
- * others are still here, under "No pictures to hand?", which is the honest
- * place for them: a ready-made face to take apart, shapes to draw, an SVG to
- * import.
+ * are now *the* way in, because that is what this editor is for. Two others
+ * are still here, under "No pictures to hand?", which is the honest place for
+ * them: a finished mascot to take apart, and an SVG to import. *Build one from
+ * shapes* and the three examples were the third and fourth, and they went with
+ * the Character Builder they opened (V5-07).
  *
  * The page's job is now to say **what to prepare**, and it says exactly three
  * things — a transparent PNG or WebP, one piece per file, and that the
@@ -45,8 +43,6 @@
  * mascot needs. "You need a head, two eyes and a mouth" is the constraint this
  * refit exists to remove, and a page that says it puts it back.
  */
-import { FACE_PART_LIBRARY } from '../core/face-library/face-part-registry.js';
-import { FACE_PRESET_LIBRARY, presetThumbnail } from '../core/face-library/face-presets.js';
 import { esc } from './escape-html.js';
 
 /**
@@ -55,7 +51,8 @@ import { esc } from './escape-html.js';
  * It used to be one: `presetThumbnail` drew the library's own reference
  * character, on the argument that a mascot editor's first page should show a
  * mascot. That argument was right while the editor's answer to "how do I
- * start?" was "pick one of ours".
+ * start?" was "pick one of ours", and this page stopped asking the library
+ * anything at all when that stopped being the answer.
  *
  * It is the wrong picture for this page. The thing an author has to understand
  * before anything else is that **a mascot is pieces, and a piece is a file** —
@@ -79,25 +76,10 @@ function heroArt() {
     + '</svg>';
 }
 
-/**
- * Three ready-made characters to press on a first run, in place of an empty
- * *Continue* panel. An empty state a section can simply not have is an empty
- * state that should not exist.
- */
-const EXAMPLES = Object.freeze([
-  { id: 'fox', label: 'Fox' },
-  { id: 'robot-screen', label: 'Robot' },
-  { id: 'owl', label: 'Owl' }
-]);
-
-export const homeExamples = ({ presets = FACE_PRESET_LIBRARY } = {}) =>
-  EXAMPLES.filter((example) => Boolean(presets.get?.(example.id)));
-
-export function homeSurfaceMarkup(options = {}) {
-  const examples = homeExamples(options);
+export function homeSurfaceMarkup() {
   return `<section class="home-surface" data-home aria-labelledby="home-heading" hidden><div class="home-panel">
     <p class="home-brand">BOOP</p>
-    <div class="home-hero" aria-hidden="true">${heroArt(options)}</div>
+    <div class="home-hero" aria-hidden="true">${heroArt()}</div>
     <h1 id="home-heading" tabindex="-1">Create and animate your mascot</h1>
     <p class="home-lede">A character that blinks, smiles and reacts — no code, nothing to install.</p>
     <section class="home-needs" aria-label="What to prepare">
@@ -114,13 +96,10 @@ export function homeSurfaceMarkup(options = {}) {
     </div>
     <p class="home-otherwise">No pictures to hand?
       <button type="button" class="link" data-template-id="basic" title="A finished mascot that already moves, to take apart">See a finished mascot</button> ·
-      <button type="button" class="link" data-home-action="character">Build one from shapes</button> ·
       <button type="button" class="link" data-home-action="import">Import an SVG</button></p>
     <section class="home-recovery" aria-labelledby="home-continue" data-recovery-status="none">
       <h2 id="home-continue" class="screen-eyebrow">Continue</h2><div data-recovery-content></div>
     </section>
-    ${examples.length ? `<p class="home-examples" data-home-examples>Or try an example:
-      ${examples.map((example) => `<button type="button" class="link" data-home-example="${esc(example.id)}">${esc(example.label)}</button>`).join(' · ')}</p>` : ''}
     <button type="button" class="secondary home-back" data-home-action="back" hidden>Back to current project</button>
   </div></section>`;
 }

@@ -335,7 +335,7 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
         summary = applyFacePartRemoval(candidate, plan, { artwork });
         history?.snapshot();
         store.execute({
-          type: 'face-part/remove', source: 'character-builder', domains: [...FACE_PART_DOMAINS],
+          type: 'face-part/remove', source: 'face-part', domains: [...FACE_PART_DOMAINS],
           apply: (document) => { for (const field of FACE_PART_FIELDS) document[field] = structuredClone(candidate[field]); }
         });
       } catch (error) {
@@ -408,7 +408,7 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
         summary = applyFacePartReplacement(candidate, fresh ? { ...plan, previousTransform: null } : plan, { asset, artwork, renamed: remapped.renamed, ids: artworkIds(remapped.markup), measure, fit, fitHosted });
         history?.snapshot();
         store.execute({
-          type: 'face-part/replace', source: 'character-builder', domains: [...FACE_PART_DOMAINS],
+          type: 'face-part/replace', source: 'face-part', domains: [...FACE_PART_DOMAINS],
           apply: (document) => { for (const field of FACE_PART_FIELDS) document[field] = structuredClone(candidate[field]); }
         });
       } catch (error) {

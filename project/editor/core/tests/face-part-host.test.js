@@ -11,7 +11,7 @@ import { artworkIds } from '../face-library/face-part-model.js';
 import { layerParents } from '../face-library/face-layout.js';
 import { assignSemanticRole } from '../../rig-editor/semantic-parts/part-model.js';
 import { validateRig } from '../validation/rig-validator.js';
-import { instanceIsCustom } from '../../ui/character-builder/character-model.js';
+import { instanceIsCustom } from '../face-library/face-part-artwork.js';
 import { compileRigFrame } from '../../../runtime/runtime.js';
 
 /**

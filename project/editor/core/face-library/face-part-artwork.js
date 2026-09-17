@@ -201,3 +201,16 @@ export function shapeSignature(markup, ids = [], { without = [] } = {}) {
   }
   return `s${hashText(parts.join(';'))}`;
 }
+
+/**
+ * Whether a library instance was reshaped by hand since it went on: its
+ * shapes no longer sign as the install left them (`part.assetShape`,
+ * docs/FACE_PART_LIBRARY.md, "Custom parts"). Moved, turned or resized as a
+ * whole, it is still the library's; a point or a curve dragged, it is the
+ * author's -- and keeps its category, its roles and its movements.
+ *
+ * It lived in the Character Builder's model, which is where it was read
+ * (V5-07). The question is the library's: it is asked of a part and answered
+ * by the two functions above it.
+ */
+export const instanceIsCustom = (document, part) => Boolean(part?.assetShape && part.assetRoot && shapeSignature(document?.svgMarkup, [part.assetRoot, ...(part.assetDetached || [])], { without: hostedRoots(document, part.id) }) !== part.assetShape);

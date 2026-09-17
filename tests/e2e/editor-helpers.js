@@ -41,7 +41,7 @@ export async function goToMode(page, mode) {
  * written against the old navigation says what it always said.
  */
 export const TASK_MODES = {
-  artwork: 'design.artwork', create: 'design.artwork', character: 'design.face', hands: 'design.hands',
+  artwork: 'design.artwork', create: 'design.artwork', character: 'design.artwork', hands: 'design.hands',
   'face-setup': 'rig.assign', rig: 'rig.assign', expressions: 'animate.expressions', animate: 'animate.motions',
   reactions: 'behavior.reactions', automatic: 'behavior.automatic', preview: 'preview'
 };
@@ -63,7 +63,7 @@ export async function openCapabilitySheet(page) {
 
 /** The panels a screen mounts, for the specs that assert the composition. */
 export async function goToWorkspace(page, surface) {
-  const mode = { create: 'design.artwork', character: 'design.face', hands: 'design.hands', rig: 'rig.assign', expressions: 'animate.expressions', animate: 'animate.motions', reactions: 'behavior.reactions', preview: 'preview' }[surface];
+  const mode = { create: 'design.artwork', character: 'design.artwork', hands: 'design.hands', rig: 'rig.assign', expressions: 'animate.expressions', animate: 'animate.motions', reactions: 'behavior.reactions', preview: 'preview' }[surface];
   await goToMode(page, mode);
   await expect(page.locator(`#app[data-workspace="${surface}"]`), `Workspace did not change to "${surface}"`).toHaveCount(1);
 }

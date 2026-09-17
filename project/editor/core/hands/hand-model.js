@@ -14,6 +14,15 @@ import {
 
 export { normalizeHand, normalizeHands, normalizeHandInertia, handOffset, softenReach, HAND_SIDES };
 
+/**
+ * What a person calls each side.
+ *
+ * Beside the sides themselves rather than in a panel: it was in the Character
+ * Builder's hand panel, and two screens outside that builder were importing it
+ * from there (V5-07). A hand's name is not one screen's property.
+ */
+export const HAND_LABELS = Object.freeze({ left: 'Left hand', right: 'Right hand' });
+
 const capital = (side) => side === 'right' ? 'R' : 'L';
 
 /**

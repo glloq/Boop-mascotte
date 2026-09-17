@@ -9,7 +9,7 @@ import { createFacePartRegistry } from '../face-library/face-part-registry.js';
 import { BUILTIN_FACE_PARTS } from '../face-library/builtin/index.js';
 import { artworkIds } from '../face-library/face-part-model.js';
 import { identifyFaceParts } from '../face-library/face-part-migration.js';
-import { instanceIsCustom } from '../../ui/character-builder/character-model.js';
+import { instanceIsCustom } from '../face-library/face-part-artwork.js';
 
 /**
  * An old project through the library (docs/FACE_PART_LIBRARY.md, "Migration").

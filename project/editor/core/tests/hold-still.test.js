@@ -64,14 +64,14 @@ const sampled = (harness, name, frames = 20) => {
   return seen;
 };
 
-test('the mascot holds still in the Character Builder and in Artwork, and moves again on the way out', () => {
+test('the mascot holds still in Artwork, and moves again on the way out', () => {
   const harness = createHarness({ workspace: 'preview' });
   harness.goTo('preview');
   harness.preview.start();
   assert.ok(sampled(harness, 'lookX').size > 1, 'the gaze wanders where the mascot is watched');
   assert.ok(harness.awake(), 'and the loop is running');
 
-  for (const designing of ['character', 'create']) {
+  for (const designing of ['create']) {
     assert.equal(harness.goTo(designing), true, `${designing} holds the mascot still`);
     assert.equal(harness.preview.isHeldStill(), true);
     const rest = harness.preview.getEffectiveParams();
@@ -88,9 +88,9 @@ test('the mascot holds still in the Character Builder and in Artwork, and moves 
   assert.ok(sampled(harness, 'lookX').size > 1, 'and the gaze wanders again');
 });
 
-test('every task either designs the mascot or does not, and only the two that do hold it still', () => {
+test('every task either designs the mascot or does not, and only the one that does holds it still', () => {
   const harness = createHarness();
-  for (const [workspace, held] of [['character', true], ['create', true], ['rig', false], ['expressions', false], ['animate', false], ['reactions', false], ['preview', false]]) {
+  for (const [workspace, held] of [['create', true], ['character', false], ['rig', false], ['expressions', false], ['animate', false], ['reactions', false], ['preview', false]]) {
     assert.equal(harness.goTo(workspace), held, workspace);
     assert.equal(harness.preview.isHeldStill(), held, workspace);
   }
@@ -103,7 +103,7 @@ test('the hold writes nothing into the preview switches, so leaving gives back e
   harness.preview.setBehaviorOverride('auto-wander', false);
   assert.deepEqual(harness.preview.getBehaviorOverrides(), { 'auto-wander': false });
 
-  harness.goTo('character');
+  harness.goTo('create');
   assert.deepEqual(harness.preview.getBehaviorOverrides(), { 'auto-wander': false }, 'the hold mutes over them, never through them');
   assert.equal(sampled(harness, 'eyeOpen').size, 1, 'and the blink the author left on is held too');
 
@@ -114,8 +114,8 @@ test('the hold writes nothing into the preview switches, so leaving gives back e
 });
 
 test('a held mascot is still posable: the hold stops what it does by itself, not what the author does', () => {
-  const harness = createHarness({ workspace: 'character' });
-  harness.goTo('character');
+  const harness = createHarness({ workspace: 'create' });
+  harness.goTo('create');
   harness.preview.start();
   harness.preview.setLiveParam('headX', .4);
   assert.equal(harness.preview.getEffectiveParams().headX, .4, 'a live parameter poses a held mascot');
@@ -138,7 +138,7 @@ test('a reaction nobody asked for is not due while the mascot is held', () => {
   harness.advance(40);
   assert.equal(harness.preview.getActiveReaction()?.id, 'tick', 'a timer fires where the mascot is watched');
 
-  harness.goTo('character');
+  harness.goTo('create');
   harness.preview.clearReactions();
   harness.advance(80);
   assert.equal(harness.preview.getActiveReaction(), null, 'and never fires while the face is being designed');
@@ -153,13 +153,13 @@ test('holding still says where the author is, and never reaches the document', (
   const harness = createHarness({ workspace: 'preview' });
   harness.preview.start();
   const before = sentinel(harness.store);
-  for (const workspace of ['character', 'create', 'rig', 'character', 'preview']) { harness.goTo(workspace); harness.advance(10); }
+  for (const workspace of ['create', 'rig', 'create', 'preview']) { harness.goTo(workspace); harness.advance(10); }
   assert.deepEqual(sentinel(harness.store), before, 'no revision moved, and no field changed');
 });
 
 test('the reset clears the whole session layer, leaves the document alone and does not let the face go', () => {
-  const harness = createHarness({ workspace: 'character' });
-  harness.goTo('character');
+  const harness = createHarness({ workspace: 'create' });
+  harness.goTo('create');
   harness.preview.start();
   harness.preview.setLiveParam('headX', .4);
   harness.preview.setBehaviorOverride('auto-blink', false);

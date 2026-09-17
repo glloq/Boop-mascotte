@@ -8,8 +8,9 @@ import { openAssetStore } from '../core/assets/asset-store.js';
 import { createAssetManager } from '../core/assets/asset-manager.js';
 import { createAssetOptimiser, createBrowserCodec } from '../core/assets/asset-optimise.js';
 import { createAssetResolver } from '../../runtime/asset-resolver.js';
-import { createNewMascotWizard } from '../ui/new-mascot/wizard.js';
-import { presetMorphology } from '../core/face-library/compatibility.js';
+import { createArtworkCommands } from '../core/commands/artwork-commands.js';
+import { createHandPieceModel } from '../ui/hands/hand-pieces.js';
+import { hostedOn, rolesOn } from '../ui/piece-facts.js';
 import { createLayersPanel, siblingPosition } from '../svg-editor/layers-panel.js';
 import { createArtboardPanel } from '../ui/artboard-panel.js';
 import { readArtboard } from '../core/artwork/artboard.js';
@@ -305,13 +306,11 @@ export function createEditorApp({ root = document.getElementById('app'), recover
     setMeshDriver: (id, parameter) => projectService.setMeshDriver(id, parameter),
     captureMeshOpen: (id) => projectService.captureMeshOpen(id)
   });
-  // The Character Builder (docs/CHARACTER_BUILDER.md): the parts a person
-  // names, on the same canvas and the same document, editing through the same
-  // commands the Artwork inspector runs. Its presets load a template through
-  // the project service, and a style is the face part command over the
-  // canvas (docs/FACE_PART_LIBRARY.md, "Installing"); the service and the
-  // preview are built further down and only ever called from a press, hence
-  // the wrappers.
+  // Design's own workspace: the drawings each hand can show, and the face part
+  // commands that install a part over the canvas (docs/FACE_PART_LIBRARY.md,
+  // "Installing"). The service and the preview are built further down and only
+  // ever called from a press, hence the wrappers. It also held the Character
+  // Builder until V5-07.
   // Hand artwork is nobody's screen: Design draws a state onto a hand, Rig draws
   // the pair, and the canvas's own picker draws one a hand has not got yet
   // (app/hand-artwork.js).
@@ -331,23 +330,36 @@ export function createEditorApp({ root = document.getElementById('app'), recover
     download: browserDownload,
     runPieceAction: (action, id) => runPieceAction(action, id, { from: 'inspector' })
   });
-  const { characterBuilder, handStates, facePartCommands } = design.panels;
+  const { handStates, facePartCommands } = design.panels;
 
   /**
    * Teach the canvas what a piece is, on the surfaces that have pieces.
    *
-   * The canvas knows SVG elements; it does not know that seven of them are one
-   * eye. Design ▸ Face and Design ▸ Hands are where a person handles a mascot,
-   * and they are exactly the `simple` half of the table the gestures already
-   * read (`ui/piece-actions.js`) — so this cannot drift from it. Artwork is the
-   * vector editor and Rig assigns roles to named elements: both want the shape
-   * under the pointer, and both get null.
+   * The canvas knows SVG elements; it does not know that a palm, four fingers
+   * and a thumb are one drawing of one hand. Design ▸ Hands is where a person
+   * handles a mascot rather than rigs it, and it is exactly the `simple` half
+   * of the table the gestures already read (`ui/piece-actions.js`) — so this
+   * cannot drift from it. Artwork is the vector editor and Rig assigns roles to
+   * named elements: both want the shape under the pointer, and both get null.
+   *
+   * It was the Character Builder's answer, derived from the face library's
+   * visual rows, and Design ▸ Face was the other `simple` surface (V5-07).
    */
-  const syncPieceModel = (workspace) => canvas.setPieceModel(gestureDepth(workspace) === 'simple' ? {
-    resolve: (id) => characterBuilder.resolvePiece(id),
-    contains: (root, id) => characterBuilder.containsPiece(root, id),
-    commit: (id, transform) => characterBuilder.commitTransform(id, transform)
-  } : null);
+  const handPieces = createHandPieceModel({
+    document: () => store.getDocument(),
+    writeTransform: (id, transform) => {
+      const document_ = store.getDocument();
+      const patch = {};
+      for (const key of ['x', 'y', 'rotation', 'scaleX', 'scaleY', 'pivotX', 'pivotY']) {
+        if (Number.isFinite(Number(transform[key]))) patch[key] = Number(transform[key]);
+      }
+      if (!document_.elements?.[id] || document_.layerMetadata?.[id]?.locked || !Object.keys(patch).length) return false;
+      createArtworkCommands(store, history).setTransform(id, patch, { source: 'hand-pieces' });
+      canvas.applyElementTransform(id, store.getDocument().elements[id]);
+      return true;
+    }
+  });
+  const syncPieceModel = (workspace) => canvas.setPieceModel(gestureDepth(workspace) === 'simple' ? handPieces : null);
   syncPieceModel(shell.getWorkspace());
 
   /* ── One piece, one set of gestures, every surface ─────────────────────────
@@ -362,30 +374,28 @@ export function createEditorApp({ root = document.getElementById('app'), recover
   /**
    * What a piece is, as the catalogue needs to hear it.
    *
-   * The Character Builder answers for the library — whether this shape is one
-   * of a part's drawings, what hangs on it, how much of the rig it plays — and
-   * the canvas answers for the artwork. Neither could answer alone.
+   * The document answers what deleting it would cost (`ui/piece-facts.js`) and
+   * the canvas answers what it is drawn with. It was the Character Builder that
+   * answered the first half, out of the face library (V5-07); the question is
+   * asked of every mascot, and the library was never where the answer was.
    */
   function pieceContext(id) {
     const document_ = store.getDocument();
     if (!id || !document_.elements?.[id]) return null;
-    const described = characterBuilder.describePiece?.(id) || null;
     const kind = canvas.elementKind?.(id) || document_.elements[id]?.meta?.nodeType || null;
     return {
       id,
-      label: described?.label || document_.layerMetadata?.[id]?.name || id,
+      label: document_.layerMetadata?.[id]?.name || id,
       locked: Boolean(document_.layerMetadata?.[id]?.locked),
       visible: layerVisible(document_.layers, id) !== false,
       isolated: canvas.getEditScope?.() === id,
-      row: Boolean(described?.row),
-      library: Boolean(described?.library),
       part: findSemanticPartByRole(document_, id),
       path: kind === 'path',
       shape: ['rect', 'circle', 'ellipse', 'line', 'polygon', 'polyline'].includes(kind),
       clip: canvas.describeClip?.(id) || null,
       group: kind === 'g',
-      roles: described?.roles || 0,
-      hosted: described?.hosted || 0
+      roles: rolesOn(document_, id),
+      hosted: hostedOn(document_, id)
     };
   }
 
@@ -425,10 +435,7 @@ export function createEditorApp({ root = document.getElementById('app'), recover
     let hosted = 0;
     if (unlocked.length > 1) canvas.deleteMany(unlocked);
     else {
-      const removal = characterBuilder.removePiece?.(unlocked[0]);
-      if (removal?.done) hosted = removal.hosted;
-      else if (removal?.reason) { shell.setStatus(removal.reason, 'warn'); return false; }
-      else canvas.delete(unlocked[0]);
+      canvas.delete(unlocked[0]);
     }
     const said = deleteMessage({ label, count: unlocked.length, hosted });
     shell.setStatus(said.message, 'info', { action: { label: said.action, run: () => undo() } });
@@ -453,7 +460,6 @@ export function createEditorApp({ root = document.getElementById('app'), recover
     if (action === 'rename') { history.snapshot(); canvas.setName(id, value); canvasMenu.refresh(); return true; }
     if (action === 'delete') { deletePieces(store.getSession().selectedIds?.length > 1 ? store.getSession().selectedIds : [id]); return true; }
     if (action === 'duplicate') { canvas.duplicate(id); shell.setStatus('Copy added in front of the original, and selected.', 'info', { action: { label: 'Undo', run: () => undo() } }); return true; }
-    if (action === 'replace') { characterBuilder.openReplace?.(id); return true; }
     if (action === 'flip-x' || action === 'flip-y') {
       if (!canvas.flip(id, action === 'flip-x' ? 'x' : 'y')) return false;
       shell.setStatus(`Flipped ${action === 'flip-x' ? 'horizontally' : 'vertically'} around its pivot.`, 'info', { action: { label: 'Undo', run: () => undo() } });
@@ -483,7 +489,6 @@ export function createEditorApp({ root = document.getElementById('app'), recover
       shell.setStatus(on ? 'Everything is showing again.' : `Working on ${name()} alone. The rest of the mascot is dimmed; press Isolate again to bring it back.`);
       return true;
     }
-    if (action === 'reset-position') { characterBuilder.resetPart?.(id, 'position'); return true; }
     if (action === 'points') { taskRouter.navigate('artwork'); setDesignTool('node'); return true; }
     if (action === 'pin') {
       // Where the menu was opened is where the pin goes.
@@ -704,42 +709,6 @@ export function createEditorApp({ root = document.getElementById('app'), recover
 
   shell.bindLoadSample((kind) => projectService.loadTemplate(kind));
 
-  /**
-   * The one-minute path (docs/CHARACTER_BUILDER.md), asked in the right order
-   * (UI-REDESIGN-03): the kind first, then the character, then the editor
-   * already offering that kind's parts. The rig is never touched — the template
-   * arrives rigged and a character is a recipe over the library on top of it.
-   *
-   * What it replaces is the whole of the problem the redesign study measured.
-   * `New Character` used to load the template and open the *Presets* row, which
-   * offers whatever `activeMorphology()` happens to answer — and with nobody
-   * having pressed the collapsed `Type` row, that answer was `human`. So the
-   * library's 150 drawings and 22 characters arrived as 48 and 6, and the other
-   * three kinds were reachable only by finding a row nobody looks for.
-   */
-  const createMascot = async ({ type, character }) => {
-    if (!(await projectService.loadTemplate('basic', { mode: 'design.face' }))) return false;
-    // The kind first: it decides what every list in Design offers from here on.
-    characterBuilder.setType(type);
-    // Then the character, which is a recipe over the library applied to the
-    // face that is there -- one undo step, every part still editable.
-    characterBuilder.useFacePreset(character);
-    characterBuilder.openCategory('head');
-    return true;
-  };
-
-  const wizard = createNewMascotWizard(shell.wizardEl, {
-    library: facePartCommands?.library,
-    presets: facePartCommands?.presets,
-    onCreate: async (choice) => { if (await createMascot(choice)) wizard.close(); },
-    onCancel: () => wizard.close(),
-    onOther: (what) => {
-      wizard.close();
-      if (what === 'blank') projectService.loadTemplate('blank', { mode: 'design.artwork' });
-      else shell.openSvgFilePicker();
-    }
-  });
-  shell.bindNewCharacter(() => wizard.open());
   // Home's own presses (UI-REDESIGN-02). Open and Import were a grey sentence
   // pointing at the ••• menu; an example is what a first run shows in place of
   // an empty "Continue" panel.
@@ -748,13 +717,6 @@ export function createEditorApp({ root = document.getElementById('app'), recover
   // The third way to begin (V4-092): the same picker the Artwork column has,
   // which now makes its own artboard when there is no project behind it.
   shell.bindHomeStartFromPicture(() => shell.openBaseImageFilePicker());
-  // An example knows its own kind, read from the parts it names rather than
-  // stored beside them: a fox is an Animal, never the human default.
-  shell.bindHomeExample((presetId) => {
-    const preset = facePartCommands?.presets?.get?.(presetId);
-    if (!preset) return;
-    createMascot({ type: presetMorphology(preset, { library: facePartCommands?.library }) || 'human', character: presetId });
-  });
 
   /** The boxes a preset part is fitted to: the eyes it belongs on, or the head. */
   const featureBoxes=(document_)=>{
@@ -831,8 +793,8 @@ export function createEditorApp({ root = document.getElementById('app'), recover
     canvas.showPuppetHandles(posesOnCanvas(shell.getWorkspace()) && shell.isPuppetVisible());
   }
 
-  shell.bindGenerateFace((options) => projectService.generateFace(options));
 
+  shell.bindGenerateFace((options) => projectService.generateFace(options));
 
   shell.bindSaveProject(() => projectService.saveProject());
 
@@ -846,9 +808,8 @@ export function createEditorApp({ root = document.getElementById('app'), recover
     try { pack = JSON.parse(await file.text()); } catch { shell.setStatus(`Not a face pack: ${file.name} is not JSON.`, 'error'); return; }
     const result = facePartCommands.installPack(pack);
     if (!result.ok) { shell.setStatus(`Face pack refused: ${result.reason}`, 'error'); return; }
-    characterBuilder.render();
     const count = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
-    shell.setStatus(`Face pack "${result.pack.name}" installed: ${count(result.parts.length, 'part')}, ${count(result.presets.length, 'preset')}, kept in this browser. They are cards in the Character Builder, marked Pack.`);
+    shell.setStatus(`Face pack "${result.pack.name}" installed: ${count(result.parts.length, 'part')}, ${count(result.presets.length, 'preset')}, kept in this browser. They are in the library, marked Pack.`);
   });
 
   shell.bindNew(() => shell.showHome({ focus: 'new' }));
@@ -939,9 +900,11 @@ export function createEditorApp({ root = document.getElementById('app'), recover
   exportService.configure();
   shell.bindExport(exportService.openExport);
   shell.bindReturnToExport(exportService.openExport);
-  // Edit Shape from the Character Builder limits the visible edit to the piece
-  // (docs/CHARACTER_BUILDER.md); the chip shows while it does, and brings the
-  // author back to the builder with that piece in hand.
+  // Isolating a piece limits the visible edit to it, and the chip over the
+  // canvas says which piece while it does. It was pressed as *Edit Shape* in
+  // the Character Builder, which also gave the chip somewhere to send an
+  // author back to (V5-07); an ordinary piece is isolated inside Artwork now,
+  // so it says where it is and offers no route.
   /**
    * The breadcrumb over the canvas, and the way out of a scope (UIR-06).
    *
@@ -982,7 +945,7 @@ export function createEditorApp({ root = document.getElementById('app'), recover
   // words somebody would actually type for it (UIR-01). Built from the route
   // model rather than listed here, so a screen added to the navigation is in
   // the palette by the same edit.
-  const PALETTE_KEYWORDS={'design.face':['builder','parts','face','simple','character'],'design.hands':['hand','gesture','drawing','set'],'design.artwork':['svg','draw','vector','artwork','create'],'rig.assign':['roles','assign','face setup','head','eyes','mouth'],'rig.controls':['movements','calibrate','handles','gaze','reach'],'rig.head2d':['turn','2.5d','head pose','grid','pseudo-3d'],'rig.deform':['pins','warp','holds','morph','shape keys','constraints'],'animate.expressions':['expression','happy','sad','face'],'animate.motions':['motion','animation','clip','nod','blink'],'animate.timeline':['timeline','keys','dope sheet','keyframes'],'behavior.reactions':['reaction','trigger','click','when'],'behavior.automatic':['automatic','idle','blink','breathe','on its own'],'behavior.stateMachine':['state machine','states','transitions','behaviors'],preview:['test','play','try','simulate']};
+  const PALETTE_KEYWORDS={'design.hands':['hand','gesture','drawing','set'],'design.artwork':['svg','draw','vector','artwork','create'],'rig.assign':['roles','assign','face setup','head','eyes','mouth'],'rig.controls':['movements','calibrate','handles','gaze','reach'],'rig.head2d':['turn','2.5d','head pose','grid','pseudo-3d'],'rig.deform':['pins','warp','holds','morph','shape keys','constraints'],'animate.expressions':['expression','happy','sad','face'],'animate.motions':['motion','animation','clip','nod','blink'],'animate.timeline':['timeline','keys','dope sheet','keyframes'],'behavior.reactions':['reaction','trigger','click','when'],'behavior.automatic':['automatic','idle','blink','breathe','on its own'],'behavior.stateMachine':['state machine','states','transitions','behaviors'],preview:['test','play','try','simulate']};
   for(const mode of Object.values(MODES).filter(item=>item.navigable)){
     const workspace=modeToWorkspace(mode.id),group=workspace?WORKSPACES[workspace].label:'Go to';
     commandRegistry.register({id:`go:${mode.id}`,title:workspace?`${group} → ${mode.label}`:`Go to ${mode.label}`,group:'Go to',keywords:['go to','screen','workspace',mode.label,...(PALETTE_KEYWORDS[mode.id]||[])],run:()=>taskRouter.navigate({mode:mode.id})});
@@ -1254,7 +1217,7 @@ export function createEditorApp({ root = document.getElementById('app'), recover
       installE2EHooks({
         store, canvas, preview, history, exporter, taskRouter, contextInspector, responsive, capabilitySheet,
         validationCache, taskReadiness, diagnostics: lifecycleDiagnostics, autosave, project: projectService,
-        panels: { faceSetup, faceMovements, motionStudio, reactionStudio, automaticPanel, advancedHub, palette, characterBuilder }
+        panels: { faceSetup, faceMovements, motionStudio, reactionStudio, automaticPanel, advancedHub, palette }
       });
 
       // Published only after every required renderer and the optional E2E seam exist.

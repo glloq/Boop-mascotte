@@ -68,7 +68,6 @@ const rigGatesMarkup = () => [['face-setup', 'rig.assign'], ['calibration', 'rig
  * who already has a drawing, which is no longer the common case.
  */
 export const sideNavMarkup = (openSections) => `      <aside class="panel" id="left" aria-label="Tasks and tools"><button class="collapse-panel" id="collapse-left" aria-label="Collapse left panel">‹</button><div class="workspace-hint" data-hint hidden></div>
-        <section class="character-tools"><h2>Face</h2><div id="part-browser"></div></section>
         <section class="hand-tools"><h2>Hands</h2>${gateMarkup('hands', 'mobile')}<div id="hand-states"></div></section>
         <section class="create-tools"><h2>Artwork</h2><label class="button secondary artwork-import">Add picture<input hidden type="file" id="artwork-image-file" accept=".png,.webp,.svg,image/png,image/webp,image/svg+xml"></label><label class="button secondary artwork-import">Import head / base<input hidden type="file" id="artwork-base-file" accept=".png,.webp,.svg,image/png,image/webp,image/svg+xml"></label><label class="button secondary artwork-import">Import / Replace SVG<input hidden type="file" id="artwork-svg-file" accept=".svg"></label>${gateMarkup('artwork', 'mobile')}<div id="artboard-panel"></div><details class="artwork-create"><summary>Add / Create artwork</summary>${buildStartArtworkSection()}<div class="core-list"><h3>Ready</h3><div id="core-status"></div><button id="continue-rigging">Continue to Rig</button></div>${buildAddPartSection()}</details></section>
         <section class="rig-tools"><h2 data-column-heading="rig">Assign</h2><div id="deform-bench" class="deform-bench-host" hidden></div>${rigGatesMarkup()}${setupSectionsMarkup(openSections)}</section>
@@ -81,7 +80,6 @@ export const sideNavMarkup = (openSections) => `      <aside class="panel" id="l
 /** The hosts the editor draws its left-hand panels into. */
 export const sideNavHosts = (q) => ({
   leftSidebarEl: q('#left'),
-  partBrowserEl: q('#part-browser'),
   handStatesEl: q('#hand-states'),
   faceSetupEl: q('#face-setup-checklist'),
   faceMovementsEl: q('#face-movements'),

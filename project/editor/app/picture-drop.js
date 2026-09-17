@@ -5,12 +5,12 @@
  * beside the button ("Drop / Browse"). A button alone works and still reads as
  * a missing feature, because the gesture people reach for first does nothing.
  *
- * Deliberately narrow about what it claims. The canvas already accepts a drag
- * from the part library (`ui/character-builder/part-drag.js`), which carries
- * its own data type; a file drag carries `Files`, so the two never contend and
- * neither has to know about the other. And a drag carrying something else --
- * text, a link, a spreadsheet -- is left alone entirely rather than
+ * Deliberately narrow about what it claims: a file drag carries `Files` and
+ * nothing here looks at a drag that does not. A drag carrying something else
+ * -- text, a link, a spreadsheet -- is left alone entirely rather than
  * intercepted and then refused, so the browser's own behaviour still happens.
+ * (It shared the canvas with the part library's own drag until V5-07, which
+ * carried its own data type; the two never contended.)
  */
 
 const IMAGE_TYPES = new Set(['image/png', 'image/webp', 'image/svg+xml']);

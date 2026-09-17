@@ -102,7 +102,7 @@ test('a workspace says how ready its screens are, and navigating it writes nothi
   await expect(workspace(page, 'rig')).toHaveAttribute('aria-label', /^Rig workspace/);
 
   for (const id of ['animate', 'behavior', 'rig', 'design']) await workspace(page, id).click();
-  for (const mode of ['design.face', 'design.hands', 'design.artwork']) await goToMode(page, mode);
+  for (const mode of ['design.hands', 'design.artwork']) await goToMode(page, mode);
 
   const after = await page.evaluate(() => ({
     revision: window.__BOOP_E2E__.documentRevisions().persistent,
@@ -140,7 +140,7 @@ test('@critical every screen shows its own subject and nobody else\'s', async ({
   // And the same question asked of the other three workspaces: one subject per
   // screen, so the column is about the thing the tab names.
   const panels = {
-    'design.face': '#part-browser', 'design.hands': '#hand-states', 'design.artwork': '#artboard-panel',
+    'design.hands': '#hand-states', 'design.artwork': '#artboard-panel',
     'animate.expressions': '#expressions-panel', 'animate.motions': '#motion-panel',
     'behavior.reactions': '#reactions-panel', 'behavior.automatic': '#automatic-panel', 'behavior.stateMachine': '#state-editor'
   };
@@ -196,4 +196,30 @@ test('@critical the simple editor folds three workspaces away, and any route the
   await page.locator('details.file-menu > summary').click();
   await expect(page.locator('#simple-mode-toggle')).toContainText('Simple editor');
   await expect(page.locator('#simple-mode-toggle')).toHaveAttribute('aria-pressed', 'false');
+});
+
+/**
+ * The top bar fits, with a project on it.
+ *
+ * Four workspace buttons, the open workspace's screens and Preview, without
+ * wrapping or overlapping: everything below the bar is measured at absolute
+ * coordinates by other suites, and a tab under the search button is a tab
+ * nobody can press.
+ *
+ * It was measured in the Character Builder's spec, which opened its own screen
+ * first; it is the navigation's own measurement and it moved here with the
+ * builder's removal (V5-07).
+ */
+test('@critical the top bar takes four workspaces, a row of screens and Preview without overlapping', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  expect((await page.locator('header.topbar').boundingBox()).height).toBeLessThanOrEqual(64);
+  const bar = await page.evaluate(() => {
+    // Only the row on screen: the screens of the three closed workspaces are
+    // display:none and report a zero box at the origin (UIR-01).
+    const edges = [...document.querySelectorAll('.stage-nav .workspace-tab, .stage-nav .stage-tab')].map((tab) => tab.getBoundingClientRect()).filter((box) => box.width > 0);
+    return { left: Math.min(...edges.map((box) => box.left)), right: Math.max(...edges.map((box) => box.right)), brand: document.querySelector('#home-button').getBoundingClientRect().right, actions: document.querySelector('#search-button').getBoundingClientRect().left };
+  });
+  expect(bar.left).toBeGreaterThanOrEqual(bar.brand);
+  expect(bar.right).toBeLessThanOrEqual(bar.actions);
 });

@@ -32,7 +32,7 @@
 import { createComponent } from '../component.js';
 import { setPanelHtml } from '../panel-render.js';
 import { esc } from '../escape-html.js';
-import { walkRing } from '../character-builder/ring-keys.js';
+import { walkRing } from '../ring-keys.js';
 import {
   HAND_STYLE_PIVOT as handStylePivot, handSetInfo, handStyle, handStyleIds, handStyleLabel,
   handStyleThumbnail, handStyleViewBox
@@ -41,7 +41,7 @@ import { HAND_SET_LIBRARY } from '../../core/hands/hand-set.js';
 import { installedHandLook } from '../../core/sample/hand-feature.js';
 import { handStates, OTHER_SIDE } from '../../core/hands/hand-state-model.js';
 import { handDrawingIsCustom } from '../../core/hands/hand-drawing.js';
-import { HAND_LABELS } from '../character-builder/hand-placement-panel.js';
+import { HAND_LABELS } from '../../core/hands/hand-model.js';
 
 const count = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
