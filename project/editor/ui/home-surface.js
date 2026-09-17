@@ -32,28 +32,51 @@
  * canvas — is still reachable. Two of them are one press from this page now
  * rather than a sentence pointing at the ••• menu.
  *
- * V4-092 added the third way to begin. A mascot can be made of pictures since
- * Phase 1, and Home offered no way to say so: an author arriving with three
- * PNGs had to make a template mascot they did not want, find *Artwork* behind
- * the Design chevron, and find *Import head / base* inside it. Three presses,
- * none of them named after what they came to do. It is the same file picker
- * the Artwork column has always had — one way in, one handler behind it — on
- * the page where the decision is made.
+ * V4-092 added the third way to begin, and V5-04 made it the first
+ * (docs/V5_MASCOTTE_IMAGES_ETUDE.md). Pictures were a way in among four; they
+ * are now *the* way in, because that is what this editor is for. The three
+ * others are still here, under "No pictures to hand?", which is the honest
+ * place for them: a ready-made face to take apart, shapes to draw, an SVG to
+ * import.
+ *
+ * The page's job is now to say **what to prepare**, and it says exactly three
+ * things — a transparent PNG or WebP, one piece per file, and that the
+ * character can be anything. It deliberately does *not* list the parts a
+ * mascot needs. "You need a head, two eyes and a mouth" is the constraint this
+ * refit exists to remove, and a page that says it puts it back.
  */
 import { FACE_PART_LIBRARY } from '../core/face-library/face-part-registry.js';
 import { FACE_PRESET_LIBRARY, presetThumbnail } from '../core/face-library/face-presets.js';
 import { esc } from './escape-html.js';
 
 /**
- * The face on the poster.
+ * The poster, and why it is not a mascot.
  *
- * `classic` is the library's own reference character, so the picture is never
- * a promise the library cannot keep. A library with no presets at all — every
- * pack forgotten — falls back to nothing rather than to a placeholder drawing.
+ * It used to be one: `presetThumbnail` drew the library's own reference
+ * character, on the argument that a mascot editor's first page should show a
+ * mascot. That argument was right while the editor's answer to "how do I
+ * start?" was "pick one of ours".
+ *
+ * It is the wrong picture for this page. The thing an author has to understand
+ * before anything else is that **a mascot is pieces, and a piece is a file** —
+ * and a finished face says the opposite: it says the editor already has one.
+ * A human face would say something worse still, because the whole point of
+ * this refit is that a mascot can be a robot, an animal, a teapot or a
+ * photograph, and a face on the poster quietly makes that a special case.
+ *
+ * So: four boxes and a gap between them. It is the only illustration that is
+ * true of every mascot this editor can make.
  */
-function heroArt({ library = FACE_PART_LIBRARY, presets = FACE_PRESET_LIBRARY } = {}) {
-  const preset = presets.get?.('classic') || presets.list?.()[0] || null;
-  return preset ? presetThumbnail(preset, library, { size: 200 }) : '';
+function heroArt() {
+  const box = (x, y, width, height, label) =>
+    `<g><rect x="${x}" y="${y}" width="${width}" height="${height}" rx="6"/>`
+    + `<text x="${x + width / 2}" y="${y + height / 2 + 4}" text-anchor="middle">${label}</text></g>`;
+  return `<svg viewBox="0 0 200 92" role="img" aria-label="A character cut into four pieces: a body, two eyes and a mouth" class="home-pieces">`
+    + box(6, 10, 74, 72, 'body')
+    + box(96, 10, 42, 30, 'eye')
+    + box(148, 10, 42, 30, 'eye')
+    + box(96, 52, 94, 30, 'mouth')
+    + '</svg>';
 }
 
 /**
@@ -77,14 +100,22 @@ export function homeSurfaceMarkup(options = {}) {
     <div class="home-hero" aria-hidden="true">${heroArt(options)}</div>
     <h1 id="home-heading" tabindex="-1">Create and animate your mascot</h1>
     <p class="home-lede">A character that blinks, smiles and reacts — no code, nothing to install.</p>
+    <section class="home-needs" aria-label="What to prepare">
+      <p class="home-needs-rule"><b>Cut your character into pieces.</b> Anything that moves on its own is its own file.</p>
+      <ul class="home-needs-list">
+        <li><b>PNG or WebP</b><small>A transparent background, so pieces sit on each other.</small></li>
+        <li><b>One piece per file</b><small>A body, an arm, an eye — whatever you want to move.</small></li>
+        <li><b>Any character at all</b><small>A person, an animal, a robot, an object, a photograph.</small></li>
+      </ul>
+    </section>
     <div class="home-actions">
-      <button type="button" class="primary btn-lg home-start" data-home-action="character">+&nbsp; New mascot</button>
+      <button type="button" class="primary btn-lg home-start" data-home-action="picture">Start with my pictures</button>
       <button type="button" class="secondary btn-lg" data-home-action="open">Open a project</button>
     </div>
-    <p class="home-otherwise">Otherwise:
-      <button type="button" class="link" data-template-id="basic" title="The cartoon face this editor comes with, ready to change">Start from the ready-made face</button> ·
-      <button type="button" class="link" data-home-action="import">Import an SVG</button> ·
-      <button type="button" class="link" data-home-action="picture" title="A photo or a drawing you already have: PNG or WebP">Start from a picture</button></p>
+    <p class="home-otherwise">No pictures to hand?
+      <button type="button" class="link" data-template-id="basic" title="A finished mascot that already moves, to take apart">See a finished mascot</button> ·
+      <button type="button" class="link" data-home-action="character">Build one from shapes</button> ·
+      <button type="button" class="link" data-home-action="import">Import an SVG</button></p>
     <section class="home-recovery" aria-labelledby="home-continue" data-recovery-status="none">
       <h2 id="home-continue" class="screen-eyebrow">Continue</h2><div data-recovery-content></div>
     </section>
