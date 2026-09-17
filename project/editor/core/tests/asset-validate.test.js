@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { ASSET_IMPORT_MAX_DIMENSION, readImageHeader, readSvgSize, sniffFormat, validateAssetBytes } from '../assets/asset-validate.js';
+import { ASSET_IMPORT_MAX_BYTES, ASSET_IMPORT_MAX_DIMENSION, ASSET_IMPORT_MAX_PIXELS, readImageHeader, readSvgSize, sniffFormat, validateAssetBytes } from '../assets/asset-validate.js';
 
 /**
  * The picture fixtures are Chromium's own output, not bytes assembled from a
@@ -70,7 +70,15 @@ test('an absurd image is declined while it is still a header',()=>{
 
   // Inside the per-side limit and still far too many pixels together.
   const wide = Buffer.from(png); wide.writeUInt32BE(ASSET_IMPORT_MAX_DIMENSION, 16); wide.writeUInt32BE(ASSET_IMPORT_MAX_DIMENSION, 20);
+  assert.ok(ASSET_IMPORT_MAX_DIMENSION ** 2 > ASSET_IMPORT_MAX_PIXELS, 'the square of the side limit is over the pixel limit, which is what makes this case reachable');
   assert.equal(validateAssetBytes(wide).issues[0].code,'too-many-pixels');
+
+  // And a file too big to be one at all is refused before its header is read:
+  // this is the first check in the function, so nothing parses 33 MB of
+  // whatever it turns out to be.
+  const enormous = new Uint8Array(ASSET_IMPORT_MAX_BYTES + 1);
+  enormous.set(png.subarray(0, 32));
+  assert.equal(validateAssetBytes(enormous, { name: 'enormous.png' }).issues[0].code,'too-many-bytes');
 });
 
 test('over the budget is something to say, not something to refuse',()=>{

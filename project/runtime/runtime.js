@@ -1114,10 +1114,20 @@ export function createReactionController(source = () => ({ reactions: [], clips:
     // say whether this is the reaction for it. A reaction whose conditions do
     // not hold is not an error and not a refusal -- it is simply not this
     // one, so the next candidate gets its turn.
-    const situation = context();
-    const candidates = reactions.filter((item) => item.enabled && item.trigger.type === type && (type !== 'custom' || item.trigger.name === name)
-      && conditionsHold(item.conditions, situation)).sort((a, b) => b.priority - a.priority);
-    for (const reaction of candidates) if (fire(reaction, at)) return reaction.id;
+    const candidates = reactions.filter((item) => item.enabled && item.trigger.type === type && (type !== 'custom' || item.trigger.name === name))
+      .sort((a, b) => b.priority - a.priority);
+    // Read once, and only when something asks. `context()` is a real read of
+    // the running mascot -- in the engine it is `paramsAt(now())`, which
+    // commits a finished transition on its way past -- so a rig that uses no
+    // conditions must not call it at all.
+    let situation = null;
+    for (const reaction of candidates) {
+      if (reaction.conditions?.length) {
+        situation ??= context();
+        if (!conditionsHold(reaction.conditions, situation)) continue;
+      }
+      if (fire(reaction, at)) return reaction.id;
+    }
     return null;
   }
   /**

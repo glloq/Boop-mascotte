@@ -31,7 +31,7 @@ import { validateRig } from '../../core/validation/rig-validator.js';
 import { applyImportedRig } from '../../core/state/import-rig.js';
 import { identifyFaceParts } from '../../core/face-library/face-part-migration.js';
 import { imageNodeId, imageNodeMarkup, placeBaseInArtboard, placeImageInArtboard } from '../../core/assets/asset-placement.js';
-import { readBoopPackage, writeBoopPackage } from '../../core/export/boop-package.js';
+import { BOOP_EXTENSION, readBoopPackage, writeBoopPackage } from '../../core/export/boop-package.js';
 import { restMesh } from '../../../runtime/mesh-warp.js';
 import { createExportRig } from '../../core/export/export-rig.js';
 import { readArtboard } from '../../core/artwork/artboard.js';
@@ -330,7 +330,7 @@ export function createProjectService({
       bytesFor: async (id) => (assets ? assets.bytes(id) : null),
       rig: createExportRig(store.getState())
     });
-    createDownload('mascot.boop', bytes, 'application/zip');
+    createDownload(`mascot${BOOP_EXTENSION}`, bytes, 'application/zip');
     // Said rather than swallowed: a package short a picture still opens, and
     // its author should hear it from the save and not from the reopen.
     setStatus(missing.length

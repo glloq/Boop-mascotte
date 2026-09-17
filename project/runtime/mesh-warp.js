@@ -234,6 +234,14 @@ export const restMesh = (target, size = DEFAULT_MESH_SIZE) => ({ id: `mesh-${tar
 
 const escapeAttribute = (value) => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 const round = (value) => Math.round(value * 1000) / 1000;
+/**
+ * `preserveAspectRatio="none"` on every piece, and it matters.
+ *
+ * A mesh stretches; the default would letterbox each triangle's copy inside
+ * its own box and the pieces would stop lining up with each other, which is a
+ * seam that no amount of overdraw covers.
+ */
+export const MESH_PRESERVE_ASPECT_RATIO = 'none';
 const pointsAttribute = (points) => points.map((point) => `${round(point.x)},${round(point.y)}`).join(' ');
 
 /** The id a mesh piece's clip is kept under, so a rebuild reuses them rather than piling them up. */
@@ -256,7 +264,7 @@ export const meshClipId = (target, index) => `mesh-${target}-${index}`;
 export function meshMarkup(mesh, { target, reference, box, attributes = '' }) {
   const pieces = meshPieces(mesh, box);
   if (!pieces.length) return { markup: '', defs: '' };
-  const image = (transform) => `<image href="${escapeAttribute(reference)}" x="${round(box.x)}" y="${round(box.y)}" width="${round(box.width)}" height="${round(box.height)}" preserveAspectRatio="none" transform="matrix(${transform.map(round).join(' ')})"/>`;
+  const image = (transform) => `<image href="${escapeAttribute(reference)}" x="${round(box.x)}" y="${round(box.y)}" width="${round(box.width)}" height="${round(box.height)}" preserveAspectRatio="${MESH_PRESERVE_ASPECT_RATIO}" transform="matrix(${transform.map(round).join(' ')})"/>`;
   const defs = pieces.map((piece) => `<clipPath id="${escapeAttribute(meshClipId(target, piece.index))}" clipPathUnits="userSpaceOnUse"><polygon points="${pointsAttribute(piece.clip)}"/></clipPath>`).join('');
   const body = pieces.map((piece) => `<g clip-path="url(#${escapeAttribute(meshClipId(target, piece.index))})">${image(piece.transform)}</g>`).join('');
   return {
@@ -265,14 +273,6 @@ export function meshMarkup(mesh, { target, reference, box, attributes = '' }) {
   };
 }
 
-/**
- * `preserveAspectRatio="none"` on every piece, and it matters.
- *
- * A mesh stretches; the default would letterbox each triangle's copy inside
- * its own box and the pieces would stop lining up with each other, which is a
- * seam that no amount of overdraw covers.
- */
-export const MESH_PRESERVE_ASPECT_RATIO = 'none';
 
 /**
  * Write a mesh's current shape onto the triangles already in a document.

@@ -199,3 +199,25 @@ test('a condition the mascot has no way to satisfy is reported as a reaction tha
   commands.update(id, { conditions: [{ kind: 'state', state: 'idle' }] });
   assert.deepEqual(reactionIssues(store.getDocument()), [], 'and a state it has is not an issue');
 });
+
+test('a rig with no conditions never asks what the situation is', () => {
+  // `context()` is a real read of the running mascot — in the engine it is
+  // `paramsAt(now())`, which commits a finished transition on its way past. A
+  // reaction that asks nothing must not cause that read, and the answer is
+  // read once per trigger however many candidates want it.
+  let asked = 0;
+  const context = () => { asked += 1; return { params: { smile: 1 }, state: 'idle' }; };
+  const plain = normalizeReactions({ reactions: [reaction(), reaction({ id: 'second', priority: -1 })] });
+  const controller = createReactionController(() => ({ reactions: plain, clips: [] }), { context });
+  assert.equal(controller.trigger('click', 0), 'wave');
+  assert.equal(asked, 0, 'nothing asked, so nothing was read');
+
+  asked = 0;
+  const conditional = normalizeReactions({ reactions: [
+    reaction({ id: 'a', priority: 2, conditions: [condition({ value: 2 })] }),
+    reaction({ id: 'b', priority: 1, conditions: [condition()] })
+  ] });
+  const second = createReactionController(() => ({ reactions: conditional, clips: [] }), { context });
+  assert.equal(second.trigger('click', 0), 'b', 'the first one wanted more smile than there is');
+  assert.equal(asked, 1, 'and both of them were answered from one reading');
+});

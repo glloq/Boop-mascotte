@@ -169,6 +169,9 @@ export function createGraphView({ store, history, preview = null, onSelectState 
   // Held Space turns a background drag into a pan, which is the gesture every
   // canvas in this editor already uses.
   let panKey = false;
+  // What `syncLive` last wrote. A re-render throws the classes away, so the
+  // markup writes them too and this is reset alongside it.
+  let painted = { live: null, firing: null };
 
   const q = (selector) => host?.querySelector(selector) || null;
   const viewport = () => q('[data-graph-viewport]');
@@ -193,9 +196,14 @@ export function createGraphView({ store, history, preview = null, onSelectState 
   };
 
   const setSelection = (names, { render = true } = {}) => {
-    selection = [...new Set(names)];
+    const next = [...new Set(names)];
+    // A press on a node that is already the selection is the start of a drag,
+    // not a selection change. Re-rendering there rebuilds the whole panel under
+    // the pointer for nothing, on every drag, on every node.
+    const same = next.length === selection.length && next.every((name, index) => name === selection[index]);
+    selection = next;
     onSelectState(selection[0] || null);
-    if (render) requestRender();
+    if (render && !same) requestRender();
   };
 
   const fit = () => {
@@ -366,11 +374,8 @@ export function createGraphView({ store, history, preview = null, onSelectState 
       if (!fitted) queueMicrotask(() => { if (!fitted && visible()) { fitted = true; fit(); } });
       // A selection outliving the state it named is a Group button that refuses.
       selection = selection.filter((name) => document.states?.[name]);
-      return renderStateGraph(document, {
-        view, selection, selectedEdge,
-        live: session?.previewState || document.activeState || null,
-        firing: session?.transitionEdge || null
-      });
+      painted = { live: session?.previewState || document.activeState || null, firing: session?.transitionEdge || null };
+      return renderStateGraph(document, { view, selection, selectedEdge, ...painted });
     },
     attach(element) {
       host = element;
@@ -396,10 +401,17 @@ export function createGraphView({ store, history, preview = null, onSelectState 
      * the preview is asleep and never fights an author who is mid-drag.
      */
     syncLive() {
-      if (!visible() || drag) return;
+      if (drag) return;
       const session = preview?.getSession?.();
       const live = session?.previewState || store.getDocument().activeState || null;
       const firing = session?.transitionEdge || null;
+      // This runs on every preview frame, from every workspace, whether or not
+      // anybody is looking at the diagram. Nothing is touched until one of the
+      // two answers changes — which is almost never, because a transition lasts
+      // a few frames and a state lasts as long as the author leaves it.
+      if (live === painted.live && firing === painted.firing) return;
+      if (!visible()) { painted = { live: null, firing: null }; return; }
+      painted = { live, firing };
       for (const node of host.querySelectorAll('[data-graph-node]')) node.classList.toggle('live', node.dataset.graphNode === live);
       for (const line of host.querySelectorAll('[data-graph-link-line]')) line.classList.toggle('firing', line.dataset.graphLinkLine === firing);
     },

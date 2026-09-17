@@ -312,3 +312,22 @@ test('@critical a mascot can begin as a picture, from the first page', async ({ 
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('design.artwork');
   expect(trouble).toEqual([]);
 });
+
+test('@critical the same picture can be added twice, because a face has two eyes', async ({ page }) => {
+  const trouble = watchForTrouble(page);
+  await openReadyMadeFace(page);
+
+  // `<input type="file">` fires `change` when its value changes, so picking the
+  // same file again used to fire nothing: the picker opened, the file was
+  // picked, and the editor did not move. It is the normal case for eyes.
+  await page.setInputFiles('#artwork-image-file', PICTURE);
+  await expect(page.locator('svg image')).toHaveCount(1);
+  await page.setInputFiles('#artwork-image-file', PICTURE);
+  await expect(page.locator('svg image')).toHaveCount(2);
+
+  // Two nodes, one stored picture: the same bytes are the same asset, and both
+  // nodes point at it.
+  const hrefs = await page.locator('svg image').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-editor-asset')));
+  expect(new Set(hrefs).size).toBe(1);
+  expect(trouble).toEqual([]);
+});

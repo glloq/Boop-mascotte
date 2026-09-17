@@ -20,7 +20,23 @@ export function wireTopbar({ root, q }) {
   // to rest cannot live inside one screen's panel (it used to be
   // `#preview-reset`, which only Preview ever showed).
   q('#reset-mascot-top').onclick = () => resetMascotHandler();
-  const bindFile = (selector, handler) => q(selector).addEventListener('change', (event) => event.target.files?.[0] && handler(event.target.files[0]));
+  /**
+   * A file picker that answers the second time as well as the first.
+   *
+   * `<input type="file">` fires `change` when its *value* changes, so choosing
+   * the same file again fires nothing at all: the picker opens, the file is
+   * picked, and the editor does not move. Nobody notices for Open Project —
+   * who opens the same file twice? — and everybody notices for Add picture,
+   * because a face has two eyes and they come out of one `eye.png`.
+   *
+   * Clearing the value after reading the file is what makes the next pick a
+   * change. The `File` is already in hand by then, so nothing is lost.
+   */
+  const bindFile = (selector, handler) => q(selector).addEventListener('change', (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (file) handler(file);
+  });
   const closeMenu = () => { q('details.file-menu').open = false; };
 
   return {
