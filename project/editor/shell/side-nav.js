@@ -81,6 +81,7 @@ export const sideNavMarkup = (openSections) => `      <aside class="panel" id="l
 export const sideNavHosts = (q) => ({
   leftSidebarEl: q('#left'),
   handStatesEl: q('#hand-states'),
+  faceLibraryEl: q('#face-library'),
   faceSetupEl: q('#face-setup-checklist'),
   faceMovementsEl: q('#face-movements'),
   faceStatesEl: q('#face-states'),

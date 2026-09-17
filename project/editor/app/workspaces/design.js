@@ -11,6 +11,7 @@
  * and it went with the library's turn as the way to make a mascot.
  */
 import { createFacePartCommands } from '../../core/face-library/face-part-commands.js';
+import { createFaceLibraryPanel } from '../../rig-editor/semantic-parts/face-library-panel.js';
 import { createHandStatesPanel } from '../../ui/hands/hand-states.js';
 import { HAND_LOOKS } from '../../core/hands/hand-style-art.js';
 import { createHandCommands } from '../../core/hands/hand-commands.js';
@@ -118,14 +119,30 @@ export function createDesignWorkspace({
     }
   });
 
+  /**
+   * The face parts library (docs/FACE_PART_LIBRARY.md).
+   *
+   * In Artwork, beside *Add a part*, because choosing a different pair of eyes
+   * is making artwork. The commands were already here and had no caller: a
+   * hundred and fifty drawings ship with the editor and nothing could put one
+   * on a face (`core/face-library/face-library-model.js`).
+   */
+  const faceLibrary = createFaceLibraryPanel(shell.faceLibraryEl, store, {
+    commands: facePartCommands,
+    onStatus: setStatus,
+    // Selected, because the piece that just arrived is the one the Inspector's
+    // two questions are about.
+    onSelect: (id) => { if (id) editorContext.update({ selectedId: id }); }
+  });
+
   return {
     id: 'design',
     surfaces: ['hands', 'create'],
-    panels: { handStates, facePartCommands },
-    targets: { handStates: () => handStates.render() },
+    panels: { handStates, faceLibrary, facePartCommands },
+    targets: { handStates: () => handStates.render(), faceLibrary: () => faceLibrary.render() },
     enter() {},
     leave() {},
-    render() { handStates.render(); },
+    render() { handStates.render(); faceLibrary.render(); },
     destroy() { handStates.destroy?.(); }
   };
 }

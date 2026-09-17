@@ -430,6 +430,23 @@ button.link:hover{color:#a9c9ff}
    rows and the combined expression-and-speech preview. A lit row is one the
    pose on screen is actually asking for, which is what turns nine sentences
    into something readable. */
+/* The face parts library (docs/FACE_PART_LIBRARY.md): a card shows the drawing,
+   because "Sleepy" and "Cartoon" are not words anybody can choose eyes by. */
+.face-library-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:6px;margin:6px 0}
+.face-library-card{display:grid;gap:2px;padding:5px;border:1px solid var(--ux-border);border-radius:9px;background:#111a2c;text-align:center}
+.face-library-card>b{font-size:11px;line-height:1.25}
+.face-library-card>small{font-size:10px;color:var(--ux-muted);line-height:1.2}
+.face-library-card>button{padding:3px 6px;font-size:10.5px;min-height:0;margin-top:2px}
+.face-library-worn{border-color:#2f6b4f}
+.face-library-card[data-face-library-mismatch=true]{opacity:.72}
+.face-library-card[data-face-library-mismatch=true]:hover{opacity:1}
+.face-library-note{color:var(--ux-warn)}
+.face-library-preview{display:block;width:100%;height:46px;border-radius:6px;background:#f6e2c6}
+/* The optional roles, under the eight a beginner is walked through. */
+.face-role-extras>summary{cursor:pointer;padding:6px 0;color:var(--ux-muted);font-size:12px}
+.face-role-groups{list-style:none;margin:4px 0 0;padding:0;display:grid;gap:6px}
+.face-role-group-name{display:block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#9fb0c9;margin:2px 0 3px}
+.face-role-row[data-face-role-optional=true] .face-role-label b{font-weight:500}
 .expression-list-name{margin:8px 0 2px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9fb0c9}
 .face-side-switch{display:flex;gap:4px;margin:4px 0}
 .face-correctives{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:5px}
