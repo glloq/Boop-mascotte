@@ -62,3 +62,23 @@ test('validation accepts a picture part and still refuses a part with neither or
   assert.ok(codes(drawnPart({ artwork: '', picture: null })).includes('artwork-missing'));
   assert.ok(codes(picturePart({ artwork: '<g id="mouth"/>' })).includes('artwork-doubled'));
 });
+
+test('a picture part goes through the install machinery like any other',async()=>{
+  const { remapArtworkIds } = await import('../face-library/face-part-artwork.js');
+  const { artworkIds } = await import('../face-library/face-part-model.js');
+  const part = normalizeFacePart(picturePart({ referenceBox: { x: 0, y: 0, width: 64, height: 32 } }));
+  const markup = partArtworkMarkup(part);
+
+  // The installer renames ids to keep them unique; a picture has exactly one
+  // and it renames like any other.
+  const { markup: remapped, renamed } = remapArtworkIds(markup, { rename: (id) => `pv-${id}` });
+  assert.deepEqual(renamed,{ mouth: 'pv-mouth' });
+  assert.match(remapped,/id="pv-mouth"/);
+  assert.match(remapped,new RegExp(`href="${assetRef(ID)}"`),'and the reference rides through untouched');
+  assert.deepEqual(artworkIds(markup),['mouth']);
+
+  // A drawing part is byte-for-byte what it always was through the same path:
+  // the helper is only a question, not a rewrite.
+  const drawn = normalizeFacePart(drawnPart());
+  assert.equal(partArtworkMarkup(drawn),drawn.artwork);
+});

@@ -16,7 +16,7 @@ import { FACE_PART_LIBRARY, baseAssetId } from './face-part-registry.js';
 import { HAND_SIDES } from '../../../runtime/hand-vocabulary.js';
 // The live set, so a preset may name a gesture an author added.
 import { handStyleIds } from '../hands/hand-style-art.js';
-import { FACE_PART_CATEGORIES, FACE_STYLE_ID, FACE_TAG, PALETTE_TOKENS, facePartCategory } from './face-part-model.js';
+import { FACE_PART_CATEGORIES, FACE_STYLE_ID, FACE_TAG, PALETTE_TOKENS, facePartCategory, partArtworkMarkup } from './face-part-model.js';
 import { FACE_MORPHOLOGY_IDS, assetSlot, assetSupportsMorphology, faceMorphology } from './face-morphologies.js';
 import { availableFaceStyles, isBaseFaceStyle } from './face-styles.js';
 import { elementSpan, remapArtworkIds, safePicture } from './face-part-artwork.js';
@@ -685,7 +685,7 @@ function renderPresetThumbnail(item, assets, size) {
   const palette = { tokens: Object.entries(presetColours(item)).map(([token, colour]) => ({ token, colour })) };
   const behind = [], front = [];
   for (const asset of assets) {
-    const { markup, renamed } = remapArtworkIds(asset.artwork, { rename: (id) => `pv-${slug(item.id)}-${slug(asset.id)}-${id}` });
+    const { markup, renamed } = remapArtworkIds(partArtworkMarkup(asset), { rename: (id) => `pv-${slug(item.id)}-${slug(asset.id)}-${id}` });
     const roles = Object.fromEntries(Object.entries(asset.paletteRoles || {}).map(([id, entry]) => [renamed[id] ?? id, entry]));
     let painted = tintArtwork(markup, roles, palette).markup;
     // A piece painted behind the face goes first, as the canvas would put it.

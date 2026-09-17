@@ -25,7 +25,7 @@ import { captureHeadPose, createHeadPoseAxes, isHeadPoseKeyform } from '../head-
 import { generateHeadTurn, headTurnElements } from '../head-pose/head-pose-turn.js';
 import { enableMouthRig, hasMouthRig, withoutMouthRig } from '../rig/mouth-rig.js';
 import { enableBrowRig, hasBrowRig, withoutBrowRig } from '../rig/brow-rig.js';
-import { FACE_PART_CATEGORIES, artworkIds, describeFacePartCapabilities, facePartCategory } from './face-part-model.js';
+import { FACE_PART_CATEGORIES, artworkIds, describeFacePartCapabilities, facePartCategory, partArtworkMarkup } from './face-part-model.js';
 import { elementSpan, hostedRoots, shapeSignature } from './face-part-artwork.js';
 import { composeFit } from './face-layout.js';
 import { createShapeKey, upsertShapeKey } from '../shape-keys/shape-key-model.js';
@@ -358,7 +358,7 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
   // replaces, and a scrub after the fact would take the new one with it.
   const cleared = scrubRemovedArtwork(candidate, plan.removeIds);
   takeArtwork(candidate, artwork);
-  const fragmentIds = (ids || artworkIds(asset.artwork).map((id) => renamed[id] ?? id)).filter((id) => candidate.elements[id]);
+  const fragmentIds = (ids || artworkIds(partArtworkMarkup(asset)).map((id) => renamed[id] ?? id)).filter((id) => candidate.elements[id]);
   const rootId = fragmentIds[0];
   if (!rootId) throw new Error('The canvas drew nothing for this asset.');
 
