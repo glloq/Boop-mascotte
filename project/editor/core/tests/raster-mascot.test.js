@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { compileRigFrame, resolveStateParams } from '../../../runtime/runtime.js';
 import { assetRef } from '../../../runtime/asset-reference.js';
-import { paintAssetReferences, restoreAssetReferences } from '../../../runtime/asset-paint.js';
+import { paintAssetReferences, restoreAssetReferences, unpaintAssetNodes } from '../../../runtime/asset-paint.js';
 import { createAssetResolver } from '../../../runtime/asset-resolver.js';
 import { createMemoryAssetStore } from '../assets/asset-store.js';
 import { createAssetManager } from '../assets/asset-manager.js';
@@ -143,9 +143,9 @@ test('the round trip through the DOM never leaves an object URL in the artwork',
   });
   paintAssetReferences(nodes, resolver);
   for (const node of nodes) assert.equal(node.toObject().href,'blob:test/0','painted for the browser');
-  restoreAssetReferences(nodes);
+  unpaintAssetNodes(nodes);
   for (const node of nodes) {
-    assert.match(node.toObject().href,/^asset:/,'and back to a reference for the file');
-    assert.equal(node.toObject()['data-editor-asset'],undefined);
+    assert.equal(node.toObject().href,undefined,'the object URL comes off the node');
+    assert.match(restoreAssetReferences(`<image data-editor-asset="${node.toObject()['data-editor-asset']}"/>`),/href="asset:/,'and the reference goes back into the text');
   }
 });

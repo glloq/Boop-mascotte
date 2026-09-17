@@ -3,7 +3,7 @@ import 'svg.select.js';
 import 'svg.resize.js';
 import 'svg.draggable.js';
 import { sanitizeSvgMarkup } from '../core/security/sanitize-svg.js';
-import { collectAssetReferences, paintAssetReferences } from '../../runtime/asset-paint.js';
+import { collectAssetReferences, deferAssetReferences, paintAssetReferences } from '../../runtime/asset-paint.js';
 import { pathOnlyMessage } from './path-only.js';
 import { SvgDocument } from '../core/svg-document/svg-document.js';
 import { lifecycleDiagnostics as diagnostics } from '../core/diagnostics/lifecycle-diagnostics.js';
@@ -1298,7 +1298,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
   function loadSvgTextNow(svgText, metadata = {}, options = {}) {
     const safeMarkup = sanitizeSvgMarkup(svgText);
     rootGroup.remove();
-    rootGroup = draw.group().svg(safeMarkup);
+    // `deferAssetReferences` first: a browser starts fetching `asset:` the
+    // moment the markup is parsed, so moving the reference aside afterwards
+    // would be one failed request too late (runtime/asset-paint.js).
+    rootGroup = draw.group().svg(deferAssetReferences(safeMarkup));
     raiseGizmoLayer();
     const svgRoot = rootGroup.node.querySelector('svg');
     // Before anything measures the artwork: a raster node carrying
@@ -3336,9 +3339,13 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       const node = documentModel.getNode(id);
       if (!node || node.localName !== 'image') return false;
       const attribute = node.hasAttribute?.('xlink:href') && !node.hasAttribute?.('href') ? 'xlink:href' : 'href';
-      node.removeAttribute('data-editor-asset');
-      node.removeAttribute('data-editor-asset-missing');
-      node.setAttribute(attribute, reference);
+      // The reference goes where references live, and the href is emptied
+      // rather than pointed at a scheme no browser can fetch. `refreshAssets`
+      // fills it; until then the piece is blank, which is honest -- it is a
+      // picture nothing has fetched yet.
+      node.setAttribute('data-editor-asset', reference);
+      node.setAttribute('data-editor-asset-missing', 'true');
+      node.removeAttribute(attribute);
       documentModel.captureAuthoringAttribute(id, attribute);
       const elements = structuredClone(store.getDocument().elements);
       if (elements[id]) elements[id].meta = { ...(elements[id].meta || {}), assetRef: reference };
@@ -3822,7 +3829,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       const target=(mountPoint&&documentModel.getNode(mountPoint))||svgRoot;
       // `back` paints it behind everything already in the group, which is what
       // a head or a body is: the thing the rest of the mascot sits on.
-      target.insertAdjacentHTML(position==='back'?'afterbegin':'beforeend',sanitizeSvgMarkup(`<svg xmlns="http://www.w3.org/2000/svg">${markup}</svg>`).replace(/^<svg[^>]*>|<\/svg>$/g,''));
+      target.insertAdjacentHTML(position==='back'?'afterbegin':'beforeend',deferAssetReferences(sanitizeSvgMarkup(`<svg xmlns="http://www.w3.org/2000/svg">${markup}</svg>`)).replace(/^<svg[^>]*>|<\/svg>$/g,''));
+      // What was just inserted is pointed at whatever is already primed;
+      // anything new is fetched by `refreshAssets`.
+      paintAssets(svgRoot);
       const tree=documentModel.load(svgRoot,documentModel.metadata);loadedMarkup=documentModel.serialize();
       const elements=structuredClone(store.getDocument().elements);const visit=(items)=>items.forEach((item)=>{if(!elements[item.id]){const node=wrapperFor(item.id),plugin=pluginRegistry.getByNode(node);if(plugin){elements[item.id]=plugin.createRigData(node,parseTransform(node));attachBehavior(node);}}visit(item.children);});visit(tree);
       const artwork={layers:tree,layerMetadata:structuredClone(documentModel.metadata),elements,svgMarkup:loadedMarkup};
@@ -3870,7 +3880,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       const gone = new Set();
       for (const node of nodes) { for (const item of [node, ...node.querySelectorAll('[id]')]) { const id = item.getAttribute('id'); if (id) { gone.add(id); delete documentModel.metadata[id]; } } node.remove(); }
       const template = document.createElementNS(SVG_NS, 'svg');
-      template.innerHTML = sanitizeSvgMarkup(`<svg xmlns="${SVG_NS}">${markup}</svg>`).replace(/^<svg[^>]*>|<\/svg>$/g, '');
+      template.innerHTML = deferAssetReferences(sanitizeSvgMarkup(`<svg xmlns="${SVG_NS}">${markup}</svg>`)).replace(/^<svg[^>]*>|<\/svg>$/g, '');
       const added = [...template.childNodes];
       for (const node of added) { if (anchor && anchor.parentNode === parent) parent.insertBefore(node, anchor); else parent.appendChild(node); }
       // One anchor for every piece painted behind, found before any moves:
@@ -3905,7 +3915,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       // Rebuilding the artwork must not move the camera: an undo, or another
       // panel writing to the document, is not a reason to re-frame the mascot.
       const view = viewTransform();
-      rootGroup.remove(); rootGroup = draw.group().svg(sanitizeSvgMarkup(state.svgMarkup)); raiseGizmoLayer();
+      rootGroup.remove(); rootGroup = draw.group().svg(deferAssetReferences(sanitizeSvgMarkup(state.svgMarkup))); raiseGizmoLayer(); paintAssets();
       setView(view);
       const svgRoot = rootGroup.node.querySelector('svg');
       documentModel.load(svgRoot, state.layerMetadata || {}); loadedMarkup = documentModel.serialize();

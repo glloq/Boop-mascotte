@@ -87,21 +87,47 @@ export function paintAssetReferences(nodes = [], resolver) {
 }
 
 /**
- * Put the references back, as serialization does.
+ * Take the painted href off, leaving only the reference.
  *
- * Exported for the same reason the paint pass is: it is the half of the round
- * trip that keeps object URLs out of saved projects, and it should be provable
- * on its own rather than only through a document model.
+ * The first half of putting a document back the way it is stored, and it runs
+ * on nodes because that is what a serializer has. Removing an attribute is
+ * safe on a live node; *writing* `href="asset:…"` onto one is not, and that is
+ * the whole reason this is split in two -- see `restoreAssetReferences`.
  */
-export function restoreAssetReferences(nodes = []) {
-  const restored = [];
+export function unpaintAssetNodes(nodes = []) {
+  const found = [];
   for (const node of nodes) {
     const held = node.getAttribute?.(ASSET_ATTRIBUTE);
     if (!held || !parseAssetRef(held)) continue;
-    node.setAttribute(paintedAttribute(node), held);
-    node.removeAttribute(ASSET_ATTRIBUTE);
+    for (const name of HREF_ATTRIBUTES) node.removeAttribute(name);
     node.removeAttribute('data-editor-asset-missing');
-    restored.push(held);
+    found.push(held);
   }
-  return restored;
+  return found;
+}
+
+/**
+ * And the second half: on the serialized *string*, the reference becomes the
+ * href again.
+ *
+ * It has to be the string, and finding that out cost two failed requests per
+ * save. `SvgDocument.serialize` works on `root.cloneNode(true)`, and a cloned
+ * SVG node is still a node in a live document -- detached, but live. Setting
+ * `href="asset:…"` on it makes the browser try to fetch a scheme it has never
+ * heard of, exactly as if the node were on screen. The clone is never shown,
+ * so nothing looks wrong; there is only a console error on every commit that
+ * nobody can account for.
+ *
+ * So the attribute is renamed once the markup is text and can no longer ask
+ * for anything. Narrow on purpose: only `data-editor-asset` holding a value
+ * that parses as a reference is touched.
+ */
+export function restoreAssetReferences(markup) {
+  return String(markup ?? '').replace(new RegExp(`\\s${ASSET_ATTRIBUTE}\\s*=\\s*(["'])(asset:[^"']*)\\1`, 'gi'),
+    (whole, quote, value) => (parseAssetRef(value) ? ` href=${quote}${value}${quote}` : whole));
+}
+
+export function deferAssetReferences(markup) {
+  return String(markup ?? '').replace(/\s(?:xlink:)?href\s*=\s*(["'])(asset:[^"']*)\1/gi,
+    (whole, quote, value) => (parseAssetRef(value) ? ` ${ASSET_ATTRIBUTE}=${quote}${value}${quote}` : whole));
 }

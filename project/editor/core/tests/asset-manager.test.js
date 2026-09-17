@@ -132,3 +132,53 @@ test('an author told a picture would be resized is told when it was not',async()
   assert.equal(result.issues[1].detail,'no-codec');
   assert.equal(result.asset.width,1024,'and the record says the size it really is');
 });
+
+test('the store is handed a Blob carrying the format, because that is what paints',async()=>{
+  // The bug this exists for: `URL.createObjectURL` takes a `Blob` and nothing
+  // else, and handed a `Uint8Array` it throws `Overload resolution failed` --
+  // a sentence nobody traces back to a missing wrapper. It survived six
+  // commits because every test wrote `new Blob([...])` into the store by hand
+  // while the manager wrote raw bytes: the fixtures were more correct than the
+  // code, so they agreed with each other and with nothing real.
+  const put = [];
+  const store = { put: async (id, value) => { put.push({ id, value }); return { id, bytes: value.size ?? value.length, stored: true }; }, get: async () => null, remove: async () => true };
+  const assets = createAssetManager({ store });
+  await assets.import(file('alpha-24x17.webp'), { name: 'mouth.webp', type: 'image/webp' });
+  assert.equal(put.length,1);
+  assert.ok(put[0].value instanceof Blob,'a Blob, or nothing will paint it');
+  // And the type, because an object URL with none leaves the browser sniffing
+  // at bytes it was told nothing about.
+  assert.equal(put[0].value.type,'image/webp');
+
+  put.length = 0;
+  await assets.import(file('alpha-16x16.png'), { name: 'eye.png' });
+  assert.equal(put[0].value.type,'image/png','the format read from the bytes, not from the name it was given');
+});
+
+test('adopting a package’s picture keeps it under its own type too',async()=>{
+  const store = createMemoryAssetStore();
+  const assets = createAssetManager({ store });
+  const bytes = file('alpha-24x17.webp');
+  const id = await hashAssetBytes(bytes);
+  assert.equal(await assets.adopt(id, bytes, 'image/webp'),true);
+  const held = await store.get(id);
+  assert.ok(held instanceof Blob);
+  assert.equal(held.type,'image/webp');
+  // Bytes that are not what the name says never land.
+  assert.equal(await assets.adopt(id, file('alpha-16x16.png'), 'image/png'),false);
+  assert.equal((await store.get(id)).type,'image/webp','and the real one is untouched');
+});
+
+test('what comes back out is bytes again, whatever it was kept as',async()=>{
+  const { store, assets } = manager();
+  const { asset } = await assets.import(file('tiny-3x7.png'), { name: 'hair.png' });
+  const out = await assets.bytes(asset.id);
+  // A package writer needs a `Uint8Array`; the resolver needs the `Blob`. Both
+  // are served without either having to know how the other is fed.
+  assert.ok(out instanceof Uint8Array);
+  // Compared as contents: the fixture is read as a Node `Buffer` and what
+  // comes back is a plain `Uint8Array`, which `deepEqual` will not call equal.
+  assert.deepEqual([...out],[...file('tiny-3x7.png')]);
+  assert.ok((await store.get(asset.id)) instanceof Blob);
+  assert.equal(await assets.bytes('deadbeefdeadbeef'),null);
+});

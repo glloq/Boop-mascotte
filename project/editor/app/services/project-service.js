@@ -353,7 +353,7 @@ export function createProjectService({
     catch (error) { setStatus(`${file.name}: ${error.message}`, 'error'); return false; }
 
     const refused = [];
-    for (const [id, bytes] of read.assets) if (!assets || !(await assets.adopt(id, bytes))) refused.push(id);
+    for (const [id, bytes] of read.assets) if (!assets || !(await assets.adopt(id, bytes, read.snapshot.document.assets?.[id]?.format))) refused.push(id);
     let prepared;
     try { prepared = prepareProjectSnapshot(read.snapshot, (svg) => canvas.prepareSvgImport(svg)); }
     catch { setStatus(`${file.name} is not a project this editor can open.`, 'error'); return false; }
