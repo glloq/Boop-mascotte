@@ -54,7 +54,7 @@ export function inspectorSubject(state, id) {
   };
 }
 
-export function createInspector(host, store, history, canvas, { openColour = null, replacePicture = null, setMesh = null } = {}) {
+export function createInspector(host, store, history, canvas, { openColour = null, replacePicture = null, setMesh = null, setMeshDriver = null, captureMeshOpen = null } = {}) {
   // The Inspector is rebuilt whenever the selection or the document changes:
   // the disclosures the author opened outlive it, and the view stays put.
   const sections = rememberOpen(host);
@@ -102,6 +102,12 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     const tab = event.target.dataset.tab;
     if (tab) {
       activeTab = tab;
+      renderCurrent({ force: true });
+      return;
+    }
+    if (event.target.dataset.meshCapture !== undefined) {
+      const id = store.getSession().selectedId;
+      if (id) captureMeshOpen?.(id);
       renderCurrent({ force: true });
       return;
     }
@@ -173,6 +179,12 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     const selected = selectedElement();
     if (!selected) return;
     const { id, element, document } = selected;
+
+    if (target.dataset.meshDriver !== undefined) {
+      setMeshDriver?.(id, target.value || '');
+      renderCurrent({ force: true });
+      return;
+    }
 
     if (target.dataset.meshSize !== undefined) {
       setMesh?.(id, Number(target.value) || 0);
@@ -345,6 +357,13 @@ export function createInspector(host, store, history, canvas, { openColour = nul
         // Only where there is something to undo: an author who has bent
         // nothing does not need to be offered a way to unbend it.
         if(mesh&&!meshIsRest(mesh))rows.push(`<button type="button" class="secondary" data-mesh-reset title="Every point back where it started, in one step">Flatten the points</button>`);
+        // What moves it between its two shapes. The same vocabulary a shape
+        // key uses, so an author learns one thing rather than two.
+        if(mesh&&setMeshDriver){
+          const names=Object.keys(store.getDocument().params||{});
+          rows.push(choiceOf('meshDriver','Driven by',[['','Nothing — it stays as it is drawn'],...names.map(name=>[name,name])],mesh.driver?.parameter||'','data-mesh-driver'));
+          if(mesh.driver)rows.push(`<button type="button" class="secondary" data-mesh-capture title="The shape it is bent into now is the shape it opens to">Capture this as the open shape</button>`);
+        }
       }
     }
     return rows.join('');

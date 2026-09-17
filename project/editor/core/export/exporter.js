@@ -20,6 +20,10 @@ import rigAttachmentsSource from '../../../runtime/rig-attachments.js?raw';
 import gazeSolverSource from '../../../runtime/gaze-solver.js?raw';
 import effectiveParamsSource from '../../../runtime/effective-params.js?raw';
 import runtimeModuleSource from '../../../runtime/runtime.js?raw';
+import assetReferenceSource from '../../../runtime/asset-reference.js?raw';
+import assetPaintSource from '../../../runtime/asset-paint.js?raw';
+import assetResolverSource from '../../../runtime/asset-resolver.js?raw';
+import meshWarpSource from '../../../runtime/mesh-warp.js?raw';
 import { bundleRuntimeSource } from './runtime-bundle.js';
 import { createExportRig } from './export-rig.js';
 import { EXPORT_BUNDLE, createExportArtifacts as buildExportArtifacts, createExportUiModel } from './export-policy.js';
@@ -66,6 +70,15 @@ export function createExporter(host, store, canvas, options = {}) {
         { name: 'rig-attachments.js', source: rigAttachmentsSource },
         { name: 'gaze-solver.js', source: gazeSolverSource },
         { name: 'effective-params.js', source: effectiveParamsSource },
+        // Everything `runtime.js` reaches for. A module missing from this list
+        // is not a build error: the bundler strips the import and the name is
+        // simply undefined at the moment something calls it, which is a
+        // standalone runtime that throws on a mascot made of pictures while
+        // working perfectly on one made of paths.
+        { name: 'asset-reference.js', source: assetReferenceSource },
+        { name: 'asset-paint.js', source: assetPaintSource },
+        { name: 'asset-resolver.js', source: assetResolverSource },
+        { name: 'mesh-warp.js', source: meshWarpSource },
         { name: 'runtime.js', source: runtimeModuleSource }
       ])
     });

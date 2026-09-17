@@ -396,6 +396,50 @@ export function createProjectService({
     return true;
   };
 
+  /** Write one mesh back, keeping the artwork it draws in step with it. */
+  const writeMesh = (id, next, message) => {
+    const before = store.getDocument();
+    const artwork = canvas.setMesh(id, next);
+    if (!artwork) return false;
+    commands.syncSvg({ ...artwork, meshes: (before.meshes || []).map((item) => (item.target === id ? next : item)) },
+      { domains: ['artwork', 'keyforms'], source: 'picture-mesh' });
+    preview.apply();
+    if (message) setStatus(message);
+    return true;
+  };
+
+  /**
+   * What moves a picture between its two shapes.
+   *
+   * The same vocabulary a shape key uses (`runtime/shape-keys.js`): a
+   * parameter, and the range of it that carries the picture from the shape it
+   * rests in to the shape it opens to. An author who has learned that
+   * `mouthOpen` from 0 to 1 drives a mouth's outline should not have to learn
+   * a second one to drive the picture of a mouth.
+   */
+  const setMeshDriver = (id, parameter) => {
+    const mesh = (store.getDocument().meshes || []).find((item) => item.target === id);
+    if (!mesh) return false;
+    if (!parameter) return writeMesh(id, { ...mesh, driver: null, to: null }, `${id} stays as it is drawn.`);
+    // Its own current shape as the starting point, so turning a driver on
+    // changes nothing on screen until a shape is captured.
+    return writeMesh(id, { ...mesh, driver: { parameter, min: 0, max: 1, clamp: true }, to: mesh.to || mesh.points },
+      `${id} follows ${parameter}. Bend it, then capture that as the open shape.`);
+  };
+
+  /**
+   * The shape it is bent into now becomes the shape it opens to.
+   *
+   * Captured rather than edited in a second mode, which is how a shape key is
+   * made and for the same reason: two editable poses means a mode, and a mode
+   * means an author who cannot tell which one they are looking at.
+   */
+  const captureMeshOpen = (id) => {
+    const mesh = (store.getDocument().meshes || []).find((item) => item.target === id);
+    if (!mesh?.driver) { setStatus(`${id} has nothing driving it yet.`, 'error'); return false; }
+    return writeMesh(id, { ...mesh, to: mesh.points }, `${id} opens to the shape it is in now. Flatten the points to see it closed again.`);
+  };
+
   const loadSvgFile = async (file) => {
     try {
       // Read and sanitized before the confirm dialog: an unreadable file must
@@ -508,5 +552,5 @@ export function createProjectService({
     }
   };
 
-  return { replaceProject, restoreSnapshot, saveProject, downloadJson, addImageFile, addBaseImageFile, replaceImageFile, setPictureMesh, saveBoopPackage, loadBoopFile, loadSvgFile, loadTemplate, generateFace, loadProjectFile, importRigFile };
+  return { replaceProject, restoreSnapshot, saveProject, downloadJson, addImageFile, addBaseImageFile, replaceImageFile, setPictureMesh, setMeshDriver, captureMeshOpen, saveBoopPackage, loadBoopFile, loadSvgFile, loadTemplate, generateFace, loadProjectFile, importRigFile };
 }

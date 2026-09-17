@@ -139,6 +139,29 @@ export function meshPieces(mesh, box, { overdraw = MESH_OVERDRAW } = {}) {
  * padded: a half-read mesh is a deformation nobody authored, and drawing one
  * is worse than drawing none.
  */
+const readPoints = (candidate, size) => {
+  const points = Array.isArray(candidate) ? candidate : null;
+  if (!points || points.length !== size * size) return null;
+  const moved = points.map((point) => ({ x: Number(point?.x), y: Number(point?.y) }));
+  return moved.some((point) => !Number.isFinite(point.x) || !Number.isFinite(point.y)) ? null : moved;
+};
+
+/**
+ * What decides how far between the two shapes a mesh is.
+ *
+ * The same shape as a shape key's driver (`runtime/shape-keys.js`), on
+ * purpose: an author who has learned that `mouthOpen` from 0 to 1 drives a
+ * mouth's outline should not have to learn a second vocabulary to drive the
+ * picture of one.
+ */
+const readDriver = (candidate) => {
+  const parameter = typeof candidate?.parameter === 'string' ? candidate.parameter.trim() : '';
+  if (!parameter) return null;
+  const min = Number(candidate.min), max = Number(candidate.max);
+  if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) return null;
+  return Object.freeze({ parameter, min, max, clamp: candidate.clamp !== false });
+};
+
 export function normalizeMeshes(source = {}) {
   const list = Array.isArray(source?.meshes) ? source.meshes : [];
   const out = [];
@@ -146,16 +169,54 @@ export function normalizeMeshes(source = {}) {
     const target = typeof candidate?.target === 'string' ? candidate.target.trim() : '';
     const size = Math.round(Number(candidate?.size));
     if (!target || !MESH_PRESETS.includes(size)) continue;
-    const points = Array.isArray(candidate.points) ? candidate.points : [];
-    if (points.length !== size * size) continue;
-    const moved = points.map((point) => ({ x: Number(point?.x), y: Number(point?.y) }));
-    if (moved.some((point) => !Number.isFinite(point.x) || !Number.isFinite(point.y))) continue;
+    const moved = readPoints(candidate.points, size);
+    if (!moved) continue;
+    // The shape the driver moves *to*. Without one a mesh is a single pose,
+    // which is most of them: a picture bent once and left bent.
+    const driver = readDriver(candidate.driver);
+    const to = driver ? readPoints(candidate.to, size) : null;
     out.push(Object.freeze({
       id: typeof candidate.id === 'string' && candidate.id.trim() ? candidate.id.trim() : `mesh-${target}`,
-      target, size, points: Object.freeze(moved)
+      target, size, points: Object.freeze(moved),
+      driver: to ? driver : null,
+      to: to ? Object.freeze(to) : null
     }));
   }
   return Object.freeze(out);
+}
+
+/**
+ * How far along its driver a mesh is, from 0 to 1.
+ *
+ * Clamped by default, because a mesh is two shapes and a weight outside them
+ * is a shape nobody drew: `mouthOpen` at 3 should be a mouth as open as it
+ * gets, not a mouth turned inside out.
+ */
+export function meshWeight(mesh, values = {}) {
+  if (!mesh?.driver) return 0;
+  const { parameter, min, max, clamp } = mesh.driver;
+  const raw = Number(values?.[parameter]);
+  if (!Number.isFinite(raw)) return 0;
+  const t = (raw - min) / (max - min);
+  return clamp ? Math.max(0, Math.min(1, t)) : t;
+}
+
+/**
+ * The points a mesh is at right now.
+ *
+ * Returns the authored array itself when nothing is driving it, so an idle
+ * mascot allocates nothing per frame -- the same bargain `evaluateShapeTarget`
+ * makes for paths.
+ */
+export function meshPointsAt(mesh, values = {}) {
+  if (!mesh?.driver || !mesh.to) return mesh?.points || [];
+  const weight = meshWeight(mesh, values);
+  if (weight === 0) return mesh.points;
+  if (weight === 1) return mesh.to;
+  return mesh.points.map((point, index) => ({
+    x: point.x + (mesh.to[index].x - point.x) * weight,
+    y: point.y + (mesh.to[index].y - point.y) * weight
+  }));
 }
 
 /** The mesh deforming a piece, or null. */
@@ -212,3 +273,48 @@ export function meshMarkup(mesh, { target, reference, box, attributes = '' }) {
  * seam that no amount of overdraw covers.
  */
 export const MESH_PRESERVE_ASPECT_RATIO = 'none';
+
+/**
+ * Write a mesh's current shape onto the triangles already in a document.
+ *
+ * The per-frame half, and it is deliberately small: the nodes exist, so a
+ * frame is `N` transform writes and `N` polygon writes, where `N` is eight or
+ * eighteen. Nothing is created, nothing is parsed and nothing is measured.
+ *
+ * Shared by the editor's canvas and by an exported mascot, because a
+ * deformation that looked different in the two would be worse than one that
+ * did not work at all.
+ *
+ * @param {Element} root the `<svg>`, or anything above the mesh groups
+ * @param {object[]} meshes the rig's meshes
+ * @param {object} values the parameter values this frame
+ * @param {{ skip?: string|null }} [options] a piece the pointer owns
+ * @returns {number} how many meshes were written
+ */
+export function applyMeshesToDom(root, meshes = [], values = {}, { skip = null } = {}) {
+  if (!root?.querySelector || !Array.isArray(meshes)) return 0;
+  let written = 0;
+  for (const mesh of meshes) {
+    if (!mesh?.driver || mesh.target === skip) continue;
+    const group = root.querySelector(`#${cssEscape(mesh.target)}`);
+    const image = group?.querySelector?.('image');
+    if (!image) continue;
+    const side = (name) => Number(image.getAttribute(name)) || 0;
+    const box = { x: side('x'), y: side('y'), width: side('width'), height: side('height') };
+    if (!(box.width > 0) || !(box.height > 0)) continue;
+    const cells = [...group.children];
+    meshPieces({ size: mesh.size, points: meshPointsAt(mesh, values) }, box).forEach((piece, index) => {
+      const cell = cells[index];
+      const picture = cell?.querySelector?.('image');
+      if (picture) picture.setAttribute('transform', `matrix(${piece.transform.map(round).join(' ')})`);
+      const reference = /url\(['"]?#([^)'"]+)['"]?\)/.exec(cell?.getAttribute?.('clip-path') || '')?.[1];
+      const polygon = reference ? root.querySelector(`#${cssEscape(reference)} > polygon`) : null;
+      if (polygon) polygon.setAttribute('points', pointsAttribute(piece.clip));
+    });
+    written += 1;
+  }
+  return written;
+}
+
+/** `CSS.escape` where there is one, and the ids this editor writes where there is not. */
+const cssEscape = (value) => (typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(String(value)) : String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&'));

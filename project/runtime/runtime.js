@@ -48,6 +48,8 @@ import { compilePinTarget, normalizeRigPins, pinDisplacement, pinOffsets, pinsFo
 import { hasRigConstraints, normalizeRigConstraints, solveRigConstraints } from './rig-constraints.js';
 import { normalizeRigAttachments, normalizeRigHolds, solveRigHolds } from './rig-attachments.js';
 import { collectAssetReferences, paintAssetReferences } from './asset-paint.js';
+import { applyMeshesToDom, normalizeMeshes } from './mesh-warp.js';
+export { applyMeshesToDom, meshPointsAt, meshWeight, normalizeMeshes, restMesh } from './mesh-warp.js';
 export { assetRef, isAssetRef, parseAssetRef } from './asset-reference.js';
 export { createAssetResolver } from './asset-resolver.js';
 export { collectAssetReferences, paintAssetReferences, restoreAssetReferences } from './asset-paint.js';
@@ -1199,6 +1201,7 @@ export function createMascotEngine({ svgRoot, rig, assetResolver = null, fps = 2
   let stateParams = { ...initial }, activeState = rig.activeState || Object.keys(rig.states || {})[0];
   const overrides = {}, behaviors = normalizeBehaviors(rig), behaviorController = createBehaviorController({ random }); let transition = null, raf = 0, last = 0, started = 0, generation = 0;
   const expressions = normalizeExpressions(rig);
+  const meshes = normalizeMeshes(rig);
   // Expression weights ramp rather than jump. The default span is 0, so a rig
   // that does not configure one behaves exactly as it did before V2; any span
   // makes a change start from the weight currently on screen, never from
@@ -1345,6 +1348,12 @@ export function createMascotEngine({ svgRoot, rig, assetResolver = null, fps = 2
       const followerOffsets = followerGroup.size ? followerGroup.step(posed, delta) : null;
       const frame = compileRigFrame(rig.elements, posed, rig.globalConstraints, rig.stateConstraints?.[activeState], { keyforms, shapeKeys, hands, deformers, parallax, warps, rigPins, rigConstraints, rigAttachments, rigHolds, previousBands: depthBands, followerOffsets, handStyles: handStyleSwaps });
       for (const [id, item] of Object.entries(frame)) if (item.depthBand) depthBands[id] = item.depthBand;
+      // A picture that bends is two shapes and a parameter between them, drawn
+      // as triangles that already exist: a frame is a handful of transform
+      // writes and nothing is created, parsed or measured
+      // (runtime/mesh-warp.js). A mascot with no driven mesh does no work here
+      // at all.
+      if (meshes.length) applyMeshesToDom(svgRoot, meshes, posed);
       // A no-op on every frame but the ones where a band actually moved, and
       // the hysteresis in `depthBand` is what keeps those rare.
       if (drawOrder) drawOrder.apply(depthBands);

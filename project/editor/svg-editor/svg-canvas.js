@@ -5,7 +5,7 @@ import 'svg.draggable.js';
 import { sanitizeSvgMarkup } from '../core/security/sanitize-svg.js';
 import { collectAssetReferences, deferAssetReferences, paintAssetReferences } from '../../runtime/asset-paint.js';
 import { pathOnlyMessage } from './path-only.js';
-import { DEFAULT_MESH_SIZE, MESH_PRESETS, meshMarkup, restMesh } from '../../runtime/mesh-warp.js';
+import { DEFAULT_MESH_SIZE, MESH_PRESETS, applyMeshesToDom, meshMarkup, restMesh } from '../../runtime/mesh-warp.js';
 import { SvgDocument } from '../core/svg-document/svg-document.js';
 import { lifecycleDiagnostics as diagnostics } from '../core/diagnostics/lifecycle-diagnostics.js';
 import { createArtworkCommands } from '../core/commands/artwork-commands.js';
@@ -4243,7 +4243,12 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       const node=documentModel.getNode(id), applied=node ? lastApplied.get(node)?.transform : undefined;
       return { requested:lastRequested.get(id) ? [...lastRequested.get(id)] : null, applied:applied ? [...applied] : null, domTransform:node?.getAttribute('transform') || null };
     },
-    applyFrame(frame) {
+    applyFrame(frame, values = null) {
+      // A mesh with a driver is two shapes and a parameter between them, so it
+      // is redrawn with the frame rather than only when it is edited
+      // (runtime/mesh-warp.js). A mesh being dragged is left alone: the
+      // pointer owns it until it is let go.
+      if (values) applyMeshesToDom(rootGroup.node.querySelector('svg'), store.getDocument().meshes, values, { skip: meshGesture.preview()?.target || null });
       // A warp drag owns the outline while it lasts: what is drawn is the
       // lattice under the pointer, and the compiled frame still says what the
       // document says, which is where the shape was before the drag started.

@@ -294,7 +294,9 @@ export function createEditorApp({ root = document.getElementById('app'), recover
     // Declared later in this same scope; the callback only runs once someone
     // has a picture selected, which is long after the wiring is done.
     replacePicture: (id, file) => projectService.replaceImageFile(id, file),
-    setMesh: (id, size) => projectService.setPictureMesh(id, size)
+    setMesh: (id, size) => projectService.setPictureMesh(id, size),
+    setMeshDriver: (id, parameter) => projectService.setMeshDriver(id, parameter),
+    captureMeshOpen: (id) => projectService.captureMeshOpen(id)
   });
   // The Character Builder (docs/CHARACTER_BUILDER.md): the parts a person
   // names, on the same canvas and the same document, editing through the same

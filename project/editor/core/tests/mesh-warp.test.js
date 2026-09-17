@@ -154,3 +154,50 @@ test('a mesh costs what the baseline says a deforming node may',()=>{
   // order of magnitude under the 16.6 ms of a frame.
   assert.ok(perFrame < 3,`${perFrame.toFixed(3)} ms for eight 4x4 meshes`);
 });
+
+test('a mesh driven by a parameter is two shapes and a weight between them',async()=>{
+  const { meshPointsAt, meshWeight } = await import('../../../runtime/mesh-warp.js');
+  const rest = meshRestPoints(3);
+  const open = rest.map((point, index) => (index === 4 ? { x: 0.5, y: 0.9 } : point));
+  const [mesh] = normalizeMeshes({ meshes: [{ target: 'mouth', size: 3, points: rest, to: open, driver: { parameter: 'mouthOpen', min: 0, max: 1 } }] });
+  assert.deepEqual(mesh.driver,{ parameter: 'mouthOpen', min: 0, max: 1, clamp: true });
+  assert.deepEqual(meshPointsAt(mesh, { mouthOpen: 0.5 })[4],{ x: 0.5, y: 0.7 });
+  // Clamped, because a mesh is two shapes and a weight outside them is a shape
+  // nobody drew: `mouthOpen` at three is as open as it gets, not inside out.
+  assert.deepEqual(meshPointsAt(mesh, { mouthOpen: 3 })[4],{ x: 0.5, y: 0.9 });
+  assert.deepEqual(meshPointsAt(mesh, { mouthOpen: -2 })[4],{ x: 0.5, y: 0.5 });
+  assert.equal(meshWeight(mesh, { mouthOpen: 0.25 }),0.25);
+  // At rest it hands back the authored array itself, so an idle mascot
+  // allocates nothing per frame.
+  assert.equal(meshPointsAt(mesh, { mouthOpen: 0 }),mesh.points);
+  assert.equal(meshPointsAt(mesh, { mouthOpen: 1 }),mesh.to);
+  // A parameter nobody set leaves it where it rests.
+  assert.equal(meshWeight(mesh, {}),0);
+});
+
+test('a driver with nothing to move to is not a driver',async()=>{
+  // Turning one on without a second shape would be a mesh that reports a
+  // weight and deforms nothing, which is the failure the warp handles file
+  // was written to end.
+  const rest = meshRestPoints(3);
+  const [none] = normalizeMeshes({ meshes: [{ target: 'm', size: 3, points: rest, driver: { parameter: 'x', min: 0, max: 1 } }] });
+  assert.equal(none.driver,null);
+  assert.equal(none.to,null);
+  // And a driver that cannot say how far is not one either.
+  for (const driver of [{ parameter: '', min: 0, max: 1 }, { parameter: 'x', min: 1, max: 1 }, { parameter: 'x', min: 'a', max: 1 }, null])
+    assert.equal(normalizeMeshes({ meshes: [{ target: 'm', size: 3, points: rest, to: rest, driver }] })[0].driver,null,JSON.stringify(driver));
+});
+
+test('the standalone runtime bundle declares everything runtime.js reaches for',async()=>{
+  // A module missing from the list is not a build error: the bundler strips
+  // the import and the name is simply undefined at the moment something calls
+  // it -- a standalone runtime that throws on a mascot made of pictures while
+  // working perfectly on one made of paths. That is how the asset modules sat
+  // missing for several commits.
+  const { readFile } = await import('node:fs/promises');
+  const { RUNTIME_MODULES } = await import('../export/runtime-bundle.js');
+  const source = await readFile(new URL('../../../runtime/runtime.js', import.meta.url), 'utf8');
+  const reached = [...source.matchAll(/(?:^|\n)\s*(?:import|export)\s[\s\S]*?from\s*['"]\.\/([^'"]+)['"]/g)].map((match) => match[1]);
+  const missing = [...new Set(reached)].filter((name) => !RUNTIME_MODULES.includes(name));
+  assert.deepEqual(missing,[],`runtime.js reaches for these and the bundle does not carry them: ${missing.join(', ')}`);
+});

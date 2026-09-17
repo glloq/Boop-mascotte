@@ -182,7 +182,9 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
       // the canvas's paint order every frame, or differently from the mascot.
       const compiled=compileFrame(state.elements,drawn,state.globalConstraints,state.stateConstraints?.[state.activeState],{keyforms:state.keyforms,shapeKeys:state.shapeKeys,warps:state.warps,rigPins:state.rigPins,rigConstraints:state.rigConstraints,rigAttachments:state.rigAttachments,rigHolds:state.rigHolds,hands:state.hands,deformers:state.deformers,parallax:state.parallax,followerOffsets,previousBands:depthBands,handStyles,delta:frameDelta});
       for(const [id,item] of Object.entries(compiled.frames))if(item.depthBand)depthBands[id]=item.depthBand;
-      canvas.applyFrame(compiled);
+      // `drawn` as well as the frame: a mesh is driven by a parameter and the
+      // compiled frame carries transforms, not the values behind them.
+      canvas.applyFrame(compiled, drawn);
       diagnostics.increment('preview.applies'); if(diagnostics.enabled)diagnostics.increment('preview.applyMs',performance.now()-applyStart);
       syncSession();onFrame({time:clipTime,previewElapsed,transitionElapsed,arrangementTime:arrangement?previewElapsed-arrangement.origin:null,params:{...effective},playing});
       lastError=null; diagnostics.set('preview.lastError',null);

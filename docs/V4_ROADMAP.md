@@ -410,13 +410,29 @@ wrong and Phase 8 does not start.
   that ignores meshes draws the picture at rest, which is undeformed rather
   than wrong.
 
-## Phase 8 — The mesh editor (3 PRs)
+## Phase 8 — The mesh editor (3 PRs) — **done**
 
 | PR | What | Size |
 | --- | --- | --- |
-| **V4-080** | Enable deformation on an image node; drag control points; reset | L |
-| **V4-081** | Presets, symmetry, mirroring, preview, undo per gesture | M |
-| **V4-082** | Mesh bound to drivers, so `mouthOpen` 0 → 1 interpolates between two meshes | M |
+| **V4-080** — done | Bending switched on from the Inspector; nine or sixteen handles over a lattice; drag and flatten | L |
+| **V4-081** — done | 3×3 and 4×4, Alt to move the mirror, the picture bending under the pointer, one undo per drag | M |
+| **V4-082** — done | A mesh carries a driver and a second shape; the canvas and the exported runtime write it from the same function | M |
+
+### What building it corrected
+
+- **A bug the bundle list had been hiding.** `runtime.js` reaches for the
+  asset modules (since V4-024) and now the mesh one, and none of them was in
+  `RUNTIME_MODULES` — which is not a build error: the bundler strips the
+  import and the name is simply undefined at the moment something calls it. A
+  standalone runtime that throws on a mascot made of pictures while working
+  perfectly on one made of paths. There is a test that reads what `runtime.js`
+  imports and asserts the bundle carries all of it.
+- **A point may leave its picture's box.** Clamping at 0 and 1 would forbid the
+  most ordinary thing this is for — pulling a mouth open is pulling past the
+  edge of the drawing.
+- **Capture, don't edit a second pose.** Two editable shapes means a mode, and
+  a mode means an author who cannot tell which one they are looking at. The
+  open shape is captured from the one on screen, exactly as a shape key is.
 
 ## Phases 9–10 — Behavior (parallel branch)
 
