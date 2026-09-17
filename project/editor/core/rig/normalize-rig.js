@@ -1,3 +1,4 @@
+import { normalizeMeshes } from '../../../runtime/mesh-warp.js';
 import { RIG_SCHEMA_VERSION, BINDING_PROPERTIES, normalizeBinding, normalizeBehaviors, normalizeKeyforms, normalizeShapeKeys, normalizeHands, normalizeDeformers, normalizeParallax, normalizeExpressionBlend, normalizeWarps, normalizeFollowers, clampDepth, normalizeMotionBlend, normalizeGazeSolver, normalizeRigPins, normalizeRigConstraints, normalizeRigAttachments, normalizeRigHolds } from '../../../runtime/runtime.js';
 import { normalizeParameter } from './parameters.js';
 
@@ -39,7 +40,7 @@ export function normalizeRig(raw = {}) {
   }]));
   return { ...raw, schemaVersion: RIG_SCHEMA_VERSION, params, states, elements, activeState, transitions, behaviors: normalizeBehaviors(raw), transitionSettings,
     // v4 additive block: absent in v1/v2/v3 rigs, where it normalizes to [].
-    keyforms: normalizeKeyforms(raw), shapeKeys: normalizeShapeKeys(raw), hands: normalizeHands(raw), deformers: normalizeDeformers(raw), parallax: normalizeParallax(raw.parallax), expressionBlend: normalizeExpressionBlend(raw.expressionBlend), motionBlend: normalizeMotionBlend(raw.motionBlend), warps: normalizeWarps(raw), followers: normalizeFollowers(raw),
+    keyforms: normalizeKeyforms(raw), shapeKeys: normalizeShapeKeys(raw), hands: normalizeHands(raw), deformers: normalizeDeformers(raw), parallax: normalizeParallax(raw.parallax), expressionBlend: normalizeExpressionBlend(raw.expressionBlend), motionBlend: normalizeMotionBlend(raw.motionBlend), warps: normalizeWarps(raw), meshes: normalizeMeshes(raw), followers: normalizeFollowers(raw),
     // Additive block (docs/FACE_CONTROL_RIG.md): the gaze solver's own
     // settings, disabled in every project that predates it.
     gazeSolver: normalizeGazeSolver(raw),

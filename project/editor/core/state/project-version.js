@@ -24,7 +24,7 @@
  * writer and the migration ladder can ask what the current version is without
  * reaching through the snapshot reader.
  */
-export const PROJECT_VERSION = 4;
+export const PROJECT_VERSION = 5;
 
 /** The version a file declares, or 1 for the format that declared none. */
 export const projectVersionOf = (snapshot) => snapshot?.version ?? 1;
@@ -43,11 +43,16 @@ export const canOpenProjectVersion = (version) => Number.isInteger(version) && v
  * The oldest version that can read this document without losing part of it.
  *
  * Every version above the first is a block a younger reader would drop on the
- * floor: version 4 is the asset table. A document that uses none of them is
- * honestly still the older format, and saying so is what keeps a project that
- * gained nothing new openable by an editor that gained nothing new.
+ * floor: version 4 is the asset table, version 5 the meshes that deform a
+ * picture. A document that uses none of them is honestly still the older
+ * format, and saying so is what keeps a project that gained nothing new
+ * openable by an editor that gained nothing new.
+ *
+ * Highest first, because a project carrying both needs the reader that knows
+ * about both.
  */
 export function projectVersionFor(document) {
+  if ((document?.rig?.meshes || document?.meshes || []).length) return 5;
   if (Object.keys(document?.assets || {}).length) return 4;
   return 3;
 }

@@ -293,7 +293,8 @@ export function createEditorApp({ root = document.getElementById('app'), recover
     openColour: (options) => colourPicker.open(options),
     // Declared later in this same scope; the callback only runs once someone
     // has a picture selected, which is long after the wiring is done.
-    replacePicture: (id, file) => projectService.replaceImageFile(id, file)
+    replacePicture: (id, file) => projectService.replaceImageFile(id, file),
+    setMesh: (id, size) => projectService.setPictureMesh(id, size)
   });
   // The Character Builder (docs/CHARACTER_BUILDER.md): the parts a person
   // names, on the same canvas and the same document, editing through the same

@@ -32,7 +32,11 @@ export const PROJECT_MIGRATIONS = Object.freeze([
   // the *reverse* is not additive -- a v3 reader opening a v4 file would drop
   // the table without saying so, which is why a project carrying one declares
   // version 4 (`projectVersionFor`).
-  Object.freeze({ from: 3, name: 'v3 to v4: the asset table, empty when absent', empty: true, apply: (snapshot) => snapshot })
+  Object.freeze({ from: 3, name: 'v3 to v4: the asset table, empty when absent', empty: true, apply: (snapshot) => snapshot }),
+  // The meshes that deform a picture. Additive the same way: a file written
+  // before them has none, and none is a picture drawn at rest -- undeformed
+  // rather than wrong, which is why this moves no rig schema version.
+  Object.freeze({ from: 4, name: 'v4 to v5: meshes, empty when absent', empty: true, apply: (snapshot) => snapshot })
 ]);
 
 /**

@@ -5,6 +5,7 @@ import 'svg.draggable.js';
 import { sanitizeSvgMarkup } from '../core/security/sanitize-svg.js';
 import { collectAssetReferences, deferAssetReferences, paintAssetReferences } from '../../runtime/asset-paint.js';
 import { pathOnlyMessage } from './path-only.js';
+import { DEFAULT_MESH_SIZE, MESH_PRESETS, meshMarkup, restMesh } from '../../runtime/mesh-warp.js';
 import { SvgDocument } from '../core/svg-document/svg-document.js';
 import { lifecycleDiagnostics as diagnostics } from '../core/diagnostics/lifecycle-diagnostics.js';
 import { createArtworkCommands } from '../core/commands/artwork-commands.js';
@@ -3365,6 +3366,69 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       loadedMarkup = documentModel.serialize();
       return { svgMarkup: loadedMarkup, elements };
     },
+    /**
+     * Turn a picture into a mesh, or a mesh back into a picture.
+     *
+     * The group keeps the piece's own id, so nothing above it changes: the rig
+     * binds to it, the turn carries it, the depth sorts it and the layer list
+     * names it, and none of them ever asked what was inside
+     * (runtime/mesh-warp.js). What is inside is one clipped copy of the
+     * picture per triangle.
+     *
+     * Returns the artwork for a command to write together with the mesh, and
+     * touches neither the store nor the history: a deformation and the record
+     * of it have to arrive and leave in one step, or an undo leaves a group
+     * nothing knows how to edit.
+     */
+    setMesh(id, mesh) { return previewOrder.authored(() => api.setMeshNow(id, mesh)); },
+    setMeshNow(id, mesh) {
+      const node = documentModel.getNode(id);
+      if (!node) return false;
+      // A mesh bends a picture. Everything else already bends: a path has
+      // points, and warps and shape keys are how it bends (docs/WARP_GRID.md).
+      const current = node.localName === 'image' ? node : (node.localName === 'g' && node.hasAttribute('data-mesh') ? node.querySelector('image') : null);
+      if (!current) return false;
+      const reference = ['data-editor-asset', 'href', 'xlink:href'].map((name) => current.getAttribute(name)).find((value) => value && value.startsWith('asset:'));
+      if (!reference) return false;
+      const box = { x: Number(current.getAttribute('x')) || 0, y: Number(current.getAttribute('y')) || 0, width: Number(current.getAttribute('width')) || 0, height: Number(current.getAttribute('height')) || 0 };
+      if (!(box.width > 0) || !(box.height > 0)) return false;
+
+      const host = rootGroup.node.querySelector('svg');
+      if (!host) return false;
+      let defs = host.querySelector(':scope > defs');
+      if (!defs) { defs = document.createElementNS(SVG_NS, 'defs'); host.prepend(defs); }
+
+      const owner = node.localName === 'g' && node.hasAttribute('data-mesh') ? node : current;
+      // Every attribute of the piece except the picture's own geometry: a
+      // transform, an opacity, a name, a depth mark all belong to the piece
+      // and have to survive becoming a group and stop being one.
+      const carried = [...owner.attributes].filter((attribute) => !['id', 'href', 'xlink:href', 'x', 'y', 'width', 'height', 'preserveAspectRatio', 'data-mesh', 'data-editor-asset', 'data-editor-asset-missing'].includes(attribute.name));
+      const attributes = carried.map((attribute) => `${attribute.name}="${String(attribute.value).replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`).join(' ');
+
+      // Whatever this piece's clips were, they are about to be rewritten.
+      for (const stale of [...defs.querySelectorAll(`[id^="mesh-${CSS.escape(id)}-"]`)]) stale.remove();
+
+      let replacement;
+      if (mesh) {
+        const built = meshMarkup(mesh, { target: id, reference, box, attributes });
+        if (!built.markup) return false;
+        defs.insertAdjacentHTML('beforeend', built.defs);
+        replacement = built.markup;
+      } else {
+        replacement = `<image id="${id}" href="${reference}" x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}" preserveAspectRatio="xMidYMid meet"${attributes ? ` ${attributes}` : ''}/>`;
+      }
+      const template = document.createElementNS(SVG_NS, 'g');
+      template.innerHTML = deferAssetReferences(sanitizeSvgMarkup(`<svg xmlns="${SVG_NS}">${replacement}</svg>`)).replace(/^<svg[^>]*>|<\/svg>$/g, '');
+      const built = template.firstElementChild;
+      if (!built) return false;
+      owner.replaceWith(built);
+      paintAssets(host);
+      refreshDocument(id);
+      return { svgMarkup: documentModel.serialize(), elements: structuredClone(store.getDocument().elements) };
+    },
+    /** The sizes a mesh may be, for whoever is offering the choice. */
+    meshSizes: () => [...MESH_PRESETS],
+    restMeshFor: (id, size = DEFAULT_MESH_SIZE) => restMesh(id, size),
     /** The resolver every `asset:` reference is drawn through. One per editor. */
     setAssetResolver(resolver) { assetResolver = resolver; },
     /**

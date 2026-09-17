@@ -2,6 +2,7 @@ import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
 import { normalizeRig } from '../rig/normalize-rig.js';
 import { canOpenProjectVersion, projectVersionFor, projectVersionOf } from './project-version.js';
 import { normalizeAssets } from '../assets/asset-model.js';
+import { normalizeMeshes } from '../../../runtime/mesh-warp.js';
 import { migrateProject } from './migrations/project-migrations.js';
 
 /**
@@ -21,7 +22,7 @@ export function createProjectSnapshot(state, serializeSvg) {
     schemaVersion: RIG_SCHEMA_VERSION, params: state.params, states: state.states, elements: state.elements,
     activeState: state.activeState, transitions: state.transitions, transitionSettings: state.transitionSettings,
     globalConstraints: state.globalConstraints, stateConstraints: state.stateConstraints,
-    runtimeConfig: state.runtimeConfig, behaviors: state.behaviors, keyforms: state.keyforms, shapeKeys: state.shapeKeys, warps: state.warps, rigPins: state.rigPins, rigConstraints: state.rigConstraints, rigAttachments: state.rigAttachments, rigHolds: state.rigHolds, hands: state.hands, deformers: state.deformers, parallax: state.parallax, followers: state.followers, expressionBlend: state.expressionBlend, motionBlend: state.motionBlend, gazeSolver: state.gazeSolver
+    runtimeConfig: state.runtimeConfig, behaviors: state.behaviors, keyforms: state.keyforms, shapeKeys: state.shapeKeys, warps: state.warps, meshes: state.meshes, rigPins: state.rigPins, rigConstraints: state.rigConstraints, rigAttachments: state.rigAttachments, rigHolds: state.rigHolds, hands: state.hands, deformers: state.deformers, parallax: state.parallax, followers: state.followers, expressionBlend: state.expressionBlend, motionBlend: state.motionBlend, gazeSolver: state.gazeSolver
   });
   const document = {
     svgMarkup: serializeSvg ? serializeSvg() : (state.svgMarkup || ''),
@@ -74,6 +75,9 @@ export function applyProjectSnapshot(state, snapshot) {
   state.keyforms = Array.isArray(rig.keyforms) ? structuredClone(rig.keyforms) : [];
   state.shapeKeys = Array.isArray(rig.shapeKeys) ? structuredClone(rig.shapeKeys) : [];
   state.warps = Array.isArray(rig.warps) ? structuredClone(rig.warps) : [];
+  // Additive since V4: a snapshot written before meshes has none, which is
+  // every picture drawn at rest.
+  state.meshes = normalizeMeshes(rig);
   // Additive since the control rig: a snapshot written before pins has none.
   state.rigPins = Array.isArray(rig.rigPins) ? structuredClone(rig.rigPins) : [];
   state.rigConstraints = Array.isArray(rig.rigConstraints) ? structuredClone(rig.rigConstraints) : [];

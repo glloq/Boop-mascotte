@@ -1,3 +1,4 @@
+import { normalizeMeshes } from '../../../runtime/mesh-warp.js';
 import { RIG_SCHEMA_VERSION, rigRequirements, normalizeAnimations, normalizeExpressions, normalizeKeyforms, normalizeDeformers, normalizeExpressionBlend, normalizeHands, normalizeParallax, normalizeReactions, normalizeShapeKeys, normalizeWarps, normalizeFollowers, normalizeMotionBlend, normalizeGazeSolver, normalizeRigPins, normalizeRigConstraints, normalizeRigAttachments, normalizeRigHolds } from '../../../runtime/runtime.js';
 
 /** The hands, without the editor-only mark on one that still deforms. */
@@ -31,6 +32,9 @@ export function createExportRig(state) {
     keyforms: normalizeKeyforms(state), shapeKeys: normalizeShapeKeys(state),
     // Additive block (docs/WARP_GRID.md): small optional control grids.
     warps: normalizeWarps(state),
+    // Pictures that bend (docs/V4_ROADMAP.md, Phase 7). Additive: a runtime
+    // that does not know them draws every picture at rest.
+    meshes: normalizeMeshes(state),
     // Additive block (docs/HAND_RIGGING.md, docs/HAND_STYLES.md): anchors, reach,
     // inertia, and the drawings a 2D hand swaps between. `legacyPseudo3D` is
     // not among them: it marks a hand the *editor* can offer to convert, and a

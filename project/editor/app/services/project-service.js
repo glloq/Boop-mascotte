@@ -32,6 +32,7 @@ import { applyImportedRig } from '../../core/state/import-rig.js';
 import { identifyFaceParts } from '../../core/face-library/face-part-migration.js';
 import { imageNodeId, imageNodeMarkup, placeBaseInArtboard, placeImageInArtboard } from '../../core/assets/asset-placement.js';
 import { readBoopPackage, writeBoopPackage } from '../../core/export/boop-package.js';
+import { restMesh } from '../../../runtime/mesh-warp.js';
 import { createExportRig } from '../../core/export/export-rig.js';
 import { readArtboard } from '../../core/artwork/artboard.js';
 import { createArtworkCommands } from '../../core/commands/artwork-commands.js';
@@ -368,6 +369,33 @@ export function createProjectService({
     return true;
   };
 
+  /**
+   * Let a picture bend, or stop it bending.
+   *
+   * The deformation and the record of it are written in one command. Splitting
+   * them would leave a step where the artwork is a group of triangles and
+   * nothing in the project knows it is a mesh -- which is a piece nobody can
+   * edit and an undo that half works.
+   */
+  const setPictureMesh = (id, size) => {
+    const before = store.getDocument();
+    const mesh = size ? (before.meshes || []).find((item) => item.target === id) || restMesh(id, size) : null;
+    // A size that differs from the mesh on record is a change of grid, and a
+    // grid change starts from rest: there is no honest way to carry nine
+    // dragged points onto sixteen.
+    const wanted = mesh && mesh.size !== size ? restMesh(id, size) : mesh;
+    const artwork = canvas.setMesh(id, wanted);
+    if (!artwork) { setStatus(`${id} is not a picture, so it has nothing to bend.`, 'error'); return false; }
+    const meshes = (before.meshes || []).filter((item) => item.target !== id);
+    commands.syncSvg({ ...artwork, meshes: wanted ? [...meshes, wanted] : meshes },
+      { domains: ['artwork', 'keyforms'], source: 'picture-mesh' });
+    preview.apply();
+    setStatus(wanted
+      ? `${id} bends now. Drag its points to shape it; ${wanted.size}×${wanted.size} to start.`
+      : `${id} is a plain picture again.`);
+    return true;
+  };
+
   const loadSvgFile = async (file) => {
     try {
       // Read and sanitized before the confirm dialog: an unreadable file must
@@ -480,5 +508,5 @@ export function createProjectService({
     }
   };
 
-  return { replaceProject, restoreSnapshot, saveProject, downloadJson, addImageFile, addBaseImageFile, replaceImageFile, saveBoopPackage, loadBoopFile, loadSvgFile, loadTemplate, generateFace, loadProjectFile, importRigFile };
+  return { replaceProject, restoreSnapshot, saveProject, downloadJson, addImageFile, addBaseImageFile, replaceImageFile, setPictureMesh, saveBoopPackage, loadBoopFile, loadSvgFile, loadTemplate, generateFace, loadProjectFile, importRigFile };
 }

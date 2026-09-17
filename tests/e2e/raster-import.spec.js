@@ -210,3 +210,37 @@ test('@critical a picture cuts by its transparency, and the cut survives a reloa
   await expect(page.locator('svg defs mask image').first()).toHaveAttribute('href', /^blob:/);
   expect(trouble).toEqual([]);
 });
+
+test('@critical a picture bends, changes grid and goes flat again', async ({ page }) => {
+  const trouble = watchForTrouble(page);
+  await openFreshEditor(page, { e2e: true });
+  await page.evaluate(() => window.__BOOP_E2E__.openProject.template('basic'));
+  await page.setInputFiles('#artwork-image-file', PICTURE);
+  await expect(page.locator('svg image')).toHaveCount(1);
+  await page.evaluate(() => window.__BOOP_E2E__.navigate('design.artwork'));
+  const id = await page.locator('svg image').first().evaluate((node) => node.id);
+  await page.evaluate((id) => window.__BOOP_E2E__.mutate((state) => { state.selectedId = id; state.selectedIds = [id]; }), id);
+
+  await page.locator('[data-mesh-size]').first().selectOption('3');
+  // Two triangles a cell, four cells: the picture is drawn eight times, each
+  // clipped to its own triangle and carrying its own affine.
+  await expect(page.locator(`svg g#${id} > g[clip-path]`)).toHaveCount(8);
+  await expect(page.locator(`svg g#${id} image`)).toHaveCount(8);
+  await expect(page.locator(`svg g#${id} image`).first()).toHaveAttribute('href', /^blob:/);
+
+  // The document stores references, not this tab's URLs -- eight of them now.
+  const markup = await page.evaluate(() => window.__BOOP_E2E__.document().svgMarkup || '');
+  expect(markup).not.toMatch(/blob:/);
+  expect(markup).toMatch(/data-mesh="3"/);
+
+  await page.locator('[data-mesh-size]').first().selectOption('4');
+  await expect(page.locator(`svg g#${id} > g[clip-path]`)).toHaveCount(18);
+
+  // And back. The control has to still be there once the piece is a group:
+  // reading only `<image>` made bending a one-way door.
+  await page.locator('[data-mesh-size]').first().selectOption('0');
+  await expect(page.locator('svg image')).toHaveCount(1);
+  await expect(page.locator(`svg g#${id}[data-mesh]`)).toHaveCount(0);
+  await expect(page.locator('svg defs clipPath[id^="mesh-"]')).toHaveCount(0);
+  expect(trouble).toEqual([]);
+});

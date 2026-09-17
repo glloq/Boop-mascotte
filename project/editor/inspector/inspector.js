@@ -53,7 +53,7 @@ export function inspectorSubject(state, id) {
   };
 }
 
-export function createInspector(host, store, history, canvas, { openColour = null, replacePicture = null } = {}) {
+export function createInspector(host, store, history, canvas, { openColour = null, replacePicture = null, setMesh = null } = {}) {
   // The Inspector is rebuilt whenever the selection or the document changes:
   // the disclosures the author opened outlive it, and the view stays put.
   const sections = rememberOpen(host);
@@ -167,6 +167,12 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     if (!selected) return;
     const { id, element, document } = selected;
 
+    if (target.dataset.meshSize !== undefined) {
+      setMesh?.(id, Number(target.value) || 0);
+      renderCurrent({ force: true });
+      return;
+    }
+
     if (target.dataset.replacePicture !== undefined) {
       const file = target.files?.[0];
       // The input is cleared either way, so picking the same file twice is
@@ -272,7 +278,13 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     // Fill and stroke paint nothing on a raster `<image>`: the pixels are the
     // paint. Offering the controls anyway is an author changing a colour and
     // watching nothing happen, which is worse than not offering them.
-    const isPicture=kind==='image';
+    //
+    // A bent picture is a `<g>` of clipped copies (runtime/mesh-warp.js) and is
+    // still a picture to whoever is looking at it. Reading only `image` here
+    // meant the section vanished the moment somebody turned bending on, taking
+    // the control that turns it off with it -- a one-way door.
+    const isMesh=kind==='g'&&Boolean(node.hasAttribute?.('data-mesh'));
+    const isPicture=kind==='image'||isMesh;
     // The swatch opens the colour dialog (`ui/colour-picker.js`), which leads
     // with the colours this mascot already uses -- the system picker knew
     // nothing about the drawing, so matching the skin or the line colour meant
@@ -281,6 +293,8 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     const paintRow=(name,label,value)=>{const none=!value||value==='none';const hex=paintToHex(value)||(name==='fill'?'#60a5fa':'#111827');return `<div class="paint-row" data-paint="${name}"><span class="paint-label">${label}</span><button type="button" class="paint-swatch" data-appearance-open="${name}" style="--swatch:${none?'transparent':esc(hex)}" aria-label="${label} colour: ${esc(none?'none':value)}" title="Choose a colour">${none?'—':''}</button><input type="text" data-appearance="${name}" aria-label="${label} value" value="${esc(none?'none':value)}" spellcheck="false" title="A colour, a name, or url(#gradientId)"><label class="check paint-none"><input type="checkbox" data-appearance-none="${name}"${none?' checked':''}>None</label></div>`;};
     const number=(name,label,value,attrs='')=>`<label>${label}<input type="number" data-appearance="${name}" aria-label="${label}" value="${esc(value)}" ${attrs}></label>`;
     const choice=(name,label,options,current)=>`<label>${label}<select data-appearance="${name}" aria-label="${label}">${options.map(([value,text])=>`<option value="${value}"${current===value?' selected':''}>${text}</option>`).join('')}</select></label>`;
+    // Like `choice`, but answered by something other than an SVG attribute.
+    const choiceOf=(name,label,options,current,marker)=>`<label>${label}<select ${marker} aria-label="${label}">${options.map(([value,text])=>`<option value="${value}"${current===value?' selected':''}>${text}</option>`).join('')}</select></label>`;
     const rows=[];
     const fill=paint('fill'), stroke=paint('stroke');
     if(!isGroup&&!isPicture){
@@ -297,8 +311,11 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     }
     const opacity=raw('opacity')??'1';
     rows.push(`<label>Opacity <output data-appearance-output="opacity">${Math.round(Number(opacity)*100)}%</output><input type="range" data-appearance="opacity" data-live aria-label="Opacity" min="0" max="1" step="0.01" value="${esc(opacity)}"></label>`);
-    const geometry=geometryFields(kind);
-    if(geometry.length||kind==='text'){
+    // A bent picture's box belongs to the mesh, not to the group: the numbers
+    // are on the copies inside it, and offering them here would be offering to
+    // edit one triangle of eight.
+    const geometry=isMesh?[]:geometryFields(kind);
+    if(geometry.length||kind==='text'||isMesh){
       rows.push(`<h4>${kind==='text'?'Text':isPicture?'Picture':'Shape'}</h4>`);
       if(kind==='text')rows.push(`<label>Text<input type="text" data-text-content aria-label="Text content" value="${esc(node.textContent||'')}"></label>`);
       for(const [name,label,attrs] of geometry)rows.push(number(name,label,raw(name)??(name==='font-size'?'16':'0'),attrs));
@@ -313,6 +330,12 @@ export function createInspector(host, store, history, canvas, { openColour = nul
       // and the place in the paint order all belong to the piece and none of
       // them knows what it draws (docs/V4_ROADMAP.md, V4-032).
       if(isPicture&&replacePicture)rows.push(`<label class="button secondary" title="A different picture on this same piece. Its movements, its pivot and its depth are unchanged.">Replace picture<input hidden type="file" data-replace-picture accept=".png,.webp,.svg,image/png,image/webp,image/svg+xml"></label>`);
+      // A picture's shape is its pixels, so bending one is a grid of points
+      // over it rather than an outline to edit (docs/V4_ROADMAP.md, Phase 7).
+      if(isPicture&&setMesh){
+        const mesh=(store.getDocument().meshes||[]).find(item=>item.target===selectedId);
+        rows.push(choiceOf('mesh','Bends',[['0','No — a flat picture'],['3','Yes, 3 × 3 points'],['4','Yes, 4 × 4 points']],String(mesh?.size||0),'data-mesh-size'));
+      }
     }
     return rows.join('');
   }

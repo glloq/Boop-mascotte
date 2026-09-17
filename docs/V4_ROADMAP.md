@@ -366,22 +366,49 @@ the SVG one does.
   to forget: the test asserts the mask's own picture is stored as a reference
   and comes back painted after a reload.
 
-## Phase 7 — `mesh-image` (4 PRs)
+## Phase 7 — `mesh-image` (4 PRs) — **done**
 
 Only now.
 
 | PR | What | Size |
 | --- | --- | --- |
-| **V4-070** | `MeshImageNode` in the model: vertices, UV, mask, depth, deformers. 3×3 and 4×4 presets only | M |
-| **V4-071** | The `MeshImageRenderer` interface — `loadTexture` / `updateVertices` / `updateUV` / `applyMask` / `render` — with no implementation chosen | S |
-| **V4-072** | The first implementation behind it, measured against V4-004 | L |
-| **V4-073** | The three cases: bird's lower beak, human cheek and mouth, animal muzzle | M |
+| **V4-070** — done | `meshes` beside `warps` in the rig: target, size, moved points in unit space | M |
+| **V4-071** — done | No interface was needed: the answer is SVG, and an interface to defer a choice already made is ceremony | S |
+| **V4-072** — done | Triangles of the same picture, each clipped and carrying its own affine | M |
+| **V4-073** — done | One mechanism, so the three cases are the same case: any picture, 3×3 or 4×4, any piece | S |
 
 **Exit:** all three deform through one mechanism. If they do not, the model is
 wrong and Phase 8 does not start.
 
-`core/keyforms/` and `core/warp/` already carry the interpolation maths; what
-is missing is textured rendering, which is why V4-071 defers the choice.
+### What building it corrected
+
+- **No renderer had to be chosen, because SVG could already do it.** A mesh is
+  drawn as triangles of the *same* picture, each clipped to its own triangle
+  and carrying the affine that maps its rest triangle onto its moved one. No
+  WebGL context, no texture upload, and — the real prize — no second answer to
+  any question this codebase has already answered: the sanitizer, the
+  serializer, the asset resolver and undo all keep working because nothing new
+  is being drawn, only more of what is. An exported mascot bends with no code
+  of ours running at all.
+- **So V4-071's interface was dropped.** An interface exists to defer a choice;
+  the measurement made the choice, and deferring it afterwards is ceremony.
+- **Triangles, not quads**, because three points determine an affine exactly
+  and a quad would need a projective transform, which SVG cannot express.
+- **Every cell splits along the same diagonal.** Alternating makes a
+  deformation fold differently in neighbouring cells, which reads as a crease
+  nobody put there.
+- **Each triangle's clip is grown by a hair.** Two clips meeting exactly on a
+  line leave a background hairline wherever the rasteriser rounds both sides
+  the same way.
+- **`preserveAspectRatio="none"` on every piece**, or each copy letterboxes
+  inside its own box and the pieces stop lining up.
+- **A bent picture is still a picture to the Inspector.** Reading only
+  `<image>` made bending a one-way door: the section vanished the moment it was
+  turned on, taking with it the control that turns it off.
+- **`projectVersion` moves to 5,** because a reader that drops the mesh list
+  drops a deformation its author made. `RIG_SCHEMA_VERSION` does not: a runtime
+  that ignores meshes draws the picture at rest, which is undeformed rather
+  than wrong.
 
 ## Phase 8 — The mesh editor (3 PRs)
 

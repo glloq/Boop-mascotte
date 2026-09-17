@@ -64,7 +64,7 @@ export function createArtworkCommands(store, history) {
         // undo leaves artwork pointing at an asset the project no longer lists
         // (docs/V4_ROADMAP.md, ASSET-REF). A caller sending it must name the
         // domain too, or nothing redraws.
-        for (const key of ['svgMarkup', 'elements', 'layers', 'layerMetadata', 'svgWarnings', 'assets']) if (key in payload) document[key] = structuredClone(payload[key]);
+        for (const key of ['svgMarkup', 'elements', 'layers', 'layerMetadata', 'svgWarnings', 'assets', 'meshes']) if (key in payload) document[key] = structuredClone(payload[key]);
       }, options);
     }
   };
