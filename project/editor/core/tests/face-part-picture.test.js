@@ -82,3 +82,45 @@ test('a picture part goes through the install machinery like any other',async()=
   const drawn = normalizeFacePart(drawnPart());
   assert.equal(partArtworkMarkup(drawn),drawn.artwork);
 });
+
+test('every category the library installs can be a picture, not just a mouth',async()=>{
+  // The exit this phase was written for: any standard part swaps a drawing
+  // for a photograph without anything else in the system caring. Asserted
+  // across the whole category table rather than on one example, so a category
+  // that quietly could not would be a failure rather than a thing nobody
+  // tried.
+  const { FACE_PART_CATEGORIES } = await import('../face-library/face-part-model.js');
+  const installable = FACE_PART_CATEGORIES.filter((category) => category.installable);
+  assert.ok(installable.length >= 11,`${installable.length} categories`);
+
+  for (const category of installable) {
+    const id = `${category.id.toLowerCase()}.snapshot`;
+    const part = {
+      id, category: category.id, name: `${category.label} picture`,
+      artwork: '', picture: { assetId: ID, width: 64, height: 32 },
+      roles: { [category.part]: category.part }
+    };
+    const normalized = normalizeFacePart(part);
+    assert.equal(partRenderer(normalized),'image',id);
+    assert.match(partArtworkMarkup(normalized),new RegExp(`^<image id="${category.part}" href="asset:`),id);
+
+    const { issues } = validateFacePart(part);
+    const blocking = issues.filter((issue) => issue.level !== 'warning' && (issue.field === 'artwork' || issue.field === 'picture'));
+    assert.deepEqual(blocking,[],`${id}: ${blocking.map((issue) => issue.message).join('; ')}`);
+  }
+});
+
+test('a picture and a drawing of the same part are interchangeable to everything downstream',async()=>{
+  const { remapArtworkIds } = await import('../face-library/face-part-artwork.js');
+  // Same id, same category, same role: only what draws it differs, and the
+  // install path cannot tell them apart beyond the markup it is handed.
+  const asDrawing = normalizeFacePart(drawnPart());
+  const asPicture = normalizeFacePart(picturePart());
+  for (const key of ['id', 'category', 'name', 'mountPoint', 'depth', 'host', 'variant']) assert.deepEqual(asPicture[key],asDrawing[key],key);
+  assert.deepEqual(asPicture.roles,asDrawing.roles);
+
+  for (const part of [asDrawing, asPicture]) {
+    const { renamed } = remapArtworkIds(partArtworkMarkup(part), { rename: (nodeId) => `x-${nodeId}` });
+    assert.deepEqual(renamed,{ mouth: 'x-mouth' },partRenderer(part));
+  }
+});

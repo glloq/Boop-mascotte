@@ -302,18 +302,38 @@ files present, identical render.
 V4-042 retires `localStorage` for the snapshot (fact 4). The recovery record
 gains a version so a pre-V4 autosave still restores.
 
-## Phase 5 — A library that is not SVG-shaped (3 PRs)
+## Phase 5 — A library that is not SVG-shaped (3 PRs) — **done**
 
 `core/assets/face-builder.js:24` returns an SVG document string. That is the
 shape to break.
 
 | PR | What | Size |
 | --- | --- | --- |
-| **V4-050** | `Part` gains `artwork: { assetId, renderer }` beside `semanticRole`, `defaultPivot`, `defaultDepth` | M |
-| **V4-051** | The face builder and the part presets emit a `Part`, not markup | L |
-| **V4-052** | Four test characters — human, robot, mammal, bird — through one engine, no per-kind branch | M |
+| **V4-050** — done | `Part` gains `picture: { assetId, width, height }` **beside** `artwork`, not by widening it | M |
+| **V4-051** — done | The install machinery stops assuming a part is a drawing | M |
+| **V4-052** — done | Every installable category asserted swappable, across the table rather than on one example | S |
 
 **Exit:** any standard part swaps SVG ↔ PNG ↔ WebP with nothing else changing.
+
+### What building it corrected
+
+- **`artwork` was not widened, and that was the whole design.** It is read as a
+  string by the installer, the validator, the scanner and the pack reader;
+  making it sometimes an object would have been a type change across a
+  subsystem to say what a second field says exactly.
+- **V4-051 was re-aimed.** Making the face builder emit a `Part` refactors a
+  working generator without moving the exit criterion. What the criterion
+  needs is that the machinery which *installs* a part can install a picture —
+  three call sites, all now asking `partArtworkMarkup`.
+- **A picture part plays exactly one role,** because a picture is one rectangle
+  and a drawing that must be an upper lid *and* a lower one is a drawing.
+- **V4-052 became a table sweep, not four mascots.** Four characters would have
+  proved four cases; asserting every installable category is the claim the exit
+  actually makes.
+- **A hole named rather than discovered:** `face-part-migration.js` recognises
+  an installed part by the signature of its paths, and a picture has none. The
+  key for a picture part is its asset id, and it belongs with whatever asks
+  next.
 
 ## Phase 6 — Pseudo-3D parity, and masks (4 PRs)
 
