@@ -315,9 +315,9 @@ Onze PR, dans un ordre où chaque étape laisse l'éditeur utilisable.
 | **V5-02** | Le type de rigging comme donnée de la pièce, et *États* dans le registre des stratégies | M |
 | **V5-03** | Le flux d'ajout : fichier → rôle → rigging, avec les défauts déduits du nom | L |
 | **V5-04** | La nouvelle page d'arrivée | M |
+| **V5-07** | Retrait du Character Builder et de l'assistant, et nouveau mode par défaut | **XL** |
 | **V5-05** | Retrait des 22 presets et des morphologies | M |
 | **V5-06** | Retrait des dessins non conservés et des catalogues par espèce | L |
-| **V5-07** | Retrait du Character Builder et de l'assistant | L |
 | **V5-08** | Le jeu d'yeux SVG, avec les quatre apparences fermées | L |
 | **V5-09** | Le jeu de bouches SVG et la bascule du rig de bouche vers les états | L |
 | **V5-10** | Migration : un projet existant s'ouvre, ses presets deviennent des pièces ordinaires | M |
@@ -326,6 +326,22 @@ Onze PR, dans un ordre où chaque étape laisse l'éditeur utilisable.
 **V5-01 à V5-04 avant toute suppression** : construire la porte d'entrée avant
 de retirer l'ancienne, pour ne jamais être dans un état où on ne peut plus
 commencer une mascotte.
+
+### Correction d'ordre, trouvée en implémentant
+
+Le découpage initial supprimait les presets (V5-05) avant le Character Builder
+(V5-07) qui les parcourt. **C'est l'ordre inverse du bon** : vider une
+bibliothèque que son écran affiche encore laisse une grille vide, c'est-à-dire
+un écran cassé entre deux PR. Les consommateurs partent d'abord, la donnée
+ensuite.
+
+Et V5-07 est plus gros qu'annoncé. `design.face` — l'écran du Character
+Builder — est le **mode par défaut de l'éditeur** (`DEFAULT_MODE`,
+`ui/task-router.js`) : c'est là qu'on atterrit en ouvrant un projet. Le retirer,
+c'est aussi choisir le nouveau défaut (`design.artwork`, là où les images
+arrivent), et reprendre le routeur, la barre d'écrans et la quarantaine de
+tests qui y naviguent. D'où **XL** plutôt que L, et d'où le fait que ce soit la
+seule PR de ce plan qui mérite d'être découpée elle-même.
 
 ---
 
