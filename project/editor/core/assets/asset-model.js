@@ -27,25 +27,16 @@ export const ASSET_MAX_DIMENSION = 512;
 
 export const assetKind = (asset) => (asset?.format === 'image/svg+xml' ? 'vector' : 'raster');
 
-/** `asset:<id>` — internal by construction, which is what makes it sanitizable. */
-export const ASSET_SCHEME = 'asset:';
-export const assetRef = (id) => `${ASSET_SCHEME}${id}`;
-
 /**
- * The id inside an `asset:` reference, or null for anything else.
+ * How artwork points at one -- `asset:<id>`, internal by construction, which
+ * is what makes it sanitizable.
  *
- * Deliberately strict about the id's shape: a reference is a hex hash and
- * nothing else, so a value that merely starts with `asset:` cannot smuggle a
- * path, a query or a second scheme past whoever asks this question.
+ * Defined in the runtime and re-exported here rather than written twice: the
+ * runtime has to read a reference and must never import the editor, and two
+ * copies of the same six lines is exactly the drift this file argues against
+ * everywhere else.
  */
-export function parseAssetRef(value) {
-  const text = String(value ?? '').trim();
-  if (!text.toLowerCase().startsWith(ASSET_SCHEME)) return null;
-  const id = text.slice(ASSET_SCHEME.length);
-  return /^[0-9a-f]{8,64}$/.test(id) ? id : null;
-}
-
-export const isAssetRef = (value) => parseAssetRef(value) !== null;
+export { ASSET_SCHEME, assetRef, isAssetRef, parseAssetRef } from '../../../runtime/asset-reference.js';
 
 const positiveInteger = (value) => (Number.isFinite(Number(value)) && Number(value) > 0 ? Math.round(Number(value)) : 0);
 
