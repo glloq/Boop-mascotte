@@ -62,7 +62,7 @@ test('@critical Preview offers live controls and a readiness list without writin
   // The mouth is shaped by shape keys, which are their own calibration, so the
   // template no longer arrives with nothing captured at all.
   await expect(list.locator('[data-publish-step="movements"]')).toHaveAttribute('data-publish-status', 'ready');
-  await expect(list.locator('[data-publish-step="movements"]')).toContainText('23 on · 5 set up');
+  await expect(list.locator('[data-publish-step="movements"]')).toContainText('26 on · 8 set up');
   await expect(list.locator('[data-publish-step="export"]')).toHaveAttribute('data-publish-status', 'ready');
   const model = await readiness(page);
   expect(model.faceSetup.status).toBe('ready');

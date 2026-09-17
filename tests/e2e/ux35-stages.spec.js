@@ -120,10 +120,11 @@ test('@critical every screen shows its own subject and nobody else\'s', async ({
 
   // The measurement the refactor exists for: Face Setup was nine sections in
   // one column. Each of Rig's four screens shows the sections that are its
-  // own, and none of the others.
+  // own, and none of the others. Face states joined Controls, beside the
+  // movements it is made of (docs/FACE_SVG_STATES.md).
   const sections = {
     'rig.assign': ['face-parts'],
-    'rig.controls': ['movements', 'gaze', 'handles', 'hands'],
+    'rig.controls': ['movements', 'face-states', 'gaze', 'handles', 'hands'],
     'rig.head2d': ['head-pose'],
     'rig.deform': ['holding', 'warp', 'all-parts']
   };

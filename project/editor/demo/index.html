@@ -62,6 +62,15 @@
       <h2 id="motions-heading">Motions</h2>
       <p class="row" data-motions></p>
     </section>
+    <section aria-labelledby="face-heading">
+      <h2 id="face-heading">Face states</h2>
+      <p class="row" data-eye-states></p>
+      <p class="row" data-eye-side></p>
+      <p class="row" data-visemes></p>
+      <p class="row"><label class="checks">Face <select data-speech-face></select></label><label class="checks">Saying <select data-speech-viseme></select></label></p>
+      <div class="control"><label for="speech-blend">How far between the two visemes</label><output data-speech-readout>100%</output><input type="range" id="speech-blend" min="0" max="1" step="0.02" value="1" data-speech-blend></div>
+      <p class="row"><button type="button" data-speech-sweep>Sweep AE → OO</button><button type="button" data-speech-say>Say “hello”</button><button type="button" data-face-reset>Back to neutral</button></p>
+    </section>
     <section aria-labelledby="controls-heading">
       <h2 id="controls-heading">Controls</h2>
       <div class="controls" data-controls></div>

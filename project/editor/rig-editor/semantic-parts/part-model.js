@@ -254,6 +254,28 @@ export function setSemanticControlMethod(rig, partId, control, property) {
     // One shape slot per element: a morph owned by another control (or authored by hand) must be freed first, never replaced silently.
     const owned=roles.map((role)=>part.roles[role]).filter(Boolean).map((elementId)=>({elementId,morph:rig.elements?.[elementId]?.morph})).filter(({morph})=>authoredMorph(morph)&&!(morph.generatedBy?.semanticPart===part.id&&morph.generatedBy?.control===control));
     if(owned.length){const owner=owned[0].morph.generatedBy;const error=new Error(`${owned[0].elementId} shape is already used by ${owner?.control?humanControl(owner.control):'a manual morph'}. Switch it to another method first.`);error.name='SemanticMorphOwnershipConflict';error.conflicts=owned.map(({elementId,morph})=>({elementId,property:'morph',owner:morph.generatedBy||{manual:true}}));throw error;}
+    // And a shape key **wins over a morph** on the same path (`compileRigFrame`
+    // emits the summed outline and the morph is never read), so a movement
+    // switched to Morph on a path another *movement* already shapes would
+    // silently stop working. Refused for the same reason and with the same
+    // shape of message as the clash above: the author is told which movement
+    // holds the path, which is a thing they can go and change.
+    //
+    // Only a key a movement owns. A mouth's own bow as the head looks down is
+    // a shape key belonging to no control (`templates/template-project.js`),
+    // and so is a corrective (docs/FACE_SVG_STATES.md): refusing over those
+    // would ban the legacy morph on every template mouth while naming nothing
+    // an author could switch.
+    const shaped=roles.map((role)=>part.roles[role]).filter(Boolean)
+      .map((elementId)=>({elementId,keys:(rig.shapeKeys||[]).filter((key)=>key?.target===elementId&&key.generatedBy?.control&&!(key.generatedBy.semanticPart===part.id&&key.generatedBy.control===control))}))
+      .filter(({keys})=>keys.length);
+    if(shaped.length){
+      const owner=shaped[0].keys[0].generatedBy;
+      const error=new Error(`${shaped[0].elementId} is already shaped by ${humanControl(owner.control)}, which a morph cannot share. Switch that movement to another method first.`);
+      error.name='SemanticMorphOwnershipConflict';
+      error.conflicts=shaped.map(({elementId,keys})=>({elementId,property:'shapeKey',owner:keys[0].generatedBy}));
+      throw error;
+    }
   } else {
     const conflicts=roles.map((role)=>part.roles[role]).filter(Boolean).map((elementId)=>({elementId,binding:rig.elements?.[elementId]?.bindings?.[property]})).filter(({binding})=>binding&&!(binding.generatedBy?.semanticPart===part.id&&binding.generatedBy?.control===control));
     if(conflicts.length){const error=new Error(`${conflicts[0].elementId}.${property} is already controlled.`);error.name='SemanticBindingConflict';error.conflicts=conflicts.map(({elementId,binding})=>({elementId,property,owner:binding.generatedBy?binding.generatedBy:{manual:true}}));throw error;}

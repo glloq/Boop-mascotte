@@ -47,6 +47,20 @@
       "default": 1,
       "value": 1
     },
+    "eyeSquint": {
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "eyeCurve": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
     "browRaise": {
       "type": "number",
       "min": -1,
@@ -85,6 +99,13 @@
     "mouthWidth": {
       "type": "number",
       "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "mouthRound": {
+      "type": "number",
+      "min": 0,
       "max": 1,
       "default": 0,
       "value": 0
@@ -149,6 +170,34 @@
       "type": "number",
       "min": -1,
       "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "eyeSquintLeft": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "eyeSquintRight": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "eyeCurveLeft": {
+      "type": "number",
+      "min": -2,
+      "max": 2,
+      "default": 0,
+      "value": 0
+    },
+    "eyeCurveRight": {
+      "type": "number",
+      "min": -2,
+      "max": 2,
       "default": 0,
       "value": 0
     },
@@ -524,12 +573,15 @@
       "lookX": 0,
       "lookY": 0,
       "eyeOpen": 1,
+      "eyeSquint": 0,
+      "eyeCurve": 0,
       "browRaise": 0,
       "browTilt": 0,
       "noseScrunch": 0,
       "mouthOpen": 0,
       "smile": 0,
       "mouthWidth": 0,
+      "mouthRound": 0,
       "teeth": 0,
       "tongue": 0,
       "jawOpen": 0,
@@ -539,6 +591,10 @@
       "pupilScale": 1,
       "eyeOpenLeft": 0,
       "eyeOpenRight": 0,
+      "eyeSquintLeft": 0,
+      "eyeSquintRight": 0,
+      "eyeCurveLeft": 0,
+      "eyeCurveRight": 0,
       "lookXLeft": 0,
       "lookXRight": 0,
       "lookYLeft": 0,
@@ -596,12 +652,15 @@
       "lookX": 0,
       "lookY": 0,
       "eyeOpen": 1,
+      "eyeSquint": 0,
+      "eyeCurve": 0,
       "browRaise": 0,
       "browTilt": 0,
       "noseScrunch": 0,
       "mouthOpen": 0,
       "smile": 1,
       "mouthWidth": 0,
+      "mouthRound": 0,
       "teeth": 0,
       "tongue": 0,
       "jawOpen": 0,
@@ -611,6 +670,10 @@
       "pupilScale": 1,
       "eyeOpenLeft": 0,
       "eyeOpenRight": 0,
+      "eyeSquintLeft": 0,
+      "eyeSquintRight": 0,
+      "eyeCurveLeft": 0,
+      "eyeCurveRight": 0,
       "lookXLeft": 0,
       "lookXRight": 0,
       "lookYLeft": 0,
@@ -668,12 +731,15 @@
       "lookX": 0,
       "lookY": 0,
       "eyeOpen": 1,
+      "eyeSquint": 0,
+      "eyeCurve": 0,
       "browRaise": 1,
       "browTilt": 0,
       "noseScrunch": 0,
       "mouthOpen": 1,
       "smile": 0,
       "mouthWidth": 0,
+      "mouthRound": 0,
       "teeth": 0,
       "tongue": 0,
       "jawOpen": 0,
@@ -683,6 +749,10 @@
       "pupilScale": 1,
       "eyeOpenLeft": 0,
       "eyeOpenRight": 0,
+      "eyeSquintLeft": 0,
+      "eyeSquintRight": 0,
+      "eyeCurveLeft": 0,
+      "eyeCurveRight": 0,
       "lookXLeft": 0,
       "lookXRight": 0,
       "lookYLeft": 0,
@@ -3613,7 +3683,8 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M37 44.5 L129 44.5 L129 74.5 Q83 90.5 37 74.5 Z"
     },
     "lidLowerLeft": {
       "baseTransform": {
@@ -3649,7 +3720,8 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M37 179.5 L129 179.5 L129 149.5 Q83 137.5 37 149.5 Z"
     },
     "rimLeft": {
       "baseTransform": {
@@ -3894,7 +3966,8 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M111 44.5 L203 44.5 L203 74.5 Q157 90.5 111 74.5 Z"
     },
     "lidLowerRight": {
       "baseTransform": {
@@ -3930,7 +4003,8 @@
       "symmetryPeer": null,
       "meta": {
         "nodeType": "path"
-      }
+      },
+      "restPath": "M111 179.5 L203 179.5 L203 149.5 Q157 137.5 111 149.5 Z"
     },
     "rimRight": {
       "baseTransform": {
@@ -4850,6 +4924,114 @@
         "mouthOpen": 0.2,
         "mouthWidthLeft": -0.6,
         "headTilt": -0.2
+      }
+    },
+    {
+      "id": "viseme-rest",
+      "name": "Say Rest",
+      "source": "viseme",
+      "viseme": "REST",
+      "controls": {
+        "mouthOpen": 0,
+        "mouthWidth": 0,
+        "mouthRound": 0
+      }
+    },
+    {
+      "id": "viseme-mbp",
+      "name": "Say M · B · P",
+      "source": "viseme",
+      "viseme": "MBP",
+      "controls": {
+        "mouthOpen": 0,
+        "mouthWidth": -0.1,
+        "mouthRound": 0.1,
+        "mouthLock": 0.85
+      }
+    },
+    {
+      "id": "viseme-fv",
+      "name": "Say F · V",
+      "source": "viseme",
+      "viseme": "FV",
+      "controls": {
+        "mouthOpen": 0.16,
+        "mouthWidth": 0.1,
+        "mouthRound": 0,
+        "teeth": 0.7
+      }
+    },
+    {
+      "id": "viseme-ae",
+      "name": "Say A · E",
+      "source": "viseme",
+      "viseme": "AE",
+      "controls": {
+        "mouthOpen": 0.75,
+        "mouthWidth": 0.3,
+        "mouthRound": 0.15,
+        "teeth": 0.4
+      }
+    },
+    {
+      "id": "viseme-ee",
+      "name": "Say E · I",
+      "source": "viseme",
+      "viseme": "EE",
+      "controls": {
+        "mouthOpen": 0.3,
+        "mouthWidth": 0.85,
+        "mouthRound": 0,
+        "smile": 0.25,
+        "teeth": 0.55
+      }
+    },
+    {
+      "id": "viseme-oh",
+      "name": "Say O · AW",
+      "source": "viseme",
+      "viseme": "OH",
+      "controls": {
+        "mouthOpen": 0.6,
+        "mouthWidth": -0.35,
+        "mouthRound": 0.7,
+        "teeth": 0.2
+      }
+    },
+    {
+      "id": "viseme-oo",
+      "name": "Say OO · U",
+      "source": "viseme",
+      "viseme": "OO",
+      "controls": {
+        "mouthOpen": 0.32,
+        "mouthWidth": -0.7,
+        "mouthRound": 1
+      }
+    },
+    {
+      "id": "viseme-l",
+      "name": "Say L · N · D · T",
+      "source": "viseme",
+      "viseme": "L",
+      "controls": {
+        "mouthOpen": 0.42,
+        "mouthWidth": 0.15,
+        "mouthRound": 0,
+        "teeth": 0.5,
+        "tongue": 0.8,
+        "tongueY": -0.55
+      }
+    },
+    {
+      "id": "viseme-wq",
+      "name": "Say W · QU",
+      "source": "viseme",
+      "viseme": "WQ",
+      "controls": {
+        "mouthOpen": 0.45,
+        "mouthWidth": -0.6,
+        "mouthRound": 0.9
       }
     }
   ],
@@ -22943,6 +23125,230 @@
   ],
   "shapeKeys": [
     {
+      "id": "lidUpperLeft-eyeSquint",
+      "target": "lidUpperLeft",
+      "name": "lidUpperLeft narrowed",
+      "driver": {
+        "mode": "expression",
+        "expression": "eyeSquint + eyeSquintLeft",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "eyelids",
+        "control": "eyeSquint"
+      },
+      "delta": [
+        0,
+        3.5,
+        0,
+        3.5,
+        0,
+        3.5,
+        0,
+        3.5,
+        0,
+        3.5
+      ]
+    },
+    {
+      "id": "lidUpperLeft-eyeCurve",
+      "target": "lidUpperLeft",
+      "name": "lidUpperLeft curved",
+      "driver": {
+        "mode": "expression",
+        "expression": "eyeCurve + eyeCurveLeft",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "eyelids",
+        "control": "eyeCurve"
+      },
+      "delta": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -11,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "lidLowerLeft-eyeSquint",
+      "target": "lidLowerLeft",
+      "name": "lidLowerLeft narrowed",
+      "driver": {
+        "mode": "expression",
+        "expression": "eyeSquint + eyeSquintLeft",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "eyelids",
+        "control": "eyeSquint"
+      },
+      "delta": [
+        0,
+        -9,
+        0,
+        -9,
+        0,
+        -9,
+        0,
+        -9,
+        0,
+        -9
+      ]
+    },
+    {
+      "id": "lidLowerLeft-eyeCurve",
+      "target": "lidLowerLeft",
+      "name": "lidLowerLeft curved",
+      "driver": {
+        "mode": "expression",
+        "expression": "eyeCurve + eyeCurveLeft",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "eyelids",
+        "control": "eyeCurve"
+      },
+      "delta": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -11,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "lidUpperRight-eyeSquint",
+      "target": "lidUpperRight",
+      "name": "lidUpperRight narrowed",
+      "driver": {
+        "mode": "expression",
+        "expression": "eyeSquint + eyeSquintRight",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "eyelids",
+        "control": "eyeSquint"
+      },
+      "delta": [
+        0,
+        3.5,
+        0,
+        3.5,
+        0,
+        3.5,
+        0,
+        3.5,
+        0,
+        3.5
+      ]
+    },
+    {
+      "id": "lidUpperRight-eyeCurve",
+      "target": "lidUpperRight",
+      "name": "lidUpperRight curved",
+      "driver": {
+        "mode": "expression",
+        "expression": "eyeCurve + eyeCurveRight",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "eyelids",
+        "control": "eyeCurve"
+      },
+      "delta": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -11,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "lidLowerRight-eyeSquint",
+      "target": "lidLowerRight",
+      "name": "lidLowerRight narrowed",
+      "driver": {
+        "mode": "expression",
+        "expression": "eyeSquint + eyeSquintRight",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "eyelids",
+        "control": "eyeSquint"
+      },
+      "delta": [
+        0,
+        -9,
+        0,
+        -9,
+        0,
+        -9,
+        0,
+        -9,
+        0,
+        -9
+      ]
+    },
+    {
+      "id": "lidLowerRight-eyeCurve",
+      "target": "lidLowerRight",
+      "name": "lidLowerRight curved",
+      "driver": {
+        "mode": "expression",
+        "expression": "eyeCurve + eyeCurveRight",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "eyelids",
+        "control": "eyeCurve"
+      },
+      "delta": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -11,
+        0,
+        0
+      ]
+    },
+    {
       "id": "mouth-open",
       "target": "mouth",
       "name": "Mouth open",
@@ -23024,6 +23430,34 @@
         -13,
         2,
         8
+      ]
+    },
+    {
+      "id": "mouth-round",
+      "target": "mouth",
+      "name": "Round",
+      "driver": {
+        "mode": "range",
+        "parameter": "mouthRound",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "mouthRound"
+      },
+      "delta": [
+        19,
+        0,
+        0,
+        -7,
+        -19,
+        0,
+        0,
+        9,
+        19,
+        0
       ]
     },
     {
@@ -23183,6 +23617,34 @@
       ]
     },
     {
+      "id": "teeth-round",
+      "target": "teeth",
+      "name": "Teeth with the pucker",
+      "driver": {
+        "mode": "expression",
+        "expression": "mouthRound",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "teeth"
+      },
+      "delta": [
+        13.700000000000003,
+        -1.6000000000000227,
+        0,
+        -5.399999999999977,
+        -13.700000000000017,
+        -1.6000000000000227,
+        0,
+        -5.399999999999977,
+        13.700000000000003,
+        -1.6000000000000227
+      ]
+    },
+    {
       "id": "tongue-open",
       "target": "tongue",
       "name": "Tongue with the jaw",
@@ -23264,6 +23726,34 @@
         4.300000000000011,
         0.799999999999983,
         0.6999999999999886
+      ]
+    },
+    {
+      "id": "tongue-round",
+      "target": "tongue",
+      "name": "Tongue with the pucker",
+      "driver": {
+        "mode": "expression",
+        "expression": "mouthRound",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "tongue"
+      },
+      "delta": [
+        -8,
+        3.6999999999999886,
+        0,
+        5.300000000000011,
+        8,
+        3.6999999999999886,
+        0,
+        5.300000000000011,
+        -8,
+        3.6999999999999886
       ]
     },
     {

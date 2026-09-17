@@ -46,6 +46,10 @@ almost every rig requires nothing and loads exactly as before.
 | `transitionToExpression(id, { duration })` | cross-fade to one expression from whatever is showing |
 | `clearExpression(id)` / `clearExpressions()` | let expressions go |
 | `getExpressions()` / `getExpressionWeights()` | targets asked for / weights showing |
+| `getVisemes()` | the speech shapes this mascot has, `[{ key, id, name }]`; empty for a mouth that never got them |
+| `setViseme(key, weight, { duration })` | say one, **keeping the face it is wearing** |
+| `blendVisemes(previous, next, blend, { duration })` | where the mouth is between two of them; both live at once, never through rest |
+| `clearVisemes()` | stop speaking, leaving the face exactly as it is |
 | `playMotion(id, { layer, fade, easing })` | cross-fade to a motion from whatever is playing; `layer: true` runs it alongside |
 | `stopMotion(id?, { fade, easing })` | fade one motion out, or every motion |
 | `getMotions()` / `getMotionWeights()` | the catalogue / the weights showing right now |
@@ -63,6 +67,34 @@ almost every rig requires nothing and loads exactly as before.
 
 `setParam` / `playAnimation` / `trigger` / `fire` remain as they were: the
 friendly names are aliases, and nothing that worked before V2 has changed.
+
+## Speech
+
+A viseme **is** an expression record, so the three calls above are the expression
+layer with one naming rule applied (`docs/VISEME_SYSTEM.md`). That is the whole
+point: expressions are mixed as weighted deltas from neutral, so speech is added
+to the face rather than replacing it.
+
+```js
+mascot.setExpression('happy');
+mascot.setViseme('AE', 1);            // happy, saying AE — the smile stays
+mascot.blendVisemes('AE', 'OO', 0.5); // halfway between the two, not at rest
+```
+
+A lipsync owns the clock and the phoneme track; the runtime owns the mouth. Every
+frame, hand it the pair either side of the playhead and the fraction between
+them:
+
+```js
+const TRACK = [['MBP', 120], ['EE', 150], ['L', 130], ['OH', 190], ['OO', 170], ['REST', 200]];
+let time = elapsed, i = 0;
+while (i < TRACK.length && time > TRACK[i][1]) { time -= TRACK[i][1]; i += 1; }
+mascot.blendVisemes(i === 0 ? 'REST' : TRACK[i - 1][0], TRACK[i][0], time / TRACK[i][1]);
+```
+
+There is no audio, no phoneme recognition and no speech clock in the runtime,
+deliberately. A viseme the mascot has not got is ignored rather than refused, so
+a track containing a `WQ` still plays on a mouth that never learned one.
 
 ## Cross-fades
 

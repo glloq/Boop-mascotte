@@ -26,16 +26,25 @@ test('@critical one press fills an empty mascot with faces, motions, reactions a
   // One command: one document mutation, one undo step, four domains.
   expect(await mutations(page)).toBe(before + 1);
   const built = await documentOf(page);
-  expect(built.expressions.map((item) => item.id)).toEqual(['happy', 'sad', 'surprised', 'angry', 'curious', 'excited', 'sleepy', 'confused']);
+  // The eight faces, then the eight speech shapes: a viseme is an expression
+  // record like any other, which is what lets the mascot speak *while* being
+  // happy (docs/VISEME_SYSTEM.md).
+  expect(built.expressions.map((item) => item.id)).toEqual(['happy', 'sad', 'surprised', 'angry', 'curious', 'excited', 'sleepy', 'confused',
+    'viseme-rest', 'viseme-mbp', 'viseme-fv', 'viseme-ae', 'viseme-ee', 'viseme-oh', 'viseme-oo', 'viseme-l']);
   expect(built.animationClips.map((item) => item.motion.preset)).toEqual(['nod', 'shake', 'bounce', 'tilt', 'blink', 'look-around']);
   expect(built.reactions.map((item) => item.id)).toEqual(['surprise', 'greet', 'notice', 'glance']);
   expect(built.behaviors.some((item) => item.type === 'blink' && item.enabled)).toBe(true);
   // Every reaction points at something this same press created.
   for (const reaction of built.reactions) expect(built.expressions.some((item) => item.id === reaction.expression?.id) || built.animationClips.some((item) => item.id === reaction.motion?.clipId)).toBe(true);
 
-  await expect(page.locator('#expressions-panel')).toHaveAttribute('data-expressions-count', '8');
+  // Sixteen: the eight faces and the eight speech shapes, which are expression
+  // records too (docs/VISEME_SYSTEM.md). The panel lists them under two
+  // headings and the count says how many the project holds, all told.
+  await expect(page.locator('#expressions-panel')).toHaveAttribute('data-expressions-count', '16');
+  await expect(page.locator('#expressions-panel .expression-list[aria-label="Speech shapes"] li')).toHaveCount(8);
+  await expect(page.locator('#expressions-panel .expression-list[aria-label="Expressions"] li')).toHaveCount(8);
   // The template already runs its automatic life, so the kit only adds the rest.
-  await expect(page.locator('#expressions-panel [role="status"]')).toContainText('8 faces, 6 motions and 4 reactions');
+  await expect(page.locator('#expressions-panel [role="status"]')).toContainText('8 faces, 8 speech shapes, 6 motions and 4 reactions');
   // Nothing left to add: the offer takes itself off the panels.
   await expect(page.locator('[data-starter-kit]')).toHaveCount(0);
 

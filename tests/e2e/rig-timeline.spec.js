@@ -58,8 +58,25 @@ test('Head calibration and controls update the real SVG transform',async({page})
   await page.locator('[data-movement-open="headTilt"]').click();const tilt=page.locator('[data-rig-control="head:headTilt"]');await tilt.fill('1');await tilt.dispatchEvent('change');await expect(head).toHaveAttribute('transform',/rotate/);await page.getByRole('button',{name:'Center',exact:true}).click();expect(errors).toEqual([]);
 });
 
+test('a morph is refused on a path another movement already shapes, and says which',async({page})=>{
+  // A shape key wins over a morph on the same outline (`compileRigFrame` emits
+  // the summed path and the morph is never read), so a movement switched to
+  // Morph there would silently stop working. The lids carry Narrow and Lid
+  // curve as shapes of their own (docs/FACE_SVG_STATES.md), so this is the
+  // clash an author meets first.
+  await load(page,'basic');await part(page,'Eyelids','controls');
+  await page.locator('[data-method="eyeOpen"]').selectOption('morph');
+  await expect(page.locator('.rig-instruction')).toContainText('already shaped by Eye Squint, which a morph cannot share');
+  await expect(page.locator('[data-method="eyeOpen"]')).toHaveValue('translateY','and the movement is left as it was');
+});
+
 test('Eye Open morph preserves closed-zero/open-one orientation on real paths',async({page})=>{
-  const errors=monitor(page);await load(page,'basic');await part(page,'Eyelids','controls');await page.locator('[data-method="eyeOpen"]').selectOption('morph');await page.locator('[data-rig-tab="calibrate"]').click();
+  const errors=monitor(page);await load(page,'basic');
+  // The lids' own two shaped movements hold the outline, and a morph cannot
+  // share it: switching them off is what frees the path (see above).
+  await openSetupSection(page,'movements');
+  for (const label of ['Enable Narrow (Eyes)','Enable Lid curve (Eyes)']) await page.getByLabel(label).uncheck();
+  await part(page,'Eyelids','controls');await page.locator('[data-method="eyeOpen"]').selectOption('morph');await page.locator('[data-rig-tab="calibrate"]').click();
   const closed='M 61 100 Q 85 100 109 100',open='M 61 100 Q 85 78 109 100',eye=page.locator('#lidUpperLeft');
   await captureMorph(page,'eyeOpen','closed','lidUpperLeft',closed);
   await captureMorph(page,'eyeOpen','open','lidUpperLeft',open);
@@ -75,7 +92,7 @@ test('method switching preserves manual bindings and cleans only owned metadata'
   // The face's own. A generated pair of hands carries two hundred more — a key
   // per part per pose per view — and none of them is the mouth's to lose.
   const faceKeys=(document)=>document.shapeKeys.map(key=>key.id).filter(id=>!/^hand(Left|Right)-/.test(id));
-  expect(faceKeys(model)).toEqual(['mouth-open','mouth-smile','mouth-frown','mouth-skull','teeth-skull','tongue-skull','teeth-open','teeth-show','teeth-follow','tongue-open','tongue-show','tongue-follow','head-jaw']);
+  expect(faceKeys(model)).toEqual(['lidUpperLeft-eyeSquint','lidUpperLeft-eyeCurve','lidLowerLeft-eyeSquint','lidLowerLeft-eyeCurve','lidUpperRight-eyeSquint','lidUpperRight-eyeCurve','lidLowerRight-eyeSquint','lidLowerRight-eyeCurve','mouth-open','mouth-smile','mouth-frown','mouth-round','mouth-skull','teeth-skull','tongue-skull','teeth-open','teeth-show','teeth-follow','teeth-round','tongue-open','tongue-show','tongue-follow','tongue-round','head-jaw']);
   expect(model.elements.mouth.bindings.scaleY).toBeUndefined();
 
   // Switching a control's method takes its shapes with it, and leaves the
@@ -84,11 +101,20 @@ test('method switching preserves manual bindings and cleans only owned metadata'
   // movement of the mouth, so no control owns them and no method switch takes
   // them away (`docs/MASCOT_TEMPLATE.md`).
   await page.locator('[data-method="smile"]').selectOption('translateY');model=await state(page);
-  expect(faceKeys(model)).toEqual(['mouth-open','mouth-skull','teeth-skull','tongue-skull','teeth-open','teeth-show','teeth-follow','tongue-open','tongue-show','tongue-follow','head-jaw']);
+  expect(faceKeys(model)).toEqual(['lidUpperLeft-eyeSquint','lidUpperLeft-eyeCurve','lidLowerLeft-eyeSquint','lidLowerLeft-eyeCurve','lidUpperRight-eyeSquint','lidUpperRight-eyeCurve','lidLowerRight-eyeSquint','lidLowerRight-eyeCurve','mouth-open','mouth-round','mouth-skull','teeth-skull','tongue-skull','teeth-open','teeth-show','teeth-follow','teeth-round','tongue-open','tongue-show','tongue-follow','tongue-round','head-jaw']);
   expect(model.elements.mouth.bindings.translateY.generatedBy.control).toBe('smile');
 
   // One legacy morph per element, still: once Smile owns the element's shape,
   // the second control to ask for it is refused rather than replacing it.
+  //
+  // The outline has to be free first. A shape key wins over a morph on the same
+  // path, so Open and Round have to stop shaping it before Smile can morph it —
+  // Open by moving to a transform, Round by going off, because rounding a mouth
+  // is a shape and nothing else (docs/VISEME_SYSTEM.md).
+  await page.locator('[data-method="mouthOpen"]').selectOption('scaleY');
+  await openSetupSection(page,'movements');
+  await page.getByLabel('Enable Round (Mouth)').uncheck();
+  await part(page,'Mouth','controls');
   await page.locator('[data-method="smile"]').selectOption('morph');
   await page.locator('[data-rig-tab="calibrate"]').click();
   await captureMorph(page,'smile','neutral','mouth',null);
@@ -96,17 +122,23 @@ test('method switching preserves manual bindings and cleans only owned metadata'
   await page.locator('[data-rig-tab="controls"]').click();
   await page.locator('[data-method="mouthOpen"]').selectOption('morph');
   await expect(page.locator('.rig-instruction')).toContainText('already used by Smile');
-  await expect(page.locator('[data-method="mouthOpen"]')).toHaveValue('shapeKey');
+  // Refused, and Open is left on the method it was actually on -- the transform
+  // it was moved to above, to get the outline out of Smile's way.
+  await expect(page.locator('[data-method="mouthOpen"]')).toHaveValue('scaleY');
 
   await page.locator('[data-method="mouthOpen"]').selectOption('scaleY');model=await state(page);
-  expect(faceKeys(model)).toEqual(['mouth-skull','teeth-skull','tongue-skull','teeth-open','teeth-show','teeth-follow','tongue-open','tongue-show','tongue-follow','head-jaw'],'the teeth, the tongue and the jaw belong to their own controls, and the head-follow to none');
+  expect(faceKeys(model)).toEqual(['lidUpperLeft-eyeSquint','lidUpperLeft-eyeCurve','lidLowerLeft-eyeSquint','lidLowerLeft-eyeCurve','lidUpperRight-eyeSquint','lidUpperRight-eyeCurve','lidLowerRight-eyeSquint','lidLowerRight-eyeCurve','mouth-skull','teeth-skull','tongue-skull','teeth-open','teeth-show','teeth-follow','teeth-round','tongue-open','tongue-show','tongue-follow','tongue-round','head-jaw'],'the teeth, the tongue and the jaw belong to their own controls, the lids to theirs, and the head-follow to none');
   expect(model.elements.mouth.bindings.scaleY.generatedBy.control).toBe('mouthOpen');
   expect(model.elements.mouth.bindings.opacity.expression).toBe('.5','a manual binding is nobody else\'s to clean up');
   expect(model.elements.mouth.morph.generatedBy.control).toBe('smile');
 });
 
 test('binding conflicts warn and preserve the existing owner',async({page})=>{
-  const errors=monitor(page);await load(page,'basic');await part(page,'Mouth','controls');await page.locator('[data-method="smile"]').selectOption('translateY');await page.locator('[data-method="mouthOpen"]').selectOption('morph');await expect.poll(()=>state(page).then(s=>s.semanticParts.mouth.controlDrivers.mouthOpen.method)).toBe('morph');await page.evaluate(()=>window.__BOOP_E2E__.mutate(s=>{s.elements.mouth.bindings.scaleY={enabled:true,expression:'manual'};}));
+  const errors=monitor(page);await load(page,'basic');
+  // Round holds the mouth's outline as a shape, and a morph cannot share a
+  // path with one, so it goes off before Open asks to morph the same shape.
+  await openSetupSection(page,'movements');await page.getByLabel('Enable Round (Mouth)').uncheck();
+  await part(page,'Mouth','controls');await page.locator('[data-method="smile"]').selectOption('translateY');await page.locator('[data-method="mouthOpen"]').selectOption('morph');await expect.poll(()=>state(page).then(s=>s.semanticParts.mouth.controlDrivers.mouthOpen.method)).toBe('morph');await page.evaluate(()=>window.__BOOP_E2E__.mutate(s=>{s.elements.mouth.bindings.scaleY={enabled:true,expression:'manual'};}));
   await page.locator('[data-method="mouthOpen"]').selectOption('scaleY');await expect(page.locator('.rig-instruction')).toContainText('already controlled');const model=await state(page);expect(model.elements.mouth.bindings.scaleY.expression).toBe('manual');expect(model.semanticParts.mouth.controlDrivers.mouthOpen.method).toBe('morph');expect(errors).toEqual([]);
 });
 
