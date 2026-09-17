@@ -74,6 +74,14 @@ test('@critical legacy empty state and demo bar are removed; Home, Artwork and P
 // at them. The four "by itself" reactions moved from `timer` to `idle` -- they
 // wait for you to stop, they do not run on a clock -- and three `gaze-follow`
 // reactions joined them.
+//
+// V4-07x and V4-090: two additive blocks, both empty on this template. `meshes`
+// is the top-level list of pictures that bend, and every reaction gained
+// `conditions` -- the IF of `WHEN -> IF -> DO`. Nothing was removed, nothing
+// else changed, and `mascot.svg` is byte for byte what it was: a rig with no
+// meshes and no conditions says so rather than leaving the reader to guess
+// whether the writer knew about them. `requires` is unchanged, because a rig
+// that uses no conditions asks for nothing (`runtime/reaction-conditions.js`).
 test('@critical Basic Face export artifacts are identical to the pre-removal fixtures', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);

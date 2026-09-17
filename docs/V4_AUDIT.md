@@ -117,6 +117,15 @@ These are defects found by re-reading the diff after the programme was
 6. **`ASSET_IMPORT_MAX_BYTES` was enforced and never tested.** It is the *first*
    check in `validateAssetBytes`, so it is what stops 33 MB of something being
    parsed to discover it was not wanted; now covered.
+7. **The export baseline had drifted without being re-read.**
+   `ux23-legacy-removal.spec.js` pins the Basic Face's exported `rig.json`
+   against a fixture, with a comment block recording every legitimate change
+   since. Two additive blocks had arrived without being written into it —
+   `meshes` at the top level and an empty `conditions` on every reaction — so
+   the baseline was regenerated, after proving mechanically that the reactions
+   gained exactly one key and lost nothing, and that `mascot.svg` is still byte
+   for byte what it was. A pinned baseline whose deviations are not recorded is
+   a pinned baseline nobody believes.
 
 ## 4. What was checked and found sound
 

@@ -17,12 +17,17 @@ matters, not the exact number.
 
 | | Vector path | Picture path |
 | --- | --- | --- |
-| Get a rigged mascot on screen | **1 press** — *Start from the ready-made face* | **~18** — import, drag, resize, per piece |
-| Make it yours | swap parts in Design ▸ Face | already yours |
-| Assign face roles | already assigned | **8** — Rig ▸ Assign, four roles |
-| Turn on movements | already on | **4+** — Rig ▸ Controls |
-| Expressions, automatic life, a reaction | ~5 | ~5 |
-| **Total to a moving mascot** | **~7** | **~35** |
+| Get the pieces on screen, in the right places | **1 press** — *Start from the ready-made face*, already placed | **~18** — import, drag, resize, per piece |
+| Make it look like your character | swap parts in Design ▸ Face (as many as you like) | already does |
+| Assign the face roles | already assigned | **~8** — Rig ▸ Assign, four roles |
+| Turn on the movements | already on | **4+** — Rig ▸ Controls |
+| Expressions, automatic life, a reaction, export | ~7 | ~7 |
+| **Total to a moving mascot** | **~8** | **~37** |
+
+The vector column's first row is one press because the template arrives placed,
+assigned and rigged; the *personalising* it then invites is open-ended and not
+counted, because that is the work, not the setup. The picture column's first
+four rows are all setup.
 
 Both paths end in the same place. One of them starts there.
 
@@ -129,10 +134,13 @@ and enable the movements that role carries. One press, one undo step, a rigged
 mascot — the same ending the vector path already has.
 
 **This is mostly orchestration of commands that exist.** `assets.import`,
-`placeBaseInArtboard`, `placeImageInArtboard`, `canvas.appendArtwork`,
-`semanticRigCommands.assignFaceRoles`, `enableControl` — `editor-app.js`'s own
-`createMascot()` already composes the last two for the vector path. What is new
-is the surface and a small table of role → position, size and controls.
+`placeBaseInArtboard`, `placeImageInArtboard` and `canvas.appendArtwork` already
+do the importing and placing; `semanticRigCommands.assignFaceRoles` and
+`enableControls` already do the rigging, as one undo step each, for the Face
+Setup and Face Movements panels. What is new is the surface and a small table of
+role → position, size and movements — the rest is calling four commands in
+order, which is the shape `editor-app.js`'s `createMascot()` already has for the
+vector path.
 
 It also disposes of 2.1, 2.2, 2.3, 2.5 and 2.6 in one move, because a piece that
 arrives knowing its role needs none of them.

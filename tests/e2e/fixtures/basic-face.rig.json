@@ -8640,6 +8640,7 @@
       "trigger": {
         "type": "click"
       },
+      "conditions": [],
       "expression": {
         "id": "surprised",
         "weight": 1
@@ -8670,6 +8671,7 @@
       "trigger": {
         "type": "click"
       },
+      "conditions": [],
       "expression": {
         "id": "happy",
         "weight": 1
@@ -8700,6 +8702,7 @@
       "trigger": {
         "type": "click"
       },
+      "conditions": [],
       "expression": {
         "id": "laughing",
         "weight": 1
@@ -8730,6 +8733,7 @@
       "trigger": {
         "type": "click"
       },
+      "conditions": [],
       "expression": {
         "id": "shy",
         "weight": 1
@@ -8754,6 +8758,7 @@
       "trigger": {
         "type": "click"
       },
+      "conditions": [],
       "expression": {
         "id": "annoyed",
         "weight": 1
@@ -8784,6 +8789,7 @@
       "trigger": {
         "type": "click"
       },
+      "conditions": [],
       "expression": {
         "id": "excited",
         "weight": 1
@@ -8814,6 +8820,7 @@
       "trigger": {
         "type": "hover"
       },
+      "conditions": [],
       "expression": {
         "id": "happy",
         "weight": 1
@@ -8838,6 +8845,7 @@
       "trigger": {
         "type": "hover"
       },
+      "conditions": [],
       "expression": {
         "id": "curious",
         "weight": 1
@@ -8862,6 +8870,7 @@
       "trigger": {
         "type": "hover"
       },
+      "conditions": [],
       "expression": {
         "id": "happy",
         "weight": 1
@@ -8886,6 +8895,7 @@
       "trigger": {
         "type": "gaze-follow"
       },
+      "conditions": [],
       "expression": null,
       "motion": null,
       "gestures": [],
@@ -8905,6 +8915,7 @@
       "trigger": {
         "type": "gaze-follow"
       },
+      "conditions": [],
       "expression": {
         "id": "curious",
         "weight": 1
@@ -8927,6 +8938,7 @@
       "trigger": {
         "type": "gaze-follow"
       },
+      "conditions": [],
       "expression": {
         "id": "curious",
         "weight": 1
@@ -8952,6 +8964,7 @@
         "type": "idle",
         "after": 8
       },
+      "conditions": [],
       "expression": null,
       "motion": {
         "clipId": "look-around"
@@ -8974,6 +8987,7 @@
         "type": "idle",
         "after": 20
       },
+      "conditions": [],
       "expression": {
         "id": "sleepy",
         "weight": 1
@@ -8999,6 +9013,7 @@
         "type": "idle",
         "after": 15
       },
+      "conditions": [],
       "expression": {
         "id": "bored",
         "weight": 1
@@ -9024,6 +9039,7 @@
         "type": "idle",
         "after": 25
       },
+      "conditions": [],
       "expression": {
         "id": "relieved",
         "weight": 1
@@ -9049,6 +9065,7 @@
         "type": "custom",
         "name": "yes"
       },
+      "conditions": [],
       "expression": {
         "id": "happy",
         "weight": 1
@@ -9080,6 +9097,7 @@
         "type": "custom",
         "name": "no"
       },
+      "conditions": [],
       "expression": {
         "id": "sad",
         "weight": 1
@@ -9111,6 +9129,7 @@
         "type": "custom",
         "name": "success"
       },
+      "conditions": [],
       "expression": {
         "id": "excited",
         "weight": 1
@@ -9142,6 +9161,7 @@
         "type": "custom",
         "name": "error"
       },
+      "conditions": [],
       "expression": {
         "id": "worried",
         "weight": 1
@@ -9173,6 +9193,7 @@
         "type": "custom",
         "name": "thinking"
       },
+      "conditions": [],
       "expression": {
         "id": "thinking",
         "weight": 1
@@ -23173,6 +23194,7 @@
     }
   ],
   "warps": [],
+  "meshes": [],
   "hands": {
     "left": {
       "side": "left",
