@@ -49,9 +49,11 @@ import { hasRigConstraints, normalizeRigConstraints, solveRigConstraints } from 
 import { normalizeRigAttachments, normalizeRigHolds, solveRigHolds } from './rig-attachments.js';
 import { collectAssetReferences, paintAssetReferences } from './asset-paint.js';
 import { applyMeshesToDom, normalizeMeshes } from './mesh-warp.js';
+import { PART_STATES_REQUIREMENT, applyPartStatesToDom, normalizePartStates, primePartStates } from './part-states.js';
 import { CONDITION_REQUIREMENT, conditionsHold, normalizeConditions } from './reaction-conditions.js';
 export { CONDITION_OPERATORS, CONDITION_REQUIREMENT, conditionsHold, describeCondition, normalizeCondition, normalizeConditions } from './reaction-conditions.js';
 export { applyMeshesToDom, meshPointsAt, meshWeight, normalizeMeshes, restMesh } from './mesh-warp.js';
+export { PART_STATES_REQUIREMENT, PART_STATE_SLOTS, applyPartStatesToDom, describePartState, normalizePartState, normalizePartStateSet, normalizePartStates, primePartStates, stateElements, stateFor } from './part-states.js';
 export { assetRef, isAssetRef, parseAssetRef } from './asset-reference.js';
 export { createAssetResolver } from './asset-resolver.js';
 export { collectAssetReferences, paintAssetReferences, restoreAssetReferences } from './asset-paint.js';
@@ -883,7 +885,7 @@ export const UNPROMPTED_REACTION_TRIGGERS = Object.freeze(['idle', 'timer']);
  * The schema version is bumped alongside, for runtimes old enough to read
  * neither.
  */
-export const RUNTIME_FEATURES = Object.freeze(['trigger:gaze-follow', 'trigger:idle', CONDITION_REQUIREMENT]);
+export const RUNTIME_FEATURES = Object.freeze(['trigger:gaze-follow', 'trigger:idle', CONDITION_REQUIREMENT, PART_STATES_REQUIREMENT]);
 
 /** The feature marker one trigger needs, or `null` when every runtime has it. */
 export const triggerRequirement = (type) => (type === 'idle' || type === 'gaze-follow' ? `trigger:${type}` : null);
@@ -900,6 +902,10 @@ export function rigRequirements(rig = {}) {
     // (VNX-39, runtime/reaction-conditions.js).
     if (normalizeConditions(reaction?.conditions).length) found.add(CONDITION_REQUIREMENT);
   }
+  // A piece with states is the one thing an older runtime would draw *more* of
+  // rather than less: not knowing which drawing to show, it shows all of them,
+  // stacked (runtime/part-states.js).
+  if (normalizePartStates(rig).length) found.add(PART_STATES_REQUIREMENT);
   return [...found].sort();
 }
 
@@ -1229,6 +1235,11 @@ export function createMascotEngine({ svgRoot, rig, assetResolver = null, fps = 2
   const overrides = {}, behaviors = normalizeBehaviors(rig), behaviorController = createBehaviorController({ random }); let transition = null, raf = 0, last = 0, started = 0, generation = 0;
   const expressions = normalizeExpressions(rig);
   const meshes = normalizeMeshes(rig);
+  // Pieces that are several drawings with one showing (runtime/part-states.js).
+  // `showing` is the memory a swap needs: without it every frame would rewrite
+  // a `display` that already says what it should.
+  const partStates = normalizePartStates(rig), showingStates = new Map();
+  if (partStates.length) primePartStates(svgRoot, partStates);
   // Expression weights ramp rather than jump. The default span is 0, so a rig
   // that does not configure one behaves exactly as it did before V2; any span
   // makes a change start from the weight currently on screen, never from
@@ -1386,6 +1397,9 @@ export function createMascotEngine({ svgRoot, rig, assetResolver = null, fps = 2
       // (runtime/mesh-warp.js). A mascot with no driven mesh does no work here
       // at all.
       if (meshes.length) applyMeshesToDom(svgRoot, meshes, posed);
+      // A swap costs one `display` write on the frames where the answer
+      // changed, and nothing at all on every other frame.
+      if (partStates.length) applyPartStatesToDom(svgRoot, partStates, { params: posed, state: activeState }, showingStates);
       // A no-op on every frame but the ones where a band actually moved, and
       // the hysteresis in `depthBand` is what keeps those rare.
       if (drawOrder) drawOrder.apply(depthBands);

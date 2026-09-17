@@ -317,4 +317,13 @@ export function applyMeshesToDom(root, meshes = [], values = {}, { skip = null }
 }
 
 /** `CSS.escape` where there is one, and the ids this editor writes where there is not. */
-const cssEscape = (value) => (typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(String(value)) : String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&'));
+/**
+ * `CSS.escape` where there is one, the same escape by hand where there is not:
+ * this runs in Node's tests as well as in a browser.
+ *
+ * Exported because a second module now looks a piece up by its id, and the
+ * bundler refuses two modules declaring the same name — which is the guard
+ * doing its job: two copies of an escape is two answers about which ids are
+ * safe in a selector.
+ */
+export const cssEscape = (value) => (typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(String(value)) : String(value).replace(/[^a-zA-Z0-9_-]/g, '\\$&'));
