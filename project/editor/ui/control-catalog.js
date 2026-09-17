@@ -9,6 +9,10 @@ export const CONTROL_CATALOG = Object.freeze({
   gazeX:{label:'Look at · left / right',part:'gaze',group:'Gaze'}, gazeY:{label:'Look at · up / down',part:'gaze',group:'Gaze'},
   pupilScale:{label:'Pupil size',part:'gaze',group:'Gaze'},
   smile:{label:'Smile',part:'mouth',group:'Mouth'}, mouthOpen:{label:'Open / close',part:'mouth',group:'Mouth'}, mouthWidth:{label:'Width',part:'mouth',group:'Mouth'},
+  // The three the face states and the visemes are built on
+  // (docs/FACE_SVG_STATES.md, docs/VISEME_SYSTEM.md).
+  mouthRound:{label:'Round',part:'mouth',group:'Mouth'},
+  eyeSquint:{label:'Narrow',part:'eyelids',group:'Eyes'}, eyeCurve:{label:'Lid curve',part:'eyelids',group:'Eyes'},
   browRaise:{label:'Raise',part:'eyebrows',group:'Eyebrows'}, browTilt:{label:'Tilt',part:'eyebrows',group:'Eyebrows'},
   // The two ends of a brow (CR-19). `browInnerLeft` reads back through the side
   // rule as "Inner end · left", so only the shared movements are listed.

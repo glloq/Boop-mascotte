@@ -56,9 +56,12 @@ test('a movement two parts share is one row, and switching it off reaches both',
   assert.equal(row().enabled, false);
 
   // Every other row names one part, and the jaw's reaches facial hair for the
-  // same reason: a beard is carried by the jaw opening under it.
-  assert.deepEqual(BASIC_MOVEMENTS.filter((entry) => entry.also).map((entry) => [entry.part, ...entry.also]),
-    [['eyes', 'eyelids'], ['jaw', 'facialHair']]);
+  // same reason: a beard is carried by the jaw opening under it. Narrowing and
+  // the lid curve are the *lids'* own rows rather than shared ones, because
+  // neither is a thing that can be done to an eyeball
+  // (docs/FACE_SVG_STATES.md).
+  assert.deepEqual(BASIC_MOVEMENTS.filter((entry) => entry.also).map((entry) => [entry.id, entry.part, ...entry.also]),
+    [['eyeOpen', 'eyes', 'eyelids'], ['jawOpen', 'jaw', 'facialHair']]);
 });
 
 test('every control a semantic part declares has a row that can switch it off', () => {
@@ -77,7 +80,7 @@ test('the movement checklist covers every position of the face, with availabilit
   // Every part of the face, not the ten a beginner starts with: a movement
   // that is not here has no pose chip and no live slider, which is the same as
   // not being controllable.
-  assert.equal(BASIC_MOVEMENTS.length, 23);
+  assert.equal(BASIC_MOVEMENTS.length, 26);
   assert.deepEqual([...new Set(BASIC_MOVEMENTS.map((item) => item.group))],
     ['Head', 'Eyes', 'Gaze', 'Eyebrows', 'Nose', 'Mouth', 'Jaw', 'Tongue', 'Hair', 'Ears']);
   const store = createEditorStore(faceProject()), commands = createSemanticRigCommands(store, createHistory(store));

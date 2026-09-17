@@ -52,6 +52,15 @@ export function normalizeShapeKey(source = {}) {
     ...(source?.generatedBy && typeof source.generatedBy === 'object'
       ? { generatedBy: { semanticPart: String(source.generatedBy.semanticPart ?? ''), control: String(source.generatedBy.control ?? '') } }
       : {}),
+    // Kept the same way, and for the same reason: which face state a
+    // corrective belongs to is how the authoring panel finds it again
+    // (docs/FACE_SVG_STATES.md). A frame never reads it -- the driver
+    // expression is the whole of what a corrective does -- and a shape key
+    // written before correctives existed simply has none.
+    ...(source?.faceState && typeof source.faceState === 'object' && source.faceState.kind && source.faceState.slot
+      ? { faceState: { kind: String(source.faceState.kind), slot: String(source.faceState.slot),
+        ...(source.faceState.side === 'left' || source.faceState.side === 'right' ? { side: source.faceState.side } : {}) } }
+      : {}),
     delta: Array.from(source?.delta || [], (value) => finite(value, 0))
   };
 }

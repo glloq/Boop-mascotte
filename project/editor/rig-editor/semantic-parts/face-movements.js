@@ -36,6 +36,13 @@ export const BASIC_MOVEMENTS = Object.freeze([
   // carrying the same `eyeOpen`. One row covers both (`also`), or switching
   // the movement off would leave the face blinking with its own control gone.
   Object.freeze({ id: 'eyeOpen', band: 'Eyes', part: 'eyes', also: Object.freeze(['eyelids']), label: 'Open / close', group: 'Eyes', axis: 'y' }),
+  // The two axes an eyelid has that `eyeOpen` cannot carry
+  // (docs/FACE_SVG_STATES.md). A narrowed eye is not a half-shut one, and a
+  // shut eye that arcs upwards is not the shut eye that lies flat. They are
+  // the *lids'* -- the lid is what draws the eye's line -- and they are filed
+  // under Eyes because that is the part of the face an author is posing.
+  Object.freeze({ id: 'eyeSquint', band: 'Eyes', part: 'eyelids', label: 'Narrow', group: 'Eyes', axis: 'y' }),
+  Object.freeze({ id: 'eyeCurve', band: 'Eyes', part: 'eyelids', label: 'Lid curve', group: 'Eyes', axis: 'y' }),
   Object.freeze({ id: 'lookX', band: 'Eyes', part: 'gaze', label: 'Look left / right', group: 'Gaze', axis: 'x', pair: 'lookY' }),
   Object.freeze({ id: 'lookY', band: 'Eyes', part: 'gaze', label: 'Look up / down', group: 'Gaze', axis: 'y', pair: 'lookX' }),
   // The pupils dilate. It is one movement writing two scale axes, which is why
@@ -47,6 +54,9 @@ export const BASIC_MOVEMENTS = Object.freeze([
   Object.freeze({ id: 'mouthOpen', band: 'Mouth', part: 'mouth', label: 'Open / close', group: 'Mouth', axis: 'y' }),
   Object.freeze({ id: 'smile', band: 'Mouth', part: 'mouth', label: 'Smile', group: 'Mouth', axis: 'y' }),
   Object.freeze({ id: 'mouthWidth', band: 'Mouth', part: 'mouth', label: 'Width', group: 'Mouth', axis: 'x' }),
+  // How far the lips pucker, which is the difference between AE and OO and is
+  // not how wide or how open the mouth is (docs/VISEME_SYSTEM.md).
+  Object.freeze({ id: 'mouthRound', band: 'Mouth', part: 'mouth', label: 'Round', group: 'Mouth', axis: 'x' }),
   Object.freeze({ id: 'teeth', band: 'Mouth', part: 'mouth', label: 'Teeth', group: 'Mouth', axis: 'y' }),
   Object.freeze({ id: 'tongue', band: 'Mouth', part: 'mouth', label: 'Tongue', group: 'Mouth', axis: 'y' }),
   // A beard is carried by the jaw that opens under it, on the same control.

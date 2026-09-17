@@ -26,6 +26,7 @@ import assetResolverSource from '../../../runtime/asset-resolver.js?raw';
 import meshWarpSource from '../../../runtime/mesh-warp.js?raw';
 import reactionConditionsSource from '../../../runtime/reaction-conditions.js?raw';
 import partStatesSource from '../../../runtime/part-states.js?raw';
+import visemesSource from '../../../runtime/visemes.js?raw';
 import { bundleRuntimeSource } from './runtime-bundle.js';
 import { createExportRig } from './export-rig.js';
 import { EXPORT_BUNDLE, createExportArtifacts as buildExportArtifacts, createExportUiModel } from './export-policy.js';
@@ -83,6 +84,7 @@ export function createExporter(host, store, canvas, options = {}) {
         { name: 'mesh-warp.js', source: meshWarpSource },
         { name: 'part-states.js', source: partStatesSource },
         { name: 'reaction-conditions.js', source: reactionConditionsSource },
+        { name: 'visemes.js', source: visemesSource },
         { name: 'runtime.js', source: runtimeModuleSource }
       ])
     });

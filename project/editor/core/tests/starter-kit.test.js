@@ -4,6 +4,7 @@ import { createEditorStore } from '../state/editor-store.js';
 import { createHistory } from '../undo/history.js';
 import { createCleanProjectState } from '../state/store.js';
 import { STARTER_KIT, buildStarterKit, createStarterKitCommands, starterKitDraft, starterKitSummary } from '../starter/starter-kit.js';
+import { visemeExpressionId } from '../face-library/face-states.js';
 import { REACTION_PRESETS, REACTION_PRESET_GROUPS, instantiateReactionPreset, reactionPresetAvailabilityGroups } from '../reactions/reaction-presets.js';
 import { reactionIssues } from '../reactions/reaction-model.js';
 import { validateProject } from '../validation/validate-project.js';
@@ -27,11 +28,14 @@ test('the starter kit fills an empty mascot with faces, motions, reactions and l
   const report = buildStarterKit(document);
 
   assert.equal(report.skipped, 0, 'a project with every movement can build the whole kit');
-  assert.equal(report.added, STARTER_KIT.expressions.length + STARTER_KIT.motions.length + STARTER_KIT.reactions.length + STARTER_KIT.automatic.length);
-  assert.deepEqual(document.expressions.map((item) => item.id), [...STARTER_KIT.expressions]);
+  assert.equal(report.added, STARTER_KIT.expressions.length + STARTER_KIT.visemes.length + STARTER_KIT.motions.length + STARTER_KIT.reactions.length + STARTER_KIT.automatic.length);
+  // The faces, then the eight speech shapes: a viseme is an expression record
+  // like any other, which is what lets the mascot speak *while* being happy
+  // (docs/VISEME_SYSTEM.md).
+  assert.deepEqual(document.expressions.map((item) => item.id), [...STARTER_KIT.expressions, ...STARTER_KIT.visemes.map(visemeExpressionId)]);
   assert.deepEqual(document.animationClips.map((item) => item.motion.preset), [...STARTER_KIT.motions]);
   assert.deepEqual(document.reactions.map((item) => item.id), [...STARTER_KIT.reactions]);
-  assert.equal(starterKitSummary(report), '8 faces, 6 motions, 4 reactions and 3 automatic behaviours');
+  assert.equal(starterKitSummary(report), '8 faces, 8 speech shapes, 6 motions, 4 reactions and 3 automatic behaviours');
 
   // Reactions resolve against what the same pass just created, and never
   // against something that does not exist.
@@ -50,7 +54,7 @@ test('the kit is idempotent, and skips what the project cannot do yet', () => {
   buildStarterKit(document);
   const again = buildStarterKit(document);
   assert.equal(again.added, 0, 'pressing it twice adds nothing');
-  assert.equal(again.present, STARTER_KIT.expressions.length + STARTER_KIT.motions.length + STARTER_KIT.reactions.length + STARTER_KIT.automatic.length);
+  assert.equal(again.present, STARTER_KIT.expressions.length + STARTER_KIT.visemes.length + STARTER_KIT.motions.length + STARTER_KIT.reactions.length + STARTER_KIT.automatic.length);
 
   // A mouth-only project: the faces that need a mouth are built, everything
   // else is reported rather than half-created.
@@ -66,14 +70,14 @@ test('the whole kit is one command and one undo step across four domains', () =>
   const before = store.getDomainRevisions();
 
   const plan = commands.plan();
-  assert.equal(plan.added, 21);
+  assert.equal(plan.added, 29);
   assert.deepEqual(store.getDocument().expressions, [], 'planning authors nothing');
   assert.equal(commands.plan(), plan, 'the plan is cached until the document changes');
 
   const report = commands.add();
-  assert.equal(report.added, 21);
+  assert.equal(report.added, 29);
   const state = store.getDocument();
-  assert.equal(state.expressions.length, 8);
+  assert.equal(state.expressions.length, 16, 'eight faces and eight speech shapes');
   assert.equal(state.animationClips.length, 6);
   assert.equal(state.reactions.length, 4);
   for (const domain of ['expressions', 'animation', 'reactions', 'stateMachine']) assert.notEqual(store.getDomainRevisions()[domain], before[domain], `${domain} advanced`);

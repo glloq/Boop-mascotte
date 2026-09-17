@@ -13,7 +13,7 @@ import { enableMouthRig } from '../../rig/mouth-rig.js';
 import { enableGazeSolver } from '../../rig/gaze-rig.js';
 import { enableBrowRig } from '../../rig/brow-rig.js';
 import { createShapeKey, upsertShapeKey } from '../../shape-keys/shape-key-model.js';
-import { BROW_BOXES, BROW_RESTS, FACE_ANCHORS, FACE_CENTRES, HEAD_REST, HEAD_WIDTH, LID_TRAVEL, MOUTH_BOX, MOUTH_REST, NOSE_CENTRE, NOSE_TURN, TEETH_REST, TONGUE_REST, headPath, mouthPath, teethPath, tonguePath } from './face-artwork.js';
+import { BROW_BOXES, BROW_RESTS, FACE_ANCHORS, FACE_CENTRES, HEAD_REST, HEAD_WIDTH, LID_RESTS, LID_ROLES, LID_TRAVEL, MOUTH_BOX, MOUTH_REST, NOSE_CENTRE, NOSE_TURN, TEETH_REST, TONGUE_REST, headPath, lidPath, mouthPath, teethPath, tonguePath } from './face-artwork.js';
 import { findClip, setClipLoop } from '../../motion/motion-model.js';
 import { installStyleHands } from '../../hands/hand-style-install.js';
 import { createRigAttachment, createRigHold } from '../../rig/attachment-model.js';
@@ -27,8 +27,12 @@ const number = (min, max, value = 0) => ({ type: 'number', min, max, default: va
 const params = {
   headX: number(-1, 1), headY: number(-1, 1), headTilt: number(-1, 1),
   lookX: number(-1, 1), lookY: number(-1, 1), eyeOpen: number(0, 1, 1),
+  // The two lid axes and the pucker (docs/FACE_SVG_STATES.md,
+  // docs/VISEME_SYSTEM.md). All three rest at 0: the face this template draws
+  // is the face it drew before they existed.
+  eyeSquint: number(0, 1), eyeCurve: number(-1, 1),
   browRaise: number(-1, 1), browTilt: number(-1, 1), noseScrunch: number(0, 1),
-  mouthOpen: number(0, 1), smile: number(-1, 1), mouthWidth: number(-1, 1),
+  mouthOpen: number(0, 1), smile: number(-1, 1), mouthWidth: number(-1, 1), mouthRound: number(0, 1),
   teeth: number(0, 1), tongue: number(0, 1), jawOpen: number(0, 1),
   hairSway: number(-1, 1), hairLift: number(-1, 1), earWiggle: number(-1, 1)
 };
@@ -189,7 +193,7 @@ export function applyTemplateProject(state) {
   // movement. That is the difference between a template whose thumbnail, whose
   // `mascot.svg` and whose home-screen preview show a face, and V1's, which
   // showed one asleep.
-  const eyelids = add(state, 'eyelids', { leftUpper: 'lidUpperLeft', rightUpper: 'lidUpperRight', leftLower: 'lidLowerLeft', rightLower: 'lidLowerRight' }, ['eyeOpen'], { eyeOpen: { amplitude: -LID_TRAVEL.upper, offset: LID_TRAVEL.upper } });
+  const eyelids = add(state, 'eyelids', { leftUpper: 'lidUpperLeft', rightUpper: 'lidUpperRight', leftLower: 'lidLowerLeft', rightLower: 'lidLowerRight' }, ['eyeOpen', 'eyeSquint', 'eyeCurve'], { eyeOpen: { amplitude: -LID_TRAVEL.upper, offset: LID_TRAVEL.upper } });
   const eyebrows = add(state, 'eyebrows', { leftBrow: 'browLeft', rightBrow: 'browRight' }, ['browRaise', 'browTilt']);
   // One movement for the pair, and an offset per side on top of it: a blink
   // closes both eyes, a wink closes one. The offsets default to 0, so the
@@ -212,6 +216,34 @@ export function applyTemplateProject(state) {
     bind(state, id, 'translateY', `eyeOpen + eyeOpen${side}`, LID_TRAVEL.lower, -LID_TRAVEL.lower, 'linear',
       eyelids ? { semanticPart: eyelids.id, control: 'eyeOpen' } : null);
   }
+  // Narrowing and the lid curve, as additive shapes on the four lids
+  // (docs/FACE_SVG_STATES.md). The blink still *moves* each lid -- that is the
+  // structural control and nothing here touches it -- and these two change
+  // what the moved lid is shaped like, which is the difference between a
+  // half-shut eye and a narrowed one, and between a flat shut eye, a happy
+  // squeeze and a tired droop.
+  //
+  // Per lid rather than per eye, because each lid is its own path; and driven
+  // by the movement's own sentence, so the side offsets the wink already
+  // installs carry the asymmetry with no second mechanism.
+  if (eyelids) for (const role of LID_ROLES) {
+    if (!state.elements[role]) continue;
+    state.elements[role].restPath = LID_RESTS[role];
+    const side = /Right$/.test(role) ? 'Right' : 'Left';
+    for (const [control, pose] of [['eyeSquint', { squint: 1 }], ['eyeCurve', { curve: 1 }]]) {
+      const shape = createShapeKey({
+        id: `${role}-${control}`, target: role, name: `${role} ${control === 'eyeSquint' ? 'narrowed' : 'curved'}`,
+        restPath: LID_RESTS[role], posePath: lidPath(role, pose),
+        // Signed for the curve, which is the point of one key rather than two:
+        // the arc runs one way at +1 and the other at -1, so a happy squeeze
+        // and a tired droop are the same capture read from both ends.
+        driver: { mode: 'expression', expression: `${control} + ${control}${side}`, curve: 'linear', amplitude: 1, offset: 0 },
+        generatedBy: { semanticPart: eyelids.id, control }
+      });
+      if (shape.ok) state.shapeKeys = upsertShapeKey(state.shapeKeys, shape.shapeKey);
+    }
+  }
+  if (eyelids) for (const control of ['eyeSquint', 'eyeCurve']) enableSemanticSideControl(state, eyelids.id, control);
   // The rest of the face control rig's per-side offsets (docs/FACE_CONTROL_RIG.md).
   // Every one of them defaults to 0, so the mascot looks and behaves exactly as
   // it did -- what they buy is that the two eyes and the two brows *can* now
@@ -236,7 +268,7 @@ export function applyTemplateProject(state) {
   // the face gave the mascot a double chin the moment it moved, because two
   // outlines cannot be one silhouette.
   const jaw = ours ? add(state, 'jaw', { jaw: 'head' }, ['jawOpen'], { jawOpen: { property: 'shapeKey' } }) : null;
-  const mouth = add(state, 'mouth', { mouth: 'mouth', teeth: 'teeth', tongue: 'tongue' }, ['mouthOpen', 'smile', 'mouthWidth', 'teeth', 'tongue']);
+  const mouth = add(state, 'mouth', { mouth: 'mouth', teeth: 'teeth', tongue: 'tongue' }, ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'teeth', 'tongue']);
   // Where the tongue is, as opposed to whether it shows: its own part, because
   // the two questions are different and the mouth already answers the second
   // (docs/FACE_CONTROL_RIG.md, CR-32 … CR-34).
@@ -247,12 +279,18 @@ export function applyTemplateProject(state) {
   // this (a scale flattens the smile as it closes) and the legacy morph cannot
   // either (one shape per element).
   if (mouth && ours) {
-    for (const control of ['mouthOpen', 'smile']) setSemanticControlMethod(state, mouth.id, control, 'shapeKey');
+    for (const control of ['mouthOpen', 'smile', 'mouthRound']) setSemanticControlMethod(state, mouth.id, control, 'shapeKey');
     state.elements.mouth.restPath = MOUTH_REST;
     for (const [id, name, pose, driver] of [
       ['mouth-open', 'Mouth open', { open: 1 }, { parameter: 'mouthOpen', min: 0, max: 1 }],
       ['mouth-smile', 'Smile', { smile: 1 }, { parameter: 'smile', min: 0, max: 1 }],
-      ['mouth-frown', 'Frown', { smile: -1 }, { parameter: 'smile', min: 0, max: -1 }]
+      ['mouth-frown', 'Frown', { smile: -1 }, { parameter: 'smile', min: 0, max: -1 }],
+      // The pucker: the corners drawn in while the lip line bows out above and
+      // below them, which is what makes an O out of a lens
+      // (docs/VISEME_SYSTEM.md). A fourth additive key rather than a narrower
+      // scale, because scaling a wide shallow mouth gives a *small* wide
+      // shallow mouth and `OO` is the opposite of shallow.
+      ['mouth-round', 'Round', { round: 1 }, { parameter: 'mouthRound', min: 0, max: 1 }]
     ]) {
       const control = driver.parameter;
       const shape = createShapeKey({ id, target: 'mouth', name, restPath: MOUTH_REST, posePath: mouthPath(pose), driver, generatedBy: { semanticPart: mouth.id, control } });
@@ -300,6 +338,10 @@ export function applyTemplateProject(state) {
       // behind it, so this one follows `smile` on its own -- signed, so a
       // frown carries it the other way.
       key(`${role}-follow`, `${role === 'teeth' ? 'Teeth' : 'Tongue'} with the lip`, draw({ smile: 1 }), 'smile');
+      // And a puckered mouth draws them in with it: a band drawn from the
+      // resting lip curve is wider than a rounded mouth and would show outside
+      // it, which is a row of teeth floating beside an O.
+      key(`${role}-round`, `${role === 'teeth' ? 'Teeth' : 'Tongue'} with the pucker`, draw({ round: 1 }), 'mouthRound');
       // And they widen with the mouth, or a wide grin shows teeth inset from it.
       bind(state, role, 'scaleX', 'mouthWidth', .25, 1);
     }

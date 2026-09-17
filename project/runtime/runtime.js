@@ -31,6 +31,7 @@ import { shapeKeyIndex, shapeKeyWeight, evaluateShapeTarget, normalizeShapeKeys 
 import { normalizeHands, evaluateHands, handMotionParameters, handShowParameterName, createHandReveal, createHandStyleSwaps, handStyleList, handStylesSettled, HAND_SIDES } from './hands.js';
 import { handStyleId } from './hand-vocabulary.js';
 import { mixParameters } from './mixer.js';
+import { VISEME_KEYS, visemeBlendWeights, visemeExpressionId, visemeKey, visemeKeyFromId } from './visemes.js';
 import { createWeightBlender } from './transitions.js';
 import { normalizeDeformers, compileDeformerMatrices } from './deformers.js';
 import { normalizeParallax, parallaxOffset, clampDepth, depthBand, DEFAULT_PARALLAX } from './depth.js';
@@ -211,6 +212,11 @@ export function deformerList(records) {
   return list.length ? list : null;
 }
 export { mixParameters, orderLayers, parameterNeutral, MIXER_ORDER, MIX_MODES } from './mixer.js';
+// The speech layer's vocabulary (docs/VISEME_SYSTEM.md): which visemes exist,
+// the one rule that names the expression record carrying each, and the weights
+// a transition between two of them asks for. No engine -- the blending is the
+// expression weight blender and the composition is the mixer.
+export { VISEME_KEYS, REQUIRED_VISEME_KEYS, isVisemeKey, visemeBlendWeights, visemeExpressionId, visemeKey, visemeKeyFromId } from './visemes.js';
 export { createWeightBlender, createParameterTransition, DEFAULT_TRANSITION_EASING } from './transitions.js';
 import { createInertiaGroup } from './inertia.js';
 export {
@@ -748,10 +754,25 @@ export function createMotionLayer({ blend, clips } = {}) {
   return api;
 }
 
+/**
+ * Which viseme an expression record carries, if any.
+ *
+ * An explicit `viseme` wins, and the id's own prefix answers for a record the
+ * editor installed under the naming rule (`runtime/visemes.js`). Anything else
+ * is an ordinary face and says nothing.
+ */
+const expressionViseme = (item) => visemeKey(item?.viseme) || visemeKeyFromId(item?.id);
+
 export function normalizeExpressions(rig = {}) {
   if (!Array.isArray(rig.expressions)) return [];
   return rig.expressions.filter((item) => item && typeof item === 'object' && typeof item.id === 'string' && item.id).map((item) => ({
     id: item.id, name: typeof item.name === 'string' && item.name ? item.name : item.id, source: typeof item.source === 'string' ? item.source : 'manual',
+    // A speech shape is an expression like any other -- a bag of values for
+    // the mouth's own movements, mixed additively, which is what lets a
+    // mascot say something *while* being happy (docs/VISEME_SYSTEM.md). The
+    // only thing that marks one is this field, and a project written before
+    // the speech layer has none on any of its faces.
+    ...(expressionViseme(item) ? { viseme: expressionViseme(item) } : {}),
     controls: Object.fromEntries(Object.entries(item.controls || {}).filter(([, value]) => Number.isFinite(Number(value))).map(([key, value]) => [key, Number(value)]))
   }));
 }
@@ -1440,6 +1461,57 @@ export function createMascotEngine({ svgRoot, rig, assetResolver = null, fps = 2
     /** Targets that were asked for. `getExpressionWeights()` is what is showing. */
     getExpressions() { return activeExpressions.targets(); },
     getExpressionWeights() { return activeExpressions.values(); },
+    /* ── Speech (docs/VISEME_SYSTEM.md) ─────────────────────────────────── */
+    /**
+     * The visemes this mascot has, as `[{ key, id, name }]`.
+     *
+     * Empty for a mascot whose mouth was never given the speech shapes, which
+     * is every mascot that predates them — so a lipsync can ask, once, whether
+     * there is anything to drive.
+     */
+    getVisemes() { return expressions.filter((item) => item.viseme).map((item) => ({ key: item.viseme, id: item.id, name: item.name })); },
+    /**
+     * Say one viseme, at a weight.
+     *
+     * This is `setExpression` with the naming rule applied, and that is the
+     * whole of it: a viseme is an expression, so the mouth **keeps the face it
+     * is wearing** and speech is added to it rather than replacing it. Calling
+     * it while `happy` is set gives happy-saying-AE, not AE.
+     */
+    setViseme(key, weight = 1, options = {}) {
+      const id = visemeExpressionId(visemeKey(key) || key);
+      if (!expressions.some((item) => item.id === id)) return false;
+      activeExpressions.set(id, clamp(finite(weight, 1), 0, 1), options);
+      return true;
+    },
+    /**
+     * Where the mouth is between two visemes (`0` → `previous`, `1` → `next`).
+     *
+     * Both weights are live at once, so `AE → OO` at 0.5 is half of each and
+     * the mouth passes **through** the two rather than through rest. A lipsync
+     * with a phoneme timeline calls this every frame with the pair either side
+     * of the playhead and the fraction between them; nothing here keeps a
+     * clock of its own.
+     *
+     * Visemes the mascot does not have are ignored rather than refused, so a
+     * track containing a `WQ` still plays on a mouth that never learned one.
+     */
+    blendVisemes(previous, next, blend = 1, options = {}) {
+      const wanted = visemeBlendWeights(previous, next, blend);
+      let reached = false;
+      for (const key of VISEME_KEYS) {
+        const id = visemeExpressionId(key);
+        if (!expressions.some((item) => item.id === id)) continue;
+        const weight = finite(wanted[id], 0);
+        activeExpressions.set(id, clamp(weight, 0, 1), options);
+        if (weight > 0) reached = true;
+      }
+      return reached;
+    },
+    /** Stop speaking, leaving the face exactly as it is. */
+    clearVisemes(options = {}) {
+      for (const key of VISEME_KEYS) activeExpressions.clear(visemeExpressionId(key), options);
+    },
     isSettled() { return activeExpressions.settled() && motionLayer.settled() && !transition; },
     trigger(type, detail = {}) { return triggerAt(typeof type === 'string' ? { ...detail, type } : type); },
     fire(id) { return reactionController.fire(id, seconds(now())); },
