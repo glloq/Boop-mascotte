@@ -35,8 +35,11 @@ test('the categories are the roadmap\'s eleven, each reading its semantic part',
 });
 
 test('an asset is normalised to one shape, defaults filled and frozen', () => {
+  // `picture` joined the shape in V4-050 and is null here, which is the same
+  // contract every optional field before it kept: a drawing that says nothing
+  // about one behaves exactly as it always did (docs/V4_ROADMAP.md, Phase 5).
   const asset = normalizeFacePart({ id: ' mouth.x ', category: 'mouth', name: ' X ', artwork: ' <g id="a"/> ', roles: { mouth: 'a', teeth: 7 }, capabilities: ['smile', 'smile', 3], referenceBox: { x: '1', y: 2, width: '3', height: 4 }, palette: ['mouth', 'mouth'] });
-  assert.deepEqual(asset, { id: 'mouth.x', category: 'mouth', name: 'X', description: '', artwork: '<g id="a"/>', roles: { mouth: 'a' }, capabilities: ['smile'], drivers: {}, turn: {}, parts: {}, behind: [], paletteRoles: {}, depth: null, referenceBox: { x: 1, y: 2, width: 3, height: 4 }, mountPoint: 'mouth.center', host: null, variant: null, slot: '', morphologies: [], symmetry: null, maxInstances: 0, tags: [], palette: ['mouth'], origin: 'custom', pack: null });
+  assert.deepEqual(asset, { id: 'mouth.x', category: 'mouth', name: 'X', description: '', artwork: '<g id="a"/>', picture: null, roles: { mouth: 'a' }, capabilities: ['smile'], drivers: {}, turn: {}, parts: {}, behind: [], paletteRoles: {}, depth: null, referenceBox: { x: 1, y: 2, width: 3, height: 4 }, mountPoint: 'mouth.center', host: null, variant: null, slot: '', morphologies: [], symmetry: null, maxInstances: 0, tags: [], palette: ['mouth'], origin: 'custom', pack: null });
   assert.ok(Object.isFrozen(asset) && Object.isFrozen(asset.roles) && Object.isFrozen(asset.capabilities) && Object.isFrozen(asset.parts));
   // Where it is offered, what it suits and what to find it by (MASC-02): all
   // three optional, and "said nothing" is kept as such rather than guessed at.

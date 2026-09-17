@@ -1,7 +1,12 @@
 import { createAppShell } from '../shell/app-shell.js';
 import { createStore } from '../core/state/store.js';
 import { createHistory } from '../core/undo/history.js';
+import { imageElementPlugin } from '../core/plugins/builtin/image-plugin.js';
 import { createSvgCanvas } from '../svg-editor/svg-canvas.js';
+import { openAssetStore } from '../core/assets/asset-store.js';
+import { createAssetManager } from '../core/assets/asset-manager.js';
+import { createAssetOptimiser, createBrowserCodec } from '../core/assets/asset-optimise.js';
+import { createAssetResolver } from '../../runtime/asset-resolver.js';
 import { createNewMascotWizard } from '../ui/new-mascot/wizard.js';
 import { presetMorphology } from '../core/face-library/compatibility.js';
 import { createLayersPanel, siblingPosition } from '../svg-editor/layers-panel.js';
@@ -87,7 +92,14 @@ import { createProjectSelectors } from '../core/selectors/project-selectors.js';
  * the canvas and its tools (§5, Règle A), the one Inspector (Règle B), the
  * project services, and the command surfaces that reach every screen.
  */
-export function createEditorApp({ root = document.getElementById('app') } = {}) {
+/**
+ * @param {object} [options]
+ * @param {Element} [options.root]
+ * @param {object} [options.recoveryStorage] where the local draft lives. Opened
+ *   by the entry point, because IndexedDB is asynchronous and this is not; a
+ *   caller that passes nothing gets `localStorage`, which is what this was.
+ */
+export function createEditorApp({ root = document.getElementById('app'), recoveryStorage = localStorage } = {}) {
   const store = createStore();
   // One memoised set of ViewModels per editor (docs/VNEXT_ROADMAP.md, VNX-04):
   // a panel asks for its model at a revision and gets the same object back until
@@ -133,8 +145,29 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   const pluginRegistry = createPluginRegistry();
   pluginRegistry.register(defaultElementPlugin);
   pluginRegistry.register(pathElementPlugin);
+  pluginRegistry.register(imageElementPlugin);
   const canvas = createSvgCanvas(shell.canvasEl, store, history, pluginRegistry);
   canvas.setWorkspace(shell.getWorkspace());
+  /**
+   * The one resolver every `asset:` reference is drawn through, editor and
+   * preview alike (docs/V4_ROADMAP.md, V4-015).
+   *
+   * Opened without being awaited on purpose: the store is only needed the
+   * first time artwork points at an asset, and no project does yet. Making
+   * the whole editor wait on IndexedDB to show a mascot made of paths would
+   * be paying for a feature nobody in that project is using. `refreshAssets`
+   * is what awaits it, once there is something to fetch.
+   */
+  const assetStoreReady = openAssetStore();
+  canvas.setAssetResolver(createAssetResolver({ store: { get: async (id) => (await assetStoreReady).get(id) } }));
+  /**
+   * Importing a picture. Also deferred: the codec is only needed for a file
+   * big enough to resize, and the store only when one arrives.
+   */
+  const assets = createAssetManager({
+    store: { put: async (...args) => (await assetStoreReady).put(...args), get: async (id) => (await assetStoreReady).get(id), remove: async (id) => (await assetStoreReady).remove(id) },
+    optimiser: createAssetOptimiser({ codec: createBrowserCodec() })
+  });
   // The options bar under the vector toolbar: what a new shape is painted
   // with, a polygon's sides, the grid, and the Node tool's point operations.
   // UI preferences, remembered in the browser, never part of the project.
@@ -570,7 +603,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // variables and five closures. It is created here so its baseline is taken at
   // the same moment the old `savedVersionToken` was.
   const autosave = createAutosaveService({
-    store, storage: localStorage,
+    store, storage: recoveryStorage,
     serializeSvg: () => canvas.serializeCurrentSvg(),
     prepareSnapshot: (snapshot) => prepareProjectSnapshot(snapshot, (svg) => canvas.prepareSvgImport(svg)),
     createSnapshot: createProjectSnapshot,
@@ -585,7 +618,7 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
   // stop, swap, clear undo and re-baseline in the same order, and that can be
   // exercised without a browser.
   const projectService = createProjectService({
-    store, history, canvas, preview, timeline, autosave,
+    store, history, canvas, preview, timeline, autosave, assets,
     setStatus: (message, tone) => shell.setStatus(message, tone),
     setProjectLoaded: (loaded) => shell.setProjectLoaded(loaded),
     closeHome: () => shell.closeHome(),
@@ -613,6 +646,8 @@ export function createEditorApp({ root = document.getElementById('app') } = {}) 
 
 
   shell.bindLoadSvg((file) => projectService.loadSvgFile(file));
+  shell.bindAddImage((file) => projectService.addImageFile(file));
+  shell.bindAddBaseImage((file) => projectService.addBaseImageFile(file));
 
   shell.bindLoadSample((kind) => projectService.loadTemplate(kind));
 

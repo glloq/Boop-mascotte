@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyProjectSnapshot, createProjectSnapshot, prepareProjectSnapshot } from '../state/project-snapshot.js';
+import { canOpenProjectVersion, PROJECT_VERSION, projectVersionFor, projectVersionOf } from '../state/project-version.js';
 import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
 
 function baseState() {
@@ -63,4 +64,66 @@ test('snapshot restore preserves a valid active clip and falls back deterministi
   const source=baseState();source.animationClips=[{id:'gaze',duration:1,tracks:{headX:[{time:0,value:-1},{time:1,value:1}]}}];source.animationEditor={activeClipId:'gaze',playhead:.25,panel:'preview'};
   const snapshot=createProjectSnapshot(source),target=baseState();applyProjectSnapshot(target,snapshot);assert.equal(target.animationEditor.activeClipId,'gaze');assert.equal(target.animationEditor.playhead,.25);
   snapshot.document.editor.animationEditor.activeClipId='missing';snapshot.document.editor.animationEditor.playhead=4;applyProjectSnapshot(target,snapshot);assert.equal(target.animationEditor.activeClipId,'gaze');assert.equal(target.animationEditor.playhead,1);
+});
+
+test('the project file version is its own axis, and one predicate gates every way in',()=>{
+  const current=createProjectSnapshot(baseState());
+  // Two versions, two reasons to move: the file's, and the rig's inside it.
+  // Neither is stamped from the other.
+  // The file declares the oldest reader that can read it, not the newest
+  // editor that wrote it: this project uses nothing past version 3.
+  assert.equal(current.version,3);
+  assert.equal(current.version,projectVersionFor(current.document));
+  assert.equal(current.document.rig.schemaVersion,RIG_SCHEMA_VERSION);
+  // A file that declares none is the first format, which never wrote one.
+  for(const absent of [undefined,null]){
+    const fixture={...structuredClone(current),version:absent};
+    assert.equal(projectVersionOf(fixture),1);
+    const target=baseState();applyProjectSnapshot(target,fixture);
+    assert.equal(createProjectSnapshot(target).version,3);
+  }
+});
+
+test('an asset in the project raises the version the file declares',()=>{
+  const source=baseState();
+  source.assets={ '7f3c9a1b': { id:'7f3c9a1b', format:'image/webp', width:512, height:512, alpha:true, name:'head' } };
+  const snapshot=createProjectSnapshot(source);
+  assert.equal(snapshot.version,4);
+  assert.deepEqual(Object.keys(snapshot.document.assets),['7f3c9a1b']);
+  // And it survives the way round the round trip that matters.
+  const target=baseState();applyProjectSnapshot(target,snapshot);
+  assert.equal(target.assets['7f3c9a1b'].name,'head');
+  assert.equal(createProjectSnapshot(target).version,4);
+  // An entry that is not an asset never reaches a document.
+  const broken=createProjectSnapshot({ ...baseState(), assets: { nope: { id: 'nope', format: 'image/gif' } } });
+  assert.deepEqual(broken.document.assets,{});
+  assert.equal(broken.version,3);
+});
+
+test('a file a newer editor wrote is declined, and declined the same way at every door',()=>{
+  const current=createProjectSnapshot(baseState());
+  for(const version of [PROJECT_VERSION+1,0,-1,2.5,'3']){
+    assert.equal(canOpenProjectVersion(version),false,`v${version} opens`);
+    const fixture={...structuredClone(current),version};
+    assert.throws(()=>applyProjectSnapshot(baseState(),fixture),/Unsupported project snapshot version/,`apply v${version}`);
+    assert.throws(()=>prepareProjectSnapshot(fixture,value=>value),/Unsupported project snapshot version/,`prepare v${version}`);
+  }
+  // Every version this editor wrote, it can still open.
+  for(let version=1;version<=PROJECT_VERSION;version++) assert.ok(canOpenProjectVersion(version),`v${version} declined`);
+});
+
+test('the file boundary migrates once, and says what it did',()=>{
+  const current=createProjectSnapshot(baseState());
+  // Already current: nothing to report.
+  assert.equal(prepareProjectSnapshot(current,value=>value).migratedFrom,undefined);
+  // An older file arrives at the current version, and carries the record of
+  // how it got there -- session information, never written back to a file.
+  const old={...structuredClone(current),version:1};
+  const prepared=prepareProjectSnapshot(old,value=>value);
+  assert.equal(prepared.version,3);
+  assert.equal(prepared.migratedFrom.version,1);
+  assert.deepEqual(prepared.migratedFrom.applied,[]);
+  assert.equal(old.version,1);
+  const target=baseState();applyProjectSnapshot(target,prepared);
+  assert.equal(createProjectSnapshot(target).migratedFrom,undefined);
 });

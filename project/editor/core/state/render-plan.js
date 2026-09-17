@@ -40,6 +40,11 @@ export const DOCUMENT_RENDER_PLAN = Object.freeze({
   // that moved, grew or went away leaves it pointing at where the piece was.
   artwork: Object.freeze(['canvasState', 'inspector', 'exporter', 'projectShell', 'faceSetup', 'faceMovements', 'handSetup', 'artboardSync', 'characterBuilder', 'handStates', 'selectionActions']),
   layers: Object.freeze(['layerOrder', 'layers', 'faceSetup', 'canvasMenu', 'artboardPanel', 'characterBuilder', 'selectionActions']),
+  // Declared empty on purpose, not forgotten: nothing on screen reads the
+  // asset table yet. The canvas joins when it resolves `asset:` references
+  // (docs/V4_ROADMAP.md, V4-021) and the library when it lists them (V4-030).
+  // The entry exists now so the domain is wired rather than silently absent.
+  assets: Object.freeze([]),
   rig: Object.freeze(['inspector', 'timeline', 'rigPanel', 'faceMovements', 'gazePanel', 'headPose', 'handSetup', 'warpPanel', 'expressionStudio', 'motionStudio', 'automaticPanel', 'handleBoard', 'puppetHandles', 'previewFrame']),
   stateMachine: Object.freeze(['states', 'automaticPanel', 'previewPanel']),
   semanticRig: Object.freeze(['rigPanel', 'faceSetup', 'faceMovements', 'handleBoard', 'projectShell', 'characterBuilder']),

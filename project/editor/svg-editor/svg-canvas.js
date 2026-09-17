@@ -3,6 +3,8 @@ import 'svg.select.js';
 import 'svg.resize.js';
 import 'svg.draggable.js';
 import { sanitizeSvgMarkup } from '../core/security/sanitize-svg.js';
+import { collectAssetReferences, paintAssetReferences } from '../../runtime/asset-paint.js';
+import { pathOnlyMessage } from './path-only.js';
 import { SvgDocument } from '../core/svg-document/svg-document.js';
 import { lifecycleDiagnostics as diagnostics } from '../core/diagnostics/lifecycle-diagnostics.js';
 import { createArtworkCommands } from '../core/commands/artwork-commands.js';
@@ -69,7 +71,7 @@ function parseTransform(element) {
     scaleX: pick(matrix.scaleX) ?? 1, scaleY: pick(matrix.scaleY) ?? 1, pivotX: pick(matrix.originX) ?? 0, pivotY: pick(matrix.originY) ?? 0 };
 }
 
-export function createSvgCanvas(container, store, history, pluginRegistry) {
+export function createSvgCanvas(container, store, history, pluginRegistry, { assetResolver = null } = {}) {
   const commands = createArtworkCommands(store, history);
   const SVG_NS = 'http://www.w3.org/2000/svg';
   // SVG.js 2.x creates/attaches a drawing with SVG(container). addTo() is a
@@ -1255,7 +1257,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       if (rigTool?.kind === 'role') { rigTool.pick(element.id()); return; }
       if (rigTool?.kind === 'pin-place') {
         const tool = rigTool, id = element.id();
-        if (!tool.target && element.type !== 'path') { showMode(`${id} is not a path, and a pin holds a path. Click a path, or convert this shape to one first (Artwork → Inspector → Shape).`); return; }
+        if (!tool.target && element.type !== 'path') { showMode(pathOnlyMessage(id, element.node?.localName || element.type)); return; }
         const point = artworkPoint(event);
         if (!point) return;
         api.cancelRigTool(false);
@@ -1286,6 +1288,10 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     showSelection(store.getSession().selectedId, store.getSession().selectedIds);
   }
 
+  /** Every `<image>` currently in the artwork, painted or not. */
+  const assetNodes = (root = rootGroup.node) => [...(root?.querySelectorAll?.('image') || [])];
+  const paintAssets = (root) => paintAssetReferences(assetNodes(root), assetResolver);
+
   function loadSvgText(svgText, metadata = {}, options = {}) {
     return previewOrder.authored(() => loadSvgTextNow(svgText, metadata, options));
   }
@@ -1295,6 +1301,12 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
     rootGroup = draw.group().svg(safeMarkup);
     raiseGizmoLayer();
     const svgRoot = rootGroup.node.querySelector('svg');
+    // Before anything measures the artwork: a raster node carrying
+    // `asset:` cannot be drawn by a browser, so it is pointed at what the
+    // resolver already holds. Fetching is `refreshAssets`, which is
+    // asynchronous and is the caller's to await; this pass is not, because
+    // loading is not.
+    paintAssets(svgRoot);
     const tree = documentModel.load(svgRoot, metadata);
     loadedMarkup = documentModel.serialize();
     if (options.recordHistory !== false) history.snapshot();
@@ -3305,6 +3317,54 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       }
       return safeMarkup;
     },
+    /**
+     * Point a picture at a different asset, keeping the node.
+     *
+     * The whole value of the raster model in one method: the id, the
+     * transform, the pivot, the depth, the bindings and the place in the paint
+     * order are all properties of the *node*, and none of them knows which
+     * picture it draws. So replacing artwork is writing one attribute
+     * (docs/V4_ROADMAP.md, V4-032).
+     *
+     * Writes the reference, never a resolved URL: repainting is
+     * `refreshAssets`, and a blob written here would be captured as authored.
+     * Returns the artwork for a command to write together with the asset
+     * table, and touches neither the store nor the history itself.
+     */
+    replaceImageAsset(id, reference) { return previewOrder.authored(() => api.replaceImageAssetNow(id, reference)); },
+    replaceImageAssetNow(id, reference) {
+      const node = documentModel.getNode(id);
+      if (!node || node.localName !== 'image') return false;
+      const attribute = node.hasAttribute?.('xlink:href') && !node.hasAttribute?.('href') ? 'xlink:href' : 'href';
+      node.removeAttribute('data-editor-asset');
+      node.removeAttribute('data-editor-asset-missing');
+      node.setAttribute(attribute, reference);
+      documentModel.captureAuthoringAttribute(id, attribute);
+      const elements = structuredClone(store.getDocument().elements);
+      if (elements[id]) elements[id].meta = { ...(elements[id].meta || {}), assetRef: reference };
+      loadedMarkup = documentModel.serialize();
+      return { svgMarkup: loadedMarkup, elements };
+    },
+    /** The resolver every `asset:` reference is drawn through. One per editor. */
+    setAssetResolver(resolver) { assetResolver = resolver; },
+    /**
+     * Fetch what the artwork points at, then point it at what was fetched.
+     *
+     * Split from loading because loading is synchronous and reading bytes is
+     * not (`runtime/asset-resolver.js`). A caller that has changed which
+     * assets the artwork uses awaits this; a caller that has not does not have
+     * to, because the synchronous pass inside `loadSvgFromText` already drew
+     * whatever was primed.
+     */
+    async refreshAssets() {
+      const nodes = assetNodes();
+      const references = collectAssetReferences(nodes);
+      await assetResolver?.prime?.(references);
+      // Nothing on the canvas points at them any more: stop holding a URL for
+      // every picture that was ever here.
+      assetResolver?.retain?.(references);
+      return paintAssetReferences(nodes, assetResolver);
+    },
     async loadSvgFromFile(file) { loadSvgText(await file.text()); },
     loadSvgFromText: loadSvgText,
     serializeCurrentSvg() { return commitDocument(false); },
@@ -3753,14 +3813,16 @@ export function createSvgCanvas(container, store, history, pluginRegistry) {
       return setView({ scale: view.scale, x: view.x + dx, y: view.y + dy });
     },
     getView() { return viewTransform(); },
-    appendArtwork(markup, mountPoint = null, { updateStore = true, viewBox = null } = {}) { return previewOrder.authored(() => api.appendArtworkNow(markup, mountPoint, { updateStore, viewBox })); },
-    appendArtworkNow(markup, mountPoint = null, { updateStore = true, viewBox = null } = {}) {
+    appendArtwork(markup, mountPoint = null, { updateStore = true, viewBox = null, position = 'front' } = {}) { return previewOrder.authored(() => api.appendArtworkNow(markup, mountPoint, { updateStore, viewBox, position })); },
+    appendArtworkNow(markup, mountPoint = null, { updateStore = true, viewBox = null, position = 'front' } = {}) {
       const svgRoot=rootGroup.node.querySelector('svg');if(!svgRoot)return false;
       // Artwork that needs room to live in says so: a pair of hands hangs below
       // a face that already fills its artboard.
       if(viewBox)svgRoot.setAttribute('viewBox',viewBox);
       const target=(mountPoint&&documentModel.getNode(mountPoint))||svgRoot;
-      target.insertAdjacentHTML('beforeend',sanitizeSvgMarkup(`<svg xmlns="http://www.w3.org/2000/svg">${markup}</svg>`).replace(/^<svg[^>]*>|<\/svg>$/g,''));
+      // `back` paints it behind everything already in the group, which is what
+      // a head or a body is: the thing the rest of the mascot sits on.
+      target.insertAdjacentHTML(position==='back'?'afterbegin':'beforeend',sanitizeSvgMarkup(`<svg xmlns="http://www.w3.org/2000/svg">${markup}</svg>`).replace(/^<svg[^>]*>|<\/svg>$/g,''));
       const tree=documentModel.load(svgRoot,documentModel.metadata);loadedMarkup=documentModel.serialize();
       const elements=structuredClone(store.getDocument().elements);const visit=(items)=>items.forEach((item)=>{if(!elements[item.id]){const node=wrapperFor(item.id),plugin=pluginRegistry.getByNode(node);if(plugin){elements[item.id]=plugin.createRigData(node,parseTransform(node));attachBehavior(node);}}visit(item.children);});visit(tree);
       const artwork={layers:tree,layerMetadata:structuredClone(documentModel.metadata),elements,svgMarkup:loadedMarkup};

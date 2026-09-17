@@ -15,7 +15,7 @@
 import { findUnsafeSvg } from '../security/sanitize-svg.js';
 import { HEAD_TURN_PROFILE_KEYS, HEAD_TURN_PROFILE_NUMBERS, HEAD_TURN_PROFILE_SIDES } from '../head-pose/head-pose-turn.js';
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
-import { DRIVER_PROPERTIES, FACE_MOUNT_POINTS, FACE_PART_ID, FACE_STYLE_ID, FACE_SYMMETRY, FACE_TAG, PALETTE_TOKENS, describeFacePartCapabilities, facePartCategory, normalizeFacePart, scanArtwork } from './face-part-model.js';
+import { DRIVER_PROPERTIES, FACE_MOUNT_POINTS, FACE_PART_ID, FACE_STYLE_ID, FACE_SYMMETRY, FACE_TAG, PALETTE_TOKENS, describeFacePartCapabilities, facePartCategory, normalizeFacePart, pictureNodeId, scanArtwork } from './face-part-model.js';
 import { FACE_MORPHOLOGY_IDS, faceMorphology, faceSlot } from './face-morphologies.js';
 
 const issue = (severity, code, message, field = null) => ({ severity, code, message, field });
@@ -151,14 +151,24 @@ export function validateFacePart(input, { taken = () => false, library = null } 
 
   const scan = scanArtwork(asset.artwork);
   const roots = scan.elements.filter((item) => item.depth === 0);
-  if (!asset.artwork) issues.push(error('artwork-missing', 'An asset needs artwork: an SVG fragment.', 'artwork'));
+  if (asset.picture && asset.artwork) issues.push(error('artwork-doubled', 'An asset is drawn by markup or by a picture, not by both.', 'artwork'));
+  else if (asset.picture) {
+    // The picture itself is checked where it is imported: by the time it has
+    // an id it has been decoded, measured and sanitized
+    // (core/assets/asset-validate.js). What is checked here is the one thing
+    // only this side knows -- a picture is one rectangle, so it can only be
+    // one role, and a drawing that has to be an upper lid *and* a lower one is
+    // a drawing rather than a picture.
+    if (!pictureNodeId(asset)) issues.push(error('picture-roles', 'A part drawn by a picture plays exactly one role: a picture is one rectangle.', 'picture'));
+  }
+  else if (!asset.artwork) issues.push(error('artwork-missing', 'An asset needs artwork: an SVG fragment, or a picture.', 'artwork'));
   else if (!scan.balanced || !scan.elements.length) issues.push(error('artwork-malformed', 'The artwork is not well-formed SVG markup.', 'artwork'));
   else if (roots.length !== 1) issues.push(error('artwork-malformed', `The artwork must be one element, usually a <g>, and it is ${roots.length}.`, 'artwork'));
   else if (roots[0].tag.toLowerCase() === 'svg') issues.push(error('artwork-malformed', 'The artwork is a fragment drawn inside the mascot, not a whole <svg> document.', 'artwork'));
   // The root is the instance: what the builder selects, moves and takes out
   // again. A root with no id is a root nothing can name.
   else if (!roots[0].id) issues.push(error('artwork-root-id', 'The artwork\'s root element needs an id: it is what the part is known by once installed.', 'artwork'));
-  for (const unsafe of findUnsafeSvg(asset.artwork)) issues.push(error('artwork-unsafe', `The artwork carries ${unsafe.kind === 'script' ? 'a script' : unsafe.kind === 'event-handler' ? `an event handler (${unsafe.detail})` : unsafe.kind === 'external-reference' ? `an external reference (${unsafe.detail})` : unsafe.kind === 'foreign-object' ? 'a foreignObject' : unsafe.kind === 'external-css' ? 'external CSS' : unsafe.kind === 'javascript-url' ? 'a javascript: URL' : unsafe.detail}, which the sanitizer would remove.`, 'artwork'));
+  for (const unsafe of asset.picture ? [] : findUnsafeSvg(asset.artwork)) issues.push(error('artwork-unsafe', `The artwork carries ${unsafe.kind === 'script' ? 'a script' : unsafe.kind === 'event-handler' ? `an event handler (${unsafe.detail})` : unsafe.kind === 'external-reference' ? `an external reference (${unsafe.detail})` : unsafe.kind === 'foreign-object' ? 'a foreignObject' : unsafe.kind === 'external-css' ? 'external CSS' : unsafe.kind === 'javascript-url' ? 'a javascript: URL' : unsafe.detail}, which the sanitizer would remove.`, 'artwork'));
   const ids = scan.elements.map((item) => item.id).filter((id) => id !== null);
   for (const id of ids.filter((id, index) => ids.indexOf(id) !== index).filter((id, index, all) => all.indexOf(id) === index)) issues.push(error('artwork-duplicate-id', `The artwork draws "${id}" twice.`, 'artwork'));
   // A piece painted behind the face is lifted out of the fragment whole, so it

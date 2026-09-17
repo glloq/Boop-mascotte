@@ -1,6 +1,8 @@
-const SNAPSHOT_VERSION = 3;
 import { RIG_SCHEMA_VERSION } from '../../../runtime/runtime.js';
 import { normalizeRig } from '../rig/normalize-rig.js';
+import { canOpenProjectVersion, projectVersionFor, projectVersionOf } from './project-version.js';
+import { normalizeAssets } from '../assets/asset-model.js';
+import { migrateProject } from './migrations/project-migrations.js';
 
 /**
  * A project is valid once it has an SVG document, drawn on or not: a blank
@@ -21,26 +23,39 @@ export function createProjectSnapshot(state, serializeSvg) {
     globalConstraints: state.globalConstraints, stateConstraints: state.stateConstraints,
     runtimeConfig: state.runtimeConfig, behaviors: state.behaviors, keyforms: state.keyforms, shapeKeys: state.shapeKeys, warps: state.warps, rigPins: state.rigPins, rigConstraints: state.rigConstraints, rigAttachments: state.rigAttachments, rigHolds: state.rigHolds, hands: state.hands, deformers: state.deformers, parallax: state.parallax, followers: state.followers, expressionBlend: state.expressionBlend, motionBlend: state.motionBlend, gazeSolver: state.gazeSolver
   });
-  return {
-    version: SNAPSHOT_VERSION,
-    capturedAt: new Date().toISOString(),
-    document: {
-      svgMarkup: serializeSvg ? serializeSvg() : (state.svgMarkup || ''),
-      layers: state.layers || [],
-      layerMetadata: state.layerMetadata || {},
-      rig,
-      editor: { semanticParts: structuredClone(state.semanticParts || {}), animationClips: structuredClone(state.animationClips || []), expressions: structuredClone(state.expressions || []), reactions: structuredClone(state.reactions || []), animationEditor: structuredClone(state.animationEditor || {}), rigHandles: structuredClone(state.rigHandles || []), rigLinks: structuredClone(state.rigLinks || []), arrangement: structuredClone(state.arrangement || { placements: [] }) }
-    }
+  const document = {
+    svgMarkup: serializeSvg ? serializeSvg() : (state.svgMarkup || ''),
+    layers: state.layers || [],
+    layerMetadata: state.layerMetadata || {},
+    // Beside the rig rather than inside it: what the artwork points at is a
+    // project concern, and the runtime rig schema knows nothing about it.
+    assets: normalizeAssets(state.assets),
+    rig,
+    editor: { semanticParts: structuredClone(state.semanticParts || {}), animationClips: structuredClone(state.animationClips || []), expressions: structuredClone(state.expressions || []), reactions: structuredClone(state.reactions || []), animationEditor: structuredClone(state.animationEditor || {}), rigHandles: structuredClone(state.rigHandles || []), rigLinks: structuredClone(state.rigLinks || []), arrangement: structuredClone(state.arrangement || { placements: [] }) }
   };
+  // The oldest reader that can still read it, not the newest thing that wrote
+  // it: a project that gained nothing new stays openable by an editor that
+  // gained nothing new.
+  return { version: projectVersionFor(document), capturedAt: new Date().toISOString(), document };
 }
 
+/**
+ * A snapshot onto a state object. It checks the version but does not migrate:
+ * migration happens once, at the boundary the file arrives through
+ * (`prepareProjectSnapshot`), because callers read `document.svgMarkup`
+ * *before* they apply -- the canvas is loaded from it first -- and a step that
+ * rewrote the markup here would rewrite it after the canvas had already read
+ * the old one.
+ */
 export function applyProjectSnapshot(state, snapshot) {
   if (!snapshot?.document?.rig) throw new Error('Invalid project snapshot');
-  if (![1, 2, 3].includes(snapshot.version ?? 1)) throw new Error('Unsupported project snapshot version');
+  if (!canOpenProjectVersion(projectVersionOf(snapshot))) throw new Error('Unsupported project snapshot version');
   const { svgMarkup } = snapshot.document;
   const rig = normalizeRig(snapshot.document.rig);
 
   state.svgMarkup = svgMarkup || '';
+  // Additive since V4: a snapshot written before assets simply has none.
+  state.assets = normalizeAssets(snapshot.document.assets);
   state.layers = Array.isArray(snapshot.document.layers) ? [...snapshot.document.layers] : Object.keys(rig.elements || {});
   state.layerMetadata = snapshot.document.layerMetadata && typeof snapshot.document.layerMetadata === 'object' ? structuredClone(snapshot.document.layerMetadata) : {};
   // Selection is editor context, not authored project data. Older snapshots may
@@ -98,16 +113,27 @@ export function applyProjectSnapshot(state, snapshot) {
 /** Purely validates and normalizes a snapshot before the live editor is touched. */
 export function prepareProjectSnapshot(snapshot, sanitizeSvg) {
   if (!snapshot || typeof snapshot !== 'object') throw new Error('Invalid project snapshot');
-  if (![1, 2, 3].includes(snapshot.version ?? 1)) throw new Error('Unsupported project snapshot version');
+  if (!canOpenProjectVersion(projectVersionOf(snapshot))) throw new Error('Unsupported project snapshot version');
   if (!snapshot.document || typeof snapshot.document !== 'object' || !snapshot.document.rig) throw new Error('Invalid project snapshot');
   if (typeof snapshot.document.svgMarkup !== 'string' || !snapshot.document.svgMarkup.trim()) throw new Error('Project has no SVG document');
-  const prepared = structuredClone(snapshot);
+  // The one place a file is brought up to the current format. A step that
+  // throws throws here, before the live editor has been touched at all, and
+  // the caller's own object is never the one that was migrated.
+  const { snapshot: migrated, from, to, applied } = migrateProject(snapshot);
+  const prepared = structuredClone(migrated);
+  // What was done to open it, for whoever wants to say so -- session
+  // information, since a save builds its snapshot from the store and never
+  // carries this. Reported when the file was not already the version it now
+  // is, or when a step actually rewrote something; a rung the reader absorbs
+  // is neither.
+  if (from !== to || applied.length) prepared.migratedFrom = { version: from, applied };
   prepared.document.svgMarkup = sanitizeSvg(prepared.document.svgMarkup);
   const candidate = {};
   applyProjectSnapshot(candidate, prepared);
   prepared.document.rig = normalizeRig(prepared.document.rig);
   prepared.document.layers = Array.isArray(prepared.document.layers) ? prepared.document.layers : [];
   prepared.document.layerMetadata = prepared.document.layerMetadata && typeof prepared.document.layerMetadata === 'object' ? prepared.document.layerMetadata : {};
+  prepared.document.assets = candidate.assets;
   prepared.document.editor ||= {};
   prepared.document.editor.semanticParts = candidate.semanticParts;
   prepared.document.editor.animationClips = candidate.animationClips;

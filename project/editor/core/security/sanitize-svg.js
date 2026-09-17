@@ -1,3 +1,5 @@
+import { parseAssetRef } from '../../../runtime/asset-reference.js';
+
 /** Removes executable SVG features before markup is inserted into the editor DOM. */
 export function sanitizeSvgMarkup(markup) {
   if (typeof markup !== 'string' || !/<svg\b/i.test(markup)) throw new Error('The imported document is not an SVG.');
@@ -19,7 +21,9 @@ export function sanitizeSvgMarkup(markup) {
     .replace(/(?<=\s|["'])on[a-z][\w:-]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
     .replace(/\s+(?:xml:base|base)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
     .replace(/\s+(?:href|xlink:href)\s*=\s*(?:(["'])\s*javascript:[\s\S]*?\1|javascript:[^\s>]*)/gi, '')
-    .replace(/\s+(?:href|xlink:href|src)\s*=\s*(["'])(?!\s*#)[\s\S]*?\1/gi, '')
+    // The same predicate as the branch above, so an environment without a
+    // DOMParser cleans to exactly the same markup.
+    .replace(/\s+(?:href|xlink:href|src)\s*=\s*(["'])([\s\S]*?)\1/gi, (attribute, quote, value) => (isInternalReference(value.trim()) ? attribute : ''))
     .replace(/\s+style\s*=\s*(["'])([\s\S]*?)\1/gi, (attribute, quote, css) => hasExternalCss(css) ? '' : attribute)
     .replace(paintAttributePattern(), (attribute, name, quote, value) => hasExternalUrl(value) ? '' : attribute)
     // The body, not the markup around it: a `@import` spelled `&#64;import` is
@@ -50,6 +54,8 @@ export function findUnsafeSvg(markup) {
   for (const match of text.matchAll(/\s(xml:base|base)\s*=/gi)) found.push({ kind: 'base', detail: match[1] });
   for (const match of text.matchAll(/\s(href|xlink:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi)) {
     const value = (match[2] ?? match[3] ?? match[4] ?? '').trim();
+    // Asked by the same predicate the cleaner uses, on purpose: a second list
+    // of rules is a list that drifts (see this function's own note).
     if (!isInternalReference(value)) found.push({ kind: 'external-reference', detail: `${match[1]}="${value}"` });
   }
   for (const match of text.matchAll(/\sstyle\s*=\s*(["'])([\s\S]*?)\1/gi)) if (hasExternalCss(match[2])) found.push({ kind: 'external-css', detail: match[2].trim() });
@@ -60,7 +66,32 @@ export function findUnsafeSvg(markup) {
   return found;
 }
 
-function isInternalReference(value) { return !value || value.startsWith('#'); }
+/**
+ * A reference that cannot leave the document.
+ *
+ * Two shapes qualify. A fragment (`#id`) points inside the file, as it always
+ * has. An `asset:<hash>` points at this project's own asset store
+ * (docs/V4_ROADMAP.md, ASSET-REF) and is resolved at paint time by the
+ * resolver, so nothing is ever fetched over a network to draw it.
+ *
+ * **The rule is about the value, and only the value.** Restricting the scheme
+ * to `<image>`, where a picture actually belongs, was the first attempt and
+ * was wrong twice over: it buys no safety, since `asset:` has no handler and
+ * so is inert wherever it lands -- on `<a>` it navigates nowhere, on `<use>`
+ * it resolves to nothing -- and it can only be enforced on the DOMParser
+ * branch, which would leave this module answering one question two ways
+ * depending on which environment asked. A cleaner and a scan that disagree is
+ * the failure this file is built to avoid.
+ *
+ * What makes the scheme safe to allow is the strictness of the id:
+ * `parseAssetRef` accepts hex and a length and nothing else, so the value
+ * cannot carry a path, a query, a fragment, a host or a second scheme. The
+ * allowance is one shape, not one prefix -- `asset:http://evil.example/x` is
+ * not a reference and is removed like any other attempt to reach out.
+ */
+function isInternalReference(value) {
+  return !value || value.startsWith('#') || Boolean(parseAssetRef(value));
+}
 /**
  * The presentation attributes that may name a `url(…)`: a paint server, a
  * filter, a mask, a clip, a marker -- inside the document only. `marker` is

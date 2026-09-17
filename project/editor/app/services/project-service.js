@@ -30,6 +30,30 @@ import { buildFaceProjectTemplate } from '../../core/assets/face-builder.js';
 import { validateRig } from '../../core/validation/rig-validator.js';
 import { applyImportedRig } from '../../core/state/import-rig.js';
 import { identifyFaceParts } from '../../core/face-library/face-part-migration.js';
+import { imageNodeId, imageNodeMarkup, placeBaseInArtboard, placeImageInArtboard } from '../../core/assets/asset-placement.js';
+import { readBoopPackage, writeBoopPackage } from '../../core/export/boop-package.js';
+import { createExportRig } from '../../core/export/export-rig.js';
+import { readArtboard } from '../../core/artwork/artboard.js';
+import { createArtworkCommands } from '../../core/commands/artwork-commands.js';
+
+/**
+ * Why a picture was refused, in words rather than in codes.
+ *
+ * The validator speaks in codes so that tests and callers can branch on them
+ * (core/assets/asset-validate.js); an author needs a sentence, and one that
+ * says what to do next where there is anything to do.
+ */
+const REFUSALS = Object.freeze({
+  empty: 'the file is empty',
+  'unknown-format': 'this is not a picture this editor can read — PNG, WebP or SVG',
+  'convert-first': 'JPEG and GIF have to be saved as PNG or WebP first',
+  'no-dimensions': 'the file looks damaged — its size could not be read',
+  'too-large': 'it is far larger than a mascot needs',
+  'too-many-pixels': 'it is far larger than a mascot needs',
+  'too-many-bytes': 'the file is too big to import',
+  'unsafe-svg': 'this SVG carries something executable, which cannot be imported'
+});
+const importRefusal = (issues = []) => REFUSALS[issues[0]?.code] || 'it could not be imported';
 
 /** Every domain `applyImportedRig` can write, so every panel that shows one redraws. */
 const RIG_IMPORT_DOMAINS = Object.freeze(['artwork', 'rig', 'stateMachine', 'keyforms', 'constraints', 'hands', 'hierarchy']);
@@ -40,8 +64,8 @@ const RIG_IMPORT_DOMAINS = Object.freeze(['artwork', 'rig', 'stateMachine', 'key
  * and a fake that records `(name, text)` is a better test seam than four DOM
  * shims. The globals are read when a download happens, never at import time.
  */
-export const browserDownload = (name, text) => {
-  const blob = new globalThis.Blob([text], { type: 'application/json' });
+export const browserDownload = (name, data, type = 'application/json') => {
+  const blob = new globalThis.Blob([data], { type });
   const link = globalThis.document.createElement('a');
   link.href = globalThis.URL.createObjectURL(blob);
   link.download = name;
@@ -52,6 +76,9 @@ export const browserDownload = (name, text) => {
 
 export function createProjectService({
   store, history, canvas, preview, timeline, autosave,
+  // How a picture becomes an asset. Absent in a service wired without one, and
+  // `addImageFile` then says so rather than throwing.
+  assets = null,
   // The shell, as the four things this service actually asks of it.
   setStatus = () => {}, setProjectLoaded = () => {}, closeHome = () => {},
   navigate = () => {},
@@ -69,6 +96,9 @@ export function createProjectService({
   // self reference, and the DOM timer needs the global as its receiver.
   requestAnimationFrame: afterPaint = (callback) => globalThis.requestAnimationFrame(callback)
 } = {}) {
+  // Its own instance, as the canvas has: a command is a document mutation plus
+  // a history step, and both are stateless.
+  const commands = createArtworkCommands(store, history);
   /**
    * The one destructive path. `commit` prepares nothing and validates nothing:
    * whatever can fail must have failed before this is called, so a bad file
@@ -91,10 +121,19 @@ export function createProjectService({
 
   const downloadJson = (name, data) => createDownload(name, JSON.stringify(data, null, 2));
 
+  /**
+   * Save the project, in whichever form does not lose part of it.
+   *
+   * A project of paths is a JSON file and always was. A project with pictures
+   * in it is a package, because a JSON snapshot references assets by id and
+   * carries none of them: handing an author a file that silently drops their
+   * drawings is worse than handing them a file type they did not choose.
+   */
   const saveProject = () => {
     // Serialized from the canvas rather than from `svgMarkup`: the store copy
     // lags behind whatever the author has just drawn.
     if (!hasValidProjectDocument(store.getState(), () => canvas.serializeCurrentSvg())) { setStatus('Create or open a project before saving.', 'warn'); return false; }
+    if (Object.keys(store.getDocument().assets || {}).length) return saveBoopPackage();
     const snapshot = createProjectSnapshot(store.getState(), () => canvas.serializeCurrentSvg());
     downloadJson('mascot-project.json', snapshot);
     setStatus('Project snapshot exported.');
@@ -132,6 +171,12 @@ export function createProjectService({
       preview.apply();
     }, { keepRecovery: recovered });
     if (!committed) return false;
+    // Every path that puts a project on the canvas fetches its pictures, not
+    // just the one that opens a package. A draft recovered after a browser
+    // restart is the case this was missing: the canvas paints as it loads,
+    // synchronously, so without this the raster pieces come back blank and
+    // stay blank until something unrelated redraws them.
+    const short = (await canvas.refreshAssets?.())?.missing ?? [];
     navigate('design.artwork');
     setProjectLoaded(true);
     closeHome();
@@ -139,6 +184,187 @@ export function createProjectService({
     // A recovered draft matches the record it came from, so the version token
     // would call it clean — yet the author has never saved it anywhere.
     if (recovered) { autosave.markDirty(); setStatus('Recovered local copy — unsaved changes.', 'warn'); }
+    // Said, not drawn as a hole. A project whose pictures are gone is a
+    // specific thing that happened -- site data cleared, a package opened
+    // without them -- and the author can only act on it if they are told.
+    if (short.length) setStatus(`${sourceLabel} restored, but ${short.length} picture${short.length === 1 ? '' : 's'} could not be found. ${short.length === 1 ? 'That piece is' : 'Those pieces are'} blank until it is added again.`, 'warn');
+    return true;
+  };
+
+  /**
+   * Add a picture to the artwork that is already open.
+   *
+   * Not `loadSvgFile`, which replaces the project: this puts one more piece on
+   * the canvas, in the middle, at a size its author can see all of
+   * (core/assets/asset-placement.js).
+   *
+   * The node and the asset record are written in one command, so one undo takes
+   * both back. Splitting them would leave a step where the artwork points at a
+   * record the project does not list.
+   */
+  const addImageFile = async (file) => {
+    if (!assets) { setStatus('Pictures cannot be added in this editor build.', 'error'); return false; }
+    let imported;
+    try {
+      imported = await assets.import(new Uint8Array(await file.arrayBuffer()), { name: file.name, type: file.type });
+    } catch {
+      setStatus(`Could not read ${file.name}.`, 'error');
+      return false;
+    }
+    if (!imported.ok) { setStatus(`${file.name}: ${importRefusal(imported.issues)}`, 'error'); return false; }
+
+    const before = store.getDocument();
+    const box = placeImageInArtboard(imported.asset, readArtboard(before.svgMarkup));
+    if (!box) { setStatus(`${file.name} has no size to place.`, 'error'); return false; }
+    const id = imageNodeId(file.name, new Set(Object.keys(before.elements || {})));
+    const artwork = canvas.appendArtwork(imageNodeMarkup({ id, assetId: imported.asset.id, box }), null, { updateStore: false });
+    if (!artwork) { setStatus(`Could not place ${file.name}.`, 'error'); return false; }
+
+    commands.syncSvg({ ...artwork, assets: { ...(before.assets || {}), [imported.asset.id]: imported.asset } },
+      { domains: ['artwork', 'layers', 'assets'], source: 'add-image' });
+    await canvas.refreshAssets();
+    preview.apply();
+    setStatus(imported.stored
+      ? `Added ${file.name}. Drag it, or resize it from the Inspector.`
+      : `Added ${file.name} — you already had this picture, so it is the same asset.`);
+    return true;
+  };
+
+  /**
+   * Put a different picture on a piece that is already rigged.
+   *
+   * What the raster model is for: the rig, the animations, the pivot, the
+   * depth and the place in the paint order all belong to the node, and none of
+   * them knows which picture it draws. So this changes one reference and
+   * nothing else -- a redrawn mouth arrives already animated.
+   *
+   * **The picture that was there is kept.** Collecting it here would be
+   * correct right up until the author pressed undo: undo restores the
+   * document, and nothing restores bytes deleted from the store, so the piece
+   * would come back pointing at an asset that no longer exists. A record is a
+   * few dozen bytes; the bytes themselves go when collection is asked for
+   * deliberately (`assets.collect`), where there is nothing to undo.
+   */
+  const replaceImageFile = async (id, file) => {
+    if (!assets) { setStatus('Pictures cannot be replaced in this editor build.', 'error'); return false; }
+    const before = store.getDocument();
+    let imported;
+    try {
+      imported = await assets.import(new Uint8Array(await file.arrayBuffer()), { name: file.name, type: file.type });
+    } catch {
+      setStatus(`Could not read ${file.name}.`, 'error');
+      return false;
+    }
+    if (!imported.ok) { setStatus(`${file.name}: ${importRefusal(imported.issues)}`, 'error'); return false; }
+
+    const artwork = canvas.replaceImageAsset(id, assets.reference(imported.asset.id));
+    if (!artwork) { setStatus(`${id} is not a picture, so there is nothing to replace.`, 'error'); return false; }
+
+    commands.syncSvg({ ...artwork, assets: { ...(before.assets || {}), [imported.asset.id]: imported.asset } },
+      { domains: ['artwork', 'assets'], source: 'replace-image' });
+    await canvas.refreshAssets();
+    preview.apply();
+    setStatus(`${id} now draws ${file.name}. Its movements are unchanged.`);
+    return true;
+  };
+
+  /**
+   * Import a picture as the head or the body: the thing the rest of the mascot
+   * sits on.
+   *
+   * The same import as `addImageFile`, placed as a base rather than as a
+   * piece. Three differences, and each is a thing an author would otherwise do
+   * by hand immediately: it takes most of the frame rather than a corner of
+   * it, it is painted behind everything already there, and its pivot is
+   * offered at its own centre, which is where a head turns from.
+   *
+   * Offered, not imposed. All three land in the document where they can be
+   * seen and changed; none of them is a mode the author is now in.
+   */
+  const addBaseImageFile = async (file) => {
+    if (!assets) { setStatus('Pictures cannot be added in this editor build.', 'error'); return false; }
+    let imported;
+    try {
+      imported = await assets.import(new Uint8Array(await file.arrayBuffer()), { name: file.name, type: file.type });
+    } catch {
+      setStatus(`Could not read ${file.name}.`, 'error');
+      return false;
+    }
+    if (!imported.ok) { setStatus(`${file.name}: ${importRefusal(imported.issues)}`, 'error'); return false; }
+
+    const before = store.getDocument();
+    const box = placeBaseInArtboard(imported.asset, readArtboard(before.svgMarkup));
+    if (!box) { setStatus(`${file.name} has no size to place.`, 'error'); return false; }
+    const id = imageNodeId(file.name, new Set(Object.keys(before.elements || {})));
+    const artwork = canvas.appendArtwork(imageNodeMarkup({ id, assetId: imported.asset.id, box }), null, { updateStore: false, position: 'back' });
+    if (!artwork) { setStatus(`Could not place ${file.name}.`, 'error'); return false; }
+
+    const elements = { ...artwork.elements };
+    if (elements[id]) elements[id] = {
+      ...elements[id],
+      baseTransform: { ...elements[id].baseTransform, pivotX: box.pivot.x, pivotY: box.pivot.y },
+      // The base plane: everything placed on top of it takes a depth in front.
+      depth: 0
+    };
+    commands.syncSvg({ ...artwork, elements, assets: { ...(before.assets || {}), [imported.asset.id]: imported.asset } },
+      { domains: ['artwork', 'layers', 'assets'], source: 'add-base-image' });
+    await canvas.refreshAssets();
+    preview.apply();
+    setStatus(`${file.name} is the base. Add eyes and a mouth on top of it — they will be painted in front.`);
+    return true;
+  };
+
+  /**
+   * The whole project as one file, pictures included.
+   *
+   * Saving a `.json` beside a folder of pictures is a thing that works until
+   * somebody moves one of them. This is the version that survives being
+   * emailed (docs/V4_ROADMAP.md, Phase 4).
+   */
+  const saveBoopPackage = async () => {
+    if (!hasValidProjectDocument(store.getState(), () => canvas.serializeCurrentSvg())) { setStatus('Create or open a project before saving.', 'warn'); return false; }
+    const snapshot = createProjectSnapshot(store.getState(), () => canvas.serializeCurrentSvg());
+    const { bytes, missing } = await writeBoopPackage({
+      snapshot,
+      bytesFor: async (id) => (assets ? assets.bytes(id) : null),
+      rig: createExportRig(store.getState())
+    });
+    createDownload('mascot.boop', bytes, 'application/zip');
+    // Said rather than swallowed: a package short a picture still opens, and
+    // its author should hear it from the save and not from the reopen.
+    setStatus(missing.length
+      ? `Project exported — ${missing.length} picture${missing.length === 1 ? '' : 's'} could not be included.`
+      : 'Project exported as a package, pictures included.', missing.length ? 'warn' : undefined);
+    autosave.markSaved();
+    return true;
+  };
+
+  /**
+   * Open a package: its pictures into the store, its project through the same
+   * door a `.json` goes through.
+   *
+   * The assets land first, because the canvas paints as it loads and a picture
+   * that arrives afterwards is a piece drawn as a hole until something
+   * redraws it.
+   */
+  const loadBoopFile = async (file) => {
+    let read;
+    try { read = await readBoopPackage(new Uint8Array(await file.arrayBuffer())); }
+    catch (error) { setStatus(`${file.name}: ${error.message}`, 'error'); return false; }
+
+    const refused = [];
+    for (const [id, bytes] of read.assets) if (!assets || !(await assets.adopt(id, bytes))) refused.push(id);
+    let prepared;
+    try { prepared = prepareProjectSnapshot(read.snapshot, (svg) => canvas.prepareSvgImport(svg)); }
+    catch { setStatus(`${file.name} is not a project this editor can open.`, 'error'); return false; }
+
+    const restored = await restoreSnapshot(prepared, `Package ${file.name}`);
+    if (!restored) return false;
+    // What the package itself could not give, on top of whatever the canvas
+    // then could not find: a picture refused for failing its checksum never
+    // reached the store, so it would show up in both, and is counted once.
+    const short = [...new Set([...read.missing, ...read.damaged, ...refused])];
+    if (short.length) setStatus(`Opened ${file.name} — ${short.length} picture${short.length === 1 ? '' : 's'} in it could not be read.`, 'warn');
     return true;
   };
 
@@ -199,6 +425,16 @@ export function createProjectService({
 
   const loadProjectFile = async (file) => {
     try {
+      // A package and a snapshot arrive through the same button, because to
+      // the author they are the same thing: their project. `PK\x03\x04` is a
+      // ZIP, and a name is not asked because a name can be anything.
+      //
+      // Read through `text()` and not `slice()`: a `File` has both, but this
+      // service is also handed file-*likes* -- by the e2e hooks and by the
+      // tests -- and the one method all of them have is the one that was
+      // always used here. The four bytes are ASCII, so they survive being
+      // decoded whatever follows them does.
+      if ((await file.text()).startsWith('PK\u0003\u0004')) return await loadBoopFile(file);
       const imported = JSON.parse(await file.text());
       // Parsed, versioned and normalized against a throwaway state first, so an
       // unsupported snapshot never reaches the live store.
@@ -244,5 +480,5 @@ export function createProjectService({
     }
   };
 
-  return { replaceProject, restoreSnapshot, saveProject, downloadJson, loadSvgFile, loadTemplate, generateFace, loadProjectFile, importRigFile };
+  return { replaceProject, restoreSnapshot, saveProject, downloadJson, addImageFile, addBaseImageFile, replaceImageFile, saveBoopPackage, loadBoopFile, loadSvgFile, loadTemplate, generateFace, loadProjectFile, importRigFile };
 }

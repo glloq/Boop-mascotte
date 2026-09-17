@@ -11,7 +11,7 @@
 import { FACE_PART_LIBRARY, loadCustomParts, saveCustomParts } from './face-part-registry.js';
 import { installFacePack } from './face-pack.js';
 import { documentIds, elementSpan, matchesInstalledId, remapArtworkIds } from './face-part-artwork.js';
-import { artworkIds, assetTags, facePartCategory } from './face-part-model.js';
+import { artworkIds, assetTags, facePartCategory, partArtworkMarkup } from './face-part-model.js';
 import { faceSlot } from './face-morphologies.js';
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
 import { FACE_PART_DOMAINS, FACE_PART_FIELDS, applyFacePartRemoval, applyFacePartReplacement, planFacePartRemoval, planFacePartReplacement } from './face-part-install.js';
@@ -365,7 +365,10 @@ export function createFacePartCommands(store, history, canvas, { library = FACE_
       // Free the ids the old part held; rename past everything else.
       const kept = documentIds(before.svgMarkup);
       for (const id of plan.removeIds) kept.delete(id);
-      const remapped = remapArtworkIds(asset.artwork, { taken: (id) => kept.has(id) });
+      // `partArtworkMarkup` and not `asset.artwork`: for a drawing the two
+      // are the same string, and for a part drawn by a picture this is the
+      // `<image>` it installs as (docs/V4_ROADMAP.md, V4-050).
+      const remapped = remapArtworkIds(partArtworkMarkup(asset), { taken: (id) => kept.has(id) });
       // Painted in this face's colours: every paint that plays a token the
       // face has a colour for takes that colour, before the drawing goes on.
       const roles = Object.fromEntries(Object.entries(asset.paletteRoles || {}).map(([id, entry]) => [remapped.renamed[id] ?? id, entry]));

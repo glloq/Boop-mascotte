@@ -1,3 +1,4 @@
+import { normalizeAssets } from '../assets/asset-model.js';
 import { normalizeRigHandles } from '../puppet/handle-record.js';
 import { normalizeRigLinks } from '../puppet/control-links.js';
 import { normalizeArrangement } from '../animation/arrangement.js';
@@ -5,6 +6,10 @@ import { RIG_SCHEMA_VERSION, normalizeDeformers, normalizeExpressionBlend, norma
 
 export const PROJECT_DOMAINS = Object.freeze({
   artwork: ['svgMarkup', 'elements'],
+  // What the artwork points at, never what it is made of (docs/V4_ROADMAP.md,
+  // ASSET-REF): id -> record, and the bytes live outside the document so undo
+  // and autosave stay cheap.
+  assets: ['assets'],
   layers: ['layers', 'layerMetadata'],
   // `gazeSolver` sits here because turning it on writes parameters: one
   // domain, one notification (docs/FACE_CONTROL_RIG.md).
@@ -91,6 +96,8 @@ export function createProjectDocument(candidate = {}) {
   return {
     schemaVersion: RIG_SCHEMA_VERSION,
     svgMarkup: typeof candidate.svgMarkup === 'string' ? candidate.svgMarkup : '',
+    // Empty for every project that predates the raster program.
+    assets: normalizeAssets(candidate.assets),
     elements: candidate.elements && typeof candidate.elements === 'object' ? candidate.elements : {},
     layers: Array.isArray(candidate.layers) ? candidate.layers : [],
     layerMetadata: candidate.layerMetadata && typeof candidate.layerMetadata === 'object' ? candidate.layerMetadata : {},
