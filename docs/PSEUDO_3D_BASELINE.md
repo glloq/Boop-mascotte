@@ -299,6 +299,7 @@ draw it, and how far to push it, is the author's call.
 | 3D-09 | `bodyTurn` | **Not started, and much bigger than it looks** — see below |
 | 3D-10 | Secondary inertia | **Done** — hair and ears arrive a beat late, zero at rest |
 | 3D-11 | Warp driven by a 2D grid | **Declined on its own terms** — see below |
+| 3D-12 | The marks nobody named | **Done** — a drawing on a flat face with no role rides the surface instead of standing still |
 
 ## 3D-09 is a body rig, not an extension of the projection
 
@@ -329,3 +330,86 @@ deformation path through the same artwork, which is the kind of thing that is
 cheap to add and expensive to keep coherent. Left closed, deliberately, until
 something an author actually wants to draw turns out to be impractical with
 node editing.
+
+# 3D-12: the face turned out from under its own blushes
+
+Three things looked wrong on the face and were written down as defects. Two of
+them were the **instrument**, not the face.
+
+The first measurements were taken with `getBoundingClientRect`, which is what
+the viewer sees and therefore usually the honest number. It is not honest about
+two things on this artwork, and both were in the list:
+
+| Written down as | What it actually was |
+| --- | --- |
+| *decoration gets no turn — `faceLight` +0.2 px while the eyes move 48* | The shading is **clipped to the head**. A clipped box reports the clip, so sliding the highlight seven units inside it barely moves the box. Composed transform: `faceLight` really does travel its authored −7, and the rest of the shading rides `faceRoot`, which *is* the head |
+| *implausible per-feature scaling — nose height ×1.52 on a horizontal turn* | The nose is **rotated −70° on purpose** (`NOSE_TURN`): it is half a circle, and turning it is what makes the arc read as the underside of a nose from the front and as its ridge from the side. Rotating a shallow arc inflates its box. The generator scales it 0.85, as the table says |
+
+And the third — *vertical travel varies 6.3 → 36 across the face* — is parallax
+doing its job. Measured from the composed transform on a full nod, the travel
+is ordered by depth and nothing is out of order: outline 7 px, ears 13, eyes
+31, pupils 34, brows 36, nose 47. A face whose features all moved the same
+distance would be the bug.
+
+So the numbers below are taken from `frameFor(id)` — the composed transform the
+runtime writes — with the painted box beside it, and the two are read against
+each other rather than one of them being trusted alone.
+
+## The one that was real
+
+`headTurnElements` built the turn out of the **semantic roles**. A drawing that
+plays no role was in no layer of it.
+
+The template never showed it: its head role is the whole `faceRoot` group, so
+its shading, its catchlights and everything else painted on the face are
+*inside* the head and ride it for free. Nesting carried them. A drawing an
+author brings has no nesting to be carried by.
+
+Measured on a flat face — an ellipse, two eyes, a mouth, two blushes and a
+scar, every shape a sibling, roles assigned to the four that have one:
+
+```text
+                 before          after
+myHead      dx  +11.2 px     dx  +11.2 px     w× 0.866
+myEyeL      dx  +55.3        dx  +55.3        w× 1.054
+myMouth     dx  +63.9        dx  +63.9        w× 0.850
+myBlushL    dx    0.0        dx  +26.2        w× 0.866
+myBlushR    dx    0.0        dx   −3.8        w× 0.866
+myScar      dx    0.0        dx   −0.7        w× 0.866
+```
+
+Zero. The mouth travelled sixty-four pixels, the outline eleven, and the cheeks
+did not move at all: the face turned out from under its own blushes.
+
+## What a mark does now
+
+It **rides the surface**: `{ depth: 0, squash: true }`, which `carriedFrom`
+turns into the outline's own depth. It travels as far as the cheek under it and
+narrows by the same cosine — and the two blushes do **not** move together,
+which is the part that makes it read. On a right turn the near cheek carries
+its mark +26 px while the outline's centre goes +11, and the far cheek carries
+its one back −4: that spread *is* the face narrowing about its own middle.
+
+A mark is not a feature. It never swings out in front of the face the way a
+nose does, because a depth nobody declared is not a depth.
+
+## Which drawings, and how that is decided
+
+The artwork answers it, and the question is only ever asked of a flat drawing:
+
+- **the head is a group** → everything on the face is already inside it, so
+  nothing is added. A sibling of that group is something else on the mascot: a
+  hand, a body, a shadow. The template is this case, and its exported
+  `rig.json` is byte-for-byte what it was.
+- **the head is a shape** → there is no group to be inside, so the marks are
+  the head's own siblings, and that is where they are looked for. Anything
+  another part already speaks for is left alone — a role of any semantic part,
+  a hand the project names, the head itself. A group is taken whole, because
+  its children ride it.
+
+Structural on purpose. What is on the face is read off the **tree**, not off a
+bounding box: the pass that asks the question is the one that *decides what to
+measure*, so it has no boxes yet. The cost is named rather than hidden — a
+sparkle drawn beside a flat head, in the same list, is taken to be on it. That
+is the same assumption the role table makes about every part it names, and an
+author who means otherwise can see the rule and move the drawing.

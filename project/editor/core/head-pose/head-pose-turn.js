@@ -308,13 +308,119 @@ export function headTurnUnit(document = {}, { headWidth = null } = {}) {
 }
 
 /**
+ * Where a part is, and what that lets the generator do to it.
+ *
+ * A feature drawn inside the head group already travels with it; a sibling has
+ * to carry that motion itself, or the turn only reads on artwork that happens
+ * to be nested.
+ */
+function placement(document, elementId, centers, headElement) {
+  const base = document.elements[elementId].baseTransform || {};
+  const measured = centers?.[elementId];
+  const pivot = { x: number(base.pivotX), y: number(base.pivotY) };
+  const centre = measured && Number.isFinite(Number(measured.x)) && Number.isFinite(Number(measured.y))
+    ? { x: Number(measured.x), y: Number(measured.y) } : null;
+  return {
+    pivot,
+    centre,
+    // Within a pixel is "at the centre": a scale around it moves nothing.
+    // An unset pivot counts too, because generating the turn sets it (see
+    // `headTurnPivots`) in the same command that writes these samples.
+    pivotAtCentre: Boolean(centre) && (Math.hypot(pivot.x - centre.x, pivot.y - centre.y) < 1 || (!pivot.x && !pivot.y)),
+    inherits: elementId === headElement || isDescendant(document.layers, headElement, elementId)
+  };
+}
+
+/**
+ * What a drawing nobody claimed does when the head turns.
+ *
+ * `depth: 0` is the outline's own depth once `carriedFrom` has added it, so a
+ * mark rides the surface it is painted on: it travels exactly as far as the
+ * cheek under it and narrows by the same cosine. It is the honest answer for a
+ * shape whose depth nobody declared -- not "out in front like a nose", not
+ * "behind the axis like the back of the hair", but *on the face*.
+ */
+const SURFACE = Object.freeze({ depth: 0, side: null, squash: true });
+
+/**
+ * The drawings on the face that no role claims.
+ *
+ * A face somebody drew is flat: every shape is a sibling, and the ones the
+ * eight roles do not name -- a blush, freckles, a scar, a birthmark -- were in
+ * no layer of the turn at all. Measured on a drawn face, the mouth travelled
+ * sixty-four pixels and the outline eleven while the two cheeks travelled
+ * **zero**: the face turned out from under its own blushes.
+ *
+ * The template never showed it. Its head role is the whole `faceRoot` group,
+ * so its shading and its catchlights are *inside* the head and ride it for
+ * free. Nesting is what saved them, and a drawing with no nesting had nothing
+ * to be saved by -- which is exactly the artwork an author brings.
+ *
+ * So the question is only ever asked of a **flat** drawing, and the artwork
+ * answers it itself:
+ *
+ *   - the head is a **group**   everything on the face is already inside it,
+ *                               and a sibling of that group is something else
+ *                               on the mascot -- a hand, a body, a shadow. So
+ *                               nothing is added, and nothing can be swept in
+ *                               by accident.
+ *   - the head is a **shape**   there is no group to be inside, so the marks
+ *                               on the face are the head's own siblings, and
+ *                               that is where they are looked for.
+ *
+ * Within that, a sibling is taken unless something else already speaks for it:
+ * a role of any semantic part (a hand is not face artwork), a hand the project
+ * names, or the head itself. A group is taken whole -- its children ride it,
+ * exactly as the template's shading rides `faceRoot`.
+ *
+ * Structural on purpose: what is on the face is read off the tree rather than
+ * off a bounding box, which the selection pass has not measured yet -- it is
+ * what *decides* what to measure. An author who does not want a drawing on the
+ * face can see the rule and move the drawing out of the head's group.
+ */
+function surfaceArtwork(document, layers, headElement) {
+  if (!headElement || !document.elements?.[headElement]) return [];
+  const siblings = headSiblings(document.layers, headElement);
+  if (!siblings) return [];
+  const taken = new Set();
+  for (const part of Object.values(document.semanticParts || {})) {
+    for (const id of Object.values(part.roles || {})) if (id) taken.add(id);
+  }
+  for (const hand of Object.values(document.hands || {})) if (hand?.element) taken.add(hand.element);
+  for (const layer of layers) taken.add(layer.elementId);
+  return siblings
+    .filter((node) => node?.id && node.id !== headElement && !taken.has(node.id) && document.elements?.[node.id])
+    .map((node) => node.id);
+}
+
+/**
+ * The list the head is drawn in, when the head is a shape rather than a group.
+ *
+ * `null` for a head that is a group -- the case above where there is nothing to
+ * look for -- and for a head that is in no list at all.
+ */
+function headSiblings(layers = [], headElement) {
+  const walk = (nodes) => {
+    for (const node of nodes || []) {
+      if (node?.id === headElement) return node.children?.length ? null : nodes;
+      const found = walk(node?.children || []);
+      if (found !== undefined) return found;
+    }
+    return undefined;
+  };
+  const found = walk(layers);
+  return found === undefined ? null : found;
+}
+
+/**
  * Every element that takes part, with the layer it plays.
  *
- * Three answers, in order: the profile the part's own drawing declared
+ * Four answers, in order: the profile the part's own drawing declared
  * (`assetTurn`, written by the install from what the library asset said), then
- * the role table, then none at all. Hands and generic accessories fall off the
- * end of that: one is not on the head and the other could be anything until it
- * says what it is. They stay hand-posable.
+ * the role table, then -- for a drawing nobody named at all, on a face drawn
+ * flat -- the surface it is painted on (`surfaceArtwork`), then none. Hands and
+ * generic accessories fall off the end of that: one is not on the head and the
+ * other could be anything until it says what it is. They stay hand-posable.
  */
 export function headTurnElements(document = {}, { centers = null } = {}) {
   const headElement = headPart(document)?.roles?.head || null;
@@ -326,25 +432,16 @@ export function headTurnElements(document = {}, { centers = null } = {}) {
       const layer = normalizeHeadTurnProfile(part.assetTurn?.[role]) || HEAD_TURN_LAYERS[role];
       if (!elementId || !layer || !document.elements?.[elementId]) continue;
       if (found.some((item) => item.elementId === elementId)) continue;
-      // A feature drawn inside the head group already travels with it; a
-      // sibling has to carry that motion itself, or the turn only reads on
-      // artwork that happens to be nested.
-      const base = document.elements[elementId].baseTransform || {};
-      const measured = centers?.[elementId];
-      const pivot = { x: number(base.pivotX), y: number(base.pivotY) };
-      const centre = measured && Number.isFinite(Number(measured.x)) && Number.isFinite(Number(measured.y))
-        ? { x: Number(measured.x), y: Number(measured.y) } : null;
-      found.push({
-        elementId, role, part: part.id, ...layer,
-        pivot,
-        centre,
-        // Within a pixel is "at the centre": a scale around it moves nothing.
-        // An unset pivot counts too, because generating the turn sets it (see
-        // `headTurnPivots`) in the same command that writes these samples.
-        pivotAtCentre: Boolean(centre) && (Math.hypot(pivot.x - centre.x, pivot.y - centre.y) < 1 || (!pivot.x && !pivot.y)),
-        inherits: elementId === headElement || isDescendant(document.layers, headElement, elementId)
-      });
+      found.push({ elementId, role, part: part.id, ...layer, ...placement(document, elementId, centers, headElement) });
     }
+  }
+  // And the drawings nobody claimed, which until now were in no layer at all.
+  for (const elementId of surfaceArtwork(document, found, headElement)) {
+    if (found.some((item) => item.elementId === elementId)) continue;
+    found.push({
+      elementId, role: null, part: null, ...SURFACE,
+      ...placement(document, elementId, centers, headElement)
+    });
   }
   return found.map((layer) => ({ ...layer, ...carriedFrom(found, document, layer) }));
 }
