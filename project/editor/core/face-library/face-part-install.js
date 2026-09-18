@@ -19,7 +19,7 @@
  * shape that is not there is worse than none.
  */
 import { SEMANTIC_PART_REGISTRY, semanticDriverProperties } from '../../rig-editor/semantic-parts/part-registry.js';
-import { assignSemanticRole, cleanupOwnedDriver, createSemanticPart, disableSemanticControl, enableSemanticControl, removeSemanticPart, resetSemanticMorph, restingOffset } from '../../rig-editor/semantic-parts/part-model.js';
+import { assignSemanticRole, cleanupOwnedDriver, controlExpression, createSemanticPart, disableSemanticControl, enableSemanticControl, removeSemanticPart, resetSemanticMorph, restingOffset } from '../../rig-editor/semantic-parts/part-model.js';
 import { featureMountPoint } from '../sample/face-features.js';
 import { captureHeadPose, createHeadPoseAxes, isHeadPoseKeyform } from '../head-pose/head-pose-model.js';
 import { generateHeadTurn, headTurnElements } from '../head-pose/head-pose-turn.js';
@@ -387,7 +387,7 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
       assignSemanticRole(candidate, part.id, role, id);
       roleElements[role] = id;
     }
-    refreshControls(candidate, part, { wanted: plan.partId ? [...(part.controls || [])] : [], supported: new Set(describeFacePartCapabilities(asset).supported), hints: { ...DRAWN_DRIVERS, ...asset.drivers }, enabled, disabled, fresh: !plan.partId });
+    refreshControls(candidate, part, { wanted: plan.partId ? [...(part.controls || [])] : [], supported: new Set(describeFacePartCapabilities(asset).supported), hints: { ...DRAWN_DRIVERS, ...asset.drivers }, enabled, disabled, fresh: !plan.partId, roleElements });
     recordTurnProfiles(part, asset.turn);
   }
   // The other parts the asset draws -- a pair of eyes with its pupils and its
@@ -399,12 +399,14 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
     if (type === 'jaw' && plan.skull) continue;
     const other = Object.values(candidate.semanticParts).find((item) => item?.type === type) || createSemanticPart(candidate, type);
     const had = Boolean(plan.partId) && cleared.some((item) => item.partId === other.id);
+    const drawnRoles = {};
     for (const [role, elementId] of Object.entries(drawn.roles)) {
       const id = idOf(elementId);
       if (!candidate.elements[id]) throw new Error(`The asset names "${elementId}" for the ${role} of ${SEMANTIC_PART_REGISTRY[type]?.displayName || type}, and the canvas did not draw it.`);
       assignSemanticRole(candidate, other.id, role, id);
+      drawnRoles[role] = id;
     }
-    refreshControls(candidate, other, { wanted: [...(other.controls || [])], supported: new Set(drawn.capabilities), hints: drawn.drivers || {}, enabled, disabled, fresh: !had && !other.controls?.length });
+    refreshControls(candidate, other, { wanted: [...(other.controls || [])], supported: new Set(drawn.capabilities), hints: drawn.drivers || {}, enabled, disabled, fresh: !had && !other.controls?.length, roleElements: drawnRoles });
     recordTurnProfiles(other, drawn.turn);
     composite[type] = { partId: other.id, roles: Object.fromEntries(Object.entries(drawn.roles).map(([role, elementId]) => [role, idOf(elementId)])) };
   }
@@ -590,7 +592,7 @@ function refitHosted(candidate, part, fit) {
  * @param {string[]} options.disabled written to, in place
  * @param {boolean} options.fresh whether the part is new, or had no movements to keep
  */
-function refreshControls(candidate, part, { wanted, supported, hints, enabled, disabled, fresh }) {
+function refreshControls(candidate, part, { wanted, supported, hints, enabled, disabled, fresh, roleElements = null }) {
   const definition = SEMANTIC_PART_REGISTRY[part.type];
   for (const control of definition.controls) {
     const on = part.controls.includes(control);
@@ -608,6 +610,16 @@ function refreshControls(candidate, part, { wanted, supported, hints, enabled, d
       // binding belongs to this part and this control, so it goes with it.
       if (on) cleanupOwnedDriver(candidate, part.id, control);
       enableSemanticControl(candidate, part.id, control, hint ? { property: hint.property, amplitude: hint.amplitude, offset: hint.offset ?? restOffset(definition, control, hint) } : {});
+      // A **shaped** movement writes no transform: the shape keys are the
+      // movement, and the asset ships the pose they deform to. Built here, and
+      // if it cannot be built the movement goes off rather than becoming a
+      // slider that moves nothing -- which is what every mouth claiming
+      // `mouthRound` had (docs/VISEME_SYSTEM.md).
+      if (part.controlDrivers?.[control]?.method === 'shapeKey' && roleElements
+        && installShapedControl(candidate, part, control, hint || {}, roleElements) === 'refused') {
+        turnOff(candidate, part, control, disabled);
+        continue;
+      }
       if (hint) applyHint(candidate, part, control, hint);
       enabled.push(control);
     } else if (on) turnOff(candidate, part, control, disabled);
@@ -762,6 +774,63 @@ function installJawShapeKey(candidate, jaw, skull, hint) {
   element.restPath = rest;
   candidate.shapeKeys = upsertShapeKey(candidate.shapeKeys || [], shape.shapeKey);
   return true;
+}
+
+/**
+ * A **shaped** movement an asset ships, as a shape key per role it draws
+ * (docs/SHAPE_KEYS.md).
+ *
+ * Some movements cannot be a transform. `mouthRound` is the one the visemes
+ * turn on — the difference between AE and OO is the aperture *puckering*, and
+ * narrowing a lens is not rounding it (docs/VISEME_SYSTEM.md) — and `eyeSquint`
+ * and `eyeCurve` are the same kind of thing for a lid. The registry says so
+ * (`strategies: { mouthRound: ['shapeKey'] }`), and until now only the jaw knew
+ * how to build one: a card that claimed `mouthRound` got a slider that moved
+ * nothing, which is why not one mouth in the library could speak.
+ *
+ * The hint carries `posePath` — the shape as drawn at the movement's end — and
+ * the amplitude *is* the pose, so there is no number to tune. A role that draws
+ * something other than a path gets no key and says so, rather than promising a
+ * movement the drawing cannot carry.
+ *
+ * Driven by the movement's own sentence, so the side offsets an author may turn
+ * on later carry the asymmetry with no second mechanism
+ * (`enableSemanticSideControl`, docs/FACE_CONTROL_RIG.md §5).
+ *
+ * @returns {'built'|'nothing-to-build'|'refused'} `nothing-to-build` where the
+ *   movement writes no role this drawing took, which is not a refusal: the jaw's
+ *   own pose goes onto the *head* asset's skull, under the skull rule, and is
+ *   installed by `installJawShapeKey` after the roles are settled.
+ */
+function installShapedControl(candidate, part, control, hint, roleElements) {
+  const definition = SEMANTIC_PART_REGISTRY[part.type];
+  // Which roles the movement writes: the registry's, narrowed to the ones this
+  // drawing actually took.
+  const roles = Object.keys(definition?.bindings || {}).filter((role) => definition.bindings[role][control] && roleElements[role]);
+  if (!roles.length) return 'nothing-to-build';
+  let made = 0;
+  for (const role of roles) {
+    const id = roleElements[role];
+    const element = candidate.elements[id];
+    const rest = pathDataOf(candidate.svgMarkup, id);
+    // A per-role pose where the asset gives one, the shared pose otherwise: a
+    // lid's two sides are drawn apart, a mouth's one aperture is not.
+    const posePath = hint.roles?.[role]?.posePath ?? hint.posePath;
+    if (!element || element.meta?.nodeType !== 'path' || !rest || !posePath) continue;
+    const shape = createShapeKey({
+      id: `${id}-${control}`, target: id, name: `${id} ${control}`, restPath: rest, posePath,
+      // The asset's own sentence where it gives one, the movement's otherwise --
+      // so the side offsets an author may turn on later carry the asymmetry with
+      // no second mechanism (`enableSemanticSideControl`).
+      driver: { mode: 'expression', expression: hint.expression || controlExpression(definition, part, control, role), curve: 'linear', amplitude: 1, offset: 0 },
+      generatedBy: { semanticPart: part.id, control }
+    });
+    if (!shape.ok) continue;
+    element.restPath = rest;
+    candidate.shapeKeys = upsertShapeKey(candidate.shapeKeys || [], shape.shapeKey);
+    made += 1;
+  }
+  return made === roles.length ? 'built' : 'refused';
 }
 
 /**

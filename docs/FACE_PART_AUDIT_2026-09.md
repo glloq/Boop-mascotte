@@ -22,8 +22,8 @@ listed at the end, with what was done about it.
 | part | category | semantic part | drawn by | movement | token | panel | runtime | template |
 |---|---|---|---|---|---|---|---|---|
 | **eyelids** | yes (no assets of its own) | `eyelids` — four lid roles, `eyeOpen`, sided | the eye sets, as a composite (`builtin/eyes.js`) | `eyeOpen`, shared with the eyes | none of its own; seeds `skin` + `outline` | Builder row, no cards; no Face Setup row | generic bindings, plus `eyelidFollowAmount` | drawn and rigged, per-side offsets |
-| **tongue** | **no** | two: the mouth's `tongue` (does it show) and a `tongue` part (`tongueX/Y/Out/Curl`) | `mouth.cartoon` only | `tongue` + the four | `tongue` | Movements group, glyph, palette | generic; carried by the lip line in the turn | drawn, rigged, three shape keys |
-| **teeth** | no (comes with the mouth) | the mouth's `teeth` role | `mouth.wide`, `mouth.cartoon` | `teeth` | `teeth` | glyph, "limited animation" badge when a mouth lacks it | generic | drawn, rigged, three shape keys |
+| **tongue** | **no** | two: the mouth's `tongue` (does it show) and a `tongue` part (`tongueX/Y/Out/Curl`) | `mouth.full` (was `mouth.cartoon` only) | `tongue` + the four | `tongue` | Movements group, glyph, palette | generic; carried by the lip line in the turn | drawn, rigged, three shape keys |
+| **teeth** | no (comes with the mouth) | the mouth's `teeth` role | `mouth.full` (was `mouth.wide` and `mouth.cartoon`) | `teeth` | `teeth` | glyph, "limited animation" badge when a mouth lacks it | generic | drawn, rigged, three shape keys |
 | **pupils** | yes (no assets of its own) | `gaze` — `lookX/lookY/pupilScale` | the eye sets, as a composite | three rows | `pupil` | Builder row, Face Setup rows, detection | the gaze solver writes them | drawn and rigged |
 | **jaw** | no | `jaw` — `jawOpen` | every head, as a composite with the skull rule | `jawOpen` | seeds `skin` + `outline` | glyph; no Builder category | generic shape key | rigged on `mouthOpen + jawOpen` |
 | **ears** | yes | `ears` — `earWiggle` | three sets | `earWiggle` | seeds `skin` + `outline` | Builder row | generic; own turn profile | drawn and rigged |

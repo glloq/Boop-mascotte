@@ -4,7 +4,7 @@ import { facePartThumbnail, thumbnailStats } from '../face-library/face-part-art
 import { FACE_STYLE_PRESETS, createFacePresetRegistry, presetThumbnail, presetThumbnailStats } from '../face-library/face-presets.js';
 import { createFacePartRegistry } from '../face-library/face-part-registry.js';
 import { BUILTIN_FACE_PARTS } from '../face-library/builtin/index.js';
-import { MOUTH_WIDE } from '../face-library/builtin/mouth-wide.js';
+import { MOUTH_LINE } from './fixtures/mouth-line.js';
 
 /**
  * A card's picture is drawn once (docs/PERFORMANCE_BUDGETS.md, "Character
@@ -14,15 +14,15 @@ import { MOUTH_WIDE } from '../face-library/builtin/mouth-wide.js';
  */
 test('a part\'s thumbnail is drawn once per frozen asset and size; an object that is not frozen is drawn every time', () => {
   const before = thumbnailStats.parts;
-  const first = facePartThumbnail(MOUTH_WIDE);
+  const first = facePartThumbnail(MOUTH_LINE);
   const drawn = thumbnailStats.parts - before;
   assert.ok(drawn <= 1, 'drawn at most once (another test may have drawn it already)');
-  assert.equal(facePartThumbnail(MOUTH_WIDE), first);
-  assert.equal(facePartThumbnail(MOUTH_WIDE), first);
+  assert.equal(facePartThumbnail(MOUTH_LINE), first);
+  assert.equal(facePartThumbnail(MOUTH_LINE), first);
   assert.equal(thumbnailStats.parts - before, drawn, 'read back, not drawn');
-  facePartThumbnail(MOUTH_WIDE, { size: 40 });
+  facePartThumbnail(MOUTH_LINE, { size: 40 });
   assert.equal(thumbnailStats.parts - before, drawn + 1, 'another size is another picture');
-  const loose = { ...MOUTH_WIDE };
+  const loose = { ...MOUTH_LINE };
   facePartThumbnail(loose);
   facePartThumbnail(loose);
   assert.equal(thumbnailStats.parts - before, drawn + 3, 'a plain object is not a key');

@@ -44,7 +44,7 @@ changed each time:
 
 | | Assemble | Draw |
 | --- | --- | --- |
-| Face parts library (150 drawings) | ● first | |
+| Face parts library (132 drawings) | ● first | |
 | Bring a picture (3 ways in) | ● | |
 | Add a part (eyebrows, eyelids, hands) | ● | |
 | Ready · Continue to Rig | ● | |

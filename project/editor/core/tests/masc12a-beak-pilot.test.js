@@ -231,7 +231,7 @@ test('an accessory drawn for a person is already drawn for a bird', () => {
   for (const id of ['ears.round', 'nose.dot', 'hair.short', 'facialhair.beard']) {
     assert.equal(pilotReuse(id).verdict, 'not-relevant', id);
   }
-  assert.equal(pilotReuse('mouth.small').verdict, 'replace', 'a beak installs as a mouth, so it replaces one');
+  assert.equal(pilotReuse('mouth.full').verdict, 'replace', 'a beak installs as a mouth, so it replaces one');
   assert.equal(pilotReuse('nope'), null);
 });
 

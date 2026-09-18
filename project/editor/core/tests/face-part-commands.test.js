@@ -11,7 +11,7 @@ import { createFacePartCommands } from '../face-library/face-part-commands.js';
 import { createFacePartRegistry } from '../face-library/face-part-registry.js';
 import { BUILTIN_FACE_PARTS } from '../face-library/builtin/index.js';
 import { artworkIds } from '../face-library/face-part-model.js';
-import { MOUTH_SIMPLE } from '../face-library/builtin/mouth-simple.js';
+import { MOUTH_LINE } from './fixtures/mouth-line.js';
 
 /**
  * Replacing a part as one command (docs/FACE_PART_LIBRARY.md, "Installing"):
@@ -26,10 +26,10 @@ function harness({ fail } = {}) {
   const library = createFacePartRegistry();
   library.registerMany(BUILTIN_FACE_PARTS);
   // A mouth whose ids collide with the mascot's own: its root is called what the left eye is called.
-  library.register({ ...MOUTH_SIMPLE, id: 'mouth.clash', name: 'Clash', artwork: '<g id="eyeLeft" data-name="Mouth"><path id="nose" data-name="Mouth" d="M87 172 Q120 190 153 172" fill="none" stroke="#b4525c" stroke-width="3.5"/></g>', roles: { mouth: 'nose' }, paletteRoles: { nose: { stroke: 'mouth' } } });
+  library.register({ ...MOUTH_LINE, id: 'mouth.clash', name: 'Clash', artwork: '<g id="eyeLeft" data-name="Mouth"><path id="nose" data-name="Mouth" d="M87 172 Q120 190 153 172" fill="none" stroke="#b4525c" stroke-width="3.5"/></g>', roles: { mouth: 'nose' }, paletteRoles: { nose: { stroke: 'mouth' } } });
   const assets = {};
   for (const asset of library.list()) Object.assign(assets, boxesFromReferenceBox(asset, artworkIds(asset.artwork)));
-  Object.assign(assets, { 'eyeLeft-2': { ...MOUTH_SIMPLE.referenceBox }, 'nose-2': { ...MOUTH_SIMPLE.referenceBox } });
+  Object.assign(assets, { 'eyeLeft-2': { ...MOUTH_LINE.referenceBox }, 'nose-2': { ...MOUTH_LINE.referenceBox } });
   const canvas = createFakeFaceCanvas(store, { boxes: templateBoxes(), installed: (id) => assets[id] || null, fail });
   const installed = [];
   const commands = createFacePartCommands(store, history, canvas, { library, onInstalled: (summary) => installed.push(summary) });
@@ -40,18 +40,18 @@ test('replacing a mouth is one write and one undo step, and the canvas is asked 
   const ui = harness();
   const before = structuredClone(ui.store.getDocument());
   const revision = ui.store.getPersistentRevision();
-  const result = ui.commands.replace('mouth', 'mouth.wide');
+  const result = ui.commands.replace('mouth', 'mouth.full');
   assert.equal(result.ok, true, result.reason);
-  assert.deepEqual([result.partId, result.rootId, result.ids, result.enabled, result.disabled, result.fitted], ['mouth', 'mouth-wide', ['mouth-wide', 'mouth', 'teeth'], ['mouthOpen', 'smile', 'mouthWidth', 'teeth'], ['mouthRound', 'tongue'], true]);
-  assert.deepEqual(ui.store.getDocument().elements['mouth-wide'].baseTransform, { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 120, pivotY: 179 }, 'on the template, fitting an asset drawn for the template moves nothing');
+  assert.deepEqual([result.partId, result.rootId, result.ids, result.enabled, result.disabled, result.fitted], ['mouth', 'mouth-full', ['mouth-full', 'mouth', 'teeth', 'tongue'], ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'teeth', 'tongue'], [], true]);
+  assert.deepEqual(ui.store.getDocument().elements['mouth-full'].baseTransform, { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 120, pivotY: 176.5 }, 'on the template, fitting an asset drawn for the template moves nothing');
   assert.equal(ui.store.getPersistentRevision(), revision + 1, 'one write');
-  assert.deepEqual(ui.installed.map((item) => item.rootId), ['mouth-wide'], 'the preview is told once, after the write');
+  assert.deepEqual(ui.installed.map((item) => item.rootId), ['mouth-full'], 'the preview is told once, after the write');
   assert.equal(ui.canvas.calls.replace.length, 1);
   assert.deepEqual(ui.canvas.calls.replace[0].removeIds, ['mouth', 'teeth', 'tongue']);
   assert.equal(ui.canvas.calls.load.length, 0, 'nothing to put back');
   const after = ui.store.getDocument();
   assert.equal(after.svgMarkup, ui.canvas.markup(), 'the store holds the markup the canvas shows');
-  assert.deepEqual(Object.values(after.semanticParts).find((part) => part.type === 'mouth').roles, { mouth: 'mouth', teeth: 'teeth' });
+  assert.deepEqual(Object.values(after.semanticParts).find((part) => part.type === 'mouth').roles, { mouth: 'mouth', teeth: 'teeth', tongue: 'tongue' });
   assert.deepEqual(ui.history.getState(), { canUndo: true, canRedo: false });
   ui.history.undo();
   assert.deepEqual(ui.store.getDocument(), before, 'one undo, and everything is as it was');
@@ -80,7 +80,7 @@ test('a refusal leaves the canvas as it was, the store untouched and the history
   const ui = harness({ fail: (removeIds) => removeIds.includes('mouth') });
   const before = structuredClone(ui.store.getDocument());
   const revision = ui.store.getPersistentRevision();
-  const result = ui.commands.replace('mouth', 'mouth.wide');
+  const result = ui.commands.replace('mouth', 'mouth.full');
   assert.deepEqual(result, { ok: false, reason: 'The canvas refused the swap.' });
   assert.deepEqual(ui.canvas.calls.load, [before.svgMarkup], 'the markup the document still holds is put back');
   assert.equal(ui.store.getPersistentRevision(), revision);
@@ -92,12 +92,12 @@ test('a refusal leaves the canvas as it was, the store untouched and the history
 test('what cannot be planned is refused before the canvas is touched', () => {
   const ui = harness();
   assert.deepEqual(ui.commands.replace('mouth', 'mouth.nope'), { ok: false, reason: 'There is no asset called "mouth.nope".' });
-  assert.match(ui.commands.replace('nose', 'mouth.simple').reason, /is not a nose asset/);
-  assert.match(ui.commands.replace('facialHair', 'mouth.simple').reason, /is not a facial hair asset/);
+  assert.match(ui.commands.replace('nose', 'mouth.full').reason, /is not a nose asset/);
+  assert.match(ui.commands.replace('facialHair', 'mouth.full').reason, /is not a facial hair asset/);
   assert.equal(ui.canvas.calls.replace.length, 0);
   assert.equal(ui.canvas.calls.load.length, 0);
   assert.deepEqual(ui.history.getState(), { canUndo: false, canRedo: false });
-  assert.equal(ui.commands.plan('mouth', 'mouth.simple').ok, true, 'a plan is a question, not a write');
+  assert.equal(ui.commands.plan('mouth', 'mouth.full').ok, true, 'a plan is a question, not a write');
   assert.equal(ui.commands.plan('mouth', 'mouth.nope').ok, false);
   assert.equal(ui.commands.library, ui.library);
 });
@@ -257,7 +257,7 @@ test('a piece of the face is saved into the library as a part of the author\'s o
   createFacePartCommands(ui.store, ui.history, ui.canvas, { library: again, partStorage: storage });
   assert.deepEqual(again.list('mouth').filter((item) => item.origin === 'custom').map((item) => item.id), ['mouth.my-mouth', twice.asset.id]);
   // Forgotten: the built-ins stay, the face keeps its drawing.
-  assert.deepEqual(commands.removeCustomPart('mouth.wide'), { ok: false, reason: 'A built-in part stays.' });
+  assert.deepEqual(commands.removeCustomPart('mouth.full'), { ok: false, reason: 'A built-in part stays.' });
   assert.deepEqual(commands.removeCustomPart('nope'), { ok: false, reason: 'There is no part called "nope".' });
   assert.deepEqual(commands.removeCustomPart('mouth.my-mouth'), { ok: true });
   assert.equal(ui.library.has('mouth.my-mouth'), false);
@@ -269,10 +269,10 @@ test('the preview failing after the install is reported, never rolled back: the 
   const ui = harness();
   const commands = createFacePartCommands(ui.store, ui.history, ui.canvas, { library: ui.library, onInstalled: () => { throw new Error('preview down'); } });
   const revision = ui.store.getPersistentRevision();
-  const result = commands.replace('mouth', 'mouth.wide');
+  const result = commands.replace('mouth', 'mouth.full');
   assert.equal(result.ok, true, result.reason);
   assert.equal(result.warning, 'preview down');
-  assert.ok(ui.store.getDocument().elements['mouth-wide'], 'the new part is in the document');
+  assert.ok(ui.store.getDocument().elements['mouth-full'], 'the new part is in the document');
   assert.equal(ui.store.getPersistentRevision(), revision + 1, 'one write');
   assert.equal(ui.canvas.calls.load.length, 0, 'nothing put back over it');
   assert.equal(ui.history.getState().canUndo, true);

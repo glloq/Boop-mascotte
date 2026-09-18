@@ -197,10 +197,11 @@ test('every role a file name can propose is a role the form offers', () => {
 test('the library offers its drawings, by category, with the drawing itself', () => {
   const state = template();
   const model = faceLibraryModel(state, { category: 'eyes' });
-  // A hundred and thirty-six, and it was a hundred and fifty: the eyes went
-  // from twenty-one pairs to three builds, because seventeen of the
-  // twenty-one were one construction at different radii (docs/EYE_BUILDS.md).
-  assert.equal(model.total, 136, 'every drawing the editor ships');
+  // A hundred and thirty-two, and it was a hundred and fifty: the eyes went from
+  // twenty-one pairs to three builds and the mouth from five cards to one,
+  // because what told the retired ones apart was a size, a palette and a
+  // movement (docs/EYE_BUILDS.md, docs/MOUTH_BUILD.md).
+  assert.equal(model.total, 132, 'every drawing the editor ships');
   assert.equal(model.active, 'eyes');
   assert.ok(model.cards.length >= 3);
   // Every category the registry declares is reported, even one the library has
@@ -247,7 +248,10 @@ test('a drawing for another kind of face is marked, never hidden', () => {
   // An author who wants a beak on a round head is allowed one. A card that
   // vanished would read as a library that had lost something.
   const cards = libraryCards(template(), 'mouth');
-  assert.ok(cards.length >= 20);
+  // Sixteen: the library's own mouth, and the fifteen a muzzle, a beak or a
+  // machine brings (docs/MOUTH_BUILD.md).
+  assert.ok(cards.length >= 16, `${cards.length} mouths on the shelf`);
+  assert.ok(cards.some((card) => card.id === 'mouth.full' && card.compatible), 'and the one every face can wear');
   assert.ok(cards.every((card) => 'compatible' in card));
   assert.deepEqual(cards.filter((card) => card.compatible === undefined), []);
 });

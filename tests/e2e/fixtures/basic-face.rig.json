@@ -3620,7 +3620,24 @@
         "scale": true
       },
       "rigging": "rigid",
-      "bindings": {},
+      "bindings": {
+        "translateX": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "lookX",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0
+        },
+        "translateY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "lookY",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0
+        }
+      },
       "symmetryPeer": null,
       "meta": {
         "nodeType": "circle"
@@ -3643,7 +3660,24 @@
         "scale": true
       },
       "rigging": "rigid",
-      "bindings": {},
+      "bindings": {
+        "translateX": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "lookX",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0
+        },
+        "translateY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "lookY",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0
+        }
+      },
       "symmetryPeer": null,
       "meta": {
         "nodeType": "circle"
@@ -3667,13 +3701,13 @@
       },
       "rigging": "rigid",
       "bindings": {
-        "translateY": {
+        "scaleY": {
           "enabled": true,
           "mode": "simple",
           "expression": "eyeOpen + eyeOpenLeft",
           "curve": "linear",
-          "amplitude": -31.5,
-          "offset": 31.5,
+          "amplitude": -9.7,
+          "offset": 10.7,
           "generatedBy": {
             "semanticPart": "eyelids",
             "control": "eyeOpen"
@@ -3684,7 +3718,40 @@
       "meta": {
         "nodeType": "path"
       },
-      "restPath": "M37 44.5 L129 44.5 L129 74.5 Q83 90.5 37 74.5 Z"
+      "restPath": "M59 91.6 C59 91 69.7 90.5 83 90.5 C96.3 90.5 107 91 107 91.6 C107 92.2 96.3 92.7 83 92.7 C69.7 92.7 59 92.2 59 91.6 Z"
+    },
+    "creaseUpperLeft": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 83,
+        "pivotY": 90.5
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "rigging": "rigid",
+      "bindings": {
+        "scaleY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "eyeOpen + eyeOpenLeft",
+          "curve": "linear",
+          "amplitude": -9.7,
+          "offset": 10.7
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      },
+      "restPath": "M107 91.6 C107 92.2 96.3 92.7 83 92.7 C69.7 92.7 59 92.2 59 91.6"
     },
     "lidLowerLeft": {
       "baseTransform": {
@@ -3704,13 +3771,13 @@
       },
       "rigging": "rigid",
       "bindings": {
-        "translateY": {
+        "scaleY": {
           "enabled": true,
           "mode": "simple",
           "expression": "eyeOpen + eyeOpenLeft",
           "curve": "linear",
-          "amplitude": 29.5,
-          "offset": -29.5,
+          "amplitude": -8.8,
+          "offset": 9.8,
           "generatedBy": {
             "semanticPart": "eyelids",
             "control": "eyeOpen"
@@ -3721,7 +3788,40 @@
       "meta": {
         "nodeType": "path"
       },
-      "restPath": "M37 179.5 L129 179.5 L129 149.5 Q83 137.5 37 149.5 Z"
+      "restPath": "M59 134.4 C59 135 69.7 135.5 83 135.5 C96.3 135.5 107 135 107 134.4 C107 133.8 96.3 133.3 83 133.3 C69.7 133.3 59 133.8 59 134.4 Z"
+    },
+    "creaseLowerLeft": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 83,
+        "pivotY": 135.5
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "rigging": "rigid",
+      "bindings": {
+        "scaleY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "eyeOpen + eyeOpenLeft",
+          "curve": "linear",
+          "amplitude": -8.8,
+          "offset": 9.8
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      },
+      "restPath": "M107 134.4 C107 133.8 96.3 133.3 83 133.3 C69.7 133.3 59 133.8 59 134.4"
     },
     "rimLeft": {
       "baseTransform": {
@@ -3903,7 +4003,24 @@
         "scale": true
       },
       "rigging": "rigid",
-      "bindings": {},
+      "bindings": {
+        "translateX": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "lookX",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0
+        },
+        "translateY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "lookY",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0
+        }
+      },
       "symmetryPeer": null,
       "meta": {
         "nodeType": "circle"
@@ -3926,7 +4043,24 @@
         "scale": true
       },
       "rigging": "rigid",
-      "bindings": {},
+      "bindings": {
+        "translateX": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "lookX",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0
+        },
+        "translateY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "lookY",
+          "curve": "linear",
+          "amplitude": 8,
+          "offset": 0
+        }
+      },
       "symmetryPeer": null,
       "meta": {
         "nodeType": "circle"
@@ -3950,13 +4084,13 @@
       },
       "rigging": "rigid",
       "bindings": {
-        "translateY": {
+        "scaleY": {
           "enabled": true,
           "mode": "simple",
           "expression": "eyeOpen + eyeOpenRight",
           "curve": "linear",
-          "amplitude": -31.5,
-          "offset": 31.5,
+          "amplitude": -9.7,
+          "offset": 10.7,
           "generatedBy": {
             "semanticPart": "eyelids",
             "control": "eyeOpen"
@@ -3967,7 +4101,40 @@
       "meta": {
         "nodeType": "path"
       },
-      "restPath": "M111 44.5 L203 44.5 L203 74.5 Q157 90.5 111 74.5 Z"
+      "restPath": "M133 91.6 C133 91 143.7 90.5 157 90.5 C170.3 90.5 181 91 181 91.6 C181 92.2 170.3 92.7 157 92.7 C143.7 92.7 133 92.2 133 91.6 Z"
+    },
+    "creaseUpperRight": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 157,
+        "pivotY": 90.5
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "rigging": "rigid",
+      "bindings": {
+        "scaleY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "eyeOpen + eyeOpenRight",
+          "curve": "linear",
+          "amplitude": -9.7,
+          "offset": 10.7
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      },
+      "restPath": "M181 91.6 C181 92.2 170.3 92.7 157 92.7 C143.7 92.7 133 92.2 133 91.6"
     },
     "lidLowerRight": {
       "baseTransform": {
@@ -3987,13 +4154,13 @@
       },
       "rigging": "rigid",
       "bindings": {
-        "translateY": {
+        "scaleY": {
           "enabled": true,
           "mode": "simple",
           "expression": "eyeOpen + eyeOpenRight",
           "curve": "linear",
-          "amplitude": 29.5,
-          "offset": -29.5,
+          "amplitude": -8.8,
+          "offset": 9.8,
           "generatedBy": {
             "semanticPart": "eyelids",
             "control": "eyeOpen"
@@ -4004,7 +4171,40 @@
       "meta": {
         "nodeType": "path"
       },
-      "restPath": "M111 179.5 L203 179.5 L203 149.5 Q157 137.5 111 149.5 Z"
+      "restPath": "M133 134.4 C133 135 143.7 135.5 157 135.5 C170.3 135.5 181 135 181 134.4 C181 133.8 170.3 133.3 157 133.3 C143.7 133.3 133 133.8 133 134.4 Z"
+    },
+    "creaseLowerRight": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 157,
+        "pivotY": 135.5
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "rigging": "rigid",
+      "bindings": {
+        "scaleY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "eyeOpen + eyeOpenRight",
+          "curve": "linear",
+          "amplitude": -8.8,
+          "offset": 9.8
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      },
+      "restPath": "M181 134.4 C181 133.8 170.3 133.3 157 133.3 C143.7 133.3 133 133.8 133 134.4"
     },
     "rimRight": {
       "baseTransform": {
@@ -23141,7 +23341,21 @@
       },
       "delta": [
         0,
-        3.5,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1.8999999999999915,
         0,
         3.5,
         0,
@@ -23149,7 +23363,9 @@
         0,
         3.5,
         0,
-        3.5
+        1.8999999999999915,
+        0,
+        0
       ]
     },
     {
@@ -23175,7 +23391,23 @@
         0,
         0,
         0,
-        -11,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -0.6000000000000085,
+        0,
+        -1.1000000000000085,
+        0,
+        -1.1000000000000085,
+        0,
+        -1.1000000000000085,
+        0,
+        -0.6000000000000085,
         0,
         0
       ]
@@ -23197,15 +23429,31 @@
       },
       "delta": [
         0,
-        -9,
         0,
-        -9,
         0,
-        -9,
         0,
-        -9,
         0,
-        -9
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -5,
+        0,
+        -9.000000000000014,
+        0,
+        -9.000000000000014,
+        0,
+        -9.000000000000014,
+        0,
+        -5,
+        0,
+        0
       ]
     },
     {
@@ -23231,7 +23479,23 @@
         0,
         0,
         0,
-        -11,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -0.6000000000000227,
+        0,
+        -1.1000000000000227,
+        0,
+        -1.1000000000000227,
+        0,
+        -1.1000000000000227,
+        0,
+        -0.6000000000000227,
         0,
         0
       ]
@@ -23253,7 +23517,21 @@
       },
       "delta": [
         0,
-        3.5,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1.8999999999999915,
         0,
         3.5,
         0,
@@ -23261,7 +23539,9 @@
         0,
         3.5,
         0,
-        3.5
+        1.8999999999999915,
+        0,
+        0
       ]
     },
     {
@@ -23287,7 +23567,23 @@
         0,
         0,
         0,
-        -11,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -0.6000000000000085,
+        0,
+        -1.1000000000000085,
+        0,
+        -1.1000000000000085,
+        0,
+        -1.1000000000000085,
+        0,
+        -0.6000000000000085,
         0,
         0
       ]
@@ -23309,15 +23605,31 @@
       },
       "delta": [
         0,
-        -9,
         0,
-        -9,
         0,
-        -9,
         0,
-        -9,
         0,
-        -9
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -5,
+        0,
+        -9.000000000000014,
+        0,
+        -9.000000000000014,
+        0,
+        -9.000000000000014,
+        0,
+        -5,
+        0,
+        0
       ]
     },
     {
@@ -23343,7 +23655,279 @@
         0,
         0,
         0,
-        -11,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -0.6000000000000227,
+        0,
+        -1.1000000000000227,
+        0,
+        -1.1000000000000227,
+        0,
+        -1.1000000000000227,
+        0,
+        -0.6000000000000227,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "creaseUpperLeft-eyeSquint",
+      "target": "creaseUpperLeft",
+      "name": "creaseUpperLeft narrowed",
+      "driver": {
+        "mode": "expression",
+        "expression": "eyeSquint + eyeSquintLeft",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "eyelids",
+        "control": "eyeSquint"
+      },
+      "delta": [
+        0,
+        0,
+        0,
+        1.8999999999999915,
+        0,
+        3.5,
+        0,
+        3.5,
+        0,
+        3.5,
+        0,
+        1.8999999999999915,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "creaseUpperLeft-eyeCurve",
+      "target": "creaseUpperLeft",
+      "name": "creaseUpperLeft curved",
+      "driver": {
+        "mode": "expression",
+        "expression": "eyeCurve + eyeCurveLeft",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "eyelids",
+        "control": "eyeCurve"
+      },
+      "delta": [
+        0,
+        0,
+        0,
+        -0.6000000000000085,
+        0,
+        -1.1000000000000085,
+        0,
+        -1.1000000000000085,
+        0,
+        -1.1000000000000085,
+        0,
+        -0.6000000000000085,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "creaseLowerLeft-eyeSquint",
+      "target": "creaseLowerLeft",
+      "name": "creaseLowerLeft narrowed",
+      "driver": {
+        "mode": "expression",
+        "expression": "eyeSquint + eyeSquintLeft",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "eyelids",
+        "control": "eyeSquint"
+      },
+      "delta": [
+        0,
+        0,
+        0,
+        -5,
+        0,
+        -9.000000000000014,
+        0,
+        -9.000000000000014,
+        0,
+        -9.000000000000014,
+        0,
+        -5,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "creaseLowerLeft-eyeCurve",
+      "target": "creaseLowerLeft",
+      "name": "creaseLowerLeft curved",
+      "driver": {
+        "mode": "expression",
+        "expression": "eyeCurve + eyeCurveLeft",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "eyelids",
+        "control": "eyeCurve"
+      },
+      "delta": [
+        0,
+        0,
+        0,
+        -0.6000000000000227,
+        0,
+        -1.1000000000000227,
+        0,
+        -1.1000000000000227,
+        0,
+        -1.1000000000000227,
+        0,
+        -0.6000000000000227,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "creaseUpperRight-eyeSquint",
+      "target": "creaseUpperRight",
+      "name": "creaseUpperRight narrowed",
+      "driver": {
+        "mode": "expression",
+        "expression": "eyeSquint + eyeSquintRight",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "eyelids",
+        "control": "eyeSquint"
+      },
+      "delta": [
+        0,
+        0,
+        0,
+        1.8999999999999915,
+        0,
+        3.5,
+        0,
+        3.5,
+        0,
+        3.5,
+        0,
+        1.8999999999999915,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "creaseUpperRight-eyeCurve",
+      "target": "creaseUpperRight",
+      "name": "creaseUpperRight curved",
+      "driver": {
+        "mode": "expression",
+        "expression": "eyeCurve + eyeCurveRight",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "eyelids",
+        "control": "eyeCurve"
+      },
+      "delta": [
+        0,
+        0,
+        0,
+        -0.6000000000000085,
+        0,
+        -1.1000000000000085,
+        0,
+        -1.1000000000000085,
+        0,
+        -1.1000000000000085,
+        0,
+        -0.6000000000000085,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "creaseLowerRight-eyeSquint",
+      "target": "creaseLowerRight",
+      "name": "creaseLowerRight narrowed",
+      "driver": {
+        "mode": "expression",
+        "expression": "eyeSquint + eyeSquintRight",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "eyelids",
+        "control": "eyeSquint"
+      },
+      "delta": [
+        0,
+        0,
+        0,
+        -5,
+        0,
+        -9.000000000000014,
+        0,
+        -9.000000000000014,
+        0,
+        -9.000000000000014,
+        0,
+        -5,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "creaseLowerRight-eyeCurve",
+      "target": "creaseLowerRight",
+      "name": "creaseLowerRight curved",
+      "driver": {
+        "mode": "expression",
+        "expression": "eyeCurve + eyeCurveRight",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "eyelids",
+        "control": "eyeCurve"
+      },
+      "delta": [
+        0,
+        0,
+        0,
+        -0.6000000000000227,
+        0,
+        -1.1000000000000227,
+        0,
+        -1.1000000000000227,
+        0,
+        -1.1000000000000227,
+        0,
+        -0.6000000000000227,
         0,
         0
       ]

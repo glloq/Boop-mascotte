@@ -276,14 +276,14 @@ test('the shipped library was audited, and the eye row is the one thing reused o
     assert.ok(PILOT_REUSE_VERDICTS.includes(item.verdict), `${item.verdict} is a verdict`);
     assert.ok(item.why.length > 15, `${item.id} says why`);
   }
-  assert.equal(PILOT_REUSE.length, 45, 'every shipped drawing was looked at');
+  assert.equal(PILOT_REUSE.length, 41, 'every shipped drawing was looked at');
   // The sheet draws its own brow, its own noses and its own mouths, so those are
   // fallbacks rather than plans. The **eyes** went the other way: the six the
   // pack drew were the shipped construction at other radii, so the row is
   // answered by the library's own builds and the verdict is `reuse` -- the only
   // two in the audit that are (docs/EYE_BUILDS.md).
   assert.deepEqual(PILOT_REUSE.filter((item) => item.verdict === 'reuse').map((item) => item.id), ['eyes.simple', 'eyes.iris']);
-  for (const id of ['eyebrows.thin', 'nose.cartoon', 'mouth.small', 'mouth.cartoon']) {
+  for (const id of ['eyebrows.thin', 'nose.cartoon', 'mouth.full']) {
     assert.equal(pilotReuse(id).verdict, 'possible-reuse', `${id} is the fallback if a planned drawing is cut`);
   }
   // And what an animal may still wear is what the audit is worth now.

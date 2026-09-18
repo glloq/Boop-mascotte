@@ -34,12 +34,12 @@ function dressed(...installs) {
 }
 
 test('a part that is a library asset drawn exactly is identified, with its root, its mount and the word its shapes sign as', () => {
-  const { state, before, library } = dressed(['mouth', 'mouth.wide'], ['eyes', 'eyes.simple'], ['head', 'head.round']);
+  const { state, before, library } = dressed(['mouth', 'mouth.full'], ['eyes', 'eyes.simple'], ['head', 'head.round']);
   const report = identifyFaceParts(state, library);
   assert.deepEqual(report.identified, [
     { partId: 'head', assetId: 'head.round', rootId: 'head-round' },
     { partId: 'eyes', assetId: 'eyes.simple', rootId: 'eyes-simple' },
-    { partId: 'mouth', assetId: 'mouth.wide', rootId: 'mouth-wide' }
+    { partId: 'mouth', assetId: 'mouth.full', rootId: 'mouth-full' }
   ]);
   for (const id of ['head', 'eyes', 'mouth']) {
     const part = state.semanticParts[id];
@@ -52,10 +52,10 @@ test('a part that is a library asset drawn exactly is identified, with its root,
 });
 
 test('moved as a whole, still identified; a point dragged, the author\'s own; a back piece painted behind the face is found again', () => {
-  const moved = dressed(['mouth', 'mouth.wide']);
+  const moved = dressed(['mouth', 'mouth.full']);
   moved.state.svgMarkup = moved.state.svgMarkup.replace(/<g id="mouth-wide"/, '<g id="mouth-wide" transform="translate(9 -3) rotate(5)"');
-  assert.deepEqual(identifyFaceParts(moved.state, moved.library).identified.map((item) => item.assetId), ['mouth.wide']);
-  const reshaped = dressed(['mouth', 'mouth.wide']);
+  assert.deepEqual(identifyFaceParts(moved.state, moved.library).identified.map((item) => item.assetId), ['mouth.full']);
+  const reshaped = dressed(['mouth', 'mouth.full']);
   reshaped.state.svgMarkup = reshaped.state.svgMarkup.replace(/(<path id="mouth"[^>]*\sd=")([^"]*)"/, (_, head, d) => `${head}${d.replace(/\d/, (digit) => String((Number(digit) + 1) % 10))}"`);
   assert.deepEqual(identifyFaceParts(reshaped.state, reshaped.library).identified, [], 'the author\'s mouth now');
   assert.equal(reshaped.state.semanticParts.mouth.assetId, undefined);
@@ -92,7 +92,7 @@ test('a project drawn before V3-02 gets back how its glasses turn, without its c
 test('a fresh template, a part the library already knows, and a document with nothing to read are all left alone', () => {
   const template = createTemplateProjectState();
   assert.deepEqual(identifyFaceParts(template).identified, [], 'the template\'s own drawings are nobody\'s asset');
-  const known = dressed(['mouth', 'mouth.wide']);
+  const known = dressed(['mouth', 'mouth.full']);
   known.state.semanticParts.mouth.assetId = 'mouth.cartoon';
   assert.deepEqual(identifyFaceParts(known.state, known.library).identified, [], 'a part with a word on it keeps it');
   assert.equal(known.state.semanticParts.mouth.assetId, 'mouth.cartoon');

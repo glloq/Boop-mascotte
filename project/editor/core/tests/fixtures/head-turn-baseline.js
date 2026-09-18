@@ -109,11 +109,13 @@ export const BUILTIN_HEAD_TURNS = Object.freeze({
   'nose.hook': '139:24c56466f3ede337',
   'nose.soft': '139:24c56466f3ede337',
   'nose.cartoon': '139:24c56466f3ede337',
-  'mouth.simple': '125:1f5e3e299cb93ba4',
-  'mouth.wide': '132:f365832ec36a453a',
-  'mouth.small': '125:1f5e3e299cb93ba4',
-  'mouth.cartoon': '139:2f2375adaccd78f8',
-  'mouth.expressive': '125:1f5e3e299cb93ba4',
+  /* One mouth where there were five, and it signs what `mouth.cartoon` signed:
+   * 139 keyforms, which is the template's own 125 plus the seven channels the
+   * generator writes for each of the two shapes it draws inside the lips
+   * (docs/MOUTH_BUILD.md). The five differed by a radius, a fill and whether the
+   * teeth were drawn -- a size, a palette and a movement -- and not one of them
+   * could pucker, which is the control the vowels turn on. */
+  'mouth.full': '139:2f2375adaccd78f8',
   'ears.round': '139:2037322dbede7c5e',
   'ears.large': '139:2037322dbede7c5e',
   'ears.small': '139:2037322dbede7c5e',

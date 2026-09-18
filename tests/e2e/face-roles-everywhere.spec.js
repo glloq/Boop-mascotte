@@ -36,11 +36,12 @@ test('@critical the library shows its drawings, and one press puts a pair of eye
   await startBasicFace(page);
   const panel = await openFaceLibrary(page);
 
-  // A hundred and thirty-six drawings, in the categories that have one. It was
-  // a hundred and fifty: seventeen of the twenty-one pairs of eyes were one
-  // construction at different radii, and three builds replaced them
-  // (docs/EYE_BUILDS.md).
-  await expect(panel).toHaveAttribute('data-face-library-total', '136');
+  // A hundred and thirty-two drawings, in the categories that have one. It was a
+  // hundred and fifty: seventeen of the twenty-one pairs of eyes were one
+  // construction at different radii and five human mouths were one curve at
+  // different radii, so three eye builds and one mouth replaced twenty-two cards
+  // (docs/EYE_BUILDS.md, docs/MOUTH_BUILD.md).
+  await expect(panel).toHaveAttribute('data-face-library-total', '132');
   await expect(panel).toHaveAttribute('data-face-library-category', 'eyes');
   expect(await panel.locator('[data-face-library-category]').count()).toBeGreaterThanOrEqual(9);
   const cards = panel.locator('[data-face-library-card]');

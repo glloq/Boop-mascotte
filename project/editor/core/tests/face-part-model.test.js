@@ -5,8 +5,8 @@ import {
   FACE_MOUNT_POINTS, FACE_PART_CATEGORIES, FACE_PART_CATEGORY_IDS, FACE_PART_ID, FACE_STYLE_ID, PALETTE_TOKENS,
   artworkIds, describeFacePartCapabilities, facePartCategory, normalizeFacePart, scanArtwork
 } from '../face-library/face-part-model.js';
-import { MOUTH_SIMPLE } from '../face-library/builtin/mouth-simple.js';
-import { MOUTH_WIDE } from '../face-library/builtin/mouth-wide.js';
+import { MOUTH_LINE } from './fixtures/mouth-line.js';
+import { MOUTH_FULL } from '../face-library/builtin/mouth-full.js';
 
 /**
  * What a face part is (docs/FACE_PART_LIBRARY.md). The categories are a
@@ -79,7 +79,7 @@ test('an asset is normalised to one shape, defaults filled and frozen', () => {
   assert.equal(empty.mountPoint, '', 'no category, no default mount point');
   assert.ok(Number.isNaN(empty.referenceBox.width));
   assert.equal(normalizeFacePart({ category: 'nose', mountPoint: 'head.top' }).mountPoint, 'head.top', 'a mount point of its own wins over the category default');
-  assert.equal(normalizeFacePart(MOUTH_SIMPLE).origin, 'builtin');
+  assert.equal(normalizeFacePart(MOUTH_LINE).origin, 'builtin');
   assert.equal(normalizeFacePart(null).category, '');
   assert.ok(FACE_PART_ID.test('mouth.cartoon-wide'));
   assert.equal(FACE_PART_ID.test('Mouth.wide'), false);
@@ -97,11 +97,11 @@ test('a drawing may say it restyles another, and into which style', () => {
   const restyled = normalizeFacePart({ id: 'accessory.glasses-workshop', category: 'accessory', variant: { of: ' accessory.glasses ', style: ' Workshop ' } });
   assert.deepEqual(restyled.variant, { of: 'accessory.glasses', style: 'workshop' }, 'a style is a name, in one case');
   assert.ok(Object.isFrozen(restyled.variant));
-  assert.deepEqual(normalizeFacePart({ id: 'mouth.x', variant: { of: 'mouth.simple' } }).variant, { of: 'mouth.simple', style: '' }, 'half of it is kept, to be refused');
+  assert.deepEqual(normalizeFacePart({ id: 'mouth.x', variant: { of: 'mouth.line' } }).variant, { of: 'mouth.line', style: '' }, 'half of it is kept, to be refused');
   assert.deepEqual(normalizeFacePart({ id: 'mouth.x', variant: { style: 'workshop' } }).variant, { of: '', style: 'workshop' });
   assert.equal(normalizeFacePart({ id: 'mouth.x', variant: {} }).variant, null, 'and none of it is no variant');
   assert.equal(normalizeFacePart({ id: 'mouth.x', variant: 'workshop' }).variant, null);
-  assert.equal(normalizeFacePart(MOUTH_SIMPLE).variant, null, 'the library\'s own drawings restyle nothing');
+  assert.equal(normalizeFacePart(MOUTH_LINE).variant, null, 'the library\'s own drawings restyle nothing');
   assert.ok(FACE_STYLE_ID.test('workshop') && FACE_STYLE_ID.test('late-night') && FACE_STYLE_ID.test('v2'));
   assert.equal(FACE_STYLE_ID.test('Workshop'), false);
   assert.equal(FACE_STYLE_ID.test('-workshop'), false);
@@ -109,10 +109,11 @@ test('a drawing may say it restyles another, and into which style', () => {
 });
 
 test('the artwork scanner reads elements, ids and balance from a fragment', () => {
-  const scan = scanArtwork(MOUTH_WIDE.artwork);
-  assert.deepEqual(scan.elements.map((item) => [item.tag, item.id, item.depth]), [['g', 'mouth-wide', 0], ['path', 'mouth', 1], ['path', 'teeth', 1]]);
+  // The library's own mouth, which draws three shapes inside its group.
+  const scan = scanArtwork(MOUTH_FULL.artwork);
+  assert.deepEqual(scan.elements.map((item) => [item.tag, item.id, item.depth]), [['g', 'mouth-full', 0], ['path', 'mouth', 1], ['path', 'teeth', 1], ['path', 'tongue', 1]]);
   assert.equal(scan.balanced, true);
-  assert.deepEqual(artworkIds(MOUTH_WIDE.artwork), ['mouth-wide', 'mouth', 'teeth']);
+  assert.deepEqual(artworkIds(MOUTH_FULL.artwork), ['mouth-full', 'mouth', 'teeth', 'tongue']);
   assert.deepEqual(artworkIds("<g><circle id='one'/><rect/></g>"), ['one'], 'single quotes and unnamed shapes');
   assert.equal(scanArtwork('<g><path/>').balanced, false, 'an unclosed group');
   assert.equal(scanArtwork('<g></path>').balanced, false, 'the wrong closing tag');
@@ -121,7 +122,7 @@ test('the artwork scanner reads elements, ids and balance from a fragment', () =
 });
 
 test('capabilities are read against the part: what is carried, what is not, what cannot be', () => {
-  assert.deepEqual(describeFacePartCapabilities(MOUTH_SIMPLE), { controls: ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'teeth', 'tongue'], supported: ['mouthOpen', 'smile', 'mouthWidth'], missing: ['mouthRound', 'teeth', 'tongue'], unsupported: [], complete: false });
+  assert.deepEqual(describeFacePartCapabilities(MOUTH_LINE), { controls: ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'teeth', 'tongue'], supported: ['mouthOpen', 'smile', 'mouthWidth'], missing: ['mouthRound', 'teeth', 'tongue'], unsupported: [], complete: false });
   assert.deepEqual(describeFacePartCapabilities({ category: 'nose', capabilities: ['noseScrunch'] }).missing, []);
   assert.equal(describeFacePartCapabilities({ category: 'nose', capabilities: ['noseScrunch'] }).complete, true);
   assert.deepEqual(describeFacePartCapabilities({ category: 'nose', capabilities: ['smile'] }).unsupported, ['smile']);

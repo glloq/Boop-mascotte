@@ -37,13 +37,18 @@ test('@critical the editor opens on Assemble, and Assemble is the library', asyn
 
   // What Assemble has: the drawings first, a picture of your own, and the
   // parts the library ships none of.
-  expect(assemble.library, 'the hundred and fifty drawings').toBe(true);
+  expect(assemble.library, 'the drawings the editor ships').toBe(true);
   expect(assemble.imports, 'and a picture of your own').toBe(true);
   expect(assemble.addPart).toBe(true);
   // Cards, with the drawing on them, above the fold rather than inside a
   // disclosure at the bottom of the column.
+  // The panel opens on the eyes, which is three builds and the packs' own
+  // pairs rather than the twenty-one near-identical ones it used to be
+  // (docs/EYE_BUILDS.md). The number is not the point -- that the cards are
+  // rendered on the shelf is -- so what is asserted is that the shelf has
+  // cards on it and that they are drawings.
   const cards = page.locator('#face-library [data-face-library-card]');
-  expect(await cards.count()).toBeGreaterThanOrEqual(20);
+  expect(await cards.count()).toBeGreaterThanOrEqual(3);
   await expect(cards.first().locator('svg.face-library-preview')).toBeVisible();
   const first = await cards.first().boundingBox();
   expect(first.y, 'and they are near the top of the column').toBeLessThan(500);

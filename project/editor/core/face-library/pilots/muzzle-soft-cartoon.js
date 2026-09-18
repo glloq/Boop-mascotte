@@ -311,9 +311,11 @@ seen = {};
 export const PILOT_REUSE = Object.freeze([
   Object.freeze({ id: 'eyebrows.thin', verdict: 'possible-reuse', why: 'A thin arc above the eye reads as an animal brow unchanged. The sheet draws its own five, so this is the fallback if one of them is cut.' }),
   Object.freeze({ id: 'nose.cartoon', verdict: 'possible-reuse', why: 'A big round nose with a fill and an outline, close to the Arrondi animal on the sheet. The fallback if that one is cut.' }),
-  Object.freeze({ id: 'mouth.small', verdict: 'possible-reuse', why: 'A short neutral line, close to the Neutre on the sheet. The fallback if that one is cut.' }),
-  Object.freeze({ id: 'mouth.cartoon', verdict: 'possible-reuse', why: 'An open mouth with teeth and a tongue, close to the Ouverte amicale on the sheet, and the precedent for claiming the tongue control.' }),
 
+  /* Five human mouths were judged here and they are one card now
+   * (docs/MOUTH_BUILD.md): what told them apart was a radius, a fill and whether
+   * the teeth were drawn, which is a size, a palette and a movement. */
+  Object.freeze({ id: 'mouth.full', verdict: 'possible-reuse', why: 'A pair of human lips that opens with teeth and a tongue, which is close to the sheet\'s Ouverte amicale. The ω the sheet draws is the one shape a lip line cannot stand in for, so the animal mouths are drawn; for a snout that only smiles, this carries it.' }),
   Object.freeze({ id: 'head.round', verdict: 'possible-reuse', why: 'If the fit sheet says animal-round does not read differently enough from it, this is the head and one drawing is saved.' }),
   Object.freeze({ id: 'head.narrow', verdict: 'possible-reuse', why: 'Same question for animal-narrow and the fox.' }),
   Object.freeze({ id: 'head.wide', verdict: 'possible-reuse', why: 'A broad skull that might carry the bear without a drawing of its own.' }),
@@ -321,7 +323,6 @@ export const PILOT_REUSE = Object.freeze([
   Object.freeze({ id: 'eyes.simple', verdict: 'reuse', why: 'A white, a pupil and two lids: the sheet\'s Grands ronds at the scale an animal wants, and the pack drew nothing of its own in the end.' }),
   Object.freeze({ id: 'eyes.iris', verdict: 'reuse', why: 'The same eye with a coloured iris, which is where a cat and a fox read: the eye colour is a palette token rather than a second drawing.' }),
   Object.freeze({ id: 'eyebrows.expressive', verdict: 'possible-reuse', why: 'A candidate for the fox\'s sharp brow, if angling eyebrows.thin is not enough.' }),
-  Object.freeze({ id: 'mouth.simple', verdict: 'possible-reuse', why: 'One curve. It may carry the animal smile if the ω turns out not to be needed.' }),
   Object.freeze({ id: 'nose.dot', verdict: 'possible-reuse', why: 'A round dot. Too small for a muzzle but worth trying on the cat before drawing a triangle.' }),
   Object.freeze({ id: 'accessory.glasses', verdict: 'possible-reuse', why: 'Universal: an animal in glasses is a perfectly good mascot, and the drawing already exists.' }),
   Object.freeze({ id: 'accessory.square-glasses', verdict: 'possible-reuse', why: 'The same: universal eyewear, and a square frame on a fox is a joke worth having.' }),
@@ -333,8 +334,6 @@ export const PILOT_REUSE = Object.freeze([
   Object.freeze({ id: 'nose.soft', verdict: 'replace', why: 'A curve *under* the nose: a human shorthand with nothing for a muzzle to carry.' }),
   Object.freeze({ id: 'ears.large', verdict: 'replace', why: 'Big ovals at the side of the head: human ears, and the wrong place for every species here.' }),
   Object.freeze({ id: 'ears.small', verdict: 'replace', why: 'Small tucked ovals at the side of the head: the same human placement, smaller.' }),
-  Object.freeze({ id: 'mouth.wide', verdict: 'replace', why: 'A wide human grin with teeth; the animal open mouth is mouth.cartoon.' }),
-  Object.freeze({ id: 'mouth.expressive', verdict: 'replace', why: 'Human lips with a defined shape; an animal mouth is a line, not a pair of lips.' }),
   Object.freeze({ id: 'head.oval', verdict: 'replace', why: 'A human oval: taller than it is wide, which no species here wants.' }),
   Object.freeze({ id: 'head.square-soft', verdict: 'replace', why: 'Reads as a machine or a heavy human jaw.' }),
   Object.freeze({ id: 'head.pear', verdict: 'replace', why: 'A narrow brow over a heavy human jaw, which reads as a person every time.' }),

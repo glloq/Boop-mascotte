@@ -12,7 +12,7 @@ species      Hibou · Canard · Perroquet · Corbeau · Oiseau mignon · Oiseau 
 ```
 
 **All thirty are drawn**, in `core/face-library/builtin/birds/`, and ship in
-`BUILTIN_FACE_PARTS` alongside the six presets. The library holds 150 drawings
+`BUILTIN_FACE_PARTS` alongside the six presets. The library holds 132 drawings
 and 22 presets; `npm run face:assets` reviews all of them with no geometry
 warnings. **`beak` is available**, which makes four kinds of face offered out of
 five.

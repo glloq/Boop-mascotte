@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { FACE_PART_LIBRARY, FacePartError, createFacePartRegistry, registerAccessory, registerFacePart } from '../face-library/face-part-registry.js';
 import { BUILTIN_FACE_PARTS } from '../face-library/builtin/index.js';
-import { MOUTH_SIMPLE } from '../face-library/builtin/mouth-simple.js';
+import { MOUTH_LINE } from './fixtures/mouth-line.js';
+import { MOUTH_FULL } from '../face-library/builtin/mouth-full.js';
 import { FACE_PART_CATEGORY_IDS } from '../face-library/face-part-model.js';
 import { FACE_ARTBOARD } from '../sample/templates/face-artwork.js';
 
@@ -14,7 +15,7 @@ const glasses = { id: 'accessory.round-glasses', name: 'Round glasses', artwork:
 
 test('the editor\'s library ships the built-in assets, frozen and by category', () => {
   assert.equal(FACE_PART_LIBRARY.size, BUILTIN_FACE_PARTS.length);
-  assert.deepEqual(FACE_PART_LIBRARY.list().map((asset) => asset.id), ['head.round', 'head.oval', 'head.wide', 'head.narrow', 'head.square-soft', 'head.pear', 'head.chin', 'head.heart', 'eyes.dot', 'eyes.simple', 'eyes.iris', 'eyebrows.thin', 'eyebrows.normal', 'eyebrows.thick', 'eyebrows.flat', 'eyebrows.expressive', 'nose.dot', 'nose.hook', 'nose.soft', 'nose.cartoon', 'mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive', 'ears.round', 'ears.large', 'ears.small', 'hair.short', 'hair.spiky', 'hair.curly', 'hair.long', 'hair.balding', 'hair.bald', 'facialhair.moustache', 'facialhair.large-moustache', 'facialhair.goatee', 'facialhair.beard', 'facialhair.sideburns', 'accessory.glasses', 'accessory.square-glasses', 'accessory.hat', 'accessory.earring', 'accessory.earring-right', 'accessory.bow-tie',
+  assert.deepEqual(FACE_PART_LIBRARY.list().map((asset) => asset.id), ['head.round', 'head.oval', 'head.wide', 'head.narrow', 'head.square-soft', 'head.pear', 'head.chin', 'head.heart', 'eyes.dot', 'eyes.simple', 'eyes.iris', 'eyebrows.thin', 'eyebrows.normal', 'eyebrows.thick', 'eyebrows.flat', 'eyebrows.expressive', 'nose.dot', 'nose.hook', 'nose.soft', 'nose.cartoon', 'mouth.full', 'ears.round', 'ears.large', 'ears.small', 'hair.short', 'hair.spiky', 'hair.curly', 'hair.long', 'hair.balding', 'hair.bald', 'facialhair.moustache', 'facialhair.large-moustache', 'facialhair.goatee', 'facialhair.beard', 'facialhair.sideburns', 'accessory.glasses', 'accessory.square-glasses', 'accessory.hat', 'accessory.earring', 'accessory.earring-right', 'accessory.bow-tie',
     // The Soft Cartoon animal pack (MASC-10B), registered behind them all and
     // listed in the order it is reviewed in, not by category. It brings **no
     // eyes**: its six were the shipped construction at other radii, which its
@@ -25,14 +26,14 @@ test('the editor\'s library ships the built-in assets, frozen and by category', 
     'head.robot-screen-rounded', 'head.robot-retro-square', 'head.robot-industrial-plate', 'head.robot-toy-round', 'ears.robot-screen-round', 'ears.robot-retro-round', 'ears.robot-industrial-bolt', 'ears.robot-toy-colorful', 'eyes.robot-display-friendly', 'eyes.robot-retro-led', 'eyes.robot-industrial-led', 'eyes.robot-toy-expressive', 'eyebrows.robot-screen-simple', 'eyebrows.robot-retro-plate', 'eyebrows.robot-industrial-visor', 'eyebrows.robot-toy-cute', 'mouth.robot-display', 'mouth.robot-retro-grille', 'mouth.robot-industrial-vent', 'mouth.robot-toy-simple', 'accessory.antenna-single-short', 'accessory.antenna-retro-multi', 'accessory.antenna-industrial-robust', 'accessory.antenna-toy-fun', 'accessory.panels-light-panel', 'accessory.panels-retro-buttons', 'accessory.panels-warning-stripe', 'accessory.panels-toy-buttons',
     // The Soft Cartoon bird pack (MASC-12B), behind them, in its own review order — and no eyes either, for the same reason.
     'head.bird-owl', 'head.bird-duck', 'head.bird-parrot', 'head.bird-crow', 'head.bird-cute', 'head.bird-slim', 'eyebrows.bird-angry', 'eyebrows.bird-curious', 'eyebrows.bird-relaxed', 'eyebrows.bird-happy', 'eyebrows.bird-sharp', 'mouth.beak-owl', 'mouth.beak-duck', 'mouth.beak-parrot', 'mouth.beak-crow', 'mouth.beak-small', 'mouth.beak-wide', 'accessory.crest-owl-tufts', 'accessory.crest-simple', 'accessory.crest-messy-tuft', 'accessory.crest-smooth-feather', 'accessory.crest-parrot-tall', 'accessory.crest-round-tuft', 'accessory.monocle']);
-  assert.deepEqual(FACE_PART_LIBRARY.list('mouth').map((asset) => asset.id), ['mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive', 'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve', 'mouth.robot-display', 'mouth.robot-retro-grille', 'mouth.robot-industrial-vent', 'mouth.robot-toy-simple', 'mouth.beak-owl', 'mouth.beak-duck', 'mouth.beak-parrot', 'mouth.beak-crow', 'mouth.beak-small', 'mouth.beak-wide']);
+  assert.deepEqual(FACE_PART_LIBRARY.list('mouth').map((asset) => asset.id), ['mouth.full', 'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve', 'mouth.robot-display', 'mouth.robot-retro-grille', 'mouth.robot-industrial-vent', 'mouth.robot-toy-simple', 'mouth.beak-owl', 'mouth.beak-duck', 'mouth.beak-parrot', 'mouth.beak-crow', 'mouth.beak-small', 'mouth.beak-wide']);
   assert.deepEqual(FACE_PART_LIBRARY.list('pupils'), [], 'the pupils come with the eyes');
   assert.equal(FACE_PART_LIBRARY.get('nose.dot').origin, 'builtin');
   assert.ok(Object.isFrozen(FACE_PART_LIBRARY.get('nose.dot')));
   assert.equal(FACE_PART_LIBRARY.get('nope'), null);
   const categories = FACE_PART_LIBRARY.categories();
   assert.deepEqual(categories.map((category) => category.id), [...FACE_PART_CATEGORY_IDS]);
-  assert.deepEqual(Object.fromEntries(categories.map((category) => [category.id, category.count])), { head: 24, eyes: 7, pupils: 0, eyelids: 0, eyebrows: 19, nose: 9, mouth: 20, ears: 15, hair: 6, facialHair: 5, accessory: 31 });
+  assert.deepEqual(Object.fromEntries(categories.map((category) => [category.id, category.count])), { head: 24, eyes: 7, pupils: 0, eyelids: 0, eyebrows: 19, nose: 9, mouth: 16, ears: 15, hair: 6, facialHair: 5, accessory: 31 });
 });
 
 test('an asset claims the colours it paints, and no others', () => {
@@ -50,23 +51,23 @@ test('an asset claims the colours it paints, and no others', () => {
 
 test('a registry validates on the way in and refuses with the issues attached', () => {
   const registry = createFacePartRegistry();
-  const asset = registry.register(MOUTH_SIMPLE);
-  assert.equal(asset.id, 'mouth.simple');
-  assert.equal(registry.has('mouth.simple'), true);
-  assert.throws(() => registry.register(MOUTH_SIMPLE), (error) => error instanceof FacePartError && error.issues.some((item) => item.code === 'id-taken') && /already registered/.test(error.message));
-  assert.throws(() => registry.register({ ...MOUTH_SIMPLE, id: 'mouth.broken', artwork: '<g id="x"><script/></g>' }), (error) => error.name === 'FacePartError' && error.issues.map((item) => item.code).includes('artwork-unsafe'));
+  const asset = registry.register(MOUTH_LINE);
+  assert.equal(asset.id, 'mouth.line');
+  assert.equal(registry.has('mouth.line'), true);
+  assert.throws(() => registry.register(MOUTH_LINE), (error) => error instanceof FacePartError && error.issues.some((item) => item.code === 'id-taken') && /already registered/.test(error.message));
+  assert.throws(() => registry.register({ ...MOUTH_LINE, id: 'mouth.broken', artwork: '<g id="x"><script/></g>' }), (error) => error.name === 'FacePartError' && error.issues.map((item) => item.code).includes('artwork-unsafe'));
   assert.equal(registry.size, 1, 'a refused asset leaves nothing behind');
   assert.equal(registry.validate({}).ok, false, 'and can be asked without registering');
-  assert.equal(registry.remove('mouth.simple'), true);
-  assert.equal(registry.remove('mouth.simple'), false);
+  assert.equal(registry.remove('mouth.line'), true);
+  assert.equal(registry.remove('mouth.line'), false);
   assert.equal(registry.size, 0);
 });
 
 test('a pack registers all of its assets or none of them', () => {
   const registry = createFacePartRegistry();
-  assert.throws(() => registry.registerMany([MOUTH_SIMPLE, { ...MOUTH_SIMPLE, id: 'mouth.dup', name: '' }]), /name/);
+  assert.throws(() => registry.registerMany([MOUTH_LINE, { ...MOUTH_LINE, id: 'mouth.dup', name: '' }]), /name/);
   assert.equal(registry.size, 0, 'the good one was not kept');
-  assert.throws(() => registry.registerMany([MOUTH_SIMPLE, MOUTH_SIMPLE]), /appears twice/);
+  assert.throws(() => registry.registerMany([MOUTH_LINE, MOUTH_LINE]), /appears twice/);
   assert.equal(registry.size, 0);
   const registered = registry.registerMany(BUILTIN_FACE_PARTS);
   assert.equal(registered.length, BUILTIN_FACE_PARTS.length);
@@ -96,36 +97,36 @@ test('a module outside the editor registers into the shared library, and an acce
 test('a drawing that restyles another is in the library and not in the category\'s cards', () => {
   const registry = createFacePartRegistry();
   registry.registerMany(BUILTIN_FACE_PARTS);
-  const workshop = { ...MOUTH_SIMPLE, id: 'mouth.simple-workshop', name: 'Simple, in the workshop style', artwork: MOUTH_SIMPLE.artwork.replace('id="mouth-simple"', 'id="mouth-simple-workshop"'), variant: { of: 'mouth.simple', style: 'workshop' } };
+  const workshop = { ...MOUTH_FULL, id: 'mouth.full-workshop', name: 'Simple, in the workshop style', artwork: MOUTH_FULL.artwork.replace('id="mouth-full"', 'id="mouth-full-workshop"'), variant: { of: 'mouth.full', style: 'workshop' } };
   registry.register(workshop);
   assert.equal(registry.size, BUILTIN_FACE_PARTS.length + 1);
-  assert.equal(registry.get('mouth.simple-workshop').name, 'Simple, in the workshop style', 'the library holds it');
-  assert.deepEqual(registry.list('mouth').map((asset) => asset.id), ['mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive', 'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve', 'mouth.robot-display', 'mouth.robot-retro-grille', 'mouth.robot-industrial-vent', 'mouth.robot-toy-simple', 'mouth.beak-owl', 'mouth.beak-duck', 'mouth.beak-parrot', 'mouth.beak-crow', 'mouth.beak-small', 'mouth.beak-wide', 'mouth.simple-workshop'], 'everything the library holds');
-  assert.deepEqual(registry.cards('mouth').map((asset) => asset.id), ['mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive', 'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve', 'mouth.robot-display', 'mouth.robot-retro-grille', 'mouth.robot-industrial-vent', 'mouth.robot-toy-simple', 'mouth.beak-owl', 'mouth.beak-duck', 'mouth.beak-parrot', 'mouth.beak-crow', 'mouth.beak-small', 'mouth.beak-wide'], 'and not a card of its own');
+  assert.equal(registry.get('mouth.full-workshop').name, 'Simple, in the workshop style', 'the library holds it');
+  assert.deepEqual(registry.list('mouth').map((asset) => asset.id), ['mouth.full', 'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve', 'mouth.robot-display', 'mouth.robot-retro-grille', 'mouth.robot-industrial-vent', 'mouth.robot-toy-simple', 'mouth.beak-owl', 'mouth.beak-duck', 'mouth.beak-parrot', 'mouth.beak-crow', 'mouth.beak-small', 'mouth.beak-wide', 'mouth.full-workshop'], 'everything the library holds');
+  assert.deepEqual(registry.cards('mouth').map((asset) => asset.id), ['mouth.full', 'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve', 'mouth.robot-display', 'mouth.robot-retro-grille', 'mouth.robot-industrial-vent', 'mouth.robot-toy-simple', 'mouth.beak-owl', 'mouth.beak-duck', 'mouth.beak-parrot', 'mouth.beak-crow', 'mouth.beak-small', 'mouth.beak-wide'], 'and not a card of its own');
   assert.equal(registry.cards().length, registry.size - 1);
   // Reached through the drawing it restyles, by name.
-  assert.equal(registry.variant('mouth.simple', 'workshop').id, 'mouth.simple-workshop');
-  assert.equal(registry.variant('mouth.simple', 'night'), null, 'a style nobody has drawn yet');
-  assert.equal(registry.variant('mouth.wide', 'workshop'), null);
-  assert.equal(registry.variant('mouth.simple', ''), null);
-  assert.deepEqual(registry.variantsOf('mouth.simple').map((asset) => asset.id), ['mouth.simple-workshop']);
-  assert.deepEqual(registry.variantsOf('mouth.wide'), []);
+  assert.equal(registry.variant('mouth.full', 'workshop').id, 'mouth.full-workshop');
+  assert.equal(registry.variant('mouth.full', 'night'), null, 'a style nobody has drawn yet');
+  assert.equal(registry.variant('mouth.beak-owl', 'workshop'), null);
+  assert.equal(registry.variant('mouth.full', ''), null);
+  assert.deepEqual(registry.variantsOf('mouth.full').map((asset) => asset.id), ['mouth.full-workshop']);
+  assert.deepEqual(registry.variantsOf('mouth.beak-owl'), []);
   // A second drawing cannot answer for the same style of the same part.
-  assert.throws(() => registry.register({ ...workshop, id: 'mouth.simple-shed' }), (error) => error.issues.some((issue) => issue.code === 'variant-taken'));
-  registry.remove('mouth.simple-workshop');
-  assert.equal(registry.variant('mouth.simple', 'workshop'), null, 'forgotten, and the style with it');
+  assert.throws(() => registry.register({ ...workshop, id: 'mouth.full-shed' }), (error) => error.issues.some((issue) => issue.code === 'variant-taken'));
+  registry.remove('mouth.full-workshop');
+  assert.equal(registry.variant('mouth.full', 'workshop'), null, 'forgotten, and the style with it');
 });
 
 test('a pack may write a style down before the drawing it restyles, and is taken in as one', () => {
   const registry = createFacePartRegistry();
-  const simple = { ...MOUTH_SIMPLE };
-  const workshop = { ...MOUTH_SIMPLE, id: 'mouth.simple-workshop', name: 'Workshop', artwork: MOUTH_SIMPLE.artwork.replace('id="mouth-simple"', 'id="mouth-simple-workshop"'), variant: { of: 'mouth.simple', style: 'workshop' } };
+  const simple = { ...MOUTH_LINE };
+  const workshop = { ...MOUTH_LINE, id: 'mouth.line-workshop', name: 'Workshop', artwork: MOUTH_LINE.artwork.replace('id="mouth-line"', 'id="mouth-line-workshop"'), variant: { of: 'mouth.line', style: 'workshop' } };
   registry.registerMany([workshop, simple]);
-  assert.equal(registry.variant('mouth.simple', 'workshop').id, 'mouth.simple-workshop', 'checked against the rest of the batch, not against the order it is in');
+  assert.equal(registry.variant('mouth.line', 'workshop').id, 'mouth.line-workshop', 'checked against the rest of the batch, not against the order it is in');
   const other = createFacePartRegistry();
   assert.throws(() => other.registerMany([workshop]), (error) => error.issues.some((issue) => issue.code === 'variant-unknown'), 'and a style of a drawing nobody ships is refused');
   assert.equal(other.size, 0);
-  assert.throws(() => other.registerMany([simple, workshop, { ...workshop, id: 'mouth.simple-shed' }]), (error) => error.issues.some((issue) => issue.code === 'variant-taken'), 'two answers for one style, in one pack');
+  assert.throws(() => other.registerMany([simple, workshop, { ...workshop, id: 'mouth.line-shed' }]), (error) => error.issues.some((issue) => issue.code === 'variant-taken'), 'two answers for one style, in one pack');
   assert.equal(other.size, 0);
 });
 

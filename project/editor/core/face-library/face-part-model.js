@@ -160,13 +160,24 @@ function driverHints(value) {
     if (!hint || typeof hint !== 'object') continue;
     const roles = {};
     for (const [role, override] of Object.entries(hint.roles && typeof hint.roles === 'object' ? hint.roles : {})) {
-      if (override && typeof override === 'object') roles[role] = Object.freeze({ amplitude: finite(override.amplitude), offset: finite(override.offset), ...pivotOf(override) });
+      if (!override || typeof override !== 'object') continue;
+      // A side's own shape, where the movement is shaped rather than
+      // transformed: a mouth's teeth and its tongue pucker as the lips they are
+      // drawn from do, and each needs its own pose (docs/MOUTH_BUILD.md).
+      const rolePose = typeof override.posePath === 'string' && override.posePath.trim() ? { posePath: override.posePath.trim() } : {};
+      roles[role] = Object.freeze({ amplitude: finite(override.amplitude), offset: finite(override.offset), ...pivotOf(override), ...rolePose });
     }
     // A shape driver carries the shape as drawn at the movement's end, and no amplitude: the pose is the amplitude.
     const posePath = typeof hint.posePath === 'string' && hint.posePath.trim() ? { posePath: hint.posePath.trim() } : {};
     // An offset left out is null, and the binding takes the property's own rest (1 for a scale, 0 otherwise); a NaN would move everything off the page.
     const offset = hint.offset === undefined || hint.offset === null || hint.offset === '' ? null : finite(hint.offset);
-    out[control] = Object.freeze({ property: typeof hint.property === 'string' ? hint.property.trim() : '', amplitude: finite(hint.amplitude), offset, roles: Object.freeze(roles), ...posePath, ...pivotOf(hint) });
+    // The sentence the movement is driven by, where the drawing needs one of its
+    // own. A band drawn *from* a lip shows only when the lip parts, which is
+    // `mouthOpen * teeth` -- a product -- while a card drawing a finished row of
+    // teeth and fading it in wants `teeth` alone (docs/MOUTH_BUILD.md). Only
+    // words the part itself moves are allowed, which validation checks.
+    const expression = typeof hint.expression === 'string' && hint.expression.trim() ? { expression: hint.expression.trim() } : {};
+    out[control] = Object.freeze({ property: typeof hint.property === 'string' ? hint.property.trim() : '', amplitude: finite(hint.amplitude), offset, roles: Object.freeze(roles), ...posePath, ...expression, ...pivotOf(hint) });
   }
   return Object.freeze(out);
 }

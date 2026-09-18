@@ -297,7 +297,7 @@ V3-12 is three files. They can run in parallel.
   `face-part-animation-matrix.test.js` like any other (that test walks
   `library.list()`, which holds restyles), and its `referenceBox` must stay
   truthful or the fit will put it somewhere else. And the name a restyle
-  shows in the inspector is read from its *id* (`mouth.wide-workshop` reads
+  shows in the inspector is read from its *id* (`mouth.full-workshop` reads
   as "Wide workshop"), so id it as the drawing plus the style.
 
 ### V3-06 — The restyle

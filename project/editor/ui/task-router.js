@@ -51,7 +51,7 @@ export const MODES = Object.freeze({
    *
    * They were one, and it opened on nine vector tools, a hundred-and-thirty
    * layer tree and an Inspector of geometry, bindings and morph targets —
-   * while the hundred and fifty drawings the editor ships sat inside a
+   * while the drawings the editor ships sat inside a
    * collapsed disclosure called *Add / Create artwork*, under three cards, at
    * the bottom of the column. The first thing everybody saw was the most
    * advanced thing in the editor, and the simplest was the hardest to find.

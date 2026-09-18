@@ -53,6 +53,36 @@ function drivenValue(parameter) {
   return rest === max ? min : max;
 }
 
+/**
+ * Every parameter one movement is driven by, the movement itself included.
+ *
+ * Usually just the movement's own name. A movement driven by a *sentence* about
+ * other movements needs every word of it: a mouth's teeth read
+ * `mouthOpen * teeth`, a product, so closed lips have nothing behind them to
+ * show (docs/MOUTH_BUILD.md).
+ *
+ * Only words that are **movements of the same part**. A side offset is a word
+ * too — `eyeOpen + eyeOpenLeft` is what a wink is — and it rests at 0 on purpose:
+ * driving it would take the sum back to where the drawing rests and read a
+ * working blink as a movement that does nothing.
+ */
+function sentence(document, part, control) {
+  const names = new Set([control]);
+  const own = new Set(SEMANTIC_PART_REGISTRY[part.type]?.controls || []);
+  const expressions = [
+    ...Object.values(document.elements || {}).flatMap((element) => Object.values(element.bindings || {})
+      .filter((binding) => binding.generatedBy?.semanticPart === part.id && binding.generatedBy?.control === control)
+      .map((binding) => binding.expression)),
+    ...(document.shapeKeys || []).filter((key) => key.generatedBy?.semanticPart === part.id && key.generatedBy?.control === control)
+      .map((key) => key.driver?.expression)
+  ];
+  for (const expression of expressions) {
+    for (const word of String(expression || '').match(/[A-Za-z_][A-Za-z0-9_]*/g) || []) {
+      if (own.has(word) && document.params[word]) names.add(word);
+    }
+  }
+  return [...names];
+}
 /** The elements a control moves: the roles its part binds it to, or the whole part when it is a keyform or a pin. */
 function watched(document, part, control) {
   const definition = SEMANTIC_PART_REGISTRY[part.type];
@@ -79,7 +109,14 @@ for (const asset of BUILTIN_FACE_PARTS) {
     const rest = frameOf(document, {});
     for (const { partId, control } of claimed) {
       const part = document.semanticParts[partId];
-      const driven = frameOf(document, { [control]: drivenValue(document.params[control]) });
+      // Every word the movement is driven by, not only the one it is named
+      // after. A band inside a mouth is honestly gated on the mouth being open
+      // -- `mouthOpen * teeth`, a product, so closed lips have nothing behind
+      // them to show (docs/MOUTH_BUILD.md) -- and driving `teeth` alone would
+      // read that correct gate as a movement that does nothing.
+      const pose = Object.fromEntries(sentence(document, part, control)
+        .map((name) => [name, drivenValue(document.params[name])]));
+      const driven = frameOf(document, pose);
       const moved = watched(document, part, control).some((id) => {
         for (let node = id; node; node = parents[node]) if (seen(rest, node) !== seen(driven, node)) return true;
         return false;

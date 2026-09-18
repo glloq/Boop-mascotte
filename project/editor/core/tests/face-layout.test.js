@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { FACE_MOUNT_POINTS } from '../face-library/face-part-model.js';
 import { LAYOUT_ROLES, TEMPLATE_FACE_LAYOUT, TEMPLATE_ROLE_BOXES, boxInMountSpace, composeFit, createFaceLayoutContext, faceRoleBoxes, fitFacePart, layoutFromBoxes, layoutOnHost, layoutRoleFor, layoutThroughRoot, pointInMountSpace, transformBox, transformPoint, unionBox } from '../face-library/face-layout.js';
 import { NOSE_DOT } from '../face-library/builtin/nose-dot.js';
-import { MOUTH_SIMPLE } from '../face-library/builtin/mouth-simple.js';
+import { MOUTH_LINE } from './fixtures/mouth-line.js';
 import { createTemplateProjectState } from '../sample/templates/template-export.js';
 import { createCleanProjectState } from '../state/store.js';
 import { createSemanticPart, assignSemanticRole } from '../../rig-editor/semantic-parts/part-model.js';
@@ -100,7 +100,7 @@ test('the role boxes are read from the semantic parts, whatever the shapes are c
 test('fitting is one similarity: this head\'s size, the reference box centred on the mount point', () => {
   // On the template every asset is already where it belongs.
   assert.deepEqual(fitFacePart(NOSE_DOT, TEMPLATE_FACE_LAYOUT), { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 120, pivotY: 148, mountPoint: 'nose.center', anchor: { x: 120.615, y: 148, measured: true } });
-  assert.deepEqual(fitFacePart(MOUTH_SIMPLE, TEMPLATE_FACE_LAYOUT), { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 120, pivotY: 176.5, mountPoint: 'mouth.center', anchor: { x: 120, y: 175.25, measured: true } });
+  assert.deepEqual(fitFacePart(MOUTH_LINE, TEMPLATE_FACE_LAYOUT), { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 120, pivotY: 179.5, mountPoint: 'mouth.center', anchor: { x: 120, y: 175.25, measured: true } });
   // On a head half the size, elsewhere: half the size, at that head's nose.
   const layout = layoutFromBoxes({ head: { x: 300, y: 100, width: 94.105, height: 94 } });
   const fit = fitFacePart(NOSE_DOT, layout);

@@ -232,7 +232,7 @@ All 47 shipped drawings were judged, each with a reason.
 | `not-relevant` | 13 | nothing in this pilot would reach for it |
 
 The audit was made before the sheet arrived, when `eyebrows.thin`,
-`nose.cartoon`, `mouth.small` and `mouth.cartoon` were going to stand in for an
+`nose.cartoon` and `mouth.full` were going to stand in for an
 animal brow, an animal nose and two animal mouths. **The sheet draws its own**,
 so those four moved back to `possible-reuse`: they are what to fall back on if a
 planned drawing is cut, and nothing is drawn twice either way.

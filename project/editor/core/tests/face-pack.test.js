@@ -4,7 +4,8 @@ import { FACE_PACK_FORMAT, installFacePack, normalizeFacePack, validateFacePack 
 import { createFacePartRegistry, loadCustomParts, saveCustomParts } from '../face-library/face-part-registry.js';
 import { createFacePresetRegistry, loadCustomPresets, presetDrawings } from '../face-library/face-presets.js';
 import { BUILTIN_FACE_PARTS } from '../face-library/builtin/index.js';
-import { MOUTH_SMALL } from '../face-library/builtin/mouths.js';
+import { MOUTH_LINE } from './fixtures/mouth-line.js';
+import { MOUTH_FULL } from '../face-library/builtin/mouth-full.js';
 
 /**
  * Face packs (docs/FACE_PART_LIBRARY.md, "Face packs"; roadmap phase 44):
@@ -18,7 +19,7 @@ function registries() {
   return { library, presets };
 }
 
-const grin = () => ({ ...MOUTH_SMALL, id: 'mouth.grin', name: 'Grin', description: 'A small grin, from a pack.', artwork: MOUTH_SMALL.artwork.replace('id="mouth-small"', 'id="mouth-grin"'), origin: undefined });
+const grin = () => ({ ...MOUTH_LINE, id: 'mouth.grin', name: 'Grin', description: 'A small grin, from a pack.', artwork: MOUTH_LINE.artwork.replace('id="mouth-line"', 'id="mouth-grin"'), origin: undefined });
 const hat = () => ({ id: 'accessory.pack-hat', category: 'accessory', name: 'Pack hat', artwork: '<g id="pack-hat" data-name="Pack hat"><rect id="brim" data-name="Brim" x="40" y="10" width="160" height="20" fill="#333"/></g>', roles: { element: 'brim' }, referenceBox: { x: 40, y: 10, width: 160, height: 20 } });
 const pack = (extra = {}) => ({ format: FACE_PACK_FORMAT, version: 1, id: 'grins', name: 'Grins', description: 'A grin and a hat.', parts: [grin(), hat()], presets: [{ id: 'grinning', name: 'Grinning', description: 'The grin, in warm colours.', parts: { mouth: 'mouth.grin' }, accessories: ['accessory.pack-hat'], palette: 'warm' }], ...extra });
 
@@ -50,7 +51,7 @@ test('a pack is validated as a whole: the file must say what it is, and each par
   assert.deepEqual(codes(pack({ id: 'Grins!' })), ['pack-id-format@id']);
   assert.deepEqual(codes(pack({ parts: [], presets: [] })), ['pack-empty@parts']);
   // A part the library already has, a part appearing twice, a part with no artwork: each named by its place.
-  assert.deepEqual(codes(pack({ parts: [{ ...grin(), id: 'mouth.small' }], presets: [] })), ['id-taken@parts[0].id']);
+  assert.deepEqual(codes(pack({ parts: [{ ...grin(), id: 'mouth.full' }], presets: [] })), ['id-taken@parts[0].id']);
   assert.deepEqual(codes(pack({ parts: [hat(), hat()], presets: [] })), ['id-taken@parts[1].id']);
   assert.ok(codes(pack({ parts: [{ ...hat(), artwork: '' }], presets: [] })).includes('artwork-missing@parts[0].artwork'));
   // A preset naming a part neither the library nor the pack has, and one whose id a built-in preset holds.
@@ -105,16 +106,16 @@ test('a preset registry with rules of its own that refuses at register time leav
  * library, so a style may be written down before the drawing it restyles,
  * and they go in together or not at all.
  */
-const workshopMouth = () => ({ ...MOUTH_SMALL, id: 'mouth.small-workshop', name: 'Small, workshop', description: 'The small mouth, restyled.', artwork: MOUTH_SMALL.artwork.replace('id="mouth-small"', 'id="mouth-small-workshop"'), variant: { of: 'mouth.small', style: 'workshop' }, origin: undefined });
-const workshopPack = (extra = {}) => ({ format: FACE_PACK_FORMAT, version: 1, id: 'workshop', name: 'Workshop', parts: [workshopMouth()], presets: [{ id: 'workshop-face', name: 'Workshop face', parts: { head: 'head.round', mouth: 'mouth.small' }, style: 'workshop', palette: 'warm' }], ...extra });
+const workshopMouth = () => ({ ...MOUTH_FULL, id: 'mouth.full-workshop', name: 'Mouth, workshop', description: 'The library\'s mouth, restyled.', artwork: MOUTH_FULL.artwork.replace('id="mouth-full"', 'id="mouth-full-workshop"'), variant: { of: 'mouth.full', style: 'workshop' }, origin: undefined });
+const workshopPack = (extra = {}) => ({ format: FACE_PACK_FORMAT, version: 1, id: 'workshop', name: 'Workshop', parts: [workshopMouth()], presets: [{ id: 'workshop-face', name: 'Workshop face', parts: { head: 'head.round', mouth: 'mouth.full' }, style: 'workshop', palette: 'warm' }], ...extra });
 
 test('a pack ships a style and the preset that asks for it, and the preset wears the pack\'s drawing', () => {
   const { library, presets } = registries();
   const result = installFacePack(workshopPack(), { library, presets });
-  assert.deepEqual([result.ok, result.parts, result.presets], [true, ['mouth.small-workshop'], ['workshop-face']]);
-  assert.equal(library.variant('mouth.small', 'workshop').id, 'mouth.small-workshop', 'reached through the drawing it restyles');
-  assert.deepEqual(library.cards('mouth').map((asset) => asset.id), ['mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive', 'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve', 'mouth.robot-display', 'mouth.robot-retro-grille', 'mouth.robot-industrial-vent', 'mouth.robot-toy-simple', 'mouth.beak-owl', 'mouth.beak-duck', 'mouth.beak-parrot', 'mouth.beak-crow', 'mouth.beak-small', 'mouth.beak-wide'], 'and no card of its own');
-  assert.deepEqual(presetDrawings(presets.get('workshop-face'), library), { parts: { head: 'head.round', mouth: 'mouth.small-workshop' }, accessories: [] });
+  assert.deepEqual([result.ok, result.parts, result.presets], [true, ['mouth.full-workshop'], ['workshop-face']]);
+  assert.equal(library.variant('mouth.full', 'workshop').id, 'mouth.full-workshop', 'reached through the drawing it restyles');
+  assert.deepEqual(library.cards('mouth').map((asset) => asset.id), ['mouth.full', 'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve', 'mouth.robot-display', 'mouth.robot-retro-grille', 'mouth.robot-industrial-vent', 'mouth.robot-toy-simple', 'mouth.beak-owl', 'mouth.beak-duck', 'mouth.beak-parrot', 'mouth.beak-crow', 'mouth.beak-small', 'mouth.beak-wide'], 'and no card of its own');
+  assert.deepEqual(presetDrawings(presets.get('workshop-face'), library), { parts: { head: 'head.round', mouth: 'mouth.full-workshop' }, accessories: [] });
 
   // A style of a drawing the same pack ships, written down before it.
   const own = registries();
@@ -125,10 +126,10 @@ test('a pack ships a style and the preset that asks for it, and the preset wears
   assert.deepEqual(presetDrawings(own.presets.get('workshop-face'), own.library).parts, { mouth: 'mouth.grin-workshop' });
 
   const reversed = registries();
-  assert.equal(installFacePack({ ...workshopPack(), parts: [workshopMouth(), { ...grin(), variant: { of: 'mouth.small-workshop', style: 'night' } }] }, reversed).ok, false, 'a style of a style is refused');
-  const chained = validateFacePack({ ...workshopPack(), parts: [workshopMouth(), { ...grin(), variant: { of: 'mouth.small-workshop', style: 'night' } }] }, reversed).errors;
+  assert.equal(installFacePack({ ...workshopPack(), parts: [workshopMouth(), { ...grin(), variant: { of: 'mouth.full-workshop', style: 'night' } }] }, reversed).ok, false, 'a style of a style is refused');
+  const chained = validateFacePack({ ...workshopPack(), parts: [workshopMouth(), { ...grin(), variant: { of: 'mouth.full-workshop', style: 'night' } }] }, reversed).errors;
   assert.deepEqual(chained.map((issue) => `${issue.code}@${issue.field}`), ['variant-chained@parts[1].variant.of'], 'and says which entry');
-  assert.equal(reversed.library.has('mouth.small-workshop'), false, 'nothing of the pack stays');
+  assert.equal(reversed.library.has('mouth.full-workshop'), false, 'nothing of the pack stays');
   // A style of a drawing nobody ships, named where it is written.
   const orphan = validateFacePack(workshopPack({ parts: [{ ...workshopMouth(), variant: { of: 'mouth.nobody', style: 'workshop' } }] }), registries()).errors;
   assert.deepEqual(orphan.map((issue) => `${issue.code}@${issue.field}`), ['variant-unknown@parts[0].variant.of']);

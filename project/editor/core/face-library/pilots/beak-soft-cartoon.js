@@ -246,7 +246,7 @@ export const PILOT_REUSE = Object.freeze([
   Object.freeze({ id: 'eyes.iris', verdict: 'reuse', why: 'The same eye with a coloured iris, which is the planche\'s Perçants: a crow reads intent through the colour of its eye and the brow over it, not through a narrower white.' }),
   Object.freeze({ id: 'eyebrows.thin', verdict: 'possible-reuse', why: 'A thin arc reads as a bird brow as readily as a human one. The brows sheet decides whether five new pairs are five or fewer.' }),
   Object.freeze({ id: 'nose.dot', verdict: 'not-relevant', why: 'A `beak` face offers no nose slot: the beak is the whole of what is between the eyes and the chin.' }),
-  Object.freeze({ id: 'mouth.small', verdict: 'replace', why: 'A beak installs *as* a mouth, so this is the drawing it replaces rather than one it sits beside. A lip line on a bird reads as a mistake.' }),
+  Object.freeze({ id: 'mouth.full', verdict: 'replace', why: 'A beak installs *as* a mouth, so this is the drawing it replaces rather than one it sits beside. A lip line on a bird reads as a mistake.' }),
   Object.freeze({ id: 'hair.short', verdict: 'not-relevant', why: 'There is no hair slot in a `beak` face; the crest is what stands where hair would.' }),
   Object.freeze({ id: 'facialhair.beard', verdict: 'not-relevant', why: 'Nothing in this pilot would ever reach for one, and the morphology offers no row for it.' })
 ]);

@@ -92,6 +92,33 @@ test('@critical legacy empty state and demo bar are removed; Home, Artwork and P
 // every element written before the question existed answers it the way they
 // all behaved. `requires` is unchanged for the same reason as above -- a rig
 // with no part states asks for nothing.
+//
+// The eyes came off the socket (docs/EYE_BUILDS.md). This is the first re-sign
+// that touched `mascot.svg`, and it touched it on purpose: the two
+// `clipPath`s that hid the lids are gone, along with the four ellipses inside
+// them, and the eye groups are no longer clipped to anything. A lid is now the
+// eye's own ellipse squashed to a sliver on the rim it swings from and scaled
+// about that rim, so it cannot leave the eye and has nothing to be clipped by
+// -- which is what let the eye's own box be the eye, and the gizmo land on it.
+//
+// In `rig.json`, exactly four groups of keys moved and nothing else:
+//
+//   + creaseUpper/Lower Left/Right    four new elements, and eight shape keys
+//   ~ lidUpper/Lower Left/Right       `translateY` became `scaleY`, new paths
+//   ~ lidUpper/Lower * shape keys     the same two curves over the new rests
+//   + glint/spark Left/Right          the pupil's own `lookX`/`lookY`
+//
+// The creases are the crease a closed cartoon eye reads as: the lids are
+// fill-only now, because a closed shape stroked all the way round draws its
+// own rim as well, which read as two rings over the eye. The catchlights
+// gained the pupil's bindings because they never had any -- a glint nailed to
+// the socket while the pupil looked away is a highlight on the white.
+//
+// No parameter, state, clip, reaction, expression, hand or face element
+// outside the eyes changed, and neither did the mouth: moving its geometry out
+// to `core/face/mouth-build.js` so a card and the template are the same mouth
+// (docs/MOUTH_BUILD.md) left every byte of the template's own mouth alone,
+// which is the check that says it was a move and not a rewrite.
 test('@critical Basic Face export artifacts are identical to the pre-removal fixtures', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);

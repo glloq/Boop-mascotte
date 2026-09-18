@@ -39,13 +39,16 @@ export const FACE_PACKS = Object.freeze([
 /**
  * How many drawings the library holds that no pack shipped (PR 6, phase 45).
  *
- * Forty-seven until the eyes became three builds. Seventeen of the library's
- * twenty-one pairs were one construction at different radii, and the five human
- * ones went the way of the packs' twelve: `eyes.dot`, `eyes.simple` and
- * `eyes.iris` are what an author chooses between now, and the choice is a
- * drawing rather than a size (docs/EYE_BUILDS.md).
+ * Forty-seven until the eyes became three builds and the mouth became one card.
+ *
+ * Seventeen of the library's twenty-one pairs of eyes were one construction at
+ * different radii, and the five human ones went the way of the packs' twelve
+ * (docs/EYE_BUILDS.md). The five human mouths went the same way and for the same
+ * reason — a radius, a fill and whether the teeth were drawn, which is a size, a
+ * palette and a movement — and not one of them could pucker, which is the
+ * control the vowels turn on (docs/MOUTH_BUILD.md).
  */
-export const HUMAN_LIBRARY_SIZE = 45;
+export const HUMAN_LIBRARY_SIZE = 41;
 
 /** Every id any pack ships, universal pieces included. */
 export const PACKED_IDS = Object.freeze(new Set(FACE_PACKS.flatMap((pack) => pack.parts.map((asset) => asset.id))));
