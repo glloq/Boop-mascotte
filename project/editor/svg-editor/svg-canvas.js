@@ -12,6 +12,7 @@ import { createArtworkCommands } from '../core/commands/artwork-commands.js';
 import { artboardAround, artboardOverflow, readArtboard } from '../core/artwork/artboard.js';
 import { createTransformGizmo } from './transform-gizmo.js';
 import { alignBoxes, boxFromCorners, distributeBoxes, marqueeSelection, unionBox, vectorInSpace } from '../core/artwork/arrange.js';
+import { poseBetween, removePose, transformFromChannels } from '../core/artwork/pose-transform.js';
 import { selectMany, selectOnly, toggleSelected } from '../core/state/selection.js';
 import { matrixToString } from '../../runtime/runtime.js';
 import { createPreviewOrder } from '../core/preview-runtime/preview-order.js';
@@ -1141,7 +1142,19 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
     const matrix = rootGroup?.node?.transform?.baseVal?.consolidate?.()?.matrix;
     return { scale: matrix?.a || 1, x: matrix?.e || 0, y: matrix?.f || 0 };
   };
-  const setView = ({ scale = 1, x = 0, y = 0 }) => {
+  /**
+   * What the view is currently *a framing of*, if anything (`frameElements`).
+   *
+   * A view set by framing named pieces is an intent — "show me this hand" —
+   * and not just a matrix. Remembering that lets the canvas honour it again
+   * when its own size changes, which happens every time a screen declares
+   * different column widths or an author drags one (`ui/panel-split.js`).
+   * Every other way of changing the view drops it, because every other way is
+   * the author saying where they want to look instead.
+   */
+  let framing = null;
+  const setView = ({ scale = 1, x = 0, y = 0 }, { keepFraming = false } = {}) => {
+    if (!keepFraming) framing = null;
     const zoom = Number.isFinite(Number(scale)) && Number(scale) > 0 ? Number(scale) : 1;
     const tx = Number.isFinite(Number(x)) ? Number(x) : 0, ty = Number.isFinite(Number(y)) ? Number(y) : 0;
     rootGroup.node.setAttribute('transform', `matrix(${zoom} 0 0 ${zoom} ${tx} ${ty})`);
@@ -1211,8 +1224,26 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
     const box = node && selectionBox(node);
     const ctm = parentSpace(node);
     if (!box || !ctm) return null;
+    /**
+     * The transform the piece is **drawn** with, and what the session is
+     * adding to the authored one (`core/artwork/pose-transform.js`).
+     *
+     * Artwork stays posable while it is designed — the puppet handles are on,
+     * the head-pose pad turns the head — so `baseTransform` is the rest pose
+     * and not where the part is. Reading it drew the box around where the nose
+     * *would* be if the head were straight, seventy-four pixels from the nose.
+     *
+     * `lastRequested` is the channel array the canvas wrote to the DOM for the
+     * last frame: the renderer's own numbers, not a matrix parsed back out of
+     * an attribute. A deformer hierarchy resolves to a matrix instead and has
+     * no channels, and a piece no frame has reached yet has none either; both
+     * fall back to the authored transform, which is what they are drawn with.
+     */
     const authored = store.getDocument().elements?.[selectedId]?.baseTransform;
-    const transform = authored ? { ...authored } : parseTransform(SVG.adopt(node));
+    const base = authored ? { ...authored } : parseTransform(SVG.adopt(node));
+    const drawn = transformFromChannels(lastRequested.get(selectedId));
+    const pose = drawn ? poseBetween(drawn, base) : null;
+    const transform = drawn || base;
     // An unconfigured pivot is (0, 0) — the corner of the artwork's own
     // coordinates, usually nowhere near the part. Rotating or scaling around
     // that is never what the author means, so the middle of the selection is
@@ -1221,7 +1252,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       transform.pivotX = box.x + box.width / 2;
       transform.pivotY = box.y + box.height / 2;
     }
-    return { id: selectedId, node, box, transform, scale: Math.hypot(ctm.a, ctm.b) || 1 };
+    return { id: selectedId, node, box, transform, pose, scale: Math.hypot(ctm.a, ctm.b) || 1 };
   };
 
   // Compact mode toolbar. It only exists while something is selected, so it
@@ -1308,12 +1339,25 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       const id = drag.id;
       documentModel.getNode(id)?.setAttribute('transform', transformString(transform));
       documentModel.captureAuthoringNode(id);
+      /**
+       * The drag leaves the piece where the pointer put it; the *project*
+       * records that place without the pose that was on it.
+       *
+       * The gizmo works in drawn coordinates, because that is where the
+       * author can see it. `baseTransform` is the resting artwork, so
+       * committing the drawn transform straight into it would write the head
+       * turn into the drawing: the part would be displaced once by the
+       * authored value and again by the turn, and would fly off as soon as
+       * the head came back to centre. At rest the pose is identity and this
+       * is the same number as before (`core/artwork/pose-transform.js`).
+       */
+      const authored = finiteTransform(removePose(transform, drag.pose));
       // On a mascot surface the gesture goes where a typed field goes, so a
       // linked pair follows a drag exactly as it follows a number (audit §2.2).
-      if (pieces?.commit?.(id, finiteTransform(transform))) return;
+      if (pieces?.commit?.(id, authored)) return;
       const current = store.getDocument();
       commands.syncSvg({
-        elements: { ...current.elements, [id]: { ...(current.elements[id] || {}), baseTransform: finiteTransform(transform) } },
+        elements: { ...current.elements, [id]: { ...(current.elements[id] || {}), baseTransform: authored } },
         svgMarkup: documentModel.serialize()
       }, { domains: ['artwork'], source: 'canvas' });
     }
@@ -3326,11 +3370,48 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
     if (nodeEdit) { placeNodeHandles(); placeControlHandles(); }
   }
 
+  /**
+   * A canvas that changes size keeps looking at the same thing.
+   *
+   * The view is a matrix from the artwork into the container, so its
+   * translation is measured from the container's top left. Narrow the
+   * container and every artwork point stays where it was *relative to that
+   * corner* — which means the mascot slides towards the right-hand edge and
+   * off it, taking the puppet handles with it. On a 1280px window, the hand's
+   * own slider ended up fourteen pixels behind the panel beside the canvas,
+   * where nobody could reach it.
+   *
+   * Nothing noticed before because the columns were the same width on every
+   * screen and the canvas never changed size except when the window did. It
+   * now changes with the screen (`ui/panel-split.js`) and with every drag of a
+   * boundary, so half the difference goes into the translation and whatever
+   * was in the middle of the view stays in the middle of it.
+   *
+   * The zoom is deliberately untouched: an author working at 240% has chosen
+   * that, and a re-fit on resize would throw it away every time they dragged a
+   * column.
+   */
+  let canvasSize = { width: container.clientWidth, height: container.clientHeight };
+  function keepViewCentred() {
+    const width = container.clientWidth, height = container.clientHeight;
+    const dw = width - canvasSize.width, dh = height - canvasSize.height;
+    canvasSize = { width, height };
+    if ((!dw && !dh) || !width || !height) return;
+    // A view that is a framing is re-framed rather than slid: the pieces it
+    // was asked to show should still fill the new size, not sit half outside
+    // it. This is what a dragged column boundary does to a framed hand.
+    if (framing) { api.frameElements(framing.ids, framing.padding); return; }
+    const view = viewTransform();
+    setView({ scale: view.scale, x: view.x + dw / 2, y: view.y + dh / 2 });
+  }
+
   if (typeof ResizeObserver !== 'undefined') {
     let resizeFrame = 0;
     new ResizeObserver(() => {
       cancelAnimationFrame(resizeFrame);
-      resizeFrame = requestAnimationFrame(() => placeChrome());
+      // `setView` places the chrome itself, so a resize that moved the view
+      // does not place it twice.
+      resizeFrame = requestAnimationFrame(() => { const before = viewTransform(); keepViewCentred(); if (viewTransform().x === before.x && viewTransform().y === before.y) placeChrome(); });
     }).observe(container);
   }
 
@@ -4070,6 +4151,59 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       setView({ scale, x: (width - box.width * scale) / 2 - box.x * scale, y: (height - box.height * scale) / 2 - box.y * scale });
       return scale;
     },
+    /**
+     * Fill the view with named pieces, wherever the frame has put them.
+     *
+     * `zoomToSelection` frames what is *selected* and measures with `getBBox`,
+     * which is the piece's own untransformed geometry. That is right for a
+     * shape being drawn and wrong for a piece the rig has placed: a hand is
+     * drawn at the origin and put beside the body by its transform, so its
+     * `getBBox` says nothing about where it is on screen.
+     *
+     * This measures what is painted — each node's client rect, mapped back
+     * into the artwork's own space — so it frames the thing an author can see.
+     * Used by Design ▸ Hands, where the subject of the screen is one hand and
+     * the canvas used to show the whole face with the hands behind its head.
+     *
+     * @param {string[]} ids
+     * @param {number} padding  share of the view left around the pieces
+     */
+    frameElements(ids, padding = 0.18) {
+      if (!rootGroup?.node || !ids?.length) return viewTransform().scale;
+      setView({ scale: 1, x: 0, y: 0 }, { keepFraming: true });
+      const inverse = rootGroup.node.getScreenCTM?.()?.inverse();
+      const width = container.clientWidth, height = container.clientHeight;
+      if (!inverse || !width || !height) return viewTransform().scale;
+      const point = (x, y) => { const p = draw.node.createSVGPoint(); p.x = x; p.y = y; return p.matrixTransform(inverse); };
+      const corners = [];
+      for (const id of ids) {
+        const node = documentModel.getNode(id);
+        const rect = node?.getBoundingClientRect?.();
+        // A piece with no area is one that is hidden or has not been drawn:
+        // framing on it would zoom the view onto nothing.
+        if (!rect?.width || !rect?.height) continue;
+        corners.push(point(rect.left, rect.top), point(rect.right, rect.bottom));
+      }
+      if (!corners.length) return viewTransform().scale;
+      const xs = corners.map((c) => c.x), ys = corners.map((c) => c.y);
+      const box = { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
+      if (!box.width || !box.height) return viewTransform().scale;
+      // The same ceiling the wheel respects, so framing a thumb-sized piece
+      // cannot leave the author at four hundred times life size.
+      const scale = Math.max(.2, Math.min(5, Math.min(width * (1 - padding * 2) / box.width, height * (1 - padding * 2) / box.height)));
+      setView({ scale, x: (width - box.width * scale) / 2 - box.x * scale, y: (height - box.height * scale) / 2 - box.y * scale }, { keepFraming: true });
+      framing = { ids: [...ids], padding };
+      return scale;
+    },
+    /**
+     * Whether the view is still the framing it was asked for.
+     *
+     * A caller that framed something and means to do it again once it has
+     * settled asks this first: a *Fit*, a wheel or a zoom-to-selection in the
+     * meantime is the author saying where to look, and a framing arriving
+     * afterwards to undo that is worse than never framing at all.
+     */
+    isFraming(ids) { return Boolean(framing) && (!ids?.length || ids.every((id) => framing.ids.includes(id))); },
     resetView(){ setView({ scale: 1, x: 0, y: 0 }); return 1; },
     /** Zoom about a point of the viewport — the middle by default, so the mascot stays in view; the pointer for the wheel. */
     zoomView(factor, center = null){
@@ -4285,8 +4419,23 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       Object.entries(frame.matrices || {}).forEach(([id, matrix]) => {const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const next=matrixToString(matrix),previous=lastApplied.get(node)||{};if(previous.matrix!==next){wrapper.attr('transform',next);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,matrix:next,transform:null});}});
       // `scale 0` means collapsed, so only a missing or broken number falls back
       // to 1 -- `|| 1` kept a part the rig had closed open on the canvas alone.
-      Object.entries(frame.transforms || {}).forEach(([id, transform]) => {if(frame.matrices?.[id])return;const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const next=[transform.x,transform.y,transform.rotation,transform.scaleX,transform.scaleY,transform.pivotX,transform.pivotY].map((value,index)=>{const fallback=index===3||index===4?1:0;return value==null||!Number.isFinite(Number(value))?fallback:Number(value);});lastRequested.set(id,[...next]);const previous=lastApplied.get(node)||{};if(!previous.transform||next.some((value,index)=>Math.abs(value-previous.transform[index])>1e-6)){const [x,y,rotation,scaleX,scaleY,pivotX,pivotY]=next;wrapper.attr('transform',`translate(${x} ${y}) rotate(${rotation} ${pivotX} ${pivotY}) translate(${pivotX} ${pivotY}) scale(${scaleX} ${scaleY}) translate(${-pivotX} ${-pivotY})`);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,transform:next});}});
+      // Whether this frame moved the piece the author has selected, so its
+      // selection box can follow it. Recorded rather than compared afterwards
+      // because `lastRequested` is overwritten in the same pass.
+      let movedSelection = false;
+      Object.entries(frame.transforms || {}).forEach(([id, transform]) => {if(frame.matrices?.[id])return;const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const next=[transform.x,transform.y,transform.rotation,transform.scaleX,transform.scaleY,transform.pivotX,transform.pivotY].map((value,index)=>{const fallback=index===3||index===4?1:0;return value==null||!Number.isFinite(Number(value))?fallback:Number(value);});lastRequested.set(id,[...next]);const previous=lastApplied.get(node)||{};if(!previous.transform||next.some((value,index)=>Math.abs(value-previous.transform[index])>1e-6)){const [x,y,rotation,scaleX,scaleY,pivotX,pivotY]=next;wrapper.attr('transform',`translate(${x} ${y}) rotate(${rotation} ${pivotX} ${pivotY}) translate(${pivotX} ${pivotY}) scale(${scaleX} ${scaleY}) translate(${-pivotX} ${-pivotY})`);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,transform:next});if(id===selectedId)movedSelection=true;}});
       if (puppet) schedulePuppetPlacement();
+      /**
+       * The selection box goes where the frame just put the piece.
+       *
+       * A mascot being designed is posable, so a frame moves the artwork under
+       * a box that was drawn for the pose before it: turning the head left the
+       * nose painted seventy-four pixels from its own handles
+       * (`core/artwork/pose-transform.js`). Only when this frame actually moved
+       * the selected piece, and never mid-drag, where the pointer owns the box
+       * and the frame is a stale account of where the piece was.
+       */
+      if (movedSelection && !gizmo.dragging) gizmo.render();
       Object.entries(frame.opacity || {}).forEach(([id, opacity]) => {const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const previous=lastApplied.get(node)||{},next=Number(opacity);if(!Number.isFinite(previous.opacity)||Math.abs(next-previous.opacity)>1e-6){wrapper.attr('opacity',next);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,opacity:next});}});
       // Depth reaches the paint order here exactly as it does in the exported
       // mascot: a hand behind the body, the far thumb behind the palm. The

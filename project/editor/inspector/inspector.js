@@ -465,16 +465,28 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     return rows.join('');
   }
 
+  /**
+   * Seven numbers, in the pairs they come in.
+   *
+   * They were seven full-width rows, each a label above an input, and the
+   * Inspector they sit at the top of held **1341px of content in an 836px
+   * column** — so an author looking for Appearance or Bindings scrolled past
+   * a third of a screen of number boxes to reach them. X and Y are one
+   * quantity said twice, and so are the pivot and the scale; pairing them
+   * costs nothing in clarity and gives back about three hundred pixels.
+   *
+   * Rotate stays alone because it has no partner, and a lone half-width box
+   * beside an empty one reads as a field somebody forgot to fill in.
+   */
   function transformSection(element) {
     const transform = element.baseTransform || element;
+    const cell = (label, value, attrs) => `<label>${label}<input type="number" ${attrs} value="${value}" /></label>`;
+    const pair = (a, b) => `<div class="field-pair">${a}${b}</div>`;
     return `
-      <label>X<input type="number" step="0.5" data-transform="x" value="${transform.x ?? 0}" /></label>
-      <label>Y<input type="number" step="0.5" data-transform="y" value="${transform.y ?? 0}" /></label>
-      <label>Pivot X<input id="pivot-x" type="number" step="0.5" value="${transform.pivotX || 0}" /></label>
-      <label>Pivot Y<input id="pivot-y" type="number" step="0.5" value="${transform.pivotY || 0}" /></label>
-      <label>Rotate<input type="number" step="0.5" data-transform="rotation" value="${transform.rotation || 0}" /></label>
-      <label>Scale X<input type="number" step="0.1" data-transform="scaleX" value="${transform.scaleX || 1}" /></label>
-      <label>Scale Y<input type="number" step="0.1" data-transform="scaleY" value="${transform.scaleY || 1}" /></label>
+      ${pair(cell('X', transform.x ?? 0, 'step="0.5" data-transform="x"'), cell('Y', transform.y ?? 0, 'step="0.5" data-transform="y"'))}
+      ${pair(cell('Pivot X', transform.pivotX || 0, 'id="pivot-x" step="0.5"'), cell('Pivot Y', transform.pivotY || 0, 'id="pivot-y" step="0.5"'))}
+      ${cell('Rotate', transform.rotation || 0, 'step="0.5" data-transform="rotation"')}
+      ${pair(cell('Scale X', transform.scaleX || 1, 'step="0.1" data-transform="scaleX"'), cell('Scale Y', transform.scaleY || 1, 'step="0.1" data-transform="scaleY"'))}
     `;
   }
 

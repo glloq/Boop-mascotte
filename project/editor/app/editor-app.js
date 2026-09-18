@@ -52,7 +52,7 @@ import { createBehaviorWorkspace } from './workspaces/behavior.js';
 import { createExportService } from './services/export-service.js';
 import { createPreviewService } from './services/preview-service.js';
 import { browserDownload, createProjectService } from './services/project-service.js';
-import { MODES, WORKSPACES, createTaskRouter, modeToWorkspace } from '../ui/task-router.js';
+import { DEFAULT_MODE, MODES, WORKSPACES, createTaskRouter, modeToWorkspace } from '../ui/task-router.js';
 import { createContextInspector } from '../ui/context-inspector.js';
 import { artworkScopeMarkup, describeArtworkScope } from '../ui/artwork-scope.js';
 import { deformBenchMarkup, describeDeformation } from '../ui/advanced-tools.js';
@@ -325,6 +325,12 @@ export function createEditorApp({ root = document.getElementById('app'), recover
     openColour: (options) => colourPicker.open(options),
     loadTemplate: (kind) => projectService.loadTemplate(kind),
     applyPreview: () => preview.apply(),
+    // Session pose only: Design ▸ Hands brings the pair out from behind the
+    // head so the screen can show what it is about (docs/HAND_RIGGING.md).
+    // `null` clears rather than zeroes: zero is "tucked behind the head", and
+    // leaving the screen should give the parameter back to the project, not
+    // decide it.
+    setLiveParam: (name, value) => (value === null ? preview.clearLiveParam(name) : preview.setLiveParam(name, value)),
     drawHandStyle: (side, style) => handArtwork.addStyle(side, style),
     drawHandPair: (look) => handArtwork.drawPair(look),
     download: browserDownload,
@@ -692,7 +698,10 @@ export function createEditorApp({ root = document.getElementById('app'), recover
    * is what they were going to have to do anyway.
    */
   const withArtwork = (add) => async (file) => {
-    if (!store.getDocument()?.svgMarkup && !(await projectService.loadTemplate('blank', { mode: 'design.artwork' }))) return false;
+    // The blank artboard the picture needs, landing where the author already
+    // is: they pressed *Add picture* on Assemble, and being moved to the
+    // vector editor for having done so is a screen change nobody asked for.
+    if (!store.getDocument()?.svgMarkup && !(await projectService.loadTemplate('blank', { mode: DEFAULT_MODE }))) return false;
     return add(file);
   };
   shell.bindAddImage(withArtwork((file) => projectService.addImageFile(file)));

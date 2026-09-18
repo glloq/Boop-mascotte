@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { DEFAULT_MODE } from '../../ui/task-router.js';
 import { createProjectService } from '../../app/services/project-service.js';
 import { createCleanProjectState } from '../state/store.js';
 
@@ -134,7 +135,7 @@ test('a project file is restored, announced by name and treated as saved', async
   const harness = createHarness();
   assert.equal(await harness.service.loadProjectFile(fileOf('mascot.json', JSON.stringify(snapshotOf(NEXT_SVG)))), true);
   assert.deepEqual(harness.shell.status, [['Project mascot.json restored.', undefined]]);
-  assert.deepEqual(harness.shell.routes, ['design.artwork']);
+  assert.deepEqual(harness.shell.routes, [DEFAULT_MODE]);
   assert.deepEqual(harness.shell.projectLoaded, [true]);
   assert.equal(harness.shell.closedHome, 1);
   assert.equal(harness.shell.previewExits, 1);
@@ -166,7 +167,7 @@ test('an SVG import opens the project, fits the canvas and names the file', asyn
   assert.equal(await harness.service.loadSvgFile(fileOf('mascot.svg', NEXT_SVG)), true);
   assert.deepEqual(harness.shell.status, [['Loaded SVG: mascot.svg', undefined]]);
   assert.deepEqual(harness.shell.projectLoaded, [true]);
-  assert.deepEqual(harness.shell.routes, ['design.artwork']);
+  assert.deepEqual(harness.shell.routes, [DEFAULT_MODE]);
   assert.equal(harness.shell.closedHome, 1);
   assert.equal(harness.document().svgMarkup, `prepared(${NEXT_SVG})`);
   assert.deepEqual(harness.calls, ['reset-timeline', 'stop', 'reset-preview', 'replace:svg-import', 'apply', 'clear-history', 'saved:false', 'fit']);
@@ -217,10 +218,12 @@ test('a template is loaded, routed, and says so — and a caller may name the sc
   assert.equal(harness.shell.closedHome, 1);
   assert.deepEqual(harness.shell.projectLoaded, [true]);
   assert.match(harness.shell.status.at(-1)[0], / created\.$/);
-  // And with nobody naming one it lands on Artwork, where its pieces are
-  // (V5-07). It used to land on Design ▸ Face, the Character Builder's screen,
-  // which was the only caller that wanted anywhere else.
+  // And with nobody naming one it lands wherever the editor opens, which is
+  // `DEFAULT_MODE` and not a second copy of that decision here. It has been
+  // Artwork and Design ▸ Face before and is Assemble now (UIR-18); the service
+  // has never had an opinion, and this asserts that it still has not.
   const plain = createHarness();
   assert.equal(await plain.service.loadTemplate('basic'), true);
-  assert.deepEqual(plain.shell.routes, ['design.artwork']);
+  assert.deepEqual(plain.shell.routes, [DEFAULT_MODE]);
+  assert.equal(DEFAULT_MODE, 'design.assemble', 'and that is the screen a mascot comes from');
 });

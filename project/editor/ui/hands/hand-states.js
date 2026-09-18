@@ -200,6 +200,10 @@ export function createHandStatesPanel(host, {
   onAddGestures = () => {}, onImportSet = () => {}, onExportSet = () => {}, onForget = () => {}, onRoute = () => {},
   // The pair, drawn here rather than three actions away in Rig (audit §16).
   onDrawPair = null, looks = () => [],
+  // Which state is in hand, so the canvas can show the hand it belongs to: on
+  // this screen the canvas frames one hand, and picking a right-hand state
+  // should turn it to the right hand (`app/workspaces/design.js`).
+  onSelect = () => {},
   ask = (message, value) => globalThis.prompt?.(message, value) ?? null
 } = {}) {
   if (!host) throw new Error('Missing required UI element: #hand-states');
@@ -220,7 +224,7 @@ export function createHandStatesPanel(host, {
         // A press selects, and a second press on the same card selects it
         // again: a card that deselects itself takes the six verbs off screen
         // exactly when somebody is reaching for them.
-        if (data.handState) { selected = data.handState; draw(); return; }
+        if (data.handState) { selected = data.handState; draw(); onSelect(chosen()); return; }
         if (data.handStateAdd) { const [side, id] = data.handStateAdd.split(':'); onAdd(side, id); return; }
         if (data.handGestureForget) { onForget(data.handGestureForget); return; }
         if (data.handSetExport !== undefined) { onExportSet(); return; }

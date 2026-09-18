@@ -70,9 +70,24 @@ export async function goToWorkspace(page, surface) {
 export const goToCreate = page => goToWorkspace(page, 'create');
 export async function goToArtwork(page) {
   await goToMode(page, 'design.artwork');
-  await expect(page.locator('#app'), 'Artwork keeps the legacy create workspace contract').toHaveAttribute('data-workspace', 'create');
+  await expect(page.locator('#app'), 'Draw keeps the legacy create workspace contract').toHaveAttribute('data-workspace', 'create');
 }
 export const goToRig = page => goToMode(page, 'rig.assign');
+/**
+ * Design's two screens (UIR-18, docs/DESIGN_SCREENS.md).
+ *
+ * **Assemble** is where a mascot comes from — the library, a picture of your
+ * own, the parts the library ships none of — and is where the editor opens.
+ * **Draw** is the vector editor: the nine tools, the working area and the
+ * layer tree. A spec that wants one of those asks for Draw, which is what
+ * `openArtwork` has always meant and now has to say.
+ */
+export const goToAssemble = page => goToMode(page, 'design.assemble');
+export async function openAssemble(page) {
+  await expect(page.locator('[data-home]'), 'openAssemble requires an established project with Home closed').toBeHidden();
+  await goToAssemble(page);
+  await expect(page.locator('#face-library[data-face-library-ready="true"]')).toBeVisible();
+}
 /**
  * The rig panels are collapsible sections, filed across Rig's four screens
  * since UIR-01 and closed below "Face parts". A test that reaches into one
@@ -251,17 +266,25 @@ export async function openArtwork(page) {
   // established; they must never reach through the interaction-blocking Home.
   await expect(page.locator('[data-home]'), 'openArtwork requires an established project with Home closed').toBeHidden();
   await goToArtwork(page);
-  // The task tab carries a readiness badge (e.g. "Artwork ✓"); only the label is a contract.
-  await expect(page.locator('.workspace-tab[data-mode="design.artwork"]')).toContainText('Artwork');
+  // The task tab carries a readiness badge (e.g. "Draw ✓"); only the label is
+  // a contract, and the label is *Draw* since Design became two screens.
+  await expect(page.locator('.workspace-tab[data-mode="design.artwork"]')).toContainText('Draw');
   await expect(page.getByRole('tree', { name: 'Layers' })).toBeVisible();
 }
 // <details open> exposes an empty-string attribute; only the boolean property is a reliable disclosure state.
 const isOpen = details => details.evaluate(element => element.hasAttribute('open'));
-/** The Artwork panel's own disclosure: what can be added to the drawing there is. */
+/**
+ * *Start over*, on Assemble: the three cards that replace the artwork you have.
+ *
+ * It was *Add / Create artwork* in Artwork, and held the ways to start next to
+ * the parts that go on whole. Since UIR-18 the parts are in the open on
+ * Assemble and this disclosure holds only the three destructive cards — which
+ * is why it is folded and last (docs/DESIGN_SCREENS.md).
+ */
 export async function openAddArtwork(page) {
-  await goToArtwork(page);
-  const create=page.locator('details.artwork-create');
-  if (!(await isOpen(create))) await create.locator(':scope > summary').getByText('Add / Create artwork', { exact: true }).click();
+  await goToAssemble(page);
+  const create=page.locator('details[data-keep-open="start-over"]');
+  if (!(await isOpen(create))) await create.locator(':scope > summary').click();
   await expect(create).toHaveAttribute('open', '');
 }
 export async function openProjectMenu(page) {
@@ -270,11 +293,11 @@ export async function openProjectMenu(page) {
   await expect.poll(()=>menu.evaluate((element)=>element.hasAttribute('open'))).toBe(true);
 }
 /**
- * The Face Builder is a card in Artwork since V3-08: Home starts a mascot from
- * a preset or from the template, and everything that replaces the artwork you
- * already have -- Start over with the Mascot Face, Blank canvas, Build a face
- * -- sits together under Add / Create artwork. So it needs a project open,
- * exactly as a user would have one.
+ * The Face Builder is a card on Assemble since V3-08 (Artwork then, Assemble
+ * since UIR-18): Home starts a mascot from a preset or from the template, and
+ * everything that replaces the artwork you already have -- Start over with the
+ * Mascot Face, Blank canvas, Build a face -- sits together under *Start over*.
+ * So it needs a project open, exactly as a user would have one.
  */
 export async function enterFaceBuilder(page) {
   if (!(await page.locator('#app.has-project').count())) await startBasicFace(page);

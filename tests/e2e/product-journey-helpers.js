@@ -101,7 +101,9 @@ export async function importArtwork(page) {
   await expect(page.locator('.file-menu label').filter({hasText:'Import SVG'})).toHaveCount(1);
   await page.locator('#svg-file').setInputFiles('tests/e2e/fixtures/product-head.svg');
   await expect(page.locator('[data-home]')).toBeHidden();
-  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('design.artwork');
+  // Landing on Assemble, where a project lands and where an imported drawing
+  // is named (UIR-18, docs/DESIGN_SCREENS.md).
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('design.assemble');
   await expect(page.locator('#canvas svg svg #journeyHead')).toBeVisible();
 }
 

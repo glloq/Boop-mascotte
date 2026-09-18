@@ -61,7 +61,7 @@ test('@critical user can import SVG artwork while Home is open', async ({ page }
   await openFreshEditor(page, { e2e: true });
   await page.locator('#svg-file').setInputFiles('tests/e2e/fixtures/product-head.svg');
   await expect(page.locator('[data-home]')).toBeHidden();
-  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('design.artwork');
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('design.assemble');
   await expect(page.locator('#canvas svg svg #journeyHead')).toBeVisible();
   const document = await page.evaluate(() => window.__BOOP_E2E__.document());
   expect(document.svgMarkup).toContain('journeyHead');
@@ -85,11 +85,12 @@ test('@critical user can create a new Basic Face from Home', async ({ page }) =>
   await expect(page.locator('[data-home]')).toBeVisible();
   await page.locator('[data-home] [data-template-id="basic"]').click();
   await expect(page.locator('[data-home]')).toBeHidden();
-  // A template opens on Artwork, and so does everything else that puts a
-  // project on the canvas (V5-07): a mascot is its pieces, and that is the
-  // screen its pieces are on. Design ▸ Face is reached by name now, by the two
-  // paths that want the library.
-  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('design.artwork');
+  // A template opens on Assemble, and so does everything else that puts a
+  // project on the canvas (UIR-18): a mascot comes from the library or from
+  // pictures an author brings, and Assemble is where both of those are. The
+  // one exception is a blank canvas, whose own card promises the drawing tools
+  // and which therefore lands on Draw.
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('design.assemble');
   const state = await page.evaluate(() => window.__BOOP_E2E__.document());
   expect(Object.keys(state.semanticParts)).toEqual(expect.arrayContaining(['head', 'eyes', 'gaze', 'mouth']));
   expect(state.semanticParts.gaze.controls).toContain('lookX');

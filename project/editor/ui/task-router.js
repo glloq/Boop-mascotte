@@ -37,32 +37,60 @@ export const SURFACES = Object.freeze(['hands', 'create', 'rig', 'expressions', 
  * `surface` is the composition it mounts; `sections` names the Face Setup
  * sections it is the screen for, which is how one 342-control accordion becomes
  * four screens without moving a single panel (UIR-07 … UIR-10 move them);
- * `advanced` marks a route the simple path does not need to know about.
+ * `advanced` marks a route the simple path does not need to know about;
+ * `layout` is how much of the window its panels want, in pixels
+ * (`ui/panel-split.js`), because the one `300px · 1fr · 310px` every screen
+ * used to get was a compromise across screens that want opposite things — a
+ * drawing surface wants the canvas, a list of drawings wants the list. An
+ * author's own drag overrides it, per screen, for the session.
  */
 export const MODES = Object.freeze({
   /* ── Design: what does the mascot look like? ─────────────────────────────── */
-  // Artwork is first, and is where the editor opens (V5-07,
-  // docs/V5_MASCOTTE_IMAGES_ETUDE.md): the pieces a mascot is made of are the
-  // first thing an author brings and the last thing they change. It is not
-  // `advanced` any more for the same reason -- a screen the simple set has to
-  // fold away cannot be the screen everybody lands on.
-  'design.artwork': { id: 'design.artwork', label: 'Artwork', workspace: 'design', surface: 'create', navigable: true },
+  /**
+   * Assembling a mascot, and drawing one, are two screens (UIR-18).
+   *
+   * They were one, and it opened on nine vector tools, a hundred-and-thirty
+   * layer tree and an Inspector of geometry, bindings and morph targets —
+   * while the hundred and fifty drawings the editor ships sat inside a
+   * collapsed disclosure called *Add / Create artwork*, under three cards, at
+   * the bottom of the column. The first thing everybody saw was the most
+   * advanced thing in the editor, and the simplest was the hardest to find.
+   *
+   * So **Assemble** is where a mascot comes from: the three ways to start, the
+   * three ways to bring a picture in, the library to choose parts from, and
+   * the parts the library has no drawing for. No Pen, no nodes, no layer tree.
+   * **Draw** is the vector editor, unchanged and marked advanced.
+   *
+   * One surface, two modes. The panels are the same hosts they always were and
+   * the render plan is untouched; which groups of them show is gated on
+   * `data-mode`, exactly as the workspaces have always been gated on
+   * `data-workspace` (`index.html`).
+   *
+   * Assemble is first, so it is what `surfaceToMode('create')` answers, what
+   * the DESIGN tab opens, and where the editor opens.
+   */
+  'design.assemble': { id: 'design.assemble', label: 'Assemble', workspace: 'design', surface: 'create', navigable: true, layout: { left: 420, right: 300 } },
+  // Artwork, which is `Draw` now: the same screen, said in the word for what
+  // it is. It stopped being where the editor opens for the reason above, and
+  // is `advanced` again — a Bézier node editor is not the second thing an
+  // author meets (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §1.5).
+  'design.artwork': { id: 'design.artwork', label: 'Draw', workspace: 'design', surface: 'create', navigable: true, advanced: true, layout: { left: 300, right: 340 } },
   // Hands are designed away from the face (docs/HAND_STYLES.md): a library of
   // drawings an author owns, not a section inside somebody else's panel.
-  'design.hands': { id: 'design.hands', label: 'Hands', workspace: 'design', surface: 'hands', navigable: true },
+  'design.hands': { id: 'design.hands', label: 'Hands', workspace: 'design', surface: 'hands', navigable: true, layout: { left: 400, right: 250 } },
 
   /* ── Rig: how can its face move? ─────────────────────────────────────────── */
-  'rig.assign': { id: 'rig.assign', label: 'Assign', workspace: 'rig', surface: 'rig', navigable: true, sections: ['face-parts'] },
+  'rig.assign': { id: 'rig.assign', label: 'Assign', workspace: 'rig', surface: 'rig', navigable: true, sections: ['face-parts'], layout: { left: 360, right: 330 } },
   // Movements, gaze and the on-canvas controls answer one question — what moves
   // and how far — so they are one screen. Hand placement and reach ride here
   // too, marked advanced: where a hand *is* is a movement; what it is *drawn
   // from* is Design (§6).
-  'rig.controls': { id: 'rig.controls', label: 'Controls', workspace: 'rig', surface: 'rig', navigable: true, sections: ['movements', 'face-states', 'gaze', 'handles', 'hands'] },
-  'rig.head2d': { id: 'rig.head2d', label: 'Head 2.5D', workspace: 'rig', surface: 'rig', navigable: true, sections: ['head-pose'] },
-  'rig.deform': { id: 'rig.deform', label: 'Deform', workspace: 'rig', surface: 'rig', navigable: true, advanced: true, sections: ['holding', 'warp', 'all-parts'] },
+  'rig.controls': { id: 'rig.controls', label: 'Controls', workspace: 'rig', surface: 'rig', navigable: true, sections: ['movements', 'face-states', 'gaze', 'handles', 'hands'], layout: { left: 400, right: 320 } },
+  'rig.head2d': { id: 'rig.head2d', label: 'Head 2.5D', workspace: 'rig', surface: 'rig', navigable: true, sections: ['head-pose'], layout: { left: 300, right: 300 } },
+  'rig.deform': { id: 'rig.deform', label: 'Deform', workspace: 'rig', surface: 'rig', navigable: true, advanced: true, sections: ['holding', 'warp', 'all-parts'], layout: { left: 380, right: 340 } },
 
   /* ── Animate: what can its face do? ──────────────────────────────────────── */
-  'animate.expressions': { id: 'animate.expressions', label: 'Expressions', workspace: 'animate', surface: 'expressions', navigable: true },
+  'animate.expressions': { id: 'animate.expressions', label: 'Expressions', workspace: 'animate', surface: 'expressions', navigable: true, layout: { left: 340, right: 320 } },
   'animate.motions': { id: 'animate.motions', label: 'Motions', workspace: 'animate', surface: 'animate', navigable: true },
   // The Timeline is the detailed editor *of a motion*, never a second way to
   // start one (§9). It is the same surface with the dock open -- `dock` names
@@ -168,10 +196,10 @@ export const MODE_ALIASES = Object.freeze({
   // `fix.workspace` in `core/validation/validate-project.js`, which names a
   // domain in validation's own words rather than a screen in the router's.
   // Design ▸ Face and its surface, gone with the Character Builder (V5-07).
-  // Kept pointing somewhere real, which is what this table is for: a saved
-  // preference or a deep link naming the screen an author dressed a face on
-  // lands on the pieces that face is made of.
-  character: 'design.artwork',
+  // Kept pointing somewhere real, which is what this table is for -- and it
+  // points at Assemble now (UIR-18), which is the screen that dresses a face
+  // out of the library, which is what the Character Builder was for.
+  character: 'design.assemble',
   hands: 'design.hands',
   artwork: 'design.artwork',
   'face-setup': 'rig.assign',
@@ -207,9 +235,17 @@ const TARGET_KINDS = new Set(['artwork-element', 'semantic-part', 'semantic-cont
  * they are named, ordered and told how they move. Landing anywhere else means
  * landing away from the mascot you brought.
  *
+ * It is **Assemble** now, and both of those arguments hold: Assemble is where
+ * pieces arrive *and* where the library is (UIR-18). The screen that was
+ * Artwork kept the nine vector tools, the layer tree and the geometry fields,
+ * and those were never the first thing to meet — "bring your pieces" and "here
+ * is a Bézier node editor" were two answers sharing one screen, and the first
+ * one lost. Assemble is the first, Draw is the second, and the pieces an author
+ * brings still land where they are brought.
+ *
  * Importing an SVG lands here too, and always did.
  */
-export const DEFAULT_MODE = 'design.artwork';
+export const DEFAULT_MODE = 'design.assemble';
 
 /** A mode id, whatever it was called when the caller learned it. */
 export function normalizeMode(value, fallback = DEFAULT_MODE) {
@@ -274,7 +310,7 @@ export function normalizeTarget(target) {
 }
 
 /** Panels a route may focus. Anything else is ignored rather than trusted. */
-export const FOCUSABLE_PANELS = Object.freeze(['head-pose', 'hand-setup', 'warp-panel', 'automatic-panel', 'motion-panel', 'face-setup-checklist', 'face-movements', 'face-states', 'handle-board', 'layers-panel', 'rig-parts', 'holding-panel', 'gaze-panel', 'state-editor', 'face-builder']);
+export const FOCUSABLE_PANELS = Object.freeze(['head-pose', 'hand-setup', 'warp-panel', 'automatic-panel', 'motion-panel', 'face-setup-checklist', 'face-movements', 'face-states', 'handle-board', 'layers-panel', 'rig-parts', 'holding-panel', 'gaze-panel', 'state-editor', 'face-builder', 'face-library']);
 
 /**
  * The mode a focused panel lives in.
@@ -285,6 +321,14 @@ export const FOCUSABLE_PANELS = Object.freeze(['head-pose', 'hand-setup', 'warp-
  * screen the section is not on at all.
  */
 export const PANEL_MODES = Object.freeze({
+  // Both on Assemble: the library is the screen, and *Build a face* is one of
+  // the three ways to start, folded under *Start over* (UIR-18). `focusPanel`
+  // opens the disclosures a panel sits behind, so the fold costs it nothing.
+  'face-library': 'design.assemble',
+  'face-builder': 'design.assemble',
+  // The layer tree is Draw's: naming a piece out of a hundred and thirty is
+  // the vector editor's job, and Assemble does not show the tree at all.
+  'layers-panel': 'design.artwork',
   'face-setup-checklist': 'rig.assign',
   'face-movements': 'rig.controls',
   'face-states': 'rig.controls',
@@ -297,8 +341,7 @@ export const PANEL_MODES = Object.freeze({
   'rig-parts': 'rig.deform',
   'automatic-panel': 'behavior.automatic',
   'state-editor': 'behavior.stateMachine',
-  'motion-panel': 'animate.motions',
-  'face-builder': 'design.artwork'
+  'motion-panel': 'animate.motions'
 });
 
 /**

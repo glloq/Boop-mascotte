@@ -22,14 +22,18 @@ test('a mode resolves from its own id, from every older name, and from nonsense 
   assert.equal(normalizeMode('rig.assign'), 'rig.assign');
   assert.equal(normalizeMode('face-setup'), 'rig.assign', 'the task id Face Setup had');
   assert.equal(normalizeMode('rig'), 'rig.assign', 'and the surface id it had before that');
-  assert.equal(normalizeMode('character'), 'design.artwork', 'Design ▸ Face is gone with the Character Builder, and its name still lands somewhere real');
-  assert.equal(normalizeMode('create'), 'design.artwork');
+  // Design ▸ Face is gone with the Character Builder and its name still lands
+  // somewhere real -- on Assemble, which is the screen that dresses a face out
+  // of the library, which is what the Builder was for (UIR-18).
+  assert.equal(normalizeMode('character'), 'design.assemble');
+  assert.equal(normalizeMode('create'), 'design.artwork', 'but the surface id names the vector editor, which is where it named');
   assert.equal(normalizeMode('animate'), 'animate.motions', 'the Motions task, not the Animate workspace');
-  // The editor opens on Artwork, where the pieces an author brought are
-  // (V5-07). It opened there before, moved to Design ▸ Face when the way to
-  // make a mascot was to pick one out of the library, and came back when that
-  // stopped being the way (docs/V5_MASCOTTE_IMAGES_ETUDE.md).
-  assert.equal(normalizeMode('unknown'), 'design.artwork');
+  // The editor opens on Assemble (UIR-18): pieces an author brought arrive
+  // there and so does the library, which is both halves of the argument that
+  // moved this value to Artwork and back again over V3 and V5. What Artwork
+  // also held -- nine vector tools, a layer tree, geometry fields -- was never
+  // the first thing to meet, and is Draw now.
+  assert.equal(normalizeMode('unknown'), 'design.assemble');
   assert.equal(normalizeMode('unknown', 'rig.deform'), 'rig.deform', 'a caller may name its own fallback');
 });
 
@@ -58,7 +62,11 @@ test('the four workspaces hold every screen but the global ones, each exactly on
 });
 
 test('a workspace resolves to its screens, and a screen to its workspace and its panels', () => {
-  assert.deepEqual([...workspaceModes('design')], ['design.artwork', 'design.hands'], 'Artwork first: it is where a mascot arrives');
+  assert.deepEqual([...workspaceModes('design')], ['design.assemble', 'design.artwork', 'design.hands'], 'Assemble first: it is where a mascot comes from');
+  // Two screens over one column, the same way Rig puts four over one: the
+  // panel hosts do not know, and the stylesheet gates the groups on the mode.
+  assert.deepEqual(['design.assemble', 'design.artwork'].map(modeToSurface), ['create', 'create']);
+  assert.equal(surfaceToMode('create'), 'design.assemble', 'and the simple one is what the surface answers');
   assert.deepEqual([...workspaceModes('rig')], ['rig.assign', 'rig.controls', 'rig.head2d', 'rig.deform']);
   assert.deepEqual([...workspaceModes('animate')], ['animate.expressions', 'animate.motions', 'animate.timeline']);
   assert.deepEqual([...workspaceModes('behavior')], ['behavior.reactions', 'behavior.automatic', 'behavior.stateMachine']);
@@ -111,11 +119,18 @@ test('a route normalizes a mode, a workspace, a target and a focus', () => {
   // Naming a workspace lands on its entry screen; naming a screen wins over it.
   assert.equal(normalizeRoute({ workspace: 'behavior' }).mode, 'behavior.reactions');
   assert.equal(normalizeRoute({ workspace: 'behavior', task: 'artwork' }).mode, 'design.artwork');
+  // A focus outranks the mode it came with, so this has to be asserted *from*
+  // another screen: naming no mode falls back to where the editor opens, which
+  // is Assemble, and would pass whether the focus was honoured or not.
+  assert.equal(normalizeRoute({ mode: 'rig.deform', focus: 'face-library' }).mode, 'design.assemble', 'a deep link into the library opens the screen it is on');
+  assert.equal(normalizeRoute({ mode: 'rig.deform', focus: 'face-builder' }).mode, 'design.assemble');
+  assert.equal(normalizeRoute({ mode: 'design.assemble', focus: 'layers-panel' }).mode, 'design.artwork', 'and the layer tree is Draw’s');
+  assert.equal(normalizeRoute({ mode: 'rig.deform', focus: 'not-a-panel' }).mode, 'rig.deform', 'a panel nothing knows is ignored rather than trusted');
   assert.equal(normalizeRoute({ workspace: 'behavior', task: 'artwork' }).workspace, 'design', 'and the workspace follows it');
   // A caller written before the four workspaces passes a surface under the same
   // key, and it still means what it meant.
   assert.equal(normalizeRoute({ workspace: 'expressions' }).mode, 'animate.expressions');
-  assert.equal(normalizeRoute({ stage: 'publish' }).mode, 'design.artwork', 'stage is gone with UIR-17: it names nothing and falls back');
+  assert.equal(normalizeRoute({ stage: 'publish' }).mode, 'design.assemble', 'stage is gone with UIR-17: it names nothing and falls back');
 });
 
 test('a route may focus a known panel, and only a known one', () => {
@@ -180,7 +195,7 @@ test('UI preference migration accepts every older workspace id', () => {
   assert.equal(readUiPreferences(storage({ workspace: 'rig' })).mode, 'rig.assign');
   assert.equal(readUiPreferences(storage({ workspace: 'face-setup' })).mode, 'rig.assign');
   assert.equal(readUiPreferences(storage({ mode: 'rig.deform' })).mode, 'rig.deform');
-  assert.equal(readUiPreferences(storage({ workspace: 'nonsense' })).mode, 'design.artwork');
+  assert.equal(readUiPreferences(storage({ workspace: 'nonsense' })).mode, 'design.assemble');
   assert.equal(readUiPreferences(storage({ mode: 'rig.head2d', workspace: 'create' })).workspace, 'rig', 'the surface follows the screen');
 });
 

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openArtwork, openFreshEditor, openSetupSection, selectLayerById, startBasicFace } from './editor-helpers.js';
+import { openArtwork, openAssemble, openFreshEditor, openSetupSection, selectLayerById, startBasicFace } from './editor-helpers.js';
 
 /**
  * Saying what a drawing is, and choosing one from the library, in the browser
@@ -18,14 +18,17 @@ const revision = (page) => page.evaluate(() => window.__BOOP_E2E__.diagnostics()
 const partOfType = async (page, type) => Object.values((await state(page)).semanticParts).find((part) => part.type === type);
 const markupHas = (page, id) => page.evaluate((needle) => window.__BOOP_E2E__.state().svgMarkup.includes(`id="${needle}"`), id);
 
-/** Artwork ▸ Add / Create artwork, which is where the library sits. */
+/**
+ * Design ▸ Assemble, which *is* the library.
+ *
+ * It was in Artwork, inside a collapsed disclosure called *Add / Create
+ * artwork*, at the bottom of the column. Assemble is where a mascot comes from
+ * and the library is the first thing on it (UIR-18, docs/DESIGN_SCREENS.md),
+ * so there is no disclosure to open and nothing to scroll to.
+ */
 async function openFaceLibrary(page) {
-  await openArtwork(page);
-  const disclosure = page.locator('details.artwork-create');
-  if (!(await disclosure.evaluate((node) => node.open))) await disclosure.locator('> summary').click();
-  const panel = page.locator('#face-library[data-face-library-ready="true"]');
-  await expect(panel).toBeVisible();
-  return panel;
+  await openAssemble(page);
+  return page.locator('#face-library[data-face-library-ready="true"]');
 }
 
 test('@critical the library shows its drawings, and one press puts a pair of eyes on the face', async ({ page }) => {

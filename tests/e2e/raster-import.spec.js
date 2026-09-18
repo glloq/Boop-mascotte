@@ -349,7 +349,9 @@ test('@critical a mascot can begin as a picture, from the first page', async ({ 
   const [element] = Object.values(document.elements).filter((item) => item.meta?.nodeType === 'image');
   expect(element.depth).toBe(0);
   await expect(page.locator('[data-home]')).toBeHidden();
-  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('design.artwork');
+  // A picture brought in from Home lands on Assemble, where pictures arrive
+  // and where the Inspector asks which part of the face this one is (UIR-18).
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('design.assemble');
   expect(trouble).toEqual([]);
 });
 
