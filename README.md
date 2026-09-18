@@ -54,6 +54,14 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
 - **Speech**: a viseme is an expression record, which is why a mascot can say
   something *while* it smiles — `setViseme`, `blendVisemes`, and a transition
   that never passes through rest ([viseme system](docs/VISEME_SYSTEM.md))
+- **Every part of the face is nameable, wherever you are**: the twenty-five
+  roles the rig knows, offered on the piece itself (Inspector ▸ *What it is*),
+  in the checklist under *More parts*, and read off an imported file's name in
+  English and French ([saying what a drawing is](docs/FACE_ROLE_ASSIGNMENT.md))
+- **A hundred and fifty drawings you can browse**: heads, eyes, brows, noses,
+  mouths, ears, hair, facial hair and accessories, each shown as the drawing
+  rather than its name, and one press replaces that part of the face keeping
+  where you had moved it ([face part library](docs/FACE_PART_LIBRARY.md))
 - **Floating hands**, Rayman style: anchors that follow the body, a soft reach,
   rotation, scale and a little cartoon inertia, resting behind the head until a
   reaction or `mascot.showHands()` asks. A hand is **one of a handful of whole
@@ -178,6 +186,7 @@ Install browsers once with `npx playwright install --with-deps`. E2E tests start
 - [User guide](docs/USER_GUIDE.md)
 - [Character Builder](docs/CHARACTER_BUILDER.md) and its [face part library](docs/FACE_PART_LIBRARY.md); the reader's guides to [face style presets](docs/FACE_PRESETS.md) and [custom face parts](docs/CUSTOM_FACE_PARTS.md)
 - [Face states](docs/FACE_SVG_STATES.md) and the [speech layer](docs/VISEME_SYSTEM.md)
+- [Saying what a drawing is](docs/FACE_ROLE_ASSIGNMENT.md): the role vocabulary and the three places it is offered
 - [Rig format](docs/RIG_MODEL.md)
 - [Behaviors](docs/BEHAVIORS.md)
 - [Known limitations](docs/KNOWN_LIMITATIONS.md)

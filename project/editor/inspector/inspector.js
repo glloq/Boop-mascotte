@@ -5,6 +5,9 @@ import { PART_PRESETS, suggestPresetForElement } from '../core/assets/part-prese
 import { createArtworkCommands } from '../core/commands/artwork-commands.js';
 import { rememberOpen, setPanelHtml } from '../ui/panel-render.js';
 import { findSemanticPartByRole } from '../rig-editor/semantic-parts/part-model.js';
+import { createSemanticRigCommands } from '../rig-editor/semantic-parts/semantic-rig-commands.js';
+import { roleVocabularyEntry, roleVocabularyGroups, rolesInUse, rolesOfElement } from '../rig-editor/semantic-parts/face-role-vocabulary.js';
+import { elementDisplayName } from '../rig-editor/semantic-parts/face-roles.js';
 import { esc } from '../ui/escape-html.js';
 
 /** `leftPupil` → `Left Pupil`. Role ids are camelCase and nothing else. */
@@ -65,6 +68,11 @@ export function createInspector(host, store, history, canvas, { openColour = nul
   // Advanced always landed on "Choose Bindings, Morph, or Presets".
   let activeTab = 'bindings';
   const commands=createArtworkCommands(store,history);
+  const semanticCommands=createSemanticRigCommands(store,history);
+  // Why a role was refused, until the next choice. The rig declines a role
+  // already drawn by another piece of the same part, and a select that went
+  // quiet would leave an author pressing it again.
+  let roleNotice=null;
   /**
    * A render the panel owes once the author stops typing in it.
    *
@@ -191,6 +199,23 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     // place the choice already lives for everything else about a piece —
     // which is what makes it both the question asked at the moment a picture
     // lands and the one an author comes back to.
+    /**
+     * Which part of the face this drawing is.
+     *
+     * One semantic command, which creates the part if the project has not got
+     * one yet — the same command the checklist's canvas picking runs, so a
+     * role given here and a role given there are the same authored fact
+     * (`semantic-rig-commands.js`). An empty choice takes the role off.
+     */
+    if (target.dataset.pieceRole !== undefined) {
+      const wanted = roleVocabularyEntry(target.value);
+      roleNotice = null;
+      try { semanticCommands.setFaceRole(id, wanted || {}); }
+      catch (error) { roleNotice = error.message; }
+      renderCurrent({ force: true });
+      return;
+    }
+
     if (target.dataset.riggingType !== undefined) {
       const nodeType = store.getDocument().elements?.[id]?.meta?.nodeType;
       commands.updateElement(id, 'set-rigging', (element) => { element.rigging = normalizeRigging(target.value, nodeType); });
@@ -342,23 +367,71 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     }
     const opacity=raw('opacity')??'1';
     rows.push(`<label>Opacity <output data-appearance-output="opacity">${Math.round(Number(opacity)*100)}%</output><input type="range" data-appearance="opacity" data-live aria-label="Opacity" min="0" max="1" step="0.01" value="${esc(opacity)}"></label>`);
+    /**
+     * The two questions every piece answers: what it is, and how it moves.
+     *
+     * Their own section, above the geometry, because **a path has no geometry
+     * fields** (`geometryFields` answers for rects, circles, ellipses, text and
+     * pictures) — so both of these used to live inside a block that never
+     * rendered for a drawing. "How it moves" claimed to be on every piece and
+     * was missing from the mouth, the eyelids, the brows and the hair; the
+     * role, which is the more important of the two, would have been missing
+     * from exactly the same pieces.
+     */
+    rows.push('<h4>This piece</h4>');
+    {
+      /**
+       * The two questions a piece answers, side by side.
+       *
+       * *What it is* was the missing half. A picture arriving used to be
+       * told "change either in the Inspector" and there was only one: the
+       * role — the thing that decides whether a drawing is an eye or a
+       * hat — could be given only by clicking artwork on the canvas in
+       * Rig ▸ Assign, and only for the eight roles the beginner checklist
+       * names. Hair, ears, a nose, a jaw, a tongue, teeth and the lids had
+       * nowhere at all (`semantic-parts/face-role-vocabulary.js`).
+       *
+       * So it is here, on the piece, where the other question already was.
+       * Every role the registry knows, grouped by the part that owns it,
+       * with the drawing that currently plays one named beside it — because
+       * a list of twenty-five roles must not let an author take a role off
+       * something and find out afterwards.
+       */
+      const document=store.getDocument();
+      const played=rolesOfElement(document,selectedId);
+      const used=rolesInUse(document);
+      const name=(id)=>elementDisplayName(document,id);
+      const option=(entry)=>{
+        const holder=used.get(entry.id);
+        const taken=holder&&holder!==selectedId;
+        return `<option value="${esc(entry.id)}"${played.some(item=>item.id===entry.id)?' selected':''} title="${esc(entry.hint)}">${esc(entry.label)}${taken?` — ${esc(name(holder))} now`:''}</option>`;
+      };
+      rows.push(`<label title="Which part of the face this drawing is">What it is<select data-piece-role aria-label="Which part of the face this piece is">
+        <option value="">${played.length?'— take the role off this piece —':'Not part of the face yet'}</option>
+        ${roleVocabularyGroups().map(group=>`<optgroup label="${esc(group.label)}">${group.roles.map(option).join('')}</optgroup>`).join('')}
+      </select></label>`);
+      // Several roles on one drawing is legitimate -- a mouth that draws its
+      // own tongue is the mouth's `tongue` role and the tongue part's own --
+      // so the readout says all of them rather than the select pretending
+      // there is one (docs/FACE_CONTROL_RIG.md §12).
+      if(played.length>1)rows.push(`<p class="small" data-piece-role-extra>Also ${played.slice(1).map(item=>esc(item.label.toLowerCase())).join(', ')}. Choosing here replaces every one of them.</p>`);
+      if(roleNotice)rows.push(`<p class="face-pick-notice" data-tone="warn" data-piece-role-notice>${esc(roleNotice)}</p>`);
+      // An option a piece cannot have is shown disabled with its reason
+      // rather than left out, because an absent option reads as a missing
+      // one (core/rig/rigging-types.js).
+      const nodeType=isPicture?'image':'path';
+      const current=normalizeRigging(store.getDocument().elements?.[selectedId]?.rigging,nodeType);
+      const options=riggingChoices(nodeType);
+      rows.push(`<label title="What this piece is allowed to do when the mascot moves">How it moves<select data-rigging-type aria-label="How this piece moves">${options.map(entry=>`<option value="${entry.id}"${entry.id===current?' selected':''}${entry.allowed?'':' disabled'}>${esc(entry.label)}${entry.allowed?'':' — not for a picture'}</option>`).join('')}</select></label>`);
+      const chosen=options.find(entry=>entry.id===current);
+      if(chosen)rows.push(`<p class="small" data-rigging-hint>${esc(chosen.hint)} ${esc(chosen.use)}</p>`);
+    }
     // A bent picture's box belongs to the mesh, not to the group: the numbers
     // are on the copies inside it, and offering them here would be offering to
     // edit one triangle of eight.
     const geometry=isMesh?[]:geometryFields(kind);
     if(geometry.length||kind==='text'||isMesh){
       rows.push(`<h4>${kind==='text'?'Text':isPicture?'Picture':'Shape'}</h4>`);
-      // Every piece answers this, picture or drawing: an option a piece cannot
-      // have is shown disabled with its reason rather than left out, because an
-      // absent option reads as a missing one (core/rig/rigging-types.js).
-      {
-        const nodeType=isPicture?'image':'path';
-        const current=normalizeRigging(store.getDocument().elements?.[selectedId]?.rigging,nodeType);
-        const options=riggingChoices(nodeType);
-        rows.push(`<label title="What this piece is allowed to do when the mascot moves">How it moves<select data-rigging-type aria-label="How this piece moves">${options.map(entry=>`<option value="${entry.id}"${entry.id===current?' selected':''}${entry.allowed?'':' disabled'}>${esc(entry.label)}${entry.allowed?'':' — not for a picture'}</option>`).join('')}</select></label>`);
-        const chosen=options.find(entry=>entry.id===current);
-        if(chosen)rows.push(`<p class="small" data-rigging-hint>${esc(chosen.hint)} ${esc(chosen.use)}</p>`);
-      }
       if(kind==='text')rows.push(`<label>Text<input type="text" data-text-content aria-label="Text content" value="${esc(node.textContent||'')}"></label>`);
       for(const [name,label,attrs] of geometry)rows.push(number(name,label,raw(name)??(name==='font-size'?'16':'0'),attrs));
       if(kind==='text')rows.push(choice('text-anchor','Anchor',[['start','Start'],['middle','Middle'],['end','End']],raw('text-anchor')||'start'));

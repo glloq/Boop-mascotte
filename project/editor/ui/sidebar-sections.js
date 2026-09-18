@@ -1,7 +1,15 @@
 /**
  * The parts the editor can add whole: the artwork, its rigging and an example
- * motion in one press. Everything else is drawn with the vector tools and given
- * a role in Face Setup.
+ * motion in one press. Everything else is drawn with the vector tools, taken
+ * from the **face parts library** below these three, or given a role in Face
+ * Setup.
+ *
+ * Three, and they are the three that have no library drawing: a pair of hands,
+ * and the eyebrows and eyelids the library ships none of. Everything the
+ * library *does* have -- heads, eyes, brows, noses, mouths, ears, hair, facial
+ * hair, accessories -- is in `#face-library`, which is where an author picks a
+ * different pair of eyes rather than being offered "+ Add" for a part they
+ * already have (docs/FACE_PART_LIBRARY.md).
  *
  * The copy lives here rather than in the one long markup line so that a card
  * can carry the reason it is unavailable -- "this mascot already has eyelids"
@@ -18,7 +26,7 @@ export function buildAddPartSection() {
     <article class="feature-card" data-feature-card="${part.id}">
       <div><b>${part.name}</b><small>${part.detail}</small><small class="feature-reason" data-feature-reason="${part.id}" hidden></small></div>
       <button data-add-feature="${part.id}">+ Add</button>
-    </article>`).join('')}</div>`;
+    </article>`).join('')}</div><div id="face-library"></div>`;
 }
 
 /**

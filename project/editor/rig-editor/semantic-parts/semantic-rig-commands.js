@@ -12,6 +12,34 @@ export function createSemanticRigCommands(store, history) {
     assignFaceRole(type, role, elementId) { let partId; run('semantic/assign-face-role', ['semanticRig', 'artwork'], d => { const part = Object.values(d.semanticParts || {}).find(candidate => candidate.type === type) || createSemanticPart(d, type); partId = part.id; assignSemanticRole(d, partId, role, elementId); }); return partId; },
     /** Accepted detection suggestions: every entry applies or none does, as one undo step. */
     assignFaceRoles(entries) { const ids = []; run('semantic/assign-face-roles', ['semanticRig', 'artwork'], d => { ids.length = 0; for (const { type, role, elementId } of entries) { const part = Object.values(d.semanticParts || {}).find(candidate => candidate.type === type) || createSemanticPart(d, type); assignSemanticRole(d, part.id, role, elementId); ids.push(part.id); } }); return ids; },
+    /**
+     * Which part of the face one drawing is, in one step.
+     *
+     * Moving a piece from one role to another is a clear and an assign, and as
+     * two commands it is two undo steps with a state between them where the
+     * drawing plays both or neither. One command, so the Inspector's *What it
+     * is* is a single choice however many roles it takes off
+     * (`face-role-vocabulary.js`).
+     *
+     * `role` may be `null`, which is the piece leaving the face: the roles it
+     * played are cleared and nothing is assigned.
+     */
+    setFaceRole(elementId, { part: type = null, role = null } = {}) {
+      let partId = null;
+      run('semantic/set-face-role', ['semanticRig', 'artwork'], (d) => {
+        partId = null;
+        for (const candidate of Object.values(d.semanticParts || {})) {
+          for (const [name, id] of Object.entries(candidate.roles || {})) {
+            if (id === elementId && !(candidate.type === type && name === role)) assignSemanticRole(d, candidate.id, name, null);
+          }
+        }
+        if (!type || !role) return;
+        const part = Object.values(d.semanticParts || {}).find((candidate) => candidate.type === type) || createSemanticPart(d, type);
+        partId = part.id;
+        assignSemanticRole(d, partId, role, elementId);
+      });
+      return partId;
+    },
     enableControl(partId, control, options) { return run('semantic/enable-control', ['semanticRig', 'rig', 'stateMachine', 'artwork'], d => enableSemanticControl(d, partId, control, options)); },
     setMethod(partId, control, method) { return run('semantic/set-control-method', ['semanticRig', 'artwork'], d => setSemanticControlMethod(d, partId, control, method)); },
     captureCalibration(partId, control, sample) { return run('semantic/capture-calibration', ['semanticRig'], d => { recordSample(d, partId, control, sample); }); },

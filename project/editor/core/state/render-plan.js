@@ -25,7 +25,7 @@
  */
 export const RENDER_TARGETS = Object.freeze([
   'artboardPanel', 'artboardSync', 'automaticPanel', 'canvasMenu', 'canvasSelection', 'canvasState',
-  'exporter', 'faceMovements', 'faceSetup', 'faceStates', 'gazePanel', 'handSetup', 'handStates', 'handleBoard', 'headPose', 'holdingPanel', 'inspector',
+  'exporter', 'faceLibrary', 'faceMovements', 'faceSetup', 'faceStates', 'gazePanel', 'handSetup', 'handStates', 'handleBoard', 'headPose', 'holdingPanel', 'inspector',
   'layerOrder', 'layers', 'motionStudio', 'previewPanel', 'projectShell', 'puppetHandles', 'puppetHandlesRefresh',
   'previewFrame', 'reactionStudio', 'rigPanel', 'selectionActions', 'expressionStudio', 'states', 'timeline', 'toolOptions', 'warpPanel'
 ]);
@@ -38,7 +38,7 @@ export const RENDER_TARGETS = Object.freeze([
 export const DOCUMENT_RENDER_PLAN = Object.freeze({
   // `selectionActions` because the bar sits *next to* the selection: artwork
   // that moved, grew or went away leaves it pointing at where the piece was.
-  artwork: Object.freeze(['canvasState', 'inspector', 'exporter', 'projectShell', 'faceSetup', 'faceMovements', 'faceStates', 'handSetup', 'artboardSync', 'handStates', 'selectionActions']),
+  artwork: Object.freeze(['canvasState', 'inspector', 'exporter', 'projectShell', 'faceSetup', 'faceMovements', 'faceStates', 'faceLibrary', 'handSetup', 'artboardSync', 'handStates', 'selectionActions']),
   layers: Object.freeze(['layerOrder', 'layers', 'faceSetup', 'canvasMenu', 'artboardPanel', 'selectionActions']),
   // Declared empty on purpose, not forgotten: nothing on screen reads the
   // asset table yet. The canvas joins when it resolves `asset:` references
@@ -47,7 +47,7 @@ export const DOCUMENT_RENDER_PLAN = Object.freeze({
   assets: Object.freeze([]),
   rig: Object.freeze(['inspector', 'timeline', 'rigPanel', 'faceMovements', 'faceStates', 'gazePanel', 'headPose', 'handSetup', 'warpPanel', 'expressionStudio', 'motionStudio', 'automaticPanel', 'handleBoard', 'puppetHandles', 'previewFrame']),
   stateMachine: Object.freeze(['states', 'automaticPanel', 'previewPanel']),
-  semanticRig: Object.freeze(['rigPanel', 'faceSetup', 'faceMovements', 'faceStates', 'handleBoard', 'projectShell']),
+  semanticRig: Object.freeze(['rigPanel', 'faceSetup', 'faceMovements', 'faceStates', 'faceLibrary', 'handleBoard', 'projectShell']),
   rigHandles: Object.freeze(['handleBoard', 'puppetHandles']),
   animation: Object.freeze(['timeline', 'motionStudio', 'reactionStudio', 'projectShell']),
   // Only the timeline shows an arrangement; moving a clip in time changes

@@ -32,6 +32,7 @@
  * above both.
  */
 import { FACE_ROLE_CHECKLIST } from '../rig-editor/semantic-parts/face-roles.js';
+import { FACE_ROLE_VOCABULARY } from '../rig-editor/semantic-parts/face-role-vocabulary.js';
 import { tokenize } from '../rig-editor/semantic-parts/face-role-detection.js';
 import { DEFAULT_RIGGING, riggingChoices, suggestedRigging } from '../core/rig/rigging-types.js';
 
@@ -39,8 +40,26 @@ import { DEFAULT_RIGGING, riggingChoices, suggestedRigging } from '../core/rig/r
 const FEATURES = Object.freeze([
   ['pupil', ['pupil', 'pupils', 'iris'], ['leftPupil', 'rightPupil']],
   ['brow', ['brow', 'brows', 'eyebrow', 'eyebrows', 'sourcil', 'sourcils'], ['leftBrow', 'rightBrow']],
+  // The lids before the eyes, and the pupils before both: `eyelid-left.png`
+  // says "eye" too, and the longest thing a name says is what it is.
+  ['lid', ['lid', 'lids', 'eyelid', 'eyelids', 'paupiere', 'paupieres'], ['leftUpper', 'rightUpper']],
   ['eye', ['eye', 'eyes', 'oeil', 'yeux'], ['leftEye', 'rightEye']],
+  // Everything inside a mouth, before the mouth: `teeth.png` and `tongue.png`
+  // are not mouths, and a name that says both is still the part it names.
+  ['teeth', ['teeth', 'tooth', 'dents', 'dent'], ['teeth']],
+  ['tongue', ['tongue', 'langue'], ['tongue']],
+  ['cavity', ['cavity', 'cavite', 'inside'], ['cavity']],
   ['mouth', ['mouth', 'lips', 'lip', 'bouche', 'levres'], ['mouth']],
+  ['jaw', ['jaw', 'chin', 'machoire', 'menton'], ['jaw']],
+  ['nose', ['nose', 'snout', 'muzzle', 'beak', 'nez', 'museau', 'bec'], ['nose']],
+  ['ear', ['ear', 'ears', 'oreille', 'oreilles'], ['leftEar', 'rightEar']],
+  // Hair before the head: `hair.png` says neither "head" nor "face", but
+  // `cheveux-arriere.png` and `hair-back.png` have to reach the right one of
+  // the three pieces a head of hair can be.
+  ['hairBack', ['hairback', 'backhair', 'arriere'], ['hairBack']],
+  ['hairTop', ['hairtop', 'tophair', 'crown', 'dessus'], ['hairTop']],
+  ['hair', ['hair', 'fringe', 'bangs', 'cheveux', 'cheveu', 'frange'], ['hair']],
+  ['facialHair', ['beard', 'moustache', 'goatee', 'sideburns', 'barbe', 'bouc', 'favoris'], ['facialHair']],
   ['head', ['head', 'face', 'skull', 'tete', 'visage'], ['head']]
 ]);
 // The detector's own side words, plus the ones a French file name uses.
@@ -57,7 +76,15 @@ const SIDES = Object.freeze({ left: ['left', 'l', 'lft', 'gauche', 'g', '1'], ri
 export function roleForName(name = '') {
   const tokens = tokenize(String(name).replace(/\.[a-z0-9]+$/i, ''));
   if (!tokens.length) return '';
-  const found = FEATURES.find(([, words]) => tokens.some((token) => words.includes(token)));
+  // The tokens, and every adjacent pair of them joined: `hair-back.png`,
+  // `hairback.png` and `back-hair.png` are the same piece said three ways, and
+  // the tokeniser splits the first into two words neither of which is it.
+  const words = new Set(tokens);
+  for (let i = 1; i < tokens.length; i += 1) {
+    words.add(`${tokens[i - 1]}${tokens[i]}`);
+    words.add(`${tokens[i]}${tokens[i - 1]}`);
+  }
+  const found = FEATURES.find(([, vocabulary]) => vocabulary.some((word) => words.has(word)));
   if (!found) return '';
   const [, , roles] = found;
   if (roles.length === 1) return roles[0];
@@ -69,10 +96,32 @@ export function roleForName(name = '') {
   return left ? roles[0] : roles[1];
 }
 
-/** Every role the two boxes offer, plus the one that means "it is just a piece". */
+/**
+ * Every role the two boxes offer, plus the one that means "it is just a piece".
+ *
+ * The eight of the checklist and then everything else the registry knows
+ * (`semantic-parts/face-role-vocabulary.js`), because a form that reads
+ * `cheveux.png` correctly and then has no *Hair* to offer is worse than one
+ * that reads nothing.
+ *
+ * Keyed by the **bare** role name, which is what `suggestedRigging` is keyed
+ * by (`core/rig/rigging-types.js`): that table already knows that hair bends,
+ * an ear bends, a lid is several drawings and a nose is rigid, and matching it
+ * is what makes the second box's answer right. One name for one role, so the
+ * tongue -- a role of the mouth *and* a part of its own -- appears once.
+ */
 export const INTAKE_ROLES = Object.freeze([
   Object.freeze({ id: '', label: 'Just a piece', hint: 'It moves with the rest and has no job of its own.' }),
-  ...FACE_ROLE_CHECKLIST.map((entry) => Object.freeze({ id: entry.id, label: entry.label, hint: entry.hint }))
+  ...(() => {
+    const seen = new Set();
+    const rows = [];
+    for (const entry of [...FACE_ROLE_CHECKLIST, ...FACE_ROLE_VOCABULARY]) {
+      if (entry.role === 'hand' || entry.role === 'element' || seen.has(entry.role)) continue;
+      seen.add(entry.role);
+      rows.push(Object.freeze({ id: entry.role, label: entry.label, hint: entry.hint }));
+    }
+    return rows;
+  })()
 ]);
 
 /**

@@ -22,6 +22,24 @@ test('a file name answers the first question when it can', () => {
   assert.equal(roleForName('sourcil-droite.png'), 'rightBrow');
   assert.equal(roleForName('bouche.png'), 'mouth');
   assert.equal(roleForName('head.png'), 'head');
+  // The rest of the face, in both languages: the reading used to stop at the
+  // eyes, the brows, the pupils, the mouth and the head, so importing hair or
+  // an ear proposed nothing at all.
+  assert.equal(roleForName('cheveux.png'), 'hair');
+  assert.equal(roleForName('ear-left.png'), 'leftEar');
+  assert.equal(roleForName('oreille-droite.webp'), 'rightEar');
+  assert.equal(roleForName('nez.png'), 'nose');
+  assert.equal(roleForName('museau.png'), 'nose', 'a snout is where a nose goes');
+  assert.equal(roleForName('langue.svg'), 'tongue');
+  assert.equal(roleForName('dents.png'), 'teeth');
+  assert.equal(roleForName('machoire.png'), 'jaw');
+  assert.equal(roleForName('barbe.png'), 'facialHair');
+  assert.equal(roleForName('eyelid-left.png'), 'leftUpper', 'a lid says "eye" too, and the lid is what it is');
+  // A head of hair is three pieces, and a name says which: the tokeniser
+  // splits `hair-back` into two words, neither of which is the piece.
+  assert.equal(roleForName('hair-back.png'), 'hairBack');
+  assert.equal(roleForName('cheveux-arriere.png'), 'hairBack');
+  assert.equal(roleForName('hair-top.png'), 'hairTop');
 });
 
 test('and says nothing rather than guessing', () => {
@@ -53,8 +71,26 @@ test('the role proposes the movement, and a picture is never offered what it can
 test('"just a piece" is an answer, and it is the first one offered', () => {
   assert.equal(INTAKE_ROLES[0].id, '');
   assert.equal(INTAKE_ROLES[0].label, 'Just a piece');
-  assert.equal(INTAKE_ROLES.length, 9, 'the eight face roles and the one that means none of them');
+  // The eight of the checklist, everything else the registry knows, and the one
+  // that means none of them. A form that read `cheveux.png` correctly and then
+  // had no *Hair* to offer was the gap this closes: hair, ears, a nose, a jaw,
+  // a tongue, teeth and the lids had nowhere to be said
+  // (semantic-parts/face-role-vocabulary.js).
+  assert.equal(INTAKE_ROLES.length, 24);
   assert.ok(INTAKE_ROLES.every((entry) => entry.label && entry.hint));
+  assert.deepEqual(INTAKE_ROLES.slice(1, 9).map((entry) => entry.id),
+    ['head', 'leftEye', 'rightEye', 'leftPupil', 'rightPupil', 'leftBrow', 'rightBrow', 'mouth'],
+    'the beginner eight first, in their own order');
+  for (const role of ['hair', 'hairBack', 'leftEar', 'nose', 'jaw', 'tongue', 'teeth', 'leftUpper', 'facialHair']) {
+    assert.ok(INTAKE_ROLES.some((entry) => entry.id === role), `${role} can be said`);
+  }
+  // One name for one role: the tongue is a role of the mouth *and* a part of
+  // its own, and offering it twice would be offering a choice between the same
+  // two words.
+  const ids = INTAKE_ROLES.map((entry) => entry.id);
+  assert.deepEqual(ids.filter((id, index) => ids.indexOf(id) !== index), []);
+  // A hand is drawn as a pair from Design ▸ Hands, not handed out as a role.
+  assert.equal(ids.includes('hand'), false);
 });
 
 test('the two boxes are said back as one line', () => {

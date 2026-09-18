@@ -1,0 +1,152 @@
+import { test, expect } from '@playwright/test';
+import { openArtwork, openFreshEditor, openSetupSection, selectLayerById, startBasicFace } from './editor-helpers.js';
+
+/**
+ * Saying what a drawing is, and choosing one from the library, in the browser
+ * (docs/FACE_ROLE_ASSIGNMENT.md, docs/FACE_PART_LIBRARY.md).
+ *
+ * Two things an author could not do, and neither failure was visible to the
+ * unit suite, because both were *missing surfaces* rather than wrong
+ * arithmetic: the Inspector's role field sat inside a block that never
+ * rendered for a path, and the hundred and fifty library drawings had no
+ * caller at all. So what is asserted here is presence and effect — the control
+ * is on the screen it belongs to, and pressing it changes the mascot.
+ */
+
+const state = (page) => page.evaluate(() => window.__BOOP_E2E__.state());
+const revision = (page) => page.evaluate(() => window.__BOOP_E2E__.diagnostics().store.documentMutations);
+const partOfType = async (page, type) => Object.values((await state(page)).semanticParts).find((part) => part.type === type);
+const markupHas = (page, id) => page.evaluate((needle) => window.__BOOP_E2E__.state().svgMarkup.includes(`id="${needle}"`), id);
+
+/** Artwork ▸ Add / Create artwork, which is where the library sits. */
+async function openFaceLibrary(page) {
+  await openArtwork(page);
+  const disclosure = page.locator('details.artwork-create');
+  if (!(await disclosure.evaluate((node) => node.open))) await disclosure.locator('> summary').click();
+  const panel = page.locator('#face-library[data-face-library-ready="true"]');
+  await expect(panel).toBeVisible();
+  return panel;
+}
+
+test('@critical the library shows its drawings, and one press puts a pair of eyes on the face', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  const panel = await openFaceLibrary(page);
+
+  // A hundred and fifty drawings, in the categories that have one.
+  await expect(panel).toHaveAttribute('data-face-library-total', '150');
+  await expect(panel).toHaveAttribute('data-face-library-category', 'eyes');
+  expect(await panel.locator('[data-face-library-category]').count()).toBeGreaterThanOrEqual(9);
+  const cards = panel.locator('[data-face-library-card]');
+  expect(await cards.count()).toBeGreaterThanOrEqual(20);
+  // The drawing itself, not its name: *Sleepy* and *Cartoon* are not words
+  // anybody can choose eyes by. And each preview's ids are its own, so twenty
+  // cards are twenty drawings rather than twenty clips of the first socket.
+  const preview = cards.first().locator('svg.face-library-preview');
+  await expect(preview).toBeVisible();
+  expect(await preview.innerHTML()).not.toContain('url(#socketLeft)');
+  // The template drew its own face, so it wears nothing *from the library* —
+  // a different answer from wearing nothing at all.
+  await expect(panel).toContainText('drawn or imported');
+
+  const before = await revision(page);
+  const oldPivot = (await state(page)).elements[(await partOfType(page, 'eyes')).roles.leftEye].baseTransform.pivotY;
+  await panel.locator('[data-face-library-card="eyes.sleepy"] [data-face-library-wear]').click();
+  expect(await revision(page), 'a press is a write').toBeGreaterThan(before);
+  await expect(panel.locator('[data-face-library-card="eyes.sleepy"]')).toHaveClass(/face-library-worn/);
+  await expect(panel).toContainText('Wearing');
+
+  // The drawing arrives on the canvas, the roles are taken by its shapes, and
+  // the movement the old eyes had is kept on a driver the new ones can carry.
+  const eyes = await partOfType(page, 'eyes');
+  expect(eyes.assetId, 'the part records the drawing it came from').toBe('eyes.sleepy');
+  expect(await markupHas(page, eyes.assetRoot), 'and the drawing itself is in the artwork').toBe(true);
+  const eye = (await state(page)).elements[eyes.roles.leftEye];
+  expect(eye.baseTransform.pivotY, 'fitted to this head, not dropped in at its own size').not.toBe(oldPivot);
+  expect(eyes.controls, 'the movement it had is still the part’s').toContain('eyeOpen');
+  expect(eye.bindings.scaleY.expression, 'and it reaches the new drawing, sides and all').toBe('eyeOpen + eyeOpenLeft');
+  expect(eye.bindings.scaleY.generatedBy.control).toBe('eyeOpen');
+
+  // One command, so one undo: the drawing leaves and the old eyes come back.
+  await page.keyboard.press('Control+z');
+  await expect.poll(async () => (await partOfType(page, 'eyes')).assetId).toBeFalsy();
+  expect(await markupHas(page, 'eyes-sleepy'), 'the whole drawing, in one step').toBe(false);
+  expect((await state(page)).elements[(await partOfType(page, 'eyes')).roles.leftEye].baseTransform.pivotY).toBe(oldPivot);
+
+  // Another category is another press, not another screen.
+  await panel.locator('[data-face-library-category="hair"]').click();
+  await expect(panel).toHaveAttribute('data-face-library-category', 'hair');
+  expect(await panel.locator('[data-face-library-card]').count()).toBeGreaterThanOrEqual(5);
+});
+
+test('@critical the Inspector says what a piece is, for a path as well as a picture', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+
+  // The nose is a path, which is the case that used to render nothing: the
+  // role and *How it moves* both sat behind `geometryFields('path')`, which is
+  // empty, so neither question was ever asked of a drawing.
+  await selectLayerById(page, 'nose');
+  const inspector = page.locator('#context-inspector');
+  await expect(inspector).toContainText('This piece');
+  const role = inspector.locator('[data-piece-role]');
+  await expect(role).toBeVisible();
+  await expect(inspector.locator('[data-rigging-type]'), 'and the question that was there is still there').toBeVisible();
+
+  // It opens on what the piece already is, and offers every role the registry
+  // knows, grouped by the part that owns it.
+  await expect(role).toHaveValue('nose.nose');
+  expect(await role.locator('optgroup').count()).toBeGreaterThanOrEqual(9);
+  expect(await role.locator('option').count(), 'the vocabulary, and the one that means none of it').toBe(26);
+  // A role another drawing holds says so, so nobody takes one by surprise.
+  await expect(role.locator('option[value="mouth.mouth"]')).toContainText('now');
+
+  // And choosing changes the mascot: the nose becomes the left ear, in one step.
+  const before = await revision(page);
+  await role.selectOption('ears.leftEar');
+  expect(await revision(page)).toBe(before + 1);
+  expect((await partOfType(page, 'ears')).roles.leftEar).toBe('nose');
+  expect((await partOfType(page, 'nose')).roles.nose, 'and it is no longer the nose').toBeUndefined();
+  await expect(inspector.locator('[data-piece-role]')).toHaveValue('ears.leftEar');
+
+  // Off the face entirely is an answer too.
+  await inspector.locator('[data-piece-role]').selectOption('');
+  await expect.poll(async () => (await partOfType(page, 'ears')).roles.leftEar).toBeUndefined();
+});
+
+test('@critical the checklist is eight, and the other seventeen are one disclosure away', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openSetupSection(page, 'face-parts');
+  const panel = page.locator('#face-setup-checklist');
+
+  // The eight stay the eight: a face with no ears and no jaw is finished, and
+  // a count of 8 / 25 would call every mascot in the world unfinished.
+  await expect(panel.locator('.face-checklist > [data-face-role]:not([data-face-role-optional])')).toHaveCount(8);
+  const progress = panel.locator('[data-face-progress]');
+  await expect(progress).toContainText('8 / 8');
+  await expect(progress).toHaveAttribute('data-face-progress-complete', 'true');
+
+  // And the rest are reachable here, where an author is already naming parts,
+  // rather than only from Rig ▸ Deform ▸ All parts.
+  const extras = panel.locator('details.face-role-extras');
+  await extras.locator('> summary').click();
+  await expect(extras.locator('[data-face-role-optional="true"]')).toHaveCount(17);
+  await expect(extras.locator('[data-face-role-group]')).toHaveCount(9);
+  for (const id of ['eyelids.leftUpper', 'nose.nose', 'ears.leftEar', 'hair.hairBack', 'mouth.teeth', 'jaw.jaw']) {
+    await expect(extras.locator(`[data-face-role="${id}"]`)).toBeVisible();
+  }
+
+  // Clearing an optional role works from its own row, and does not touch the
+  // eight or what "complete" means.
+  const before = await revision(page);
+  await extras.locator('[data-face-role="nose.nose"] [data-face-role-clear]').click();
+  expect(await revision(page)).toBe(before + 1);
+  await expect(progress).toContainText('8 / 8');
+  await expect(progress).toHaveAttribute('data-face-progress-complete', 'true');
+  await expect(extras.locator('[data-face-role="nose.nose"]')).toHaveAttribute('data-face-role-status', 'missing');
+  // The disclosure stays open across the re-render, which is what
+  // `rememberOpen` is for: a row that closed its own section on every press
+  // would be unusable.
+  await expect(extras).toHaveAttribute('open', '');
+});

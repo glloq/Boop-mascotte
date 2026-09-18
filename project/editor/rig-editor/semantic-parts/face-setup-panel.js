@@ -1,6 +1,7 @@
-import { deriveFaceRoleChecklist, faceRoleEntry, findFaceRoleUsage, listAssignableElements, nextMissingFaceRole } from './face-roles.js';
+import { deriveFaceRoleChecklist, deriveFaceRoleExtras, faceRoleEntry, findFaceRoleUsage, listAssignableElements, nextMissingFaceRole } from './face-roles.js';
 import { confidenceLabel, suggestFaceRoles } from './face-role-detection.js';
 import { createSemanticRigCommands } from './semantic-rig-commands.js';
+import { rememberOpen } from '../../ui/panel-render.js';
 import { esc } from '../../ui/escape-html.js';
 
 const ICONS = { assigned: '✓', missing: '○', invalid: '⚠', picking: '●' };
@@ -16,6 +17,7 @@ const FOCUS_KEYS = ['faceRoleAssign', 'faceRoleAccept', 'faceRoleClear', 'faceRo
  */
 export function createFaceSetupPanel(host, store, history, canvas, editorContext, { openPart = () => {}, geometry = () => null, highlight = () => {} } = {}) {
   const commands = createSemanticRigCommands(store, history);
+  const sections = rememberOpen(host);
   let picking = null, notice = null, highlighted = null;
   const doc = () => store.getDocument();
   const pickLabel = (entry) => `${entry.label.toLowerCase()}${entry.side ? ` (${entry.side} side of the canvas)` : ''}`;
@@ -39,7 +41,10 @@ export function createFaceSetupPanel(host, store, history, canvas, editorContext
   function assign(entry, elementId, { advance = false, viaSuggestion = false } = {}) {
     const state = doc();
     if (!state.elements?.[elementId]) { notice = { tone: 'warn', text: 'That is not editable artwork. Choose another element.' }; render(); return false; }
-    const usage = findFaceRoleUsage(state, elementId, entry.id);
+    // Only for the eight: an optional role is allowed to share a drawing with
+    // another part, because that is how a face with no separate chin gets a
+    // jaw. What it is never allowed to do, the rig refuses for itself.
+    const usage = entry.optional ? null : findFaceRoleUsage(state, elementId, entry.id);
     if (usage) { notice = { tone: 'warn', text: `This artwork is already the ${usage.label}. Choose another element, or clear ${usage.label} first.` }; render(); return false; }
     let partId;
     try { partId = commands.assignFaceRole(entry.part, entry.role, elementId); }
@@ -122,7 +127,10 @@ export function createFaceSetupPanel(host, store, history, canvas, editorContext
     if (event.key === 'Escape' && picking) { event.preventDefault(); canvas.cancelRigTool(); }
   });
 
-  const itemFor = (id) => deriveFaceRoleChecklist(doc()).items.find((item) => item.id === id) || null;
+  // Both lists: an optional row's Clear and Select go through exactly the code
+  // the eight do, so there is one way to assign a role and not two.
+  const itemFor = (id) => deriveFaceRoleChecklist(doc()).items.find((item) => item.id === id)
+    || deriveFaceRoleExtras(doc()).items.find((item) => item.id === id) || null;
 
   function focusKey(node) {
     for (const key of FOCUS_KEYS) if (node?.dataset?.[key] !== undefined) return [key, node.dataset[key]];
@@ -139,7 +147,7 @@ export function createFaceSetupPanel(host, store, history, canvas, editorContext
     if (!state.svgMarkup) { host.innerHTML = '<p class="small">Add artwork first: import an SVG or start from a template.</p>'; host.dataset.faceSetupSuggested = '0'; return; }
     const { suggestions, acceptable } = detect();
     host.dataset.faceSetupSuggested = String(acceptable.length);
-    const rows = checklist.items.map((item) => {
+    const row = (item) => {
       const status = picking === item.id ? 'picking' : item.status;
       const suggestion = item.status === 'assigned' ? null : suggestions[item.id];
       const accepting = suggestion && acceptable.includes(item.id);
@@ -149,8 +157,25 @@ export function createFaceSetupPanel(host, store, history, canvas, editorContext
         : suggestion ? (accepting ? `Suggested: ${suggestion.elementName} · ${confidenceLabel(suggestion.confidence)}` : `Maybe ${suggestion.elementName}? Click it on the canvas to confirm.`)
         : item.hint;
       const verb = item.status === 'missing' ? 'Assign' : 'Replace';
-      return `<li class="face-role-row${item.partId && item.partId === active ? ' active' : ''}" data-face-role="${item.id}" data-face-role-status="${status}"${suggestion ? ` data-face-suggestion="${esc(suggestion.elementId)}" data-face-suggestion-confidence="${suggestion.confidence}"` : ''}><span class="face-role-status" aria-hidden="true">${ICONS[status]}</span><button type="button" class="face-role-label" data-face-role-select="${item.id}"><b>${esc(item.label)}</b>${detail && detail !== item.label ? `<small>${esc(detail)}</small>` : ''}</button><span class="face-role-actions">${accepting ? `<button type="button" data-face-role-accept="${item.id}" aria-label="Accept ${esc(suggestion.elementName)} as ${esc(item.label)}" title="${esc(suggestion.reasons.join(' · '))}">Accept</button>` : ''}<button type="button" class="${verb === 'Assign' && !accepting ? '' : 'secondary'}" data-face-role-assign="${item.id}" aria-label="${verb} ${esc(item.label)}" title="${verb} by clicking the canvas">${accepting ? 'Pick' : verb}</button>${item.status !== 'missing' ? `<button type="button" class="secondary icon" data-face-role-clear="${item.id}" aria-label="Clear ${esc(item.label)}">×</button>` : ''}</span></li>`;
-    }).join('');
+      return `<li class="face-role-row${item.partId && item.partId === active ? ' active' : ''}" data-face-role="${item.id}" data-face-role-status="${status}"${item.optional ? ' data-face-role-optional="true"' : ''}${suggestion ? ` data-face-suggestion="${esc(suggestion.elementId)}" data-face-suggestion-confidence="${suggestion.confidence}"` : ''}><span class="face-role-status" aria-hidden="true">${ICONS[status]}</span><button type="button" class="face-role-label" data-face-role-select="${item.id}"><b>${esc(item.label)}</b>${detail && detail !== item.label ? `<small>${esc(detail)}</small>` : ''}</button><span class="face-role-actions">${accepting ? `<button type="button" data-face-role-accept="${item.id}" aria-label="Accept ${esc(suggestion.elementName)} as ${esc(item.label)}" title="${esc(suggestion.reasons.join(' · '))}">Accept</button>` : ''}<button type="button" class="${verb === 'Assign' && !accepting ? '' : 'secondary'}" data-face-role-assign="${item.id}" aria-label="${verb} ${esc(item.label)}" title="${verb} by clicking the canvas">${accepting ? 'Pick' : verb}</button>${item.status !== 'missing' ? `<button type="button" class="secondary icon" data-face-role-clear="${item.id}" aria-label="Clear ${esc(item.label)}">×</button>` : ''}</span></li>`;
+    };
+    const rows = checklist.items.map(row).join('');
+    /**
+     * Everything else a drawing can be, under one disclosure.
+     *
+     * Optional, and the heading says how many have been named rather than how
+     * many are left: a mascot with no ears and no jaw is finished, and the
+     * eight above are what "complete" means. What this buys is that hair,
+     * ears, a nose, a tongue, teeth and the lids are assignable **here**,
+     * where an author is already naming parts, instead of only from the
+     * advanced All parts navigator (docs/FACE_SVG_STATES.md).
+     */
+    const extras = deriveFaceRoleExtras(state);
+    const extraGroups = extras.groups.map((group) => `<li class="face-role-group" data-face-role-group="${esc(group.part)}"><b class="face-role-group-name">${esc(group.label)}</b><ol class="face-checklist">${group.items.map(row).join('')}</ol></li>`).join('');
+    const extraSection = `<details class="face-role-extras" data-keep-open="face-role-extras"${sections.has('face-role-extras') ? ' open' : ''}>
+      <summary>More parts <span class="small">${extras.assigned ? `${extras.assigned} named` : 'optional'}</span></summary>
+      <p class="small">Eyelids to blink with, a nose, ears, hair, a jaw, a tongue, teeth. None of them is needed for a face to work; each one is a movement the mascot gains.</p>
+      <ol class="face-role-groups" aria-label="More face parts">${extraGroups}</ol></details>`;
     const pickingEntry = picking ? faceRoleEntry(picking) : null;
     const instruction = pickingEntry ? `<div class="face-pick-notice" data-tone="info"><span>Click the <b>${esc(pickLabel(pickingEntry))}</b> on the canvas.</span><button type="button" class="secondary" data-face-cancel-pick>Cancel (Esc)</button></div><label class="face-manual">Or choose from layers<select data-face-role-manual="${picking}"><option value="">Select artwork…</option>${listAssignableElements(state).map((element) => `<option value="${esc(element.id)}">${esc(element.name)}</option>`).join('')}</select></label>` : '';
     const next = checklist.items.find((item) => item.id === checklist.next);
@@ -158,7 +183,7 @@ export function createFaceSetupPanel(host, store, history, canvas, editorContext
       acceptable.length ? `<button type="button" class="face-next" data-face-accept-all>Accept ${acceptable.length} suggestion${acceptable.length === 1 ? '' : 's'}</button>` : '',
       checklist.complete ? '<button type="button" class="face-next" data-face-configure>Configure movements</button>' : `<button type="button" class="face-next${acceptable.length ? ' secondary' : ''}" data-face-role-next>Assign next: ${esc(next.label)}</button>`
     ].join('');
-    host.innerHTML = `<h3 id="face-checklist-heading" class="visually-hidden">Face parts</h3><p class="face-progress" data-face-progress data-face-progress-complete="${checklist.complete}"><b>${checklist.assigned} / ${checklist.total}</b> assigned${checklist.complete ? ' — every part of the face is named' : ''}</p><div role="status" aria-live="polite">${notice ? `<p class="face-pick-notice" data-tone="${notice.tone}">${esc(notice.text)}</p>` : ''}</div>${instruction}<ol class="face-checklist" aria-label="Face parts checklist">${rows}</ol>${actions}`;
+    host.innerHTML = `<h3 id="face-checklist-heading" class="visually-hidden">Face parts</h3><p class="face-progress" data-face-progress data-face-progress-complete="${checklist.complete}"><b>${checklist.assigned} / ${checklist.total}</b> assigned${checklist.complete ? ' — every part of the face is named' : ''}</p><div role="status" aria-live="polite">${notice ? `<p class="face-pick-notice" data-tone="${notice.tone}">${esc(notice.text)}</p>` : ''}</div>${instruction}<ol class="face-checklist" aria-label="Face parts checklist">${rows}</ol>${extraSection}${actions}`;
     if (focused) host.querySelector(`[${attributeName(focused[0])}="${CSS.escape(focused[1])}"]`)?.focus({ preventScroll: true });
   }
 

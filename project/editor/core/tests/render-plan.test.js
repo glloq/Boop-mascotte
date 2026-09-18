@@ -91,7 +91,9 @@ test('the fan-out is now measurable, which is the point of writing it down', () 
     // follows `keyforms`; a viseme **is** an expression record, so it follows
     // `expressions`; and a piece of artwork going away takes the states it
     // could be captured on with it, so it follows `artwork` too.
-    artwork: 11, layers: 6, rig: 15, stateMachine: 3, semanticRig: 6, rigHandles: 2,
+    // And the library follows the artwork and the parts: it says which drawing
+    // each part of the face is wearing (docs/FACE_PART_LIBRARY.md).
+    artwork: 12, layers: 6, rig: 15, stateMachine: 3, semanticRig: 7, rigHandles: 2,
     animation: 4, arrangement: 1, keyforms: 7, constraints: 3, hands: 3, hierarchy: 1, expressions: 4, reactions: 2,
     // Zero, and decided rather than forgotten: nothing on screen reads the
     // asset table yet (docs/V4_ROADMAP.md, V4-010). It joins the artwork's

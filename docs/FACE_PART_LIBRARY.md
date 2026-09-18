@@ -1154,6 +1154,70 @@ Every shape carries the same `jawOpen` pose as the other four — the same path,
 drawn again with everything below the eye line stretched down by `JAW_DROP` —
 so a face keeps its jaw whichever shape it is given.
 
+## Choosing a drawing
+
+For a while none of this was reachable. `facePartCommands.replace()` — the one
+command that puts an asset on a face, and everything above it in this page — had
+**no caller anywhere in the editor**: the Character Builder that used to drive
+it was taken out and nothing took its place. So an author could *add* to the
+library (••• → Import face pack) and could not browse or use it, and
+*Add a part* offered three things — eyebrows, eyelids, hands — while twenty-one
+pairs of eyes, twenty mouths, nineteen sets of brows, fifteen pairs of ears,
+twenty-four heads and thirty-one accessories sat unreachable.
+
+`rig-editor/semantic-parts/face-library-panel.js` is the surface, in Artwork
+under *Add / Create artwork*, beneath the three parts the library has no drawing
+for:
+
+```text
+ Face parts library
+ 150 drawings. Choosing one replaces that part of the face: where you had
+ moved it and the movements it had are kept.
+
+  Head 24  [Eyes 21]  Brows 19  Nose 9  Mouth 20  Ears 15  Hair 6  …
+  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
+  │  ◉  ◉  │ │  ◡  ◡  │ │  ▬  ▬  │ │  ●  ●  │      ← the drawing itself
+  │ Round  │ │ Sleepy │ │Cartoon │ │Minimal │
+  │[Use it]│ │[Use it]│ │[Use it]│ │[Use it]│
+  └────────┘ └────────┘ └────────┘ └────────┘
+```
+
+A press is one `replace` and therefore **one undo step**, with `fresh: false`,
+which is the whole point of replacing rather than installing: a part the author
+has moved stays where they moved it and only the drawing changes.
+
+`core/face-library/face-library-model.js` is the reading half — per category,
+which drawings there are, which one the face is wearing, and what installing one
+would do — and it knows nothing about markup, presses or panels.
+
+Three things the model decides:
+
+- **The card shows the drawing.** *Sleepy* and *Cartoon* are not words anybody
+  can choose eyes by. `assetPreview` gives a `viewBox` — the asset's own
+  `referenceBox`, padded — and the markup to put inside it.
+- **With its own ids.** Several assets clip with `<clipPath id="socketLeft">`
+  and reference it by `url(#socketLeft)`; twenty cards sharing that id in one
+  document is twenty eyes clipped to the first card's socket. Each preview is
+  passed through `remapArtworkIds` — the same function the install uses, for the
+  same reason.
+- **A mismatch is marked, never hidden.** `compatible` is whether the drawing
+  suits the morphologies the face already wears (§ *Composite assets*,
+  `compatibility.js`). An author who wants a beak on a round head is allowed
+  one, and a card that silently vanished would read as a library that had lost
+  something.
+
+A category the library ships nothing for is reported with `count: 0` rather than
+left out — *Pupils* and *Eyelids* are installable parts with no drawing yet —
+and the tab row shows only the categories that have one, because a tab opening
+on "no drawings yet" is a tab that wasted a press.
+
+`wornAsset` reads `semanticParts[*].assetId`, which the install records. A part
+the author drew or imported has none: it is wearing nothing *from the library*,
+which is a different answer from wearing nothing at all, and the panel says so.
+
+Which part of the face a drawing *is* — as opposed to which drawing a part
+wears — is docs/FACE_ROLE_ASSIGNMENT.md.
+
 ## Files
 
 ```text
@@ -1164,11 +1228,13 @@ project/editor/core/face-library/
   face-part-artwork.js      remapArtworkIds, documentIds, facePartThumbnail
   face-part-install.js      planFacePartReplacement, scrubRemovedArtwork, applyFacePartReplacement, followHeadClips
   face-part-commands.js     createFacePartCommands: plan, layout and replace, one undo step
+  face-library-model.js     assetPreview, wornAsset, libraryCards, faceLibraryModel: what the library offers this face
   face-layout.js            the layout context, the template's boxes, fitFacePart, layoutThroughRoot, composeFit
   palette-model.js          TOKEN_SEEDS, seedTokens, derivePalette, tokenWrites, tintArtwork
   face-presets.js           FACE_PALETTES, FACE_STYLE_PRESETS, the preset registry, styledAsset and presetDrawings (the style axis), presetOfFace, planFacePreset, presetThumbnail, the browser store
   face-pack.js              normalizeFacePack, validateFacePack, installFacePack, registerFacePack: a JSON file of parts and presets, all or nothing
   builtin/                  heads.js (four radii and four width rules), eyes.js, brows.js, noses.js, mouths.js (+ mouth-simple.js, mouth-wide.js), ears.js, hair.js, facial-hair.js, accessories.js, nose-dot.js, index.js
+project/editor/rig-editor/semantic-parts/face-library-panel.js   the cards, in Artwork
 project/editor/svg-editor/svg-canvas.js        replaceArtwork
 project/editor/core/security/sanitize-svg.js   findUnsafeSvg
 project/editor/core/tests/face-part-model.test.js
@@ -1182,7 +1248,9 @@ project/editor/core/tests/face-part-commands.test.js
 project/editor/core/tests/face-layout.test.js
 project/editor/core/tests/face-pack.test.js
 project/editor/core/tests/helpers/fake-face-canvas.js   the swap over the template's markup, in Node
+project/editor/core/tests/face-roles-everywhere.test.js  the library model, and the roles beside it
 tests/e2e/ux46-face-layout.spec.js
+tests/e2e/face-roles-everywhere.spec.js   the cards, in a browser
 ```
 
 ## What is deliberately not here yet
