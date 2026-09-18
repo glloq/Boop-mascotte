@@ -19,7 +19,9 @@ test('@critical blank editor boots safely and diagnostics stay opt-in', async ({
   // button in front of somebody with no project are controls that can only
   // disappoint, so the boot check is that they exist and that Home covers them.
   for (const workspace of ['design', 'rig', 'animate', 'behavior']) await expect(page.locator(`.stage-tab[data-stage="${workspace}"]`)).toHaveCount(1);
-  await expect(page.locator('.workspace-tab[data-mode="design.artwork"]')).toHaveText('Artwork');
+  // *Draw* since Design became two screens: Assemble is where a mascot comes
+  // from, and this tab is the vector editor (UIR-18, docs/DESIGN_SCREENS.md).
+  await expect(page.locator('.workspace-tab[data-mode="design.artwork"]')).toHaveText('Draw');
   await expect(page.locator('#app')).toHaveClass(/home-open/);
   for (const selector of ['.stage-nav', '#export-top', '#save-project-top', '#validate', '#undo']) {
     await expect(page.locator(selector), `${selector} is not offered before there is a project`).toBeHidden();
@@ -80,11 +82,11 @@ test('@critical dirty New Project supports Cancel, Discard, and Save then replac
   await page.getByRole('button', { name: 'Discard' }).click();
   await expect(page.locator('#canvas svg svg')).toBeVisible();
   await expect(page.locator('[data-home]')).toBeHidden();
-  // A template opens on Artwork, where its pieces are (V5-07). It has been both
-  // this and Design ▸ Face: Face while the way to make a mascot was to dress
-  // one out of the library, Artwork now that the way is to bring pictures
-  // (docs/V5_MASCOTTE_IMAGES_ETUDE.md).
-  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('design.artwork');
+  // A template opens where a project lands. That has been Artwork and
+  // Design ▸ Face before — Face while the way to make a mascot was to dress one
+  // out of the library, Artwork once the way was to bring pictures — and it is
+  // **Assemble**, which is both of those on one screen (UIR-18).
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.task())).toBe('design.assemble');
 
   await dirtyProject();
   await requestNew();
@@ -289,6 +291,6 @@ test('essential editor controls remain available on phone and tablet', async ({ 
     await expect(page.getByRole('button', { name: 'Save Project' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
     for (const workspace of ['design','rig','animate','behavior']) await expect(page.locator(`.stage-tab[data-stage="${workspace}"]`)).toBeVisible();
-    await expect(page.locator('.workspace-tab[data-mode="design.artwork"]')).toContainText('Artwork');
+    await expect(page.locator('.workspace-tab[data-mode="design.artwork"]')).toContainText('Draw');
   }
 });

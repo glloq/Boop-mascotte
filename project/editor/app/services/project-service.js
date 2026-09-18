@@ -20,6 +20,7 @@
  * keeps the bindings.
  */
 import { createCleanProjectState } from '../../core/state/store.js';
+import { DEFAULT_MODE } from '../../ui/task-router.js';
 import { buildFaceProjectTemplate } from '../../core/assets/face-builder.js';
 import { createProjectDocument } from '../../core/state/project-document.js';
 import { createEditorSession } from '../../core/state/editor-session.js';
@@ -159,7 +160,7 @@ export function createProjectService({
   };
 
   /** The tail shared by every path that puts a new project on the canvas. */
-  const openProject = (mode = 'design.artwork') => {
+  const openProject = (mode = DEFAULT_MODE) => {
     setProjectLoaded(true);
     navigate(mode);
     closeHome();
@@ -194,7 +195,7 @@ export function createProjectService({
     // synchronously, so without this the raster pieces come back blank and
     // stay blank until something unrelated redraws them.
     const short = (await canvas.refreshAssets?.())?.missing ?? [];
-    navigate('design.artwork');
+    navigate(DEFAULT_MODE);
     setProjectLoaded(true);
     closeHome();
     setStatus(identified.length ? `${sourceLabel} restored. ${identified.length === 1 ? 'One part is' : `${identified.length} parts are`} the library's own drawing.` : `${sourceLabel} restored.`);
@@ -571,7 +572,16 @@ export function createProjectService({
   // artboard is somewhere to put pictures, and the finished mascot is there to
   // be taken apart, which is a thing done to its pieces. Callers that need
   // another screen still name it — the builder's own path does.
-  const loadTemplate = async (kind, { mode = 'design.artwork' } = {}) => {
+  /**
+   * A template on the canvas, landing where that template is worked on.
+   *
+   * Everything lands on `DEFAULT_MODE` — Assemble, where a mascot comes from —
+   * except a **blank canvas**, which lands on Draw. Its own card says why: "an
+   * empty working area to draw your own, with the Pen, shape and Text tools".
+   * Somebody who asked for nothing and a set of drawing tools should not have
+   * to go and find the drawing tools (UIR-18, docs/DESIGN_SCREENS.md).
+   */
+  const loadTemplate = async (kind, { mode = kind === 'blank' ? 'design.artwork' : DEFAULT_MODE } = {}) => {
     const template = PROJECT_TEMPLATES[kind] || PROJECT_TEMPLATES.basic;
     const committed = await replaceProject(() => loadProjectTemplate(template, { store, canvas, history, preview, validate: validateRig }));
     if (!committed) return false;

@@ -62,6 +62,10 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
   mouths, ears, hair, facial hair and accessories, each shown as the drawing
   rather than its name, and one press replaces that part of the face keeping
   where you had moved it ([face part library](docs/FACE_PART_LIBRARY.md))
+- **Design is two screens**: *Assemble* is where a mascot comes from — the
+  library, a picture of your own, the parts that go on whole — and *Draw* is
+  the vector editor, one chevron away rather than the first thing you meet
+  ([Design's two screens](docs/DESIGN_SCREENS.md))
 - **Floating hands**, Rayman style: anchors that follow the body, a soft reach,
   rotation, scale and a little cartoon inertia, resting behind the head until a
   reaction or `mascot.showHands()` asks. A hand is **one of a handful of whole
@@ -187,6 +191,7 @@ Install browsers once with `npx playwright install --with-deps`. E2E tests start
 - [Character Builder](docs/CHARACTER_BUILDER.md) and its [face part library](docs/FACE_PART_LIBRARY.md); the reader's guides to [face style presets](docs/FACE_PRESETS.md) and [custom face parts](docs/CUSTOM_FACE_PARTS.md)
 - [Face states](docs/FACE_SVG_STATES.md) and the [speech layer](docs/VISEME_SYSTEM.md)
 - [Saying what a drawing is](docs/FACE_ROLE_ASSIGNMENT.md): the role vocabulary and the three places it is offered
+- [Design's two screens](docs/DESIGN_SCREENS.md): Assemble, where a mascot comes from, and Draw, the vector editor
 - [Panel layout](docs/PANEL_LAYOUT.md): per-screen column widths, the two draggable boundaries, and a canvas that keeps looking at the same thing
 - [Rig format](docs/RIG_MODEL.md)
 - [Behaviors](docs/BEHAVIORS.md)

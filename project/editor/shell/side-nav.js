@@ -61,15 +61,30 @@ const rigGatesMarkup = () => [['face-setup', 'rig.assign'], ['calibration', 'rig
 /**
  * The left column, one section per surface.
  *
- * Artwork's three ways in are in the order an author needs them since V5-07,
- * which is the order they are written: *Add picture* first, because the editor
- * opens on this screen now and a mascot is pictures. *Import / Replace SVG*
- * went from first to last for the same reason -- it is the way in for somebody
- * who already has a drawing, which is no longer the common case.
+ * Design's one section holds **two screens** (UIR-18, docs/DESIGN_SCREENS.md):
+ * `.assemble-tools` is where a mascot comes from -- the three ways to start, a
+ * picture brought in, the library to take parts from -- and `.draw-tools` is
+ * the vector editor's own. Which shows is gated on `data-mode` in the
+ * stylesheet, the way the workspaces have always been gated on
+ * `data-workspace`; both are the same panel hosts they always were, so nothing
+ * in the render plan or the wiring knows this happened.
+ *
+ * Within Assemble the order is what an author reaches for, most often first:
+ * the **library** (a hundred and fifty drawings, and the only one of these
+ * that shows pictures rather than words), then a picture of their own, then
+ * the parts the library has no drawing for. *Start over* is last and folded,
+ * because every card in it replaces the artwork the author has — a destructive
+ * act does not belong at the top of a column, and Home already offers the same
+ * three to somebody who has nothing yet.
+ *
+ * The three ways in keep their V5-07 order among themselves -- *Add picture*
+ * first because a mascot is pictures, *Import / Replace SVG* last because it
+ * is the way in for somebody who already has a drawing, which is no longer the
+ * common case.
  */
 export const sideNavMarkup = (openSections) => `      <aside class="panel" id="left" aria-label="Tasks and tools"><button class="collapse-panel" id="collapse-left" aria-label="Collapse left panel">‹</button><div class="workspace-hint" data-hint hidden></div>
         <section class="hand-tools"><h2>Hands</h2>${gateMarkup('hands', 'mobile')}<div id="hand-states"></div></section>
-        <section class="create-tools"><h2>Artwork</h2><label class="button secondary artwork-import">Add picture<input hidden type="file" id="artwork-image-file" accept=".png,.webp,.svg,image/png,image/webp,image/svg+xml"></label><label class="button secondary artwork-import">Import head / base<input hidden type="file" id="artwork-base-file" accept=".png,.webp,.svg,image/png,image/webp,image/svg+xml"></label><label class="button secondary artwork-import">Import / Replace SVG<input hidden type="file" id="artwork-svg-file" accept=".svg"></label>${gateMarkup('artwork', 'mobile')}<div id="artboard-panel"></div><details class="artwork-create"><summary>Add / Create artwork</summary>${buildStartArtworkSection()}<div class="core-list"><h3>Ready</h3><div id="core-status"></div><button id="continue-rigging">Continue to Rig</button></div>${buildAddPartSection()}</details></section>
+        <section class="create-tools"><h2 data-column-heading="create">Assemble</h2><div class="assemble-tools"><div id="face-library"></div><h3>Bring a picture</h3><p class="small">A piece of your own. It arrives selected, and the Inspector asks which part of the face it is.</p><div class="artwork-imports"><label class="button secondary artwork-import">Add picture<input hidden type="file" id="artwork-image-file" accept=".png,.webp,.svg,image/png,image/webp,image/svg+xml"></label><label class="button secondary artwork-import">Import head / base<input hidden type="file" id="artwork-base-file" accept=".png,.webp,.svg,image/png,image/webp,image/svg+xml"></label><label class="button secondary artwork-import">Import / Replace SVG<input hidden type="file" id="artwork-svg-file" accept=".svg"></label></div>${buildAddPartSection()}<div class="core-list"><h3>Ready</h3><div id="core-status"></div><button id="continue-rigging">Continue to Rig</button></div><details class="artwork-create" data-keep-open="start-over"><summary>Start over</summary><p class="small">Each of these replaces the artwork you have.</p>${buildStartArtworkSection()}</details></div><div class="draw-tools">${gateMarkup('artwork', 'mobile')}<div id="artboard-panel"></div></div></section>
         <section class="rig-tools"><h2 data-column-heading="rig">Assign</h2><div id="deform-bench" class="deform-bench-host" hidden></div>${rigGatesMarkup()}${setupSectionsMarkup(openSections)}</section>
         <section class="expressions-tools"><h2>Expressions</h2><div id="expressions-panel"></div></section>
         <section class="animate-tools"><h2 data-column-heading="animate">Motions</h2><div id="motion-panel"></div>${gateMarkup('timeline', 'mobile')}</section>

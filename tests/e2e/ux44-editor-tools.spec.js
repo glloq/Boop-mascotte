@@ -11,9 +11,16 @@ import { FACE_PALETTE } from '../../project/editor/core/sample/templates/face-ar
  * an author could see the *result* of but could not reach: the parts that can
  * be added whole, the clip that cuts a drawing, the colour of a piece.
  */
+/**
+ * The parts that can be added whole are on Design ▸ Assemble, in the open.
+ *
+ * They were in Artwork, inside a disclosure called *Add / Create artwork*, and
+ * are now one of the four things Assemble is made of — Assemble being where a
+ * mascot comes from, and the screen the editor opens on (UIR-18,
+ * docs/DESIGN_SCREENS.md). No disclosure to open any more.
+ */
 const openAddParts = async (page) => {
-  await goToMode(page, 'design.artwork');
-  await page.locator('.artwork-create > summary').click();
+  await goToMode(page, 'design.assemble');
   await expect(page.locator('[data-feature-card="eyelids"]')).toBeVisible();
 };
 
@@ -148,8 +155,8 @@ test('@critical a part is added to a face somebody drew, fitted to it', async ({
 
   // The preset artwork is the template's, and this face is not the template's.
   // It used to be refused outright ("compatible starter faces" only).
-  await goToMode(page, 'design.artwork');
-  await page.locator('.artwork-create > summary').click();
+  // The parts that go on whole are on Assemble, in the open (UIR-18).
+  await goToMode(page, 'design.assemble');
   const brows = page.locator('[data-add-feature="eyebrows"]');
   await expect(brows).toBeEnabled();
   await brows.click();

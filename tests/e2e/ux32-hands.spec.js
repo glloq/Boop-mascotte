@@ -318,11 +318,13 @@ test('@critical a drawn pair rests behind the head and comes out for a drawing, 
   await expect.poll(painted).toEqual(['handRight', 'head', 'handLeft']);
 });
 
-test('the Artwork panel offers the same hands, once', async ({ page }) => {
+test('Assemble offers the same hands, once', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBuiltFace(page);
-  await goToMode(page, 'design.artwork');
-  await page.locator('.artwork-create > summary').click();
+  // The parts that go on whole are on Assemble, in the open: it is where a
+  // mascot comes from, and a pair of hands is one of the three the library
+  // ships no drawing for (UIR-18, docs/DESIGN_SCREENS.md).
+  await goToMode(page, 'design.assemble');
   const card = page.locator('[data-add-feature="hands"]');
   await expect(card).toBeEnabled();
   await card.click();
