@@ -67,7 +67,10 @@ test('a morph is refused on a path another movement already shapes, and says whi
   await load(page,'basic');await part(page,'Eyelids','controls');
   await page.locator('[data-method="eyeOpen"]').selectOption('morph');
   await expect(page.locator('.rig-instruction')).toContainText('already shaped by Eye Squint, which a morph cannot share');
-  await expect(page.locator('[data-method="eyeOpen"]')).toHaveValue('translateY','and the movement is left as it was');
+  // `scaleY`, because a lid is the eye's own ellipse squashed to a sliver on
+  // the rim it swings from and *scaled* about that rim (docs/EYE_BUILDS.md).
+  // What this test is about is that the refusal left the method alone.
+  await expect(page.locator('[data-method="eyeOpen"]')).toHaveValue('scaleY','and the movement is left as it was');
 });
 
 test('Eye Open morph preserves closed-zero/open-one orientation on real paths',async({page})=>{
@@ -92,7 +95,10 @@ test('method switching preserves manual bindings and cleans only owned metadata'
   // The face's own. A generated pair of hands carries two hundred more — a key
   // per part per pose per view — and none of them is the mouth's to lose.
   const faceKeys=(document)=>document.shapeKeys.map(key=>key.id).filter(id=>!/^hand(Left|Right)-/.test(id));
-  expect(faceKeys(model)).toEqual(['lidUpperLeft-eyeSquint','lidUpperLeft-eyeCurve','lidLowerLeft-eyeSquint','lidLowerLeft-eyeCurve','lidUpperRight-eyeSquint','lidUpperRight-eyeCurve','lidLowerRight-eyeSquint','lidLowerRight-eyeCurve','mouth-open','mouth-smile','mouth-frown','mouth-round','mouth-skull','teeth-skull','tongue-skull','teeth-open','teeth-show','teeth-follow','teeth-round','tongue-open','tongue-show','tongue-follow','tongue-round','head-jaw']);
+  // The eight crease shapes ride with the lids': a closed cartoon eye is a
+  // crease, and the lids are fill-only now that they are slivers on the rim
+  // rather than slabs behind a socket (docs/EYE_BUILDS.md).
+  expect(faceKeys(model)).toEqual(['lidUpperLeft-eyeSquint','lidUpperLeft-eyeCurve','lidLowerLeft-eyeSquint','lidLowerLeft-eyeCurve','lidUpperRight-eyeSquint','lidUpperRight-eyeCurve','lidLowerRight-eyeSquint','lidLowerRight-eyeCurve','creaseUpperLeft-eyeSquint','creaseUpperLeft-eyeCurve','creaseLowerLeft-eyeSquint','creaseLowerLeft-eyeCurve','creaseUpperRight-eyeSquint','creaseUpperRight-eyeCurve','creaseLowerRight-eyeSquint','creaseLowerRight-eyeCurve','mouth-open','mouth-smile','mouth-frown','mouth-round','mouth-skull','teeth-skull','tongue-skull','teeth-open','teeth-show','teeth-follow','teeth-round','tongue-open','tongue-show','tongue-follow','tongue-round','head-jaw']);
   expect(model.elements.mouth.bindings.scaleY).toBeUndefined();
 
   // Switching a control's method takes its shapes with it, and leaves the
@@ -101,7 +107,7 @@ test('method switching preserves manual bindings and cleans only owned metadata'
   // movement of the mouth, so no control owns them and no method switch takes
   // them away (`docs/MASCOT_TEMPLATE.md`).
   await page.locator('[data-method="smile"]').selectOption('translateY');model=await state(page);
-  expect(faceKeys(model)).toEqual(['lidUpperLeft-eyeSquint','lidUpperLeft-eyeCurve','lidLowerLeft-eyeSquint','lidLowerLeft-eyeCurve','lidUpperRight-eyeSquint','lidUpperRight-eyeCurve','lidLowerRight-eyeSquint','lidLowerRight-eyeCurve','mouth-open','mouth-round','mouth-skull','teeth-skull','tongue-skull','teeth-open','teeth-show','teeth-follow','teeth-round','tongue-open','tongue-show','tongue-follow','tongue-round','head-jaw']);
+  expect(faceKeys(model)).toEqual(['lidUpperLeft-eyeSquint','lidUpperLeft-eyeCurve','lidLowerLeft-eyeSquint','lidLowerLeft-eyeCurve','lidUpperRight-eyeSquint','lidUpperRight-eyeCurve','lidLowerRight-eyeSquint','lidLowerRight-eyeCurve','creaseUpperLeft-eyeSquint','creaseUpperLeft-eyeCurve','creaseLowerLeft-eyeSquint','creaseLowerLeft-eyeCurve','creaseUpperRight-eyeSquint','creaseUpperRight-eyeCurve','creaseLowerRight-eyeSquint','creaseLowerRight-eyeCurve','mouth-open','mouth-round','mouth-skull','teeth-skull','tongue-skull','teeth-open','teeth-show','teeth-follow','teeth-round','tongue-open','tongue-show','tongue-follow','tongue-round','head-jaw']);
   expect(model.elements.mouth.bindings.translateY.generatedBy.control).toBe('smile');
 
   // One legacy morph per element, still: once Smile owns the element's shape,
@@ -127,7 +133,7 @@ test('method switching preserves manual bindings and cleans only owned metadata'
   await expect(page.locator('[data-method="mouthOpen"]')).toHaveValue('scaleY');
 
   await page.locator('[data-method="mouthOpen"]').selectOption('scaleY');model=await state(page);
-  expect(faceKeys(model)).toEqual(['lidUpperLeft-eyeSquint','lidUpperLeft-eyeCurve','lidLowerLeft-eyeSquint','lidLowerLeft-eyeCurve','lidUpperRight-eyeSquint','lidUpperRight-eyeCurve','lidLowerRight-eyeSquint','lidLowerRight-eyeCurve','mouth-skull','teeth-skull','tongue-skull','teeth-open','teeth-show','teeth-follow','teeth-round','tongue-open','tongue-show','tongue-follow','tongue-round','head-jaw'],'the teeth, the tongue and the jaw belong to their own controls, the lids to theirs, and the head-follow to none');
+  expect(faceKeys(model)).toEqual(['lidUpperLeft-eyeSquint','lidUpperLeft-eyeCurve','lidLowerLeft-eyeSquint','lidLowerLeft-eyeCurve','lidUpperRight-eyeSquint','lidUpperRight-eyeCurve','lidLowerRight-eyeSquint','lidLowerRight-eyeCurve','creaseUpperLeft-eyeSquint','creaseUpperLeft-eyeCurve','creaseLowerLeft-eyeSquint','creaseLowerLeft-eyeCurve','creaseUpperRight-eyeSquint','creaseUpperRight-eyeCurve','creaseLowerRight-eyeSquint','creaseLowerRight-eyeCurve','mouth-skull','teeth-skull','tongue-skull','teeth-open','teeth-show','teeth-follow','teeth-round','tongue-open','tongue-show','tongue-follow','tongue-round','head-jaw'],'the teeth, the tongue and the jaw belong to their own controls, the lids to theirs, and the head-follow to none');
   expect(model.elements.mouth.bindings.scaleY.generatedBy.control).toBe('mouthOpen');
   expect(model.elements.mouth.bindings.opacity.expression).toBe('.5','a manual binding is nobody else\'s to clean up');
   expect(model.elements.mouth.morph.generatedBy.control).toBe('smile');
