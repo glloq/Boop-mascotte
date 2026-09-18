@@ -125,11 +125,26 @@ test('@critical a mascot surface lines pieces up, zooms to them, and can isolate
   await expect(page.locator('.design-toolbar')).toBeHidden();
 
   // Zoom to what is in hand, offered only while there is something in hand.
+  //
+  // What is asserted is that the pair *fills the view*, not that the number
+  // went up: this screen now opens framed on a hand (UIR-15,
+  // `app/workspaces/design.js`), so zooming to two pupils is a zoom **out**
+  // from 368% to 246%, and a test comparing the two scales would call that a
+  // failure. The promise was always "fill the view with what is selected".
   const zoom = page.locator('.canvas-toolbar [data-zoom="selection"]');
   await expect(zoom).toBeVisible();
   const before = await page.evaluate(() => window.__BOOP_E2E__.panView(0, 0).scale);
   await zoom.click();
-  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.panView(0, 0).scale)).toBeGreaterThan(before);
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.panView(0, 0).scale)).not.toBe(before);
+  const framed = await page.evaluate(() => {
+    const box = (id) => document.querySelector(`#canvas svg svg #${id}`)?.getBoundingClientRect() || null;
+    const canvas = document.querySelector('#canvas').getBoundingClientRect();
+    const left = box('pupilLeft'), right = box('pupilRight');
+    if (!left || !right) return null;
+    return { span: Math.max(left.right, right.right) - Math.min(left.left, right.left), canvas: canvas.width };
+  });
+  expect(framed, 'both pupils are on the canvas').toBeTruthy();
+  expect(framed.span / framed.canvas, 'and the pair fills the view').toBeGreaterThan(0.4);
 
   // Isolate is a `more` action, so on this surface it is one press further
   // down rather than absent — the whole point of folding instead of dropping.

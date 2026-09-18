@@ -13,7 +13,11 @@
 import { createFacePartCommands } from '../../core/face-library/face-part-commands.js';
 import { createFaceLibraryPanel } from '../../rig-editor/semantic-parts/face-library-panel.js';
 import { createHandStatesPanel } from '../../ui/hands/hand-states.js';
-import { HAND_LOOKS } from '../../core/hands/hand-style-art.js';
+import { HAND_LOOKS, handElementId } from '../../core/hands/hand-style-art.js';
+import { HAND_REVEAL_SECONDS, handShowParameterName } from '../../../runtime/hands.js';
+
+/** How long a hand takes to come out from behind the head, in milliseconds. */
+const HAND_REVEAL_MS = Math.round(HAND_REVEAL_SECONDS * 1000);
 import { createHandCommands } from '../../core/hands/hand-commands.js';
 import { createHandStateCommands } from '../../core/hands/hand-state-commands.js';
 import { handStateElementId } from '../../core/hands/hand-state-model.js';
@@ -22,6 +26,7 @@ import { addHandGesture, gestureFromFile, gestureIdFromName, handSetFromFile, ha
 /**
  * @param {object} deps
  * @param {() => void} deps.applyPreview     the runtime redraws once the artwork has moved
+ * @param {(name: string, value: number|null) => void} deps.setLiveParam  session pose, never the document
  * @param {(side: string, style: string) => boolean} deps.drawHandStyle  app/hand-artwork.js
  * @param {(name: string, text: string) => void} deps.download
  * @param {(action: string, id: string) => void} deps.runPieceAction  app/editor-app.js
@@ -30,7 +35,7 @@ const HAND_LOOK_LIST = Object.freeze(Object.values(HAND_LOOKS).map((look) => Obj
 
 export function createDesignWorkspace({
   store, history, shell, canvas, editorContext, navigate, setStatus,
-  revealInspector, setDesignTool, openColour, loadTemplate, applyPreview, drawHandStyle, download,
+  revealInspector, setDesignTool, openColour, loadTemplate, applyPreview, setLiveParam = () => {}, drawHandStyle, download,
   // The pair, drawn where the hands are designed (audit §16, op. 11).
   drawHandPair,
   runPieceAction
@@ -55,6 +60,8 @@ export function createDesignWorkspace({
   };
   const handStates = createHandStatesPanel(shell.handStatesEl, {
     document: () => store.getDocument(),
+    // Picking a state of the other hand turns the canvas to that hand.
+    onSelect: (state) => { if (state && handsFramed) frameHand(); },
     // Drawing a pair used to be three actions: a route to Rig ▸ Controls and a
     // second button there. What a hand looks like is Design's question; where it
     // sits is Rig's, and that route stays below (audit §16, op. 11).
@@ -135,14 +142,80 @@ export function createDesignWorkspace({
     onSelect: (id) => { if (id) editorContext.update({ selectedId: id }); }
   });
 
+  /**
+   * The canvas on Design ▸ Hands shows the hand being designed (UIR-15).
+   *
+   * It used to show the face, at 58% of the window, with the hands **behind
+   * its head** — where they rest until something asks for them
+   * (docs/HAND_RIGGING.md). So the screen for designing a hand spent most of
+   * the window on a drawing of the thing it is not about, and on none of the
+   * thing it is.
+   *
+   * Two session-only acts, both of them things an author can already do by
+   * hand: bring the hands out, and frame one. Nothing is authored — the show
+   * parameters are a live pose, like a puppet handle or the head-pose pad
+   * (docs/STILL_WHILE_DESIGNING.md, *What does not stop*), and the view is not
+   * part of a project at all.
+   */
+  let handsFramed = false, settling = null;
+  function frameHand() {
+    const state = store.getDocument();
+    if (!state?.svgMarkup || !state.hands) return false;
+    // Out from behind the head, both of them: the pair is drawn as a pair and
+    // an author comparing the two wants to see the two.
+    for (const side of ['left', 'right']) setLiveParam(handShowParameterName(side), 1);
+    applyPreview();
+    // The one in hand, or the left, which is the one the panel opens on. A
+    // single hand rather than the pair, because the gap between two hands is
+    // the width of a body, and framing that is where this screen started.
+    const id = handElementId(handStates.selected()?.side || 'left');
+    handsFramed = Boolean(canvas.frameElements?.([id], 0.22));
+    /**
+     * And again once it has arrived.
+     *
+     * A hand does not appear at its rest place, it travels there over
+     * `HAND_REVEAL_SECONDS` so that it reads as coming out from behind the
+     * head (docs/HAND_RIGGING.md). Framing the first frame of that framed a
+     * hand still behind the head and left the view pointing under the chin —
+     * the hand then walked out of shot. So the view is taken again when the
+     * travel is over, and once more a beat later in case the loop was slow.
+     *
+     * Both stand down if the view is no longer the one they set. An author who
+     * arrives and immediately presses *Fit*, *Selection* or the wheel has said
+     * where they want to look, and a re-frame arriving half a second later to
+     * undo that is worse than never framing at all.
+     */
+    clearTimeout(settling);
+    const again = (delay) => setTimeout(() => {
+      // The canvas says whether the view is still the framing it was given.
+      // A *Fit*, a wheel or a zoom-to-selection in the meantime drops it, and
+      // this stands down rather than pulling the author back.
+      if (handsFramed && canvas.isFraming?.([id])) canvas.frameElements?.([id], 0.22);
+    }, delay);
+    settling = again(HAND_REVEAL_MS + 60);
+    again(HAND_REVEAL_MS + 260);
+    return handsFramed;
+  }
+  /** Leaving puts the hands back where the project says they rest. */
+  function unframeHand() {
+    clearTimeout(settling);
+    if (!handsFramed) return;
+    handsFramed = false;
+    for (const side of ['left', 'right']) setLiveParam(handShowParameterName(side), null);
+    applyPreview();
+    canvas.fitToCanvas?.();
+  }
+
   return {
     id: 'design',
     surfaces: ['hands', 'create'],
     panels: { handStates, faceLibrary, facePartCommands },
     targets: { handStates: () => handStates.render(), faceLibrary: () => faceLibrary.render() },
-    enter() {},
-    leave() {},
+    enter(surface) { if (surface === 'hands') frameHand(); else unframeHand(); },
+    leave() { unframeHand(); },
     render() { handStates.render(); faceLibrary.render(); },
+    /** Re-frame after a press that changed which hand is in hand. */
+    frameHand,
     destroy() { handStates.destroy?.(); }
   };
 }

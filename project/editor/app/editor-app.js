@@ -325,6 +325,12 @@ export function createEditorApp({ root = document.getElementById('app'), recover
     openColour: (options) => colourPicker.open(options),
     loadTemplate: (kind) => projectService.loadTemplate(kind),
     applyPreview: () => preview.apply(),
+    // Session pose only: Design ▸ Hands brings the pair out from behind the
+    // head so the screen can show what it is about (docs/HAND_RIGGING.md).
+    // `null` clears rather than zeroes: zero is "tucked behind the head", and
+    // leaving the screen should give the parameter back to the project, not
+    // decide it.
+    setLiveParam: (name, value) => (value === null ? preview.clearLiveParam(name) : preview.setLiveParam(name, value)),
     drawHandStyle: (side, style) => handArtwork.addStyle(side, style),
     drawHandPair: (look) => handArtwork.drawPair(look),
     download: browserDownload,

@@ -37,7 +37,12 @@ export const SURFACES = Object.freeze(['hands', 'create', 'rig', 'expressions', 
  * `surface` is the composition it mounts; `sections` names the Face Setup
  * sections it is the screen for, which is how one 342-control accordion becomes
  * four screens without moving a single panel (UIR-07 … UIR-10 move them);
- * `advanced` marks a route the simple path does not need to know about.
+ * `advanced` marks a route the simple path does not need to know about;
+ * `layout` is how much of the window its panels want, in pixels
+ * (`ui/panel-split.js`), because the one `300px · 1fr · 310px` every screen
+ * used to get was a compromise across screens that want opposite things — a
+ * drawing surface wants the canvas, a list of drawings wants the list. An
+ * author's own drag overrides it, per screen, for the session.
  */
 export const MODES = Object.freeze({
   /* ── Design: what does the mascot look like? ─────────────────────────────── */
@@ -46,23 +51,23 @@ export const MODES = Object.freeze({
   // first thing an author brings and the last thing they change. It is not
   // `advanced` any more for the same reason -- a screen the simple set has to
   // fold away cannot be the screen everybody lands on.
-  'design.artwork': { id: 'design.artwork', label: 'Artwork', workspace: 'design', surface: 'create', navigable: true },
+  'design.artwork': { id: 'design.artwork', label: 'Artwork', workspace: 'design', surface: 'create', navigable: true, layout: { left: 300, right: 340 } },
   // Hands are designed away from the face (docs/HAND_STYLES.md): a library of
   // drawings an author owns, not a section inside somebody else's panel.
-  'design.hands': { id: 'design.hands', label: 'Hands', workspace: 'design', surface: 'hands', navigable: true },
+  'design.hands': { id: 'design.hands', label: 'Hands', workspace: 'design', surface: 'hands', navigable: true, layout: { left: 400, right: 250 } },
 
   /* ── Rig: how can its face move? ─────────────────────────────────────────── */
-  'rig.assign': { id: 'rig.assign', label: 'Assign', workspace: 'rig', surface: 'rig', navigable: true, sections: ['face-parts'] },
+  'rig.assign': { id: 'rig.assign', label: 'Assign', workspace: 'rig', surface: 'rig', navigable: true, sections: ['face-parts'], layout: { left: 360, right: 330 } },
   // Movements, gaze and the on-canvas controls answer one question — what moves
   // and how far — so they are one screen. Hand placement and reach ride here
   // too, marked advanced: where a hand *is* is a movement; what it is *drawn
   // from* is Design (§6).
-  'rig.controls': { id: 'rig.controls', label: 'Controls', workspace: 'rig', surface: 'rig', navigable: true, sections: ['movements', 'face-states', 'gaze', 'handles', 'hands'] },
-  'rig.head2d': { id: 'rig.head2d', label: 'Head 2.5D', workspace: 'rig', surface: 'rig', navigable: true, sections: ['head-pose'] },
-  'rig.deform': { id: 'rig.deform', label: 'Deform', workspace: 'rig', surface: 'rig', navigable: true, advanced: true, sections: ['holding', 'warp', 'all-parts'] },
+  'rig.controls': { id: 'rig.controls', label: 'Controls', workspace: 'rig', surface: 'rig', navigable: true, sections: ['movements', 'face-states', 'gaze', 'handles', 'hands'], layout: { left: 400, right: 320 } },
+  'rig.head2d': { id: 'rig.head2d', label: 'Head 2.5D', workspace: 'rig', surface: 'rig', navigable: true, sections: ['head-pose'], layout: { left: 300, right: 300 } },
+  'rig.deform': { id: 'rig.deform', label: 'Deform', workspace: 'rig', surface: 'rig', navigable: true, advanced: true, sections: ['holding', 'warp', 'all-parts'], layout: { left: 380, right: 340 } },
 
   /* ── Animate: what can its face do? ──────────────────────────────────────── */
-  'animate.expressions': { id: 'animate.expressions', label: 'Expressions', workspace: 'animate', surface: 'expressions', navigable: true },
+  'animate.expressions': { id: 'animate.expressions', label: 'Expressions', workspace: 'animate', surface: 'expressions', navigable: true, layout: { left: 340, right: 320 } },
   'animate.motions': { id: 'animate.motions', label: 'Motions', workspace: 'animate', surface: 'animate', navigable: true },
   // The Timeline is the detailed editor *of a motion*, never a second way to
   // start one (§9). It is the same surface with the dock open -- `dock` names

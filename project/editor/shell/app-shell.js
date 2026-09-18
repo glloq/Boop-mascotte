@@ -7,6 +7,7 @@
  * side-nav        the contextual column of the screen that is open
  * canvas-column   the one surface every screen shares
  * inspector-host  one inspector, an adapter per kind of selection
+ * panel-splitter  the two boundaries an author can drag
  * bottom-dock     the surface a screen opens under the canvas
  * overlays        Home, the status line, Problems, the dialogs
  * ```
@@ -33,6 +34,8 @@ import { canvasColumnMarkup, wireCanvasColumn } from './canvas-column.js';
 import { inspectorHostMarkup, inspectorHosts } from './inspector-host.js';
 import { bottomDockMarkup, wireBottomDock } from './bottom-dock.js';
 import { exportPanelMarkup, overlaysMarkup, wireOverlays } from './overlays.js';
+import { panelSplitterMarkup, wirePanelSplitter } from './panel-splitter.js';
+import { MODES } from '../ui/task-router.js';
 
 export function createAppShell(root) {
   const preferences = readUiPreferences();
@@ -44,6 +47,7 @@ export function createAppShell(root) {
       ${sideNavMarkup(preferences.openSections)}
       ${canvasColumnMarkup()}
       ${inspectorHostMarkup()}
+      ${panelSplitterMarkup()}
     </main>
     ${bottomDockMarkup()}${exportPanelMarkup()}`;
 
@@ -73,6 +77,9 @@ export function createAppShell(root) {
     const key = side === 'left' ? 'leftCollapsed' : side === 'right' ? 'rightCollapsed' : 'timelineCollapsed';
     preferences[key] = !preferences[key];
     root.classList.toggle(`${side}-collapsed`, preferences[key]);
+    // A collapsed column is 42px of its own, and its handle would otherwise
+    // sit where the column used to end, over the canvas and grabbing nothing.
+    if (side !== 'timeline') splitter.paint();
     if (side === 'timeline') {
       dock.syncToggle();
       root.dispatchEvent(new CustomEvent('timelinetoggle', { detail: { open: !preferences.timelineCollapsed } }));
@@ -86,6 +93,14 @@ export function createAppShell(root) {
   root.classList.toggle('right-collapsed', preferences.rightCollapsed);
   root.classList.toggle('timeline-collapsed', preferences.timelineCollapsed);
 
+  /**
+   * How wide the two columns are, per screen (UIR-15, `ui/panel-split.js`).
+   *
+   * Created before the nav, because `applyMode` repaints it and the nav
+   * applies a mode as soon as it is built.
+   */
+  const splitter = wirePanelSplitter({ root, mode: () => MODES[root.dataset.mode] || null });
+
   const nav = createWorkspaceNav({
     root, preferences, savePreferences,
     // The nav owns the fold; the project bar owns the label that offers it.
@@ -96,6 +111,9 @@ export function createAppShell(root) {
     enter: (mode) => {
       if (mode.dock) dock.openDock(mode.dock);
       if (mode.panel) root.querySelector(`#${mode.panel}`)?.closest('details')?.setAttribute('open', '');
+      // The screen's own column widths, or whatever the author dragged them to
+      // on this screen last.
+      splitter.paint();
     },
     resetScroll: () => { hosts.leftSidebarEl.scrollTop = 0; const right = root.querySelector('.panel-right'); if (right) right.scrollTop = 0; }
   });
@@ -104,6 +122,8 @@ export function createAppShell(root) {
 
   return {
     ...hosts, ...canvas, ...dock, ...overlays, ...topbar, ...nav,
+    /** The column widths, for a test or a caller that changes the window. */
+    repaintSplit: () => splitter.paint(),
     /** Section headings say what is inside without opening it. */
     setSetupSections: (sections) => setSetupSections(root, sections),
     /**
