@@ -12,6 +12,7 @@ import { createArtworkCommands } from '../core/commands/artwork-commands.js';
 import { artboardAround, artboardOverflow, readArtboard } from '../core/artwork/artboard.js';
 import { createTransformGizmo } from './transform-gizmo.js';
 import { alignBoxes, boxFromCorners, distributeBoxes, marqueeSelection, unionBox, vectorInSpace } from '../core/artwork/arrange.js';
+import { poseBetween, removePose, transformFromChannels } from '../core/artwork/pose-transform.js';
 import { selectMany, selectOnly, toggleSelected } from '../core/state/selection.js';
 import { matrixToString } from '../../runtime/runtime.js';
 import { createPreviewOrder } from '../core/preview-runtime/preview-order.js';
@@ -1211,8 +1212,26 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
     const box = node && selectionBox(node);
     const ctm = parentSpace(node);
     if (!box || !ctm) return null;
+    /**
+     * The transform the piece is **drawn** with, and what the session is
+     * adding to the authored one (`core/artwork/pose-transform.js`).
+     *
+     * Artwork stays posable while it is designed — the puppet handles are on,
+     * the head-pose pad turns the head — so `baseTransform` is the rest pose
+     * and not where the part is. Reading it drew the box around where the nose
+     * *would* be if the head were straight, seventy-four pixels from the nose.
+     *
+     * `lastRequested` is the channel array the canvas wrote to the DOM for the
+     * last frame: the renderer's own numbers, not a matrix parsed back out of
+     * an attribute. A deformer hierarchy resolves to a matrix instead and has
+     * no channels, and a piece no frame has reached yet has none either; both
+     * fall back to the authored transform, which is what they are drawn with.
+     */
     const authored = store.getDocument().elements?.[selectedId]?.baseTransform;
-    const transform = authored ? { ...authored } : parseTransform(SVG.adopt(node));
+    const base = authored ? { ...authored } : parseTransform(SVG.adopt(node));
+    const drawn = transformFromChannels(lastRequested.get(selectedId));
+    const pose = drawn ? poseBetween(drawn, base) : null;
+    const transform = drawn || base;
     // An unconfigured pivot is (0, 0) — the corner of the artwork's own
     // coordinates, usually nowhere near the part. Rotating or scaling around
     // that is never what the author means, so the middle of the selection is
@@ -1221,7 +1240,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       transform.pivotX = box.x + box.width / 2;
       transform.pivotY = box.y + box.height / 2;
     }
-    return { id: selectedId, node, box, transform, scale: Math.hypot(ctm.a, ctm.b) || 1 };
+    return { id: selectedId, node, box, transform, pose, scale: Math.hypot(ctm.a, ctm.b) || 1 };
   };
 
   // Compact mode toolbar. It only exists while something is selected, so it
@@ -1308,12 +1327,25 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       const id = drag.id;
       documentModel.getNode(id)?.setAttribute('transform', transformString(transform));
       documentModel.captureAuthoringNode(id);
+      /**
+       * The drag leaves the piece where the pointer put it; the *project*
+       * records that place without the pose that was on it.
+       *
+       * The gizmo works in drawn coordinates, because that is where the
+       * author can see it. `baseTransform` is the resting artwork, so
+       * committing the drawn transform straight into it would write the head
+       * turn into the drawing: the part would be displaced once by the
+       * authored value and again by the turn, and would fly off as soon as
+       * the head came back to centre. At rest the pose is identity and this
+       * is the same number as before (`core/artwork/pose-transform.js`).
+       */
+      const authored = finiteTransform(removePose(transform, drag.pose));
       // On a mascot surface the gesture goes where a typed field goes, so a
       // linked pair follows a drag exactly as it follows a number (audit §2.2).
-      if (pieces?.commit?.(id, finiteTransform(transform))) return;
+      if (pieces?.commit?.(id, authored)) return;
       const current = store.getDocument();
       commands.syncSvg({
-        elements: { ...current.elements, [id]: { ...(current.elements[id] || {}), baseTransform: finiteTransform(transform) } },
+        elements: { ...current.elements, [id]: { ...(current.elements[id] || {}), baseTransform: authored } },
         svgMarkup: documentModel.serialize()
       }, { domains: ['artwork'], source: 'canvas' });
     }
@@ -4285,8 +4317,23 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       Object.entries(frame.matrices || {}).forEach(([id, matrix]) => {const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const next=matrixToString(matrix),previous=lastApplied.get(node)||{};if(previous.matrix!==next){wrapper.attr('transform',next);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,matrix:next,transform:null});}});
       // `scale 0` means collapsed, so only a missing or broken number falls back
       // to 1 -- `|| 1` kept a part the rig had closed open on the canvas alone.
-      Object.entries(frame.transforms || {}).forEach(([id, transform]) => {if(frame.matrices?.[id])return;const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const next=[transform.x,transform.y,transform.rotation,transform.scaleX,transform.scaleY,transform.pivotX,transform.pivotY].map((value,index)=>{const fallback=index===3||index===4?1:0;return value==null||!Number.isFinite(Number(value))?fallback:Number(value);});lastRequested.set(id,[...next]);const previous=lastApplied.get(node)||{};if(!previous.transform||next.some((value,index)=>Math.abs(value-previous.transform[index])>1e-6)){const [x,y,rotation,scaleX,scaleY,pivotX,pivotY]=next;wrapper.attr('transform',`translate(${x} ${y}) rotate(${rotation} ${pivotX} ${pivotY}) translate(${pivotX} ${pivotY}) scale(${scaleX} ${scaleY}) translate(${-pivotX} ${-pivotY})`);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,transform:next});}});
+      // Whether this frame moved the piece the author has selected, so its
+      // selection box can follow it. Recorded rather than compared afterwards
+      // because `lastRequested` is overwritten in the same pass.
+      let movedSelection = false;
+      Object.entries(frame.transforms || {}).forEach(([id, transform]) => {if(frame.matrices?.[id])return;const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const next=[transform.x,transform.y,transform.rotation,transform.scaleX,transform.scaleY,transform.pivotX,transform.pivotY].map((value,index)=>{const fallback=index===3||index===4?1:0;return value==null||!Number.isFinite(Number(value))?fallback:Number(value);});lastRequested.set(id,[...next]);const previous=lastApplied.get(node)||{};if(!previous.transform||next.some((value,index)=>Math.abs(value-previous.transform[index])>1e-6)){const [x,y,rotation,scaleX,scaleY,pivotX,pivotY]=next;wrapper.attr('transform',`translate(${x} ${y}) rotate(${rotation} ${pivotX} ${pivotY}) translate(${pivotX} ${pivotY}) scale(${scaleX} ${scaleY}) translate(${-pivotX} ${-pivotY})`);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,transform:next});if(id===selectedId)movedSelection=true;}});
       if (puppet) schedulePuppetPlacement();
+      /**
+       * The selection box goes where the frame just put the piece.
+       *
+       * A mascot being designed is posable, so a frame moves the artwork under
+       * a box that was drawn for the pose before it: turning the head left the
+       * nose painted seventy-four pixels from its own handles
+       * (`core/artwork/pose-transform.js`). Only when this frame actually moved
+       * the selected piece, and never mid-drag, where the pointer owns the box
+       * and the frame is a stale account of where the piece was.
+       */
+      if (movedSelection && !gizmo.dragging) gizmo.render();
       Object.entries(frame.opacity || {}).forEach(([id, opacity]) => {const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const previous=lastApplied.get(node)||{},next=Number(opacity);if(!Number.isFinite(previous.opacity)||Math.abs(next-previous.opacity)>1e-6){wrapper.attr('opacity',next);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,opacity:next});}});
       // Depth reaches the paint order here exactly as it does in the exported
       // mascot: a hand behind the body, the far thumb behind the palm. The

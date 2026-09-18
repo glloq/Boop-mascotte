@@ -23,7 +23,10 @@ const SCALE_HANDLES = new Set([...CORNER_HANDLES, ...EDGE_HANDLES]);
  * @param {object} options
  * @param {Element} options.layer     where the overlay is drawn
  * @param {Element} options.surface   where pointer events are listened for
- * @param {() => ({ id, box, transform, scale }|null)} options.getTarget
+ * @param {() => ({ id, box, transform, pose, scale }|null)} options.getTarget
+ *        `transform` is what the piece is *drawn* with and `pose` what the
+ *        session adds to its authored transform, so `onCommit` can author the
+ *        one without the other.
  * @param {(transform: object) => void} options.onPreview  transient, no history
  * @param {(transform: object) => void} options.onCommit   one history command
  * @param {(point: {x,y}) => {x,y}} options.toCanvas       client → canvas point
@@ -81,6 +84,11 @@ export function createTransformGizmo({ layer, surface, getTarget, onPreview, onC
     if (handle === 'body' && !canDragBody(event)) return false;
     drag = beginGizmoDrag({ mode: dragMode, handle, transform: item.transform, box: item.box, point, scale: item.scale || 1 });
     drag.id = item.id;
+    // What the session was adding to the authored transform when the drag
+    // began, so the commit can take it back out again rather than author it
+    // (`core/artwork/pose-transform.js`). Frozen here on purpose: the pose must
+    // not be re-read mid-drag, because the drag itself is writing the DOM.
+    drag.pose = item.pose || null;
     surface?.setPointerCapture?.(event.pointerId);
     event.preventDefault();
     return true;
