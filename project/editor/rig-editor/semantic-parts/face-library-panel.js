@@ -9,9 +9,8 @@
  *  └────────┘ └────────┘ └────────┘ └────────┘
  * ```
  *
- * A hundred and fifty drawings ship with the editor and, until this panel, not
- * one of them could be put on a face: `facePartCommands.replace()` had no
- * caller anywhere. The Character Builder that used to call it was removed and
+ * The drawings ship with the editor and, until this panel, not one of them
+ * could be put on a face: `facePartCommands.replace()` had no caller anywhere. The Character Builder that used to call it was removed and
  * nothing took its place, so *Add a part* offered three things (eyebrows,
  * eyelids, hands) and the twenty-one pairs of eyes, twenty mouths, fifteen sets
  * of ears and six heads of hair were unreachable.
@@ -37,8 +36,9 @@ import { esc } from '../../ui/escape-html.js';
  * @param {object} deps.commands              `createFacePartCommands` (core/face-library)
  * @param {(text: string, tone?: string) => void} [deps.onStatus]
  * @param {(id: string) => void} [deps.onSelect]  select the root the install made
+ * @param {(id: string|null) => void} [deps.onPreview]  frame where a card would land, or none
  */
-export function createFaceLibraryPanel(host, store, { commands, onStatus = () => {}, onSelect = () => {} } = {}) {
+export function createFaceLibraryPanel(host, store, { commands, onStatus = () => {}, onSelect = () => {}, onPreview = () => {} } = {}) {
   const sections = rememberOpen(host);
   const doc = () => store.getDocument();
   // Which category is open, and nothing else. No project stores it, for the
@@ -74,9 +74,29 @@ export function createFaceLibraryPanel(host, store, { commands, onStatus = () =>
   host.addEventListener('click', (event) => {
     const button = event.target.closest('button');
     if (!button) return;
-    if (button.dataset.faceLibraryCategory) { category = button.dataset.faceLibraryCategory; notice = null; render(); return; }
-    if (button.dataset.faceLibraryWear) wear(button.dataset.faceLibraryWear);
+    if (button.dataset.faceLibraryCategory) { category = button.dataset.faceLibraryCategory; notice = null; onPreview(null); render(); return; }
+    if (button.dataset.faceLibraryWear) { onPreview(null); wear(button.dataset.faceLibraryWear); }
   });
+
+  /**
+   * Point at a card, see where that drawing lands.
+   *
+   * The preview on a card is the drawing on the *template's* head. Which is
+   * the one thing it cannot tell an author: how big it will be on *this* head,
+   * and where. So pointing at one frames the landing on the canvas, and the
+   * answer arrives before the press rather than after it.
+   *
+   * On focus too, and not only on hover: the cards are reachable by keyboard,
+   * and a guide only a mouse can ask for is a guide half the authors never see.
+   */
+  const preview = (event) => {
+    const card = event.target.closest?.('[data-face-library-card]');
+    onPreview(card?.dataset.faceLibraryCard || null);
+  };
+  host.addEventListener('pointerover', preview);
+  host.addEventListener('focusin', preview);
+  host.addEventListener('pointerleave', () => onPreview(null));
+  host.addEventListener('focusout', (event) => { if (!host.contains(event.relatedTarget)) onPreview(null); });
 
   function render() {
     const state = doc();

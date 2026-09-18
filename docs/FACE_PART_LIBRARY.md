@@ -799,9 +799,17 @@ preset applies this way, so the face is the preset as designed and *Reset*
 puts a moved part back.
 
 `TEMPLATE_ROLE_BOXES` is the template's parts as the canvas measures them,
-written down so the template's layout can be derived without a browser;
-the browser test holds the live face to them within a pixel, so a change to
-the template artwork is a change here too.
+written down so the template's layout can be derived without a browser; a
+browser test (`tests/e2e/face-guides.spec.js`) holds the live face to them
+within a pixel, so a change to the template artwork is a change here too. That
+test is new, and it found the drift it was written to prevent: the two eye
+boxes were still the 92 x 135 of a group with its lids parked outside a socket,
+three times the 48 x 45 an eye is now (docs/EYE_BUILDS.md).
+
+The same fit is what the canvas draws as a **guide**: a dashed box where each
+missing part would go, and a frame where a card under the pointer will land
+(docs/FACE_GUIDES.md). Both go through `fitFacePart`, so a guide is a promise
+the install keeps rather than a second opinion about where things go.
 
 ## Custom parts
 

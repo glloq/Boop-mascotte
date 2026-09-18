@@ -10,6 +10,8 @@ import { SvgDocument } from '../core/svg-document/svg-document.js';
 import { lifecycleDiagnostics as diagnostics } from '../core/diagnostics/lifecycle-diagnostics.js';
 import { createArtworkCommands } from '../core/commands/artwork-commands.js';
 import { artboardAround, artboardOverflow, readArtboard } from '../core/artwork/artboard.js';
+import { faceGuides, ghostHead, landingBox } from '../core/face-library/face-guides.js';
+import { createFaceLayoutContext } from '../core/face-library/face-layout.js';
 import { createTransformGizmo } from './transform-gizmo.js';
 import { alignBoxes, boxFromCorners, distributeBoxes, marqueeSelection, unionBox, vectorInSpace } from '../core/artwork/arrange.js';
 import { poseBetween, removePose, transformFromChannels } from '../core/artwork/pose-transform.js';
@@ -339,6 +341,24 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
   let frameVisible = false;
 
   /**
+   * Where a face's parts go, for somebody who has not made one before
+   * (docs/FACE_GUIDES.md).
+   *
+   * A head somebody drew is a blank oval, and nothing on the canvas says a
+   * face *has* places. This draws them: a dashed box, named, where each
+   * missing part would land, at the size it would be on this head -- and the
+   * frame a library drawing is about to land in, while the card is under the
+   * pointer. Both come out of `fitFacePart`, the call the install itself
+   * makes, so the guide is a promise the install keeps.
+   */
+  const guideLayer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  guideLayer.setAttribute('data-face-guides', '');
+  guideLayer.setAttribute('pointer-events', 'none');
+  draw.node.append(guideLayer);
+  let guidesVisible = false;
+  let guideAsset = null;
+
+  /**
    * The matrix that puts chrome in the artwork's own units.
    *
    * Computed, not measured (`core/artwork/viewport.js`): the zoom and pan the
@@ -390,6 +410,86 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       }
     }
     return null;
+  }
+
+  /**
+   * The guides, redrawn.
+   *
+   * Measured through the canvas, derived in `face-guides.js`: the layout is
+   * built from what is on screen now, so a head an author has just resized
+   * moves its slots with it.
+   *
+   * The labels are drawn with `non-scaling-stroke`'s cousin for text -- a
+   * fixed size in screen pixels, undone from the artwork matrix -- because a
+   * guide that shrinks with the zoom is unreadable exactly when an author has
+   * zoomed out to see the whole face.
+   */
+  function renderGuides() {
+    guideLayer.replaceChildren();
+    if (!guidesVisible || !rootGroup?.node) return;
+    draw.node.append(guideLayer);
+    const matrix = artworkMatrix();
+    if (!matrix) return;
+    guideLayer.setAttribute('transform', matrixString(matrix));
+    const state = store.getDocument();
+    const layout = createFaceLayoutContext(state, (id) => wrapperFor(id)?.bbox() || null);
+    // Text at a fixed size on screen: the artwork matrix scales everything in
+    // this layer, so a label divides that scale back out.
+    const scale = matrixScale(matrix) || 1;
+    const label = (text, x, y, tone, anchor = 'start') => {
+      const node = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      node.setAttribute('class', `canvas-guide-label${tone ? ` canvas-guide-${tone}` : ''}`);
+      node.setAttribute('x', x); node.setAttribute('y', y);
+      node.setAttribute('text-anchor', anchor);
+      node.setAttribute('transform', `translate(${x} ${y}) scale(${1 / scale}) translate(${-x} ${-y})`);
+      node.textContent = text;
+      return node;
+    };
+    const frame = (box, tone) => {
+      const node = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      node.setAttribute('class', `canvas-guide-slot${tone ? ` canvas-guide-${tone}` : ''}`);
+      node.setAttribute('x', box.x); node.setAttribute('y', box.y);
+      node.setAttribute('width', box.width); node.setAttribute('height', box.height);
+      node.setAttribute('vector-effect', 'non-scaling-stroke');
+      return node;
+    };
+
+    // No head at all: there is no layout to put a slot in, so what the canvas
+    // offers is the one thing that is always true -- draw a head about this
+    // big, about here.
+    if (!layout?.headBox) {
+      const ghost = ghostHead(readArtboard(state.svgMarkup || ''));
+      if (!ghost) return;
+      const oval = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+      oval.setAttribute('class', 'canvas-guide-ghost');
+      oval.setAttribute('cx', ghost.cx); oval.setAttribute('cy', ghost.cy);
+      oval.setAttribute('rx', ghost.rx); oval.setAttribute('ry', ghost.ry);
+      oval.setAttribute('vector-effect', 'non-scaling-stroke');
+      // Inside the oval rather than under it: under it is off the working area
+      // on an artboard the ghost nearly fills, and a guide the canvas cuts in
+      // half is a guide that has said nothing.
+      guideLayer.append(oval, label('Draw a head, or press a head in the library', ghost.cx, ghost.cy, 'ghost', 'middle'));
+      guideLayer.dataset.faceGuides = 'ghost';
+      return;
+    }
+
+    const guides = faceGuides(layout, state);
+    for (const slot of guides.slots) {
+      guideLayer.append(frame(slot.box), label(slot.label, slot.box.x, slot.box.y - 4));
+    }
+    guideLayer.dataset.faceGuides = String(guides.slots.length);
+
+    // And where the drawing under the pointer will land, which is the question
+    // a card cannot answer on its own: the preview on it is drawn on the
+    // template's head, not on this one.
+    const landing = guideAsset ? landingBox(guideAsset, layout) : null;
+    if (landing) {
+      // Under the frame, where a slot's own name is above it: the landing is
+      // almost always over an empty slot, and two labels on the same line is
+      // two labels nobody can read.
+      guideLayer.append(frame(landing, 'landing'), label(`${guideAsset.name || 'This drawing'} lands here`, landing.x, landing.y + landing.height + 12, 'landing'));
+      guideLayer.dataset.faceGuideLanding = guideAsset.id || 'true';
+    } else delete guideLayer.dataset.faceGuideLanding;
   }
 
   function renderFrame() {
@@ -628,7 +728,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
   // edit's own round trip caught the document halfway -- taking a cut off left
   // its outline on the canvas until the next thing an author selected -- so
   // the frame follows the artwork instead of being told at the right moment.
-  store.subscribeDocument?.('artwork', () => renderFrame());
+  store.subscribeDocument?.('artwork', () => { renderFrame(); renderGuides(); });
 
   /* ── A warp's control points ───────────────────────────────────────────────
    *
@@ -3381,7 +3481,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
    */
   function placeChrome() {
     if (!rootGroup?.node) return;
-    renderFrame(); syncDrawLayer(); renderMultiSelection(); gizmo.render(); placePuppetHandles();
+    renderFrame(); renderGuides(); syncDrawLayer(); renderMultiSelection(); gizmo.render(); placePuppetHandles();
     // The deformation overlays are placed by the same matrix, and the resize
     // observer was forgetting them too.
     renderWarp(); renderMesh(); renderPins(); renderHandRig();
@@ -3907,6 +4007,24 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
     /* ── The working area (docs/VECTOR_EDITING.md) ────────────────────────── */
     /** Draw the artboard's edge, and the clip the selection is cut against. */
     showArtboardFrame(visible) { frameVisible = Boolean(visible); renderFrame(); return frameVisible; },
+    /* ── The guides (docs/FACE_GUIDES.md) ─────────────────────────────────── */
+    /**
+     * Draw where the face's missing parts go, or stop.
+     *
+     * On for the screens where an author is *making* a face; off everywhere
+     * else, because a dashed box over a finished mascot is clutter. A face
+     * with every part has no slots to draw, so turning it on costs nothing
+     * there either.
+     */
+    showFaceGuides(visible) { guidesVisible = Boolean(visible); renderGuides(); return guidesVisible; },
+    /**
+     * Frame where one library drawing will land, or none.
+     *
+     * The asset, not its id: the canvas asks it for a reference box and a
+     * mount point, which is what the fit is made of, and looking it up here
+     * would put a second copy of the library's own lookup in the canvas.
+     */
+    previewFacePart(asset) { guideAsset = asset && asset.referenceBox ? asset : null; renderGuides(); return Boolean(guideAsset); },
     /* ── Hand mode (VNX-19, docs/HAND_RIGGING.md) ─────────────────────────── */
     /**
      * Draw the anchor and the reach of one hand, or of none.

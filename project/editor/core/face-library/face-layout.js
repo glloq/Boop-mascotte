@@ -26,15 +26,18 @@ import { FACE_MOUNT_POINTS } from './face-part-model.js';
 /**
  * The template face's parts, as the canvas measures them (each shape's own
  * box, before its transform). Measured once in the browser and written down,
- * so the layout the template *is* can be derived without one; the browser
- * test holds the live face to these within a pixel.
+ * so the layout the template *is* can be derived without one; the browser test
+ * `face-guides.spec.js` holds the live face to these within a pixel.
  */
 export const TEMPLATE_ROLE_BOXES = Object.freeze({
   head: Object.freeze({ x: 25.89, y: 22, width: 188.21, height: 188 }),
-  // An eye is the whole group -- the lids parked outside the socket included,
-  // since a box is geometry and knows nothing of the clip that hides them.
-  leftEye: Object.freeze({ x: 37, y: 44.5, width: 92, height: 135 }),
-  rightEye: Object.freeze({ x: 111, y: 44.5, width: 92, height: 135 }),
+  // An eye is the whole group, and the whole group is now the eye: 48 x 45
+  // where it used to be 92 x 135, because the lids are no longer parked
+  // outside a socket waiting to be clipped into view (docs/EYE_BUILDS.md).
+  // A box is geometry and knew nothing of the clip that hid them, so every
+  // part fitted beside an eye was fitted beside a box three times its size.
+  leftEye: Object.freeze({ x: 59, y: 90.5, width: 48, height: 45 }),
+  rightEye: Object.freeze({ x: 133, y: 90.5, width: 48, height: 45 }),
   leftBrow: Object.freeze({ x: 60, y: 74.97, width: 50.5, height: 12.63 }),
   rightBrow: Object.freeze({ x: 129.5, y: 74.97, width: 50.5, height: 12.63 }),
   nose: Object.freeze({ x: 114.23, y: 143.4, width: 12.77, height: 9.2 }),
