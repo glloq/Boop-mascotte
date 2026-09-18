@@ -38,6 +38,8 @@ const ROLE_WORDS = Object.freeze({
   rightEye: ['Right eye', 'The eye on the right of the canvas.'],
   leftPupil: ['Left pupil', 'Inside the left eye. It moves when the mascot looks around.'],
   rightPupil: ['Right pupil', 'Inside the right eye.'],
+  leftIris: ['Left iris', 'The ring of colour the left pupil sits in. It travels with the pupil.'],
+  rightIris: ['Right iris', 'The ring of colour the right pupil sits in.'],
   leftUpper: ['Left upper eyelid', 'Comes down to close the left eye.'],
   leftLower: ['Left lower eyelid', 'Comes up to meet it.'],
   rightUpper: ['Right upper eyelid', 'Comes down to close the right eye.'],

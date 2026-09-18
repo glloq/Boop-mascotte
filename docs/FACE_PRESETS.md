@@ -13,8 +13,8 @@ underneath -- the movements, the controls, the expressions -- is untouched
 
 ```json
 { "id": "professor", "name": "Professor", "description": "Bald, glasses, a moustache.",
-  "parts": { "head": "head.oval", "ears": "ears.round", "eyes": "eyes.round-small", "eyebrows": "eyebrows.thick",
-             "nose": "nose.hook", "mouth": "mouth.small", "hair": "hair.bald", "facialHair": "facialhair.moustache" },
+  "parts": { "head": "head.oval", "ears": "ears.round", "eyes": "eyes.simple", "eyebrows": "eyebrows.thick",
+             "nose": "nose.hook", "mouth": "mouth.full", "hair": "hair.bald", "facialHair": "facialhair.moustache" },
   "accessories": ["accessory.glasses"],
   "style": "workshop",
   "morphology": "muzzle",
@@ -104,7 +104,7 @@ everything and nobody could read it. So a preset asks by **name**:
 
 ```json
 { "id": "workshop-professor", "name": "Workshop professor", "style": "workshop",
-  "parts": { "head": "head.oval", "mouth": "mouth.small" }, "accessories": ["accessory.glasses"] }
+  "parts": { "head": "head.oval", "mouth": "mouth.full" }, "accessories": ["accessory.glasses"] }
 ```
 
 and a drawing says which drawing it restyles, and into which style:

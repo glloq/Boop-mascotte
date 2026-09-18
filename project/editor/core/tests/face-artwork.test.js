@@ -5,7 +5,7 @@ import { compileRigFrame, parsePath } from '../../../runtime/runtime.js';
 import { createTemplateProjectState } from '../sample/templates/template-export.js';
 import {
   BROW_BOXES, BROW_RESTS, EAR, EYE, FACE_CENTRES, FACE_PALETTE, FACE_STYLE, HEAD_REST, HEAD_WIDTH,
-  LID_TRAVEL, MOUTH_BOX, PUPIL, browPath, buildMascotFaceSvg, headEdgeAt, headPath,
+  LID_MEET, LID_PIVOTS, MOUTH_BOX, PUPIL, browPath, buildMascotFaceSvg, headEdgeAt, headPath,
   mouthGeometry, mouthPath, spline, teethPath
 } from '../sample/templates/face-artwork.js';
 // The mascot is the face **and** its pair of hands, put together one layer up:
@@ -134,51 +134,68 @@ test('the pupils stay inside the eye at any gaze', () => {
 test('a blink covers the eye, and half a blink covers half of it', () => {
   const shut = pose({ eyeOpen: 0 }), open = pose({ eyeOpen: 1 });
   // The artwork rests with the eyes open, so opening them moves nothing: the
-  // file on its own is a face rather than a face asleep.
-  assert.equal(open.lidUpperLeft.transform.y, 0);
-  assert.equal(open.lidLowerLeft.transform.y, 0);
+  // file on its own is a face rather than a face asleep. A lid **grows** now
+  // rather than sliding, so resting as drawn means `scaleY 1` where it used to
+  // mean `y 0` (docs/EYE_BUILDS.md).
+  assert.equal(open.lidUpperLeft.transform.scaleY, 1);
+  assert.equal(open.lidLowerLeft.transform.scaleY, 1);
+  assert.equal(open.lidUpperLeft.transform.y, 0, 'and nothing slides');
   const upper = box(state.svgMarkup.match(/id="lidUpperLeft"[^>]*d="([^"]+)"/)[1]);
   const lower = box(state.svgMarkup.match(/id="lidLowerLeft"[^>]*d="([^"]+)"/)[1]);
-  assert.ok(upper.bottom < EYE.cy - EYE.ry, 'the open upper lid is above the socket, bulge and all');
-  assert.ok(lower.top > EYE.cy + EYE.ry, 'and the lower one below it');
-  assert.ok(upper.left <= EYE.left - EYE.rx && upper.right >= EYE.left + EYE.rx, 'across the whole socket');
+  // Drawn **inside** the eye, on the rim it swings from, where the old lid was a
+  // rectangle parked clear of the eye and cropped by a socket nobody could see.
+  // That is the whole fix: nothing outside the eye, so nothing to crop, and the
+  // eye group's box is the eye rather than three times it.
+  assert.ok(upper.top >= EYE.cy - EYE.ry - 0.01, `the open upper lid sits on the rim, not above it: ${upper.top}`);
+  assert.ok(upper.bottom < EYE.cy, 'and reaches only a sliver into the eye');
+  assert.ok(lower.bottom <= EYE.cy + EYE.ry + 0.01, 'and the lower one on its own rim');
+  assert.ok(lower.top > EYE.cy, 'reaching up a sliver');
+  assert.ok(upper.left >= EYE.left - EYE.rx - 0.01 && upper.right <= EYE.left + EYE.rx + 0.01, 'and no wider than the eye');
+  assert.ok(upper.bottom - upper.top < EYE.ry * 0.6, `a sliver, not a slab: ${upper.bottom - upper.top} tall`);
 
   // Closed, the two lids **meet**: one seam where there were two edges. The
   // upper one's edge comes down onto it and stops there, and the lower one's
   // comes up onto it -- neither goes through the other. The old travel counted
   // each lid's own curve twice, once in the drawing and once in the distance it
   // was moved, so the upper lid arrived 8 units below the seam and the lower 6
-  // above it: fourteen units of overlap across the middle of a socket 45 tall,
-  // which is a lid drawn well past the middle of the eye rather than a shut one.
-  // A shade below the middle of the socket, where a lash line sits.
+  // above it: fourteen units of overlap across the middle of an eye 45 tall,
+  // which is a lid drawn well past the middle rather than a shut one.
+  // A shade below the middle of the eye, where a lash line sits.
   const seam = EYE.cy + 1;
   const edge = (id, deepest) => {
     const drawn = outline(state.svgMarkup.match(new RegExp(`id="${id}"[^>]*d="([^"]+)"`))[1]);
-    const moved = drawn.map((point) => ({ x: point.x, y: point.y + shut[id].transform.y }));
-    // The lid's leading edge at one height across the socket: the furthest it
+    // A lid is scaled about the rim it is drawn on, so a point's height is its
+    // distance from that rim, multiplied.
+    const at = LID_PIVOTS[id], k = shut[id].transform.scaleY;
+    const moved = drawn.map((point) => ({ x: point.x, y: at.y + (point.y - at.y) * k }));
+    // The lid's leading edge at one height across the eye: the furthest it
     // reaches towards the other lid among the points drawn near that x.
     return (x) => moved.filter((point) => Math.abs(point.x - x) <= 1)
       .reduce((best, point) => (best === null || deepest(point.y, best) ? point.y : best), null);
   };
   const top = edge('lidUpperLeft', (y, best) => y > best), bottom = edge('lidLowerLeft', (y, best) => y < best);
-  assert.equal(Math.round(top(EYE.left) * 10) / 10, seam, 'the upper lid comes down exactly onto the seam');
-  assert.equal(Math.round(bottom(EYE.left) * 10) / 10, seam, 'and the lower lid comes up onto it');
-  for (let x = EYE.left - EYE.rx; x <= EYE.left + EYE.rx; x += 1) {
+  assert.ok(Math.abs(top(EYE.left) - seam) < 0.5, `the upper lid comes down onto the seam: ${top(EYE.left)} against ${seam}`);
+  assert.ok(Math.abs(bottom(EYE.left) - seam) < 0.5, `and the lower lid comes up onto it: ${bottom(EYE.left)}`);
+  for (let x = EYE.left - EYE.rx + 1; x <= EYE.left + EYE.rx - 1; x += 1) {
     const over = top(x) - bottom(x);
-    assert.ok(over <= 1e-6, `the lids cross by ${over} at x ${x}: a closed eye is a seam, not an overlap`);
+    assert.ok(over <= 0.5, `the lids cross by ${over} at x ${x}: a closed eye is a seam, not an overlap`);
   }
-  assert.deepEqual([LID_TRAVEL.upper, LID_TRAVEL.lower],
-    [shut.lidUpperLeft.transform.y, -shut.lidLowerLeft.transform.y],
-    'the rig moves the lids exactly as far as the artwork was drawn to need');
-  // And the travel is the size a travel can be: more than the half-socket,
-  // since the lid is parked clear of the socket to begin with, and nowhere near
-  // twice it, which is what carrying the lid's own curve a second time cost.
-  assert.ok(shut.lidUpperLeft.transform.y > EYE.ry, `the upper lid travels ${shut.lidUpperLeft.transform.y}`);
-  assert.ok(shut.lidUpperLeft.transform.y < EYE.ry * 2, 'and not more than the whole socket');
+  assert.deepEqual([LID_MEET.upper, LID_MEET.lower],
+    [shut.lidUpperLeft.transform.scaleY, shut.lidLowerLeft.transform.scaleY],
+    'the rig grows the lids exactly as far as the artwork was drawn to need');
+  // And a shut lid never runs past the eye onto the cheek, which is what the
+  // socket used to be there to stop.
+  for (const id of ['lidUpperLeft', 'lidLowerLeft']) {
+    const at = LID_PIVOTS[id], k = shut[id].transform.scaleY;
+    const drawn = outline(state.svgMarkup.match(new RegExp(`id="${id}"[^>]*d="([^"]+)"`))[1]);
+    const ys = drawn.map((point) => at.y + (point.y - at.y) * k);
+    assert.ok(Math.min(...ys) >= EYE.cy - EYE.ry - 0.5 && Math.max(...ys) <= EYE.cy + EYE.ry + 0.5,
+      `${id} stays inside the eye when shut: ${Math.min(...ys).toFixed(1)}..${Math.max(...ys).toFixed(1)}`);
+  }
 
   // Half way, half way: nothing about a lid is non-linear.
   const half = pose({ eyeOpen: .5 });
-  assert.ok(Math.abs(half.lidUpperLeft.transform.y - shut.lidUpperLeft.transform.y / 2) < 1e-6);
+  assert.ok(Math.abs(half.lidUpperLeft.transform.scaleY - (1 + shut.lidUpperLeft.transform.scaleY) / 2) < 1e-6);
 });
 
 test('the neutral mouth is not a straight line, and a smile is unmistakably more', () => {

@@ -373,20 +373,30 @@ test('a project that authored nothing still stores nothing (CR-52)', () => {
  * eye and retracting to nothing as it shut. A blink played backwards, and next
  * to a lower lid that still closed properly, a mess.
  */
-test('Reset on a lid gives back a lid that shuts downwards, not one that retracts', () => {
+test('Reset on a lid gives back a lid that shuts, not one that retracts', () => {
   const state = createTemplateProjectState();
   const lids = Object.values(state.semanticParts).find((part) => part.type === 'eyelids');
-  const upper = () => state.elements.lidUpperLeft.bindings.translateY;
+  // The template's lid **grows** about the rim it swings from now, so the
+  // property is `scaleY` and resting as drawn is 1 rather than 0
+  // (docs/EYE_BUILDS.md). The bug is the same one and so is the shape of the
+  // check: whatever Reset gives back has to rest as drawn with the eye open and
+  // *shut* the eye at 0, not undo itself.
+  const upper = () => state.elements.lidUpperLeft.bindings.scaleY;
   const at = (binding, eyeOpen) => binding.amplitude * eyeOpen + binding.offset;
 
-  assert.equal(at(upper(), 1), 0, 'as shipped: the drawing sits where it was drawn with the eye open');
-  assert.ok(at(upper(), 0) > 0, 'and comes down to shut it');
+  assert.equal(at(upper(), 1), 1, 'as shipped: the drawing sits where it was drawn with the eye open');
+  assert.ok(at(upper(), 0) > 1, 'and grows to shut it');
 
   resetSemanticCalibration(state, lids.id, 'eyeOpen');
 
-  assert.equal(at(upper(), 1), 0, 'reset keeps the lid where the drawing has it when the eye is open');
-  assert.ok(at(upper(), 0) > 0, 'and it still travels downwards to shut -- the sign is the whole bug');
+  assert.equal(at(upper(), 1), 1, 'reset keeps the lid where the drawing has it when the eye is open');
+  assert.ok(at(upper(), 0) > 1, 'and it still grows to shut -- the sign is the whole bug');
   assert.ok(upper().amplitude < 0, 'which for a control resting at its maximum means a negative amplitude');
+  // And the registry's own number is the *right* number for the property it is
+  // written on. `drivers.eyeOpen` carries -8, which is eight units of
+  // `translateY`; written onto a scale it reads 9 with the eye shut, a lid grown
+  // nine times over and, with no socket left to crop it, skin across the cheek.
+  assert.ok(at(upper(), 0) < 4, `a reset lid stays on the eye: it grows to ${at(upper(), 0)}`);
 });
 
 /**

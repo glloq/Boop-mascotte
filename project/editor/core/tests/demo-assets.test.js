@@ -20,8 +20,15 @@ import { validateRig } from '../validation/rig-validator.js';
 
 test('the template artwork parses into the records the canvas would build', () => {
   const { elements, layers } = parseTemplateArtwork(MASCOT_FACE_SVG);
-  assert.equal(Object.keys(elements).length, 130, 'every layer the artwork draws — the face and the pair of hands — and nothing under <defs>');
-  assert.equal(elements.eyeSocketLeft, undefined, 'a clip path is not a layer');
+  // A hundred and thirty-four: four more than before, which is the two eyelid
+  // creases each eye grew when the lids stopped carrying an outline of their own
+  // (docs/EYE_BUILDS.md).
+  assert.equal(Object.keys(elements).length, 134, 'every layer the artwork draws — the face and the pair of hands — and nothing under <defs>');
+  assert.equal(elements.eyeSocketLeft, undefined, 'and the eye sockets are gone: a lid that grows about its rim needs no mask');
+  assert.equal(elements.headShape, undefined, 'a clip path is not a layer');
+  for (const id of ['creaseUpperLeft', 'creaseLowerLeft', 'creaseUpperRight', 'creaseLowerRight']) {
+    assert.equal(elements[id].meta.nodeType, 'path', `${id} is a path, so a shape key can bend it`);
+  }
   assert.equal(elements.head.meta.nodeType, 'path');
   assert.equal(elements.eyeLeft.meta.nodeType, 'g');
   assert.equal(elements.pupilLeft.meta.nodeType, 'circle');
@@ -51,7 +58,8 @@ test('the template artwork parses into the records the canvas would build', () =
   const face = layers[2];
   assert.equal(face.name, 'Face');
   assert.deepEqual(face.children.find((layer) => layer.id === 'eyeLeft').children.map((layer) => layer.id),
-    ['eyeWhiteLeft', 'pupilLeft', 'glintLeft', 'sparkLeft', 'lidUpperLeft', 'lidLowerLeft', 'rimLeft'], 'the eye keeps its nesting, which the head turn reads');
+    ['eyeWhiteLeft', 'pupilLeft', 'glintLeft', 'sparkLeft', 'lidUpperLeft', 'creaseUpperLeft', 'lidLowerLeft', 'creaseLowerLeft', 'rimLeft'],
+    'the eye keeps its nesting, which the head turn reads, and each lid is followed by the crease that draws its edge');
   assert.equal(face.children.find((layer) => layer.id === 'earLeft').name, 'Left ear');
   // The shading is a folder of its own, clipped to the head: three soft shapes
   // an author can turn off together, rather than three loose ones between the
@@ -65,7 +73,7 @@ test('the template export is the rig the editor writes for the untouched face', 
   const { svg, rig } = createTemplateExport();
   assert.equal(svg, MASCOT_FACE_SVG);
   assert.equal(rig.schemaVersion, RIG_SCHEMA_VERSION);
-  assert.equal(Object.keys(rig.elements).length, 130);
+  assert.equal(Object.keys(rig.elements).length, 134);
   for (const id of Object.keys(rig.elements)) assert.match(svg, new RegExp(`id="${id}"`), `${id} is drawn`);
   assert.deepEqual(Object.keys(rig.states), ['idle', 'happy', 'surprised']);
   assert.equal(rig.activeState, 'idle');
@@ -128,10 +136,13 @@ test('the template export is the rig the editor writes for the untouched face', 
   // drawings' own little animations. A drawing is chosen and never deformed, so
   // there is nothing at all left to measure on a hand (docs/HAND_STYLES.md).
   assert.equal(rig.keyforms.length, 157, 'the 2.5D turn is generated, and the hands hide and hold');
-  // Thirteen, plus eight on the four eyelids (narrowed and curved, per lid)
-  // and three on the mouth's pucker (the lips, the teeth and the tongue).
-  assert.equal(rig.shapeKeys.length, 24, "the face's own, and not one on a hand");
+  // Thirteen, plus eight on the four eyelids and eight more on the four creases
+  // that draw their edges (narrowed and curved, per shape), and three on the
+  // mouth's pucker (the lips, the teeth and the tongue).
+  assert.equal(rig.shapeKeys.length, 32, "the face's own, and not one on a hand");
   assert.equal(rig.shapeKeys.filter((key) => /^lid/.test(key.target)).length, 8);
+  assert.equal(rig.shapeKeys.filter((key) => /^crease/.test(key.target)).length, 8,
+    'a crease is bent by the same two controls its lid is: it *is* the lid\'s edge (docs/EYE_BUILDS.md)');
   assert.equal(rig.shapeKeys.some((key) => /^hand/i.test(key.target || '')), false, 'nothing deforms a hand');
   assert.equal(rig.rigPins.length, 7);
   assert.ok(rig.gazeSolver, 'the gaze solver is configured');

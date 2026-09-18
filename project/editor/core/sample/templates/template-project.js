@@ -13,7 +13,7 @@ import { enableMouthRig } from '../../rig/mouth-rig.js';
 import { enableGazeSolver } from '../../rig/gaze-rig.js';
 import { enableBrowRig } from '../../rig/brow-rig.js';
 import { createShapeKey, upsertShapeKey } from '../../shape-keys/shape-key-model.js';
-import { BROW_BOXES, BROW_RESTS, FACE_ANCHORS, FACE_CENTRES, HEAD_REST, HEAD_WIDTH, LID_RESTS, LID_ROLES, LID_TRAVEL, MOUTH_BOX, MOUTH_REST, NOSE_CENTRE, NOSE_TURN, TEETH_REST, TONGUE_REST, headPath, lidPath, mouthPath, teethPath, tonguePath } from './face-artwork.js';
+import { BROW_BOXES, BROW_RESTS, FACE_ANCHORS, FACE_CENTRES, HEAD_REST, HEAD_WIDTH, CREASE_PIVOTS, CREASE_RESTS, CREASE_ROLES, LID_MEET, LID_PIVOTS, LID_RESTS, LID_ROLES, MOUTH_BOX, MOUTH_REST, NOSE_CENTRE, NOSE_TURN, TEETH_REST, TONGUE_REST, creasePath, headPath, lidPath, mouthPath, teethPath, tonguePath } from './face-artwork.js';
 import { findClip, setClipLoop } from '../../motion/motion-model.js';
 import { installStyleHands } from '../../hands/hand-style-install.js';
 import { createRigAttachment, createRigHold } from '../../rig/attachment-model.js';
@@ -181,19 +181,30 @@ export function applyTemplateProject(state) {
   // covering, and a hard squash would shrink them out of the socket.
   const eyes = add(state, 'eyes', { leftEye: 'eyeLeft', rightEye: 'eyeRight' }, ['eyeOpen'], { eyeOpen: { amplitude: .12, offset: .88 } });
   const gaze = add(state, 'gaze', { leftPupil: 'pupilLeft', rightPupil: 'pupilRight' }, ['lookX', 'lookY', 'pupilScale']);
-  // Eyelids are ordinary skin-coloured shapes clipped to the eye socket: parked
-  // outside it when open, meeting over it when closed. That is what puts a pupil
-  // *behind* the lid instead of fading it out as the eye shuts.
+  // Eyelids are ordinary skin-coloured shapes that **grow**: each is drawn as a
+  // sliver on the rim it swings from and scaled about that rim until its leading
+  // edge lands on the seam (`LID_MEET`, docs/EYE_BUILDS.md). That is what puts a
+  // pupil *behind* the lid instead of fading it out as the eye shuts, and it
+  // needs no socket to crop -- which is the whole reason the clip is gone: a
+  // `<clipPath>` in `<defs>` appears in neither the layer tree nor
+  // `document.elements`, so an author could not see it, move it or delete it,
+  // and the lids parked outside it made the eye group's box 191 x 281 screen
+  // pixels around an eye of 100 x 94.
   //
-  // How far one travels is the artwork's business rather than a number tuned
-  // here: `LID_TRAVEL` is the half-socket plus the lid's own curved edge plus a
-  // margin, so resizing the eye keeps a full blink covering it. And the offset
-  // is what puts the *drawing* at `eyeOpen 1` -- the artwork rests with the
-  // eyes open, so opening them is the identity and closing them is the
+  // How far one grows is the artwork's business rather than a number tuned here,
+  // so resizing the eye keeps a full blink meeting on its own middle. And the
+  // offset is what puts the *drawing* at `eyeOpen 1` -- the artwork rests with
+  // the eyes open, so opening them is the identity and closing them is the
   // movement. That is the difference between a template whose thumbnail, whose
   // `mascot.svg` and whose home-screen preview show a face, and V1's, which
   // showed one asleep.
-  const eyelids = add(state, 'eyelids', { leftUpper: 'lidUpperLeft', rightUpper: 'lidUpperRight', leftLower: 'lidLowerLeft', rightLower: 'lidLowerRight' }, ['eyeOpen', 'eyeSquint', 'eyeCurve'], { eyeOpen: { amplitude: -LID_TRAVEL.upper, offset: LID_TRAVEL.upper } });
+  const eyelids = add(state, 'eyelids', { leftUpper: 'lidUpperLeft', rightUpper: 'lidUpperRight', leftLower: 'lidLowerLeft', rightLower: 'lidLowerRight' }, ['eyeOpen', 'eyeSquint', 'eyeCurve'], { eyeOpen: { property: 'scaleY', amplitude: -(LID_MEET.upper - 1), offset: LID_MEET.upper } });
+  // And each lid turns and scales about the rim it is drawn on, not about its own
+  // middle: a sliver pivoted at its middle grows away from the eye in both
+  // directions at once instead of sweeping across it.
+  for (const [role, at] of Object.entries(LID_PIVOTS)) {
+    if (state.elements[role]) Object.assign(state.elements[role].baseTransform, { pivotX: at.x, pivotY: at.y });
+  }
   const eyebrows = add(state, 'eyebrows', { leftBrow: 'browLeft', rightBrow: 'browRight' }, ['browRaise', 'browTilt']);
   // One movement for the pair, and an offset per side on top of it: a blink
   // closes both eyes, a wink closes one. The offsets default to 0, so the
@@ -202,18 +213,21 @@ export function applyTemplateProject(state) {
   // an eye that squashed without its lid coming down would be a wink of the
   // eyeball alone.
   for (const part of [eyes, eyelids]) if (part) enableSemanticSideControl(state, part.id, 'eyeOpen');
-  // The lower lids close *upwards*, so their movement is the mirror of the
-  // shared one rather than a scaling of it, and the part's one driver cannot
-  // say both. Written by hand, after the side control exists, so a wink still
-  // closes the whole eye: a lid that came down while its partner stayed put
-  // left a crescent of white in the middle of a closed eye.
+  // The lower lids grow the same way the upper ones do -- each about its own rim,
+  // so **up** and **down** are the pivot's business rather than the sign's -- but
+  // not quite as far: the seam sits a shade below the middle of the eye, where a
+  // lash line does, so the lower lid has a shorter way to come. The part's one
+  // driver cannot say two distances, so these two are written by hand.
   //
-  // Stamped as the eyelids' own `eyeOpen`, because that is what it is. Without
-  // the stamp the two lower lids belonged to nothing: switching Eyes ·
-  // Open / close off took the upper lids down and left these two still rising,
-  // which is half a blink nobody asked for and no control left to stop.
+  // After the side control exists, so a wink still closes the whole eye: a lid
+  // that came down while its partner stayed put left a crescent of white in the
+  // middle of a closed eye. And stamped as the eyelids' own `eyeOpen`, because
+  // that is what it is -- without the stamp the two lower lids belonged to
+  // nothing, so switching Eyes · Open / close off took the upper lids down and
+  // left these two still rising, which is half a blink nobody asked for and no
+  // control left to stop.
   for (const [id, side] of [['lidLowerLeft', 'Left'], ['lidLowerRight', 'Right']]) {
-    bind(state, id, 'translateY', `eyeOpen + eyeOpen${side}`, LID_TRAVEL.lower, -LID_TRAVEL.lower, 'linear',
+    bind(state, id, 'scaleY', `eyeOpen + eyeOpen${side}`, -(LID_MEET.lower - 1), LID_MEET.lower, 'linear',
       eyelids ? { semanticPart: eyelids.id, control: 'eyeOpen' } : null);
   }
   // Narrowing and the lid curve, as additive shapes on the four lids
@@ -244,6 +258,73 @@ export function applyTemplateProject(state) {
     }
   }
   if (eyelids) for (const control of ['eyeSquint', 'eyeCurve']) enableSemanticSideControl(state, eyelids.id, control);
+  /**
+   * And the seam: the line a shut eye *is*.
+   *
+   * Drawn invisible and faded in as the eye closes, so it is the closed eye's
+   * own line rather than a crease drawn across an open one. `1 - eyeOpen` is an
+   * opacity binding, which is the one place a drawing may appear from nothing
+   * and the reason the lids can be fill only (docs/EYE_BUILDS.md).
+   *
+   * Its arc is `eyeCurve`, through a shape key on its own path, so the seam and
+   * the two lid edges that make it are bent by one control rather than by two
+   * numbers somebody has to keep in step. The side offsets come free: the
+   * expression is the movement's own sentence, exactly as the lids' is, so a
+   * wink shows one seam and a lopsided squeeze arcs one of the two.
+   */
+  /**
+   * The catchlights ride the pupil they sit in.
+   *
+   * They never did: `lookX 1` slid the pupil eight units and left both
+   * highlights where they were, so a mascot looking sideways had its glint on the
+   * white beside its pupil. They are siblings of the pupil rather than children
+   * of it -- the paint order puts them over it -- so they take its own bindings,
+   * read off it rather than recomputed.
+   */
+  for (const [role, from] of [['glintLeft', 'pupilLeft'], ['sparkLeft', 'pupilLeft'], ['glintRight', 'pupilRight'], ['sparkRight', 'pupilRight']]) {
+    if (!state.elements[role]) continue;
+    for (const property of ['translateX', 'translateY']) {
+      const source = state.elements[from]?.bindings?.[property];
+      if (source) bind(state, role, property, source.expression, source.amplitude, source.offset, source.curve || 'linear', null);
+    }
+  }
+  /**
+   * And the eye's own outline goes out with the light.
+   *
+   * A shut cartoon eye is a **line**, not a circle with a line through it. The
+   * lids cover the white and the pupil, but the rim is drawn over them -- that is
+   * what keeps the eye's edge crisp while it is open -- so left alone it draws a
+   * ring round a shut eye and the whole thing reads as an empty socket.
+   *
+   * `easeOut` rather than `linear`, so the outline holds through most of the
+   * blink and only lets go at the end: a half-open eye with a half-faded outline
+   * looks washed out rather than half shut.
+   */
+  for (const [role, side] of [['rimLeft', 'Left'], ['rimRight', 'Right']]) {
+    bind(state, role, 'opacity', `eyeOpen + eyeOpen${side}`, 1, 0, 'easeOut', null);
+  }
+  for (const role of CREASE_ROLES) {
+    if (!state.elements[role]) continue;
+    const side = /Right$/.test(role) ? 'Right' : 'Left';
+    const lid = role.replace('crease', 'lid');
+    Object.assign(state.elements[role].baseTransform, { pivotX: CREASE_PIVOTS[role].x, pivotY: CREASE_PIVOTS[role].y });
+    // The lid's own binding, on the lid's own numbers: `scaleY` about the same
+    // rim, so the line and the edge it draws move as one thing. Read off the lid
+    // rather than recomputed, because two copies of the same number are two
+    // numbers somebody has to keep in step.
+    const from = state.elements[lid]?.bindings?.scaleY;
+    if (from) bind(state, role, 'scaleY', from.expression, from.amplitude, from.offset, 'linear', null);
+    state.elements[role].restPath = CREASE_RESTS[role];
+    for (const [control, pose] of [['eyeSquint', { squint: 1 }], ['eyeCurve', { curve: 1 }]]) {
+      const shape = createShapeKey({
+        id: `${role}-${control}`, target: role, name: `${role} ${control === 'eyeSquint' ? 'narrowed' : 'curved'}`,
+        restPath: CREASE_RESTS[role], posePath: creasePath(role, pose),
+        driver: { mode: 'expression', expression: `${control} + ${control}${side}`, curve: 'linear', amplitude: 1, offset: 0 },
+        generatedBy: eyelids ? { semanticPart: eyelids.id, control } : null
+      });
+      if (shape.ok) state.shapeKeys = upsertShapeKey(state.shapeKeys, shape.shapeKey);
+    }
+  }
   // The rest of the face control rig's per-side offsets (docs/FACE_CONTROL_RIG.md).
   // Every one of them defaults to 0, so the mascot looks and behaves exactly as
   // it did -- what they buy is that the two eyes and the two brows *can* now

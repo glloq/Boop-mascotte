@@ -139,13 +139,15 @@ test('every planned drawing is for bird faces, mounts somewhere a face has, and 
 
 test('the six rows of the planche are six rows of the library, in its own order', () => {
   assert.deepEqual([...PILOT_REVIEW_GROUPS], ['heads', 'eyes', 'brows', 'beaks', 'crests', 'accessories']);
-  assert.deepEqual(PILOT_REVIEW_GROUPS.map((group) => pilotAssets({ group }).length), [6, 6, 5, 6, 6, 1]);
-  // Thirty drawings for thirty-three pieces on the planche: two of the four
-  // accessories are drawings the library already has, whole.
+  // The eye row is three rather than six: the library's own builds answer it,
+  // and none of them is this pack's to draw (docs/EYE_BUILDS.md).
+  assert.deepEqual(PILOT_REVIEW_GROUPS.map((group) => pilotAssets({ group }).length), [6, 3, 5, 6, 6, 1]);
+  // Twenty-seven drawings for thirty-three pieces on the planche: two of the
+  // four accessories and the whole eye row are drawings the library already has.
   const summary = pilotSummary();
-  assert.equal(summary.drawings, 30);
-  assert.equal(summary.reused, 2);
-  assert.equal(summary.onSheet, 32, 'the thirty drawn and the two reused; the small hat is still a question');
+  assert.equal(summary.drawings, 27);
+  assert.equal(summary.reused, 4);
+  assert.equal(summary.onSheet, 31, 'the twenty-seven planned and the four reused; the small hat is still a question');
 });
 
 /* ── Six recipes, not six libraries ────────────────────────────────────── */
@@ -187,18 +189,19 @@ test('the birds share what the planche lets them share, and the sharing is the p
     assert.ok(named.has(item.id) || item.catalogue, `${item.id} is named by a recipe or marked catalogue`);
   }
   // Five brows for six birds, which the planche sets up by drawing five: the
-  // duck and the parrot are both curious, and that is the only piece two birds
-  // share. Six species over five rows would be thirty drawings if each owned
-  // its own; these six name twenty-nine between them.
+  // duck and the parrot are both curious. The eyes are shared the furthest of
+  // anything -- five of the six wear `eyes.simple` -- because the row is the
+  // library's three builds and what told six bird eyes apart was a radius.
   const shared = PILOT_ASSETS.filter((item) => item.species.length > 1);
-  assert.deepEqual(shared.map((item) => item.id), ['eyebrows.bird-curious']);
-  assert.deepEqual([...shared[0].species], ['duck', 'parrot']);
+  assert.deepEqual(shared.map((item) => item.id), ['eyes.simple', 'eyebrows.bird-curious']);
+  assert.deepEqual([...shared[0].species], ['owl', 'duck', 'parrot', 'cute', 'slim']);
+  assert.deepEqual([...shared[1].species], ['duck', 'parrot']);
   const all = PILOT_PRESETS.flatMap(presetAssetIds);
   assert.equal(all.length, 30, 'five pieces each');
-  assert.equal(new Set(all).size, 29, 'over twenty-nine drawings');
+  assert.equal(new Set(all).size, 25, 'over twenty-five drawings');
   // The monocle is the catalogue: an accessory any of the six may wear, and
   // none of them is written as wearing.
-  assert.deepEqual(PILOT_ASSETS.filter((item) => item.catalogue).map((item) => item.id), ['accessory.monocle']);
+  assert.deepEqual(PILOT_ASSETS.filter((item) => item.catalogue).map((item) => item.id), ['eyes.dot', 'accessory.monocle']);
   assert.deepEqual([...pilotAsset('accessory.monocle').species], [], 'a catalogue piece belongs to no species');
   // Every bird is fully specified, which is why six recipes and not four.
   for (const species of PILOT_SPECIES) assert.equal(pilotAssetsForSpecies(species).length, 5, `${species} is five pieces`);
@@ -215,9 +218,11 @@ test('an accessory drawn for a person is already drawn for a bird', () => {
     assert.ok(item.why.length > 30, `${item.id} says why, in a sentence`);
   }
   // The structural reason this audit is short and happy: an accessory that says
-  // nothing is universal, so two of the planche's four already exist whole.
+  // nothing is universal, so two of the planche's four already exist whole --
+  // and the eye row joined them, because what told six bird eyes apart was a
+  // radius and a lid height, not a construction (docs/EYE_BUILDS.md).
   assert.deepEqual(PILOT_REUSE.filter((item) => item.verdict === 'reuse').map((item) => item.id),
-    ['accessory.glasses', 'accessory.bow-tie']);
+    ['accessory.glasses', 'accessory.bow-tie', 'eyes.simple', 'eyes.iris']);
   for (const id of ['accessory.glasses', 'accessory.bow-tie']) {
     assert.deepEqual([...FACE_PART_LIBRARY.get(id).morphologies], [], `${id} says nothing, so it suits every kind of face`);
   }
@@ -226,7 +231,7 @@ test('an accessory drawn for a person is already drawn for a bird', () => {
   for (const id of ['ears.round', 'nose.dot', 'hair.short', 'facialhair.beard']) {
     assert.equal(pilotReuse(id).verdict, 'not-relevant', id);
   }
-  assert.equal(pilotReuse('mouth.small').verdict, 'replace', 'a beak installs as a mouth, so it replaces one');
+  assert.equal(pilotReuse('mouth.full').verdict, 'replace', 'a beak installs as a mouth, so it replaces one');
   assert.equal(pilotReuse('nope'), null);
 });
 
@@ -262,10 +267,11 @@ test('six plumages, no new token, and nothing named for a colour', () => {
       assert.match(palette[token], /^#[0-9a-f]{6}$/, `${id}.${token} is a colour`);
     }
     // A manifest names what it paints. A bird has no hair and a beak has no
-    // tongue and no teeth, so those four are left out on purpose; a registered
-    // palette carries all twelve and MASC-12B fills them in at that point.
+    // tongue and no teeth, so those four are left out on purpose -- and the
+    // iris, which arrived after this sheet and which only one of the three
+    // builds draws; a registered palette carries all thirteen and fills it in.
     assert.deepEqual(PALETTE_TOKENS.filter((token) => !tokens.includes(token)),
-      ['hair', 'hairShadow', 'tongue', 'teeth'], `${id} omits exactly what a bird has no surface for`);
+      ['hair', 'hairShadow', 'iris', 'tongue', 'teeth'], `${id} omits exactly what a bird has no surface for`);
   }
   for (const item of PILOT_ASSETS) {
     assert.doesNotMatch(item.id, /cream|orange|slate|amber|blue|yellow|green|grey|gray|pink|white|black/,

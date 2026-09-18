@@ -2,8 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validateFacePart } from '../face-library/face-part-validation.js';
 import { BUILTIN_FACE_PARTS } from '../face-library/builtin/index.js';
-import { MOUTH_SIMPLE } from '../face-library/builtin/mouth-simple.js';
-import { MOUTH_WIDE } from '../face-library/builtin/mouth-wide.js';
+import { MOUTH_LINE } from './fixtures/mouth-line.js';
 import { findUnsafeSvg, sanitizeSvgMarkup } from '../security/sanitize-svg.js';
 
 /**
@@ -13,7 +12,7 @@ import { findUnsafeSvg, sanitizeSvgMarkup } from '../security/sanitize-svg.js';
  */
 const codes = (result) => result.issues.map((item) => item.code);
 const errors = (result) => result.errors.map((item) => item.code);
-const variant = (over = {}) => ({ ...MOUTH_SIMPLE, ...over });
+const variant = (over = {}) => ({ ...MOUTH_LINE, ...over });
 
 test('every built-in asset is valid, and the incomplete ones say so as a warning', () => {
   for (const asset of BUILTIN_FACE_PARTS) {
@@ -21,9 +20,9 @@ test('every built-in asset is valid, and the incomplete ones say so as a warning
     assert.equal(result.ok, true, `${asset.id}: ${errors(result).join(', ')}`);
     assert.deepEqual(errors(result), []);
   }
-  assert.deepEqual(codes(validateFacePart(MOUTH_SIMPLE)), ['capabilities-incomplete'], 'a mouth with nothing inside it is limited, and allowed');
-  assert.match(validateFacePart(MOUTH_SIMPLE).warnings[0].message, /teeth, tongue are not carried/);
-  assert.deepEqual(codes(validateFacePart(MOUTH_WIDE)), ['capabilities-incomplete']);
+  assert.deepEqual(codes(validateFacePart(MOUTH_LINE)), ['capabilities-incomplete'], 'a mouth with nothing inside it is limited, and allowed');
+  assert.match(validateFacePart(MOUTH_LINE).warnings[0].message, /teeth, tongue are not carried/);
+  assert.deepEqual(codes(validateFacePart(MOUTH_LINE)), ['capabilities-incomplete']);
   assert.deepEqual(codes(validateFacePart(BUILTIN_FACE_PARTS.find((asset) => asset.id === 'nose.dot'))), [], 'a nose that scrunches carries everything a nose can');
 });
 
@@ -31,7 +30,7 @@ test('the id names the category and the asset, once', () => {
   assert.deepEqual(errors(validateFacePart(variant({ id: '' }))), ['id-missing']);
   assert.deepEqual(errors(validateFacePart(variant({ id: 'Mouth Simple' }))), ['id-format']);
   assert.deepEqual(errors(validateFacePart(variant({ id: 'nose.simple' }))), ['id-category']);
-  assert.deepEqual(errors(validateFacePart(variant(), { taken: (id) => id === 'mouth.simple' })), ['id-taken']);
+  assert.deepEqual(errors(validateFacePart(variant(), { taken: (id) => id === 'mouth.line' })), ['id-taken']);
   assert.deepEqual(validateFacePart(variant({ id: '' })).errors[0].field, 'id');
 });
 
@@ -47,12 +46,12 @@ test('the category is known, and every one of the eleven can install', () => {
 
 test('the artwork is one safe, well-formed fragment with distinct ids', () => {
   assert.deepEqual(errors(validateFacePart(variant({ artwork: '' }))), ['artwork-missing', 'role-artwork-missing', 'palette-role-unknown'], 'no artwork: the role and the paint both name a shape that is not drawn');
-  assert.deepEqual(errors(validateFacePart(variant({ artwork: '<g id="mouth-simple"><path id="mouth"/>' }))), ['artwork-malformed']);
+  assert.deepEqual(errors(validateFacePart(variant({ artwork: '<g id="mouth-line"><path id="mouth"/>' }))), ['artwork-malformed']);
   assert.deepEqual(errors(validateFacePart(variant({ artwork: '<path id="mouth"/><path id="lip"/>' }))), ['artwork-malformed'], 'two roots');
   assert.deepEqual(errors(validateFacePart(variant({ artwork: '<svg><path id="mouth"/></svg>' }))), ['artwork-malformed'], 'a whole document');
   assert.deepEqual(errors(validateFacePart(variant({ artwork: '<g><path id="mouth" d="M0 0"/></g>' }))), ['artwork-root-id'], 'the root is what the part is known by once installed');
-  assert.deepEqual(errors(validateFacePart(variant({ artwork: '<g id="mouth-simple"><path id="mouth"/><path id="mouth"/></g>' }))), ['artwork-duplicate-id']);
-  const unsafe = validateFacePart(variant({ artwork: '<g id="mouth-simple" onload="evil()"><script>evil()</script><path id="mouth" d="M0 0"/><use href="https://evil.test/x.svg"/></g>' }));
+  assert.deepEqual(errors(validateFacePart(variant({ artwork: '<g id="mouth-line"><path id="mouth"/><path id="mouth"/></g>' }))), ['artwork-duplicate-id']);
+  const unsafe = validateFacePart(variant({ artwork: '<g id="mouth-line" onload="evil()"><script>evil()</script><path id="mouth" d="M0 0"/><use href="https://evil.test/x.svg"/></g>' }));
   assert.deepEqual(errors(unsafe), ['artwork-unsafe', 'artwork-unsafe', 'artwork-unsafe']);
   assert.match(unsafe.errors[0].message, /a script/);
   assert.match(unsafe.errors[1].message, /event handler \(onload\)/);
@@ -74,7 +73,7 @@ test('roles are the part\'s, name shapes the artwork draws, and cover what the p
   assert.deepEqual(errors(validateFacePart(variant({ roles: { mouth: 'mouth', beak: 'mouth' } }))), ['role-unknown', 'role-shared']);
   assert.deepEqual(errors(validateFacePart(variant({ roles: { mouth: 'lips' } }))), ['role-artwork-missing']);
   assert.deepEqual(errors(validateFacePart(variant({ roles: {} }))), ['role-required-missing']);
-  assert.deepEqual(errors(validateFacePart({ ...MOUTH_WIDE, roles: { mouth: 'mouth', teeth: 'mouth' } })), ['role-shared']);
+  assert.deepEqual(errors(validateFacePart({ ...MOUTH_LINE, roles: { mouth: 'mouth', teeth: 'mouth' } })), ['role-shared']);
   const eyes = validateFacePart({ id: 'eyes.one', category: 'eyes', name: 'One', artwork: '<g id="eyes-one"><circle id="left"/></g>', roles: { leftEye: 'left' }, referenceBox: { x: 0, y: 0, width: 1, height: 1 } });
   assert.deepEqual(errors(eyes), ['role-required-missing']);
   assert.equal(eyes.errors[0].field, 'roles.rightEye');
@@ -115,7 +114,7 @@ test('a style restyles one real drawing of the same category, once, and is not i
   // A drawing that restyles itself, one that restyles nothing, one that restyles another part.
   assert.deepEqual(errors(validateFacePart({ ...restyled, variant: { of: 'accessory.glasses-workshop', style: 'workshop' } }, { library: library([glasses]) })), ['variant-own']);
   assert.deepEqual(errors(validateFacePart(restyled, { library: library([]) })), ['variant-unknown']);
-  assert.deepEqual(errors(validateFacePart({ ...restyled, variant: { of: 'mouth.simple', style: 'workshop' } }, { library: library([MOUTH_SIMPLE]) })), ['variant-category']);
+  assert.deepEqual(errors(validateFacePart({ ...restyled, variant: { of: 'mouth.line', style: 'workshop' } }, { library: library([MOUTH_LINE]) })), ['variant-category']);
   // One link: a style of a style would make resolving a style a walk.
   assert.deepEqual(errors(validateFacePart({ ...glasses, id: 'accessory.glasses-workshop-2', variant: { of: 'accessory.glasses-workshop', style: 'night' } }, { library: library([glasses, restyled]) })), ['variant-chained']);
   // One answer: two drawings cannot both be the workshop glasses.
@@ -193,11 +192,11 @@ test('palette roles name shapes the artwork draws and tokens the palette has, an
 });
 
 test('a tag the scanner cannot read in full is malformed, not skipped: an attribute glued onto a value, an unquoted one; a comment is not a tag', () => {
-  const glued = validateFacePart(variant({ artwork: '<g id="mouth-simple"><img src=""onerror="alert(1)"><path id="mouth"/></g>' }));
+  const glued = validateFacePart(variant({ artwork: '<g id="mouth-line"><img src=""onerror="alert(1)"><path id="mouth"/></g>' }));
   assert.ok(errors(glued).includes('artwork-malformed'), errors(glued).join(' '));
   assert.ok(errors(glued).includes('artwork-unsafe'), 'and the handler is seen for what it is');
-  assert.deepEqual(errors(validateFacePart(variant({ artwork: '<g id="mouth-simple"><rect width=10 height=10/><path id="mouth"/></g>' }))), ['artwork-malformed'], 'an unquoted attribute');
-  assert.deepEqual(errors(validateFacePart(variant({ artwork: '<g id="mouth-simple"><!-- a note --><path id="mouth"/></g>' }))), [], 'a comment is fine');
+  assert.deepEqual(errors(validateFacePart(variant({ artwork: '<g id="mouth-line"><rect width=10 height=10/><path id="mouth"/></g>' }))), ['artwork-malformed'], 'an unquoted attribute');
+  assert.deepEqual(errors(validateFacePart(variant({ artwork: '<g id="mouth-line"><!-- a note --><path id="mouth"/></g>' }))), [], 'a comment is fine');
 });
 
 test('a driver hint without an offset has none, and one with an offset that is not a number is refused', () => {
@@ -210,9 +209,9 @@ test('a driver hint without an offset has none, and one with an offset that is n
 
 test('a paint that reaches outside the document is unsafe: a fill fetching a url, and a colour with a declaration smuggled after it', () => {
 
-  const smuggled = validateFacePart(variant({ artwork: '<g id="mouth-simple"><path id="mouth" d="M0 0" fill="#fff;background:url(https://evil.example/leak)"/></g>' }));
+  const smuggled = validateFacePart(variant({ artwork: '<g id="mouth-line"><path id="mouth" d="M0 0" fill="#fff;background:url(https://evil.example/leak)"/></g>' }));
   assert.ok(errors(smuggled).includes('artwork-unsafe'), errors(smuggled).join(' '));
-  assert.ok(errors(validateFacePart(variant({ artwork: '<g id="mouth-simple"><path id="mouth" d="M0 0" filter="url(https://evil.example/f.svg#blur)"/></g>' }))).includes('artwork-unsafe'));
+  assert.ok(errors(validateFacePart(variant({ artwork: '<g id="mouth-line"><path id="mouth" d="M0 0" filter="url(https://evil.example/f.svg#blur)"/></g>' }))).includes('artwork-unsafe'));
   assert.deepEqual(findUnsafeSvg('<svg><rect fill="url(https://evil.example/p)" stroke=\'url( "#g" )\' mask="url(#m)"/></svg>').map((item) => item.kind), ['external-reference']);
   // The cleaner's rule is the same: the paint goes, the shape stays (the fallback cleaner, here; the parser branch shares the predicate).
   const cleaned = sanitizeSvgMarkup('<svg><path d="M0 0" fill="#fff;background:url(https://evil.example/leak)" stroke="url(#g)"/></svg>');
@@ -249,7 +248,7 @@ test('a character reference outside Unicode is answered, not thrown over', () =>
     const markup = `<svg><rect fill="${reference}"/></svg>`;
     assert.deepEqual(findUnsafeSvg(markup), [], reference);
     assert.doesNotThrow(() => sanitizeSvgMarkup(markup), reference);
-    assert.equal(errors(validateFacePart(variant({ artwork: `<g id="mouth-simple"><path id="mouth" d="M0 0" fill="${reference}"/></g>` }))).includes('artwork-unsafe'), false, reference);
+    assert.equal(errors(validateFacePart(variant({ artwork: `<g id="mouth-line"><path id="mouth" d="M0 0" fill="${reference}"/></g>` }))).includes('artwork-unsafe'), false, reference);
   }
   // And one that is a character still decodes.
   assert.deepEqual(findUnsafeSvg('<svg><rect fill="&#x75;rl(https://evil.example/p)"/></svg>').map((item) => item.kind), ['external-reference']);

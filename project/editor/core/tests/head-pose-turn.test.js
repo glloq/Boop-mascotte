@@ -71,6 +71,45 @@ test('a turn is built from the face parts, and only the ones that belong to a he
   assert.equal(HEAD_TURN_LAYERS.hand, undefined);
 });
 
+/**
+ * A drawing on the face that no role claims (3D-12).
+ *
+ * The rule is read off the artwork, and it is asked only of a flat drawing:
+ * where the head is a group, everything on the face is already inside it and a
+ * sibling of that group is something else on the mascot.
+ */
+test('a mark painted on a drawn face rides it, and only where the head is a shape', () => {
+  // The head is a group: the face is inside it, and the two top-level hands
+  // beside it are not face artwork however unclaimed they are.
+  const nestedHead = measured();
+  nestedHead.layers = [{ id: 'face', name: 'face', type: 'g', visible: true, children: [{ id: 'nose', type: 'path', name: 'nose', children: [] }] },
+    { id: 'handL', type: 'path', name: 'handL', children: [] }, { id: 'blush', type: 'path', name: 'blush', children: [] }];
+  nestedHead.elements.blush = element();
+  assert.equal(headTurnElements(nestedHead).some((layer) => !layer.role), false,
+    'a head that is a group takes nothing from beside it -- not a hand, not anything else');
+
+  // The head is a shape: a flat drawing, so the marks on the face are its own
+  // siblings, and that is where they are looked for.
+  const drawn = measured({ nested: false });
+  drawn.elements.blush = element();
+  drawn.elements.freckles = element();
+  drawn.layers = [...drawn.layers, { id: 'blush', type: 'path', name: 'blush', children: [] },
+    { id: 'freckles', type: 'g', name: 'freckles', children: [{ id: 'freckle1', type: 'path', name: 'freckle1', children: [] }] }];
+  const layers = headTurnElements(drawn, { centers: { ...CENTERS, blush: { x: 90, y: 140 }, freckles: { x: 120, y: 132 } } });
+  const byElement = Object.fromEntries(layers.map((layer) => [layer.elementId, layer]));
+  assert.ok(byElement.blush, 'a mark on a flat drawing is in the turn');
+  assert.ok(byElement.freckles, 'and a group of them is taken whole: its children ride it');
+  assert.equal('freckle1' in byElement, false, 'so the children are not taken as well, which would move them twice');
+  assert.equal('handL' in byElement, false, 'a hand the project names is never face artwork');
+
+  // What it does there: it rides the surface. Its own depth is nothing, so
+  // `carriedFrom` leaves it travelling exactly as far as the outline does,
+  // and it narrows by the same cosine because it is painted on it.
+  assert.equal(byElement.blush.depth, byElement.face.depth, 'a mark travels with the outline it is painted on');
+  assert.equal(byElement.blush.squash, true, 'and narrows as it does');
+  assert.ok(byElement.blush.depth < byElement.nose.depth, 'and never swings out in front like a feature');
+});
+
 test('the turn is measured from the head, and falls back to what the movement travels', () => {
   const document = withHeadBinding(project(), 12);
   // 5% of the head width moved the deepest feature four pixels on a hundred-pixel

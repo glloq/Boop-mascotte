@@ -89,8 +89,21 @@ export function createTransformGizmo({ layer, surface, getTarget, onPreview, onC
     // (`core/artwork/pose-transform.js`). Frozen here on purpose: the pose must
     // not be re-read mid-drag, because the drag itself is writing the DOM.
     drag.pose = item.pose || null;
-    surface?.setPointerCapture?.(event.pointerId);
-    event.preventDefault();
+    /**
+     * A press on a **handle** is a drag and nothing else, so it is claimed here.
+     *
+     * A press on the **body** might still be a click, and claiming it kills the
+     * click two ways over: `preventDefault` on `pointerdown` suppresses the
+     * compatibility mouse events that follow, and `setPointerCapture` sends the
+     * ones that survive to the capturing element instead of the artwork. So a
+     * selected group swallowed every press inside it, and the click that means
+     * "select the shape under the pointer" never arrived.
+     *
+     * The first `pointermove` claims it instead, which is the moment a press
+     * becomes a drag (docs/SELECTION_GIZMO.md).
+     */
+    if (handle === 'body') drag.unclaimed = event.pointerId;
+    else { surface?.setPointerCapture?.(event.pointerId); event.preventDefault(); }
     return true;
   }
 
@@ -102,6 +115,8 @@ export function createTransformGizmo({ layer, surface, getTarget, onPreview, onC
     }
     // Transient only: history sees nothing until the pointer is released.
     drag.moved = true;
+    // A body press becomes a drag here, so this is where it is claimed.
+    if (drag.unclaimed !== undefined) { surface?.setPointerCapture?.(drag.unclaimed); drag.unclaimed = undefined; }
     onPreview(updateGizmoDrag(drag, toCanvas(event), { shift: event.shiftKey }), drag);
     render();
     event.preventDefault();

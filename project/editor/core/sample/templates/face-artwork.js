@@ -42,10 +42,22 @@
  *   - the two slab cheek shadows are gone. What is left is a narrow crescent
  *     inside each edge, a soft shadow under the fringe, and one highlight.
  *
- * The eyes are clipped to their socket. That is what lets a pupil sit *behind*
- * the eyelid rather than fading out as the eye closes — the lid is an ordinary
- * skin-coloured shape parked above the eye, and everything outside the socket
- * is simply not drawn.
+ * **The eyes have no socket** (docs/EYE_BUILDS.md). They had one: a `<clipPath>`
+ * in `<defs>`, with the lids drawn open and parked *outside* it. That put a
+ * pupil behind the lid instead of fading it out, which was right, and it cost
+ * something an author could see: the clip appeared in neither the layer tree nor
+ * `document.elements`, so it could not be moved, resized or deleted, and the
+ * parked lids made the eye group's box **191 × 281 screen pixels around an eye
+ * of 100 × 94** — the selection handles ninety pixels off the eye on every side,
+ * and a press in the middle of the box moving nothing at all.
+ *
+ * A lid is the eye's own ellipse, squashed to a sliver on the rim it swings
+ * from and **scaled about that rim** to cover the eye. Scaling an ellipse about
+ * its top point gives another ellipse sitting on that edge, so the leading edge
+ * is a curve at every opening and lands exactly on the far rim when shut.
+ * Nothing is ever outside the eye, so nothing needs clipping and the eye's box
+ * is the eye. The pupil still sits *behind* the lid, because the lid is still an
+ * opaque shape painted over it.
  *
  * The fringe is clipped the same way, to the head itself, and so are the
  * shadows and the highlight. The clip is `headPath()` — the silhouette's own
@@ -114,8 +126,17 @@ export const FACE_STYLE = Object.freeze({
   noseOutline: 2.8,
   earOutline: 2.6,
   detail: 2.2,
-  lidUpperOutline: 2.6,
-  lidLowerOutline: 2.2,
+  /**
+   * A lid's crease — which is also the seam of a shut eye, because the two are
+   * the same line (`creasePath`). Heavier than the old crease was, because it is
+   * now the *only* line a closed eye has: the lids are fill and the eye's own rim
+   * fades out as they meet.
+   *
+   * The lower lid's is lighter, as it was: the upper lid is the one a viewer
+   * reads a blink from.
+   */
+  creaseUpper: 3,
+  creaseLower: 2.4,
   /** Cartoon shading: present, never noticed. V1's cheek slabs were at .5. */
   shadeOpacity: 0.22,
   hairShadeOpacity: 0.13,
@@ -289,102 +310,228 @@ export const EYE = Object.freeze({ cy: 113, rx: 24, ry: 22.5, left: 83, right: 1
 export const PUPIL = Object.freeze({ r: 10.5, travel: 8 });
 
 /**
- * The line a closed eye is drawn on, and how far each lid comes to reach it.
+ * How a lid is drawn, and how far it has to grow to shut the eye.
  *
- * A shut eye is a **seam**: two lids that meet, one line where there were two.
- * So the travel is the distance from where a lid's leading edge is drawn to
- * where that same edge lands on the seam — the half-socket, plus the margin the
- * lid is parked clear of the socket by, plus or minus the seam's own offset
- * from the middle.
+ * A lid is the eye's **own ellipse, squashed to a sliver on the rim it swings
+ * from** — which is what an open eye actually shows of an eyelid — and scaled
+ * about that rim until it covers the eye:
  *
- * The bulge and the dip are *not* in it. They are the shape of the lid's edge,
- * and the drawing already accounts for them (see `lid` below): a lid whose
- * travel carried its own curve as well arrives with that curve past the seam.
- * Counting them twice is exactly what the old formula did, and it is why a
- * closed eye had the upper lid 8 units below the seam and the lower one 6 above
- * it — 14 units of overlap in the middle of the socket, on an eye 45 tall. What
- * the viewer saw was a lid that had come down past the middle of the eye, and
- * a crease drawn where no eye closes.
+ * ```text
+ *   scaleY 1          scaleY cover/2      scaleY cover
+ *   ╭─────╮           ╭─────╮            ╭─────╮
+ *   │ ⬤   │           ├─────┤            │█████│
+ *   ╰─────╯           ╰─────╯            ╰─────╯
+ *    open             half                shut
+ * ```
+ *
+ * Scaling an ellipse about its top point gives another ellipse sitting on that
+ * edge, so `cover = ry / lidRy` takes the sliver to exactly the eye's own
+ * ellipse: the leading edge is a curve at every opening and lands on the far rim
+ * when shut, never past it. That is what makes the socket unnecessary
+ * (docs/EYE_BUILDS.md).
+ *
+ * V1 *translated* a lid drawn as a big rectangle parked clear of the eye, and
+ * needed a clip to crop it. Twice over, in fact: the travel counted the lid's
+ * own curved edge a second time, so a closed eye had the upper lid 8 units below
+ * the seam and the lower 6 above — 14 units of overlap on an eye 45 tall, with
+ * a crease drawn where no eye closes. The clip hid it.
  */
-const LID = Object.freeze({ bulge: 8, dip: 6, margin: 8, seam: 1,
+const LID = Object.freeze({
   /**
-   * How far each lid travels at `eyeSquint 1`, and how far the seam's edge
-   * bends at `eyeCurve ±1`.
+   * How tall a lid is drawn, as a fraction of the eye's own half-height.
+   *
+   * A **hairline**, and deliberately: at rest the lid has to sit under the eye's
+   * own outline, where an open eye shows no lid at all -- which is what the old
+   * drawing showed too, because its lids were parked outside the socket and
+   * cropped away. Drawn any taller and the crease is a line across the white.
+   *
+   * It is also what makes half a blink cover half the eye: the lid's edge starts
+   * at the rim and travels linearly to the seam, so it is at the middle when
+   * `eyeOpen` is. Drawn a fifth of the eye deep, half a blink was two thirds.
+   */
+  slice: 0.05,
+  /** A shade below the middle of the eye, which is where a lash line sits. */
+  seam: 1,
+  /**
+   * How far each lid's leading edge bulges, as a fraction of its own half-height.
+   *
+   * On the sliver rather than on the eye, so a lid that is scaled up carries its
+   * shape with it: the edge of a shut lid is the edge of the drawn one, eight
+   * times as far from the rim and eight times as curved, which is what a lid
+   * sweeping across an eye looks like.
+   */
+  bulge: 0.55, dip: 0.4,
+  /**
+   * How far each lid moves at `eyeSquint 1`, and how far the leading edge bends
+   * at `eyeCurve ±1`, both **on the drawn sliver**.
    *
    * The lower lid comes up nearly three times as far as the upper comes down,
-   * because that is what a squint is: a real one is the cheek pushing the
-   * lower lid up, and two lids meeting in the middle is a blink. Getting this
+   * because that is what a squint is: a real one is the cheek pushing the lower
+   * lid up, and two lids meeting in the middle is a blink. Getting that
    * symmetric was the difference between *suspicious* and *sleepy*.
+   *
+   * These are authored against the sliver and therefore scale with it, which is
+   * right for the curve and a compromise for the squint. `eyeCurve` is the arc
+   * of a **shut** eye, so it matters at `eyeOpen 0` where the scale is
+   * `LID_MEET`: 1.05 on the sliver arrives as 11 units of arc on the seam, which
+   * is the number the old drawing used. `eyeSquint` matters on a mostly-open
+   * eye, where the scale is near 1 and these are the units they look like; at a
+   * nearly shut eye it overshoots, and a squint there says nothing `eyeOpen` has
+   * not already said.
    */
-  squintUpper: 3.5, squintLower: 9, arc: 11 });
-/** A shade below the middle of the socket, which is where a lash line sits. */
-const LID_SHUT = round(EYE.cy + LID.seam);
-export const LID_TRAVEL = Object.freeze({
-  upper: round(LID_SHUT - (EYE.cy - EYE.ry) + LID.margin),
-  lower: round((EYE.cy + EYE.ry) - LID_SHUT + LID.margin)
+  squintUpper: 3.5, squintLower: 9, arc: 1.05
 });
+
+/**
+ * The sliver's own half-height, and the factor that takes each lid to the seam.
+ *
+ * **To the seam, not across the whole eye.** A library card's eye closes as skin
+ * under its own outline, so its upper lid grows until it covers everything
+ * (docs/EYE_BUILDS.md). The template's closed eye is a *seam*: two lids that
+ * meet on one line, which is the shape `eyeCurve` bends into a happy squeeze or
+ * a tired droop. So each one grows until its leading edge lands on that line,
+ * and the line sits a shade below the middle of the eye where a lash line does.
+ *
+ * A lid of drawn height `2 · slice` scaled by `k` about its rim reaches
+ * `2 · slice · k` into the eye, so `k` is the distance to the seam over that.
+ */
+export const LID_SLICE = round(EYE.ry * LID.slice);
+export const LID_MEET = Object.freeze({
+  upper: round((EYE.ry + LID.seam) / (2 * LID_SLICE)),
+  lower: round((EYE.ry - LID.seam) / (2 * LID_SLICE))
+});
+
+/** Where each lid swings from: the rim it is drawn on. */
+export const LID_PIVOTS = Object.freeze({
+  lidUpperLeft: { x: EYE.left, y: round(EYE.cy - EYE.ry) },
+  lidUpperRight: { x: EYE.right, y: round(EYE.cy - EYE.ry) },
+  lidLowerLeft: { x: EYE.left, y: round(EYE.cy + EYE.ry) },
+  lidLowerRight: { x: EYE.right, y: round(EYE.cy + EYE.ry) }
+});
+
+/** The circle-to-cubic constant: four cubics draw an ellipse to within a quarter of a unit. */
+const ARC = 0.5523;
 
 /**
  * A lid, drawn where it sits with the eye **open**.
  *
  * V1 drew both lids shut and let the rig lift them, which means the artwork on
  * its own — the file an author opens, the thumbnail on the home screen, the
- * `mascot.svg` that Export writes — is a mascot with its eyes closed. The
- * drawing is the neutral pose now, and closing the eye is what the rig does to
- * it: the binding carries an offset so `eyeOpen 1` lands on the drawing and
- * `eyeOpen 0` brings the lid all the way down (`template-project.js`).
+ * `mascot.svg` that Export writes — was a mascot with its eyes closed. The
+ * drawing is the neutral pose, and closing the eye is what the rig does to it:
+ * the binding rests at `scaleY 1` and reaches `cover` at `eyeOpen 0`.
  *
- * The edge is a quadratic, so the furthest the lid reaches is its middle, half
- * way along the curve — `edge + curve / 2`, the bulge for the upper lid and the
- * dip for the lower. *That* is the edge the travel has to land on the seam, so
- * the drawing takes it off here: whatever the curve, the lid is drawn a travel
- * away from the seam measured at the point that arrives first.
+ * Four cubics, absolute throughout: a relative `h`/`q` is a path the editor's
+ * own node tools decline to edit, and an author reshaping an eyelid is exactly
+ * the kind of thing this template is meant to be taken apart for. The **leading
+ * edge** — the half of the ellipse facing the pupil — is where the two poses
+ * act: `squint` deepens it and `curve` bends its middle, so a narrowed eye and a
+ * happy squeeze are the same four points read differently.
  *
  * @param {number} cx        the middle of the eye
- * @param {number} shut      the height the two lids meet at
- * @param {number} reach     how far the lid extends past the socket sideways
  * @param {1|-1} way         1 for the lower lid, -1 for the upper
  */
-const lid = (cx, shut, reach, way, { squint = 0, curve: bend = 0 } = {}) => {
-  const travel = way < 0 ? -LID_TRAVEL.upper : LID_TRAVEL.lower;
-  const curve = way < 0 ? LID.bulge * 2 : -LID.dip * 2;
-  const left = round(cx - reach), right = round(cx + reach);
+const lid = (cx, way, { squint = 0, curve: bend = 0 } = {}) => {
+  const ry = LID_SLICE, rx = EYE.rx;
+  // The sliver sits on its own rim, so its centre is one sliver inside the eye.
+  const cy = EYE.cy + way * (EYE.ry - ry);
   // A narrowed eye is the two lids coming *towards each other* while the eye
-  // stays open: the upper one down a little, the lower one up more, which is
-  // the asymmetry that reads as effort rather than as a half blink. The lower
-  // lid does most of it, which is what a real squint does.
-  const narrow = squint * (way < 0 ? LID.squintUpper : -LID.squintLower);
-  // And the arc is the *edge* of the lid bending while its ends stay put: a
-  // shut eye that curves upwards is a happy squeeze, one that curves the other
-  // way is tired. Only the control point moves, which keeps the seam's two
-  // ends exactly where the travel put them.
-  //
-  // The **same** sign for both lids, which is the thing that is easy to get
-  // wrong: what the viewer reads as the arc is the two lid edges together, so
-  // both of them have to rise in the middle. Mirroring it the way the travel
-  // is mirrored draws the two edges apart instead, which is a shut eye with a
-  // lens of white in the middle of it.
+  // stays open: the upper one down a little, the lower one up more.
+  const narrow = squint * (way < 0 ? LID.squintUpper : LID.squintLower);
+  // And the arc is the *edge* of the lid bending while its ends stay put. The
+  // **same** sign for both lids, which is the thing that is easy to get wrong:
+  // what the viewer reads as the arc is the two edges together, so both have to
+  // rise in the middle. Mirroring it the way the rim is mirrored draws the two
+  // edges apart instead, which is a shut eye with a lens of white in it.
   const arc = -bend * LID.arc;
-  const edge = round(shut + travel - curve / 2 + narrow), back = round(edge + way * 30);
-  // Absolute commands throughout: a relative `h`/`q` is a path the editor's own
-  // node tools decline to edit, and an author reshaping an eyelid is exactly
-  // the kind of thing this template is meant to be taken apart for.
-  return `M${left} ${back} L${right} ${back} L${right} ${edge} Q${cx} ${round(edge + curve + arc)} ${left} ${edge} Z`;
+  // The rim half and the leading half. The rim is the eye's own edge -- the top
+  // of the eye for the upper lid, the bottom for the lower -- and the leading
+  // edge is the one facing the pupil, a sliver away, plus whatever the poses add.
+  const rim = round(cy + way * ry);
+  const kx = round(rx * ARC), back = round((rim - cy) * ARC);
+  const at = (x, y) => `${round(x)} ${round(y)}`;
+  return `M${at(cx - rx, cy)}`
+    // up over the rim, in two cubics
+    + ` C${at(cx - rx, cy + back)} ${at(cx - kx, rim)} ${at(cx, rim)}`
+    + ` C${at(cx + kx, rim)} ${at(cx + rx, cy + back)} ${at(cx + rx, cy)}`
+    // and back along the leading edge, which is where the poses act
+    + ` ${leadingEdge(cx, way, { squint, curve: bend }, { open: false })} Z`;
 };
+
+/**
+ * The leading half of a lid, from the far corner back to the near one.
+ *
+ * Written once and read twice: as the second half of the lid's own closed shape,
+ * and as the crease, which is this alone with a stroke on it. So a lid and its
+ * crease cannot disagree about where the edge is -- there is one piece of
+ * arithmetic, not two kept in step.
+ *
+ * `open: true` starts with a `M`, which is what makes it a line rather than the
+ * continuation of a shape.
+ */
+function leadingEdge(cx, way, { squint = 0, curve: bend = 0 } = {}, { open = true } = {}) {
+  const ry = LID_SLICE, rx = EYE.rx;
+  const cy = EYE.cy + way * (EYE.ry - ry);
+  const narrow = squint * (way < 0 ? LID.squintUpper : LID.squintLower);
+  // The arc is authored on the upper lid's own scale and divided back out for the
+  // lower one, which grows a little less far (the seam is below the middle of the
+  // eye). Without that the two edges arrive at different arcs and a shut eye is
+  // two lines a unit apart instead of the one it is.
+  const arc = -bend * LID.arc * (way < 0 ? 1 : LID_MEET.upper / LID_MEET.lower);
+  const reach = round(cy - way * (ry + narrow) + arc);
+  const kx = round(rx * ARC), lead = round((reach - cy) * ARC);
+  const at = (x, y) => `${round(x)} ${round(y)}`;
+  // The crease is drawn from the far corner inwards for the same reason the lid
+  // is: the two share every number, so the crease is the closed shape's own
+  // second half with a `M` in front of it.
+  return `${open ? `M${at(cx + rx, cy)} ` : ''}C${at(cx + rx, cy + lead)} ${at(cx + kx, reach)} ${at(cx, reach)}`
+    + ` C${at(cx - kx, reach)} ${at(cx - rx, cy + lead)} ${at(cx - rx, cy)}`;
+}
+
+/**
+ * A lid's **crease**: its leading edge, on its own, as a line.
+ *
+ * The lids themselves carry no outline — a closed shape stroked all the way
+ * round draws its rim half too, and the rim half of a sliver sits *inside* the
+ * eye at the corners, so each lid read as a lens-shaped ring lying across the
+ * eye rather than as skin over it.
+ *
+ * So the line is its own path: the same two cubics, the same pivot, the same
+ * `scaleY`, the same `eyeCurve` shape key. It cannot drift from the lid, because
+ * it *is* the lid's edge. With the eye open it is a crease just inside the rim,
+ * which is what an eyelid looks like; with the eye shut the two creases have
+ * grown onto the seam and read as the one line a closed eye is.
+ *
+ * The stroke is `non-scaling-stroke`, which is the one detail the growing
+ * construction needs: a 3-unit line scaled three times over would arrive as a
+ * 10-unit black band across a shut eye.
+ */
+export function creasePath(role, pose = {}) {
+  const side = /Right$/.test(role) ? 'Right' : 'Left';
+  const cx = side === 'Right' ? EYE.right : EYE.left;
+  return leadingEdge(cx, /^creaseUpper/.test(role) ? -1 : 1, pose);
+}
+
+/** The two creases the template draws, and the lines they rest at. */
+export const CREASE_ROLES = Object.freeze(['creaseUpperLeft', 'creaseLowerLeft', 'creaseUpperRight', 'creaseLowerRight']);
+export const CREASE_RESTS = Object.freeze(Object.fromEntries(CREASE_ROLES.map((role) => [role, creasePath(role)])));
+
+/** Where each crease swings from: the same rim its lid does. */
+export const CREASE_PIVOTS = Object.freeze(Object.fromEntries(CREASE_ROLES.map((role) =>
+  [role, LID_PIVOTS[role.replace('crease', 'lid')]])));
 
 /**
  * One eyelid's outline for a given state, by role.
  *
- * The rig deforms the drawn lid; this is what it deforms it *to*, and it is
- * the one place the template says what a narrowed or arced lid looks like
- * (`template-project.js` turns each into an additive shape key). Every
- * parameter is 0 at rest, so `lidPath(role)` is the outline in the artwork.
+ * The rig deforms the drawn lid; this is what it deforms it *to*, and it is the
+ * one place the template says what a narrowed or arced lid looks like
+ * (`template-project.js` turns each into an additive shape key). Every parameter
+ * is 0 at rest, so `lidPath(role)` is the outline in the artwork.
  */
 export function lidPath(role, pose = {}) {
   const side = /Right$/.test(role) ? 'Right' : 'Left';
   const cx = side === 'Right' ? EYE.right : EYE.left;
-  const way = /^lidUpper/.test(role) ? -1 : 1;
-  return lid(cx, LID_SHUT, round(EYE.rx + 22), way, pose);
+  return lid(cx, /^lidUpper/.test(role) ? -1 : 1, pose);
 }
 
 /** The four lids the template draws, and the outlines they rest at. */
@@ -394,25 +541,41 @@ export const LID_RESTS = Object.freeze(Object.fromEntries(LID_ROLES.map((role) =
 /**
  * Left and right are the viewer's, which is how an author points at them.
  *
- * The clip is on the eye group itself, not on a wrapper inside it, so it
- * travels with the eye: the 2.5D turn moves the whole assembly -- socket,
- * white, pupil, lids and outline -- as one, instead of sliding the contents out
- * from under a socket pinned to the face. Everything the lids push past the
- * socket edge is simply not drawn.
+ * **Nothing is clipped.** The group used to carry `clip-path` so the 2.5D turn
+ * moved the whole assembly -- socket, white, pupil, lids and outline -- as one,
+ * which was the right answer to the wrong problem: the lids only needed cropping
+ * because they were drawn outside the eye. They are slivers on the rim now
+ * (`lid` above), so the group is the eye and there is nothing to crop.
+ *
+ * **The lids carry no outline.** A closed shape stroked all the way round draws
+ * its rim half as well as its leading edge, and the rim half of a sliver sits
+ * *inside* the eye at the corners — so each lid read as a lens-shaped ring lying
+ * across the eye rather than as skin over it. They are fill only, and the eye's
+ * own `rim` is drawn last, on top, so the outline an author sees is the eye's.
+ *
+ * The line is its own path instead: `creaseUpperLeft` and its three companions,
+ * each the leading edge of the lid it belongs to, sharing its pivot, its
+ * `scaleY` and its `eyeCurve` shape key. It cannot drift from the lid, because it
+ * *is* the lid's edge. Open, it reads as an eyelid crease just inside the rim;
+ * shut, the two have grown onto the seam and read as the one line a closed eye
+ * is — which is what `eyeCurve` bends into the happy `^ ^` and the tired droop
+ * (docs/EYE_BUILDS.md).
  *
  * The second catchlight is the one detail added to the eye. It is a third of
  * the size of the first and sits on the opposite side of the pupil, which is
  * what stops a large flat pupil from reading as a hole.
  */
 const eye = (side, cx) => {
-  const { cy, rx, ry } = EYE, shut = LID_SHUT, reach = round(rx + 22);
-  return `<g id="eye${side}" data-name="${side} eye" clip-path="url(#eyeSocket${side})">
+  const { cy, rx, ry } = EYE;
+  return `<g id="eye${side}" data-name="${side} eye">
       <ellipse id="eyeWhite${side}" data-name="${side} eye white" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${FACE_PALETTE.eyeWhite}" />
       <circle id="pupil${side}" data-name="${side} pupil" cx="${cx}" cy="${cy}" r="${PUPIL.r}" fill="${FACE_PALETTE.pupil}" />
       <circle id="glint${side}" data-name="${side} eye glint" cx="${round(cx - 4.2)}" cy="${round(cy - 4.6)}" r="3.6" fill="${FACE_PALETTE.glint}" opacity="${FACE_STYLE.glintOpacity}" />
       <circle id="spark${side}" data-name="${side} eye catchlight" cx="${round(cx + 4.4)}" cy="${round(cy + 3.6)}" r="1.7" fill="${FACE_PALETTE.glint}" opacity="${FACE_STYLE.sparkOpacity}" />
-      <path id="lidUpper${side}" data-name="${side} upper eyelid" d="${lid(cx, shut, reach, -1)}" fill="${FACE_PALETTE.skin}" stroke="${FACE_PALETTE.outlinePrimary}" stroke-width="${FACE_STYLE.lidUpperOutline}" stroke-linejoin="round" />
-      <path id="lidLower${side}" data-name="${side} lower eyelid" d="${lid(cx, shut, reach, 1)}" fill="${FACE_PALETTE.skin}" stroke="${FACE_PALETTE.outlinePrimary}" stroke-width="${FACE_STYLE.lidLowerOutline}" stroke-linejoin="round" />
+      <path id="lidUpper${side}" data-name="${side} upper eyelid" d="${lid(cx, -1)}" fill="${FACE_PALETTE.skin}" />
+      <path id="creaseUpper${side}" data-name="${side} upper eyelid crease" d="${creasePath(`creaseUpper${side}`)}" fill="none" stroke="${FACE_PALETTE.outlinePrimary}" stroke-width="${FACE_STYLE.creaseUpper}" stroke-linecap="round" vector-effect="non-scaling-stroke" />
+      <path id="lidLower${side}" data-name="${side} lower eyelid" d="${lid(cx, 1)}" fill="${FACE_PALETTE.skin}" />
+      <path id="creaseLower${side}" data-name="${side} lower eyelid crease" d="${creasePath(`creaseLower${side}`)}" fill="none" stroke="${FACE_PALETTE.outlinePrimary}" stroke-width="${FACE_STYLE.creaseLower}" stroke-linecap="round" vector-effect="non-scaling-stroke" />
       <ellipse id="rim${side}" data-name="${side} eye outline" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="none" stroke="${FACE_PALETTE.outlinePrimary}" stroke-width="${FACE_STYLE.eyeOutline}" />
     </g>`;
 };
@@ -520,210 +683,17 @@ const ear = (side, flip) => {
 /* ------------------------------------------------------------------ mouth -- */
 
 /**
- * The mouth, as one closed shape.
+ * The mouth, the teeth and the tongue: `core/face/mouth-build.js`.
  *
- * It used to be two: a stroked lip line that morphed for the smile, and a
- * filled cavity that scaled for the opening. Two shapes deforming under two
- * different systems cannot agree — a smile put the lip corners outside the
- * cavity, and half-open the lip sat across the hole like a stick. One closed
- * path has no such seam: the fill *is* the inside of the mouth and the stroke
- * *is* the lips, so every pose is a mouth.
- *
- * Every control point is affine in `open` and `smile`, which is what lets the
- * two additive shape keys reproduce any combination exactly rather than
- * approximately (docs/SHAPE_KEYS.md).
- *
- * **The neutral is not flat.** V1's rest pose put the upper lip's control
- * point level with its corners, which draws a straight bar: technically
- * neutral, and it read as a face with nothing behind it. Here the corners sit
- * a little above the middle of the lip line, which is the amount a relaxed
- * mouth actually curves — far short of a smile, and enough that the face is
- * alive when nothing is driving it.
+ * Moved out so the library's one complete mouth and the sample are the *same*
+ * mouth, exactly as the eyes are (docs/MOUTH_BUILD.md, docs/EYE_BUILDS.md).
+ * Re-exported here because the template drew this face and everything that reads
+ * these numbers reads them from the template.
  */
-const MOUTH = Object.freeze({
-  cx: 120, half: 33, cornerY: 172.5,
-  lipY: 176, floorY: 183.5,
-  smileRise: 8, smileDrop: 13, smileSpread: 2, openDrop: 62,
-  /** How far the corners lift when the head looks down. See `arc` below. */
-  arcRise: 5,
-  /**
-   * A pucker, in three numbers (docs/VISEME_SYSTEM.md).
-   *
-   * `mouthWidth` narrows the mouth by *scaling* it, which makes a small lens
-   * out of a large one — and a small lens is not an O. What rounds a mouth is
-   * the corners coming **in** while the lip line bows **out** above and below
-   * them: the aperture stops being wide and shallow and becomes tall for its
-   * width, which is the whole difference between `AE` and `OO`.
-   *
-   * So `roundPull` draws the corners towards the middle, `roundTop` pushes the
-   * upper lip up away from them and `roundFloor` pushes the lower lip down.
-   * Every one of them is 0 at `mouthRound 0`, which is every mouth that has
-   * never been asked to pucker.
-   */
-  roundPull: 19, roundTop: 7, roundFloor: 9
-});
+export { MOUTH_BOX, MOUTH_REST, TEETH_REST, TONGUE_REST, mouthGeometry, mouthPath, teethPath, tonguePath } from '../../face/mouth-build.js';
+// And imported, because this module draws with them as well as re-exporting them.
+import { MOUTH, MOUTH_REST, TEETH_REST, TONGUE_REST, mouthGeometry, mouthPath, teethPath, tonguePath } from '../../face/mouth-build.js';
 
-/**
- * Where the mouth's four control points are for one pose.
- *
- * `arc` is the mouth **following the curve of the skull**, and it is not an
- * expression: the head-pose turn rotates every feature by the amount the
- * surface under it has turned (`featureTilt`), which makes the two halves of a
- * pair read as one bow across the face — and does nothing at all for a feature
- * on the middle line, where the surface tilt is zero by symmetry. A mouth does
- * not tilt when a head looks down. It *bows*, and a rigid element cannot, so
- * the shape does it: the corners lift as the head drops and fall as it rises,
- * driven by `headY` through a shape key like every other change to this mouth.
- *
- * Only the corners move, which is what keeps it a bow rather than a smile.
- */
-export function mouthGeometry({ open = 0, smile = 0, arc = 0, round: pucker = 0 } = {}) {
-  const cornerY = MOUTH.cornerY - MOUTH.smileRise * smile - MOUTH.arcRise * arc;
-  const half = MOUTH.half - MOUTH.roundPull * pucker;
-  return {
-    left: { x: MOUTH.cx - half - MOUTH.smileSpread * smile, y: cornerY },
-    right: { x: MOUTH.cx + half + MOUTH.smileSpread * smile, y: cornerY },
-    top: { x: MOUTH.cx, y: MOUTH.lipY + MOUTH.smileDrop * smile - MOUTH.roundTop * pucker },
-    bottom: { x: MOUTH.cx, y: MOUTH.floorY + MOUTH.smileDrop * smile + MOUTH.openDrop * open + MOUTH.roundFloor * pucker }
-  };
-}
-
-/** A point on a quadratic, so what goes inside the mouth can sit on its own lips. */
-const quad = (p0, c, p2, t) => {
-  const u = 1 - t;
-  return { x: u * u * p0.x + 2 * u * t * c.x + t * t * p2.x, y: u * u * p0.y + 2 * u * t * c.y + t * t * p2.y };
-};
-/** The control point of the quadratic through three points, which is how a band follows a lip. */
-const through = (a, mid, b) => ({ x: 2 * mid.x - (a.x + b.x) / 2, y: 2 * mid.y - (a.y + b.y) / 2 });
-
-export function mouthPath(pose = {}) {
-  const g = mouthGeometry(pose);
-  return `M${point(g.left)} Q${point(g.top)} ${point(g.right)} Q${point(g.bottom)} ${point(g.left)} Z`;
-}
-
-/**
- * The box the lips occupy at rest, which is what the mouth's own pins are
- * measured from.
- *
- * Measured off the *control points* rather than off the drawn curve: the pin
- * that lets the jaw pull the lower lip has to reach the point that draws the
- * lower lip, and that point sits below the curve it bends. A box drawn round
- * the visible lips is a box the lower-lip pin cannot see out of, and the jaw
- * then opens the face without opening the mouth.
- */
-export const MOUTH_BOX = Object.freeze((() => {
-  const g = mouthGeometry();
-  const top = round(Math.min(g.left.y, g.top.y) - 3);
-  return { x: round(g.left.x), y: top, width: round(g.right.x - g.left.x), height: round(g.bottom.y - top) };
-})());
-
-/**
- * Teeth and tongue.
- *
- * Both are drawn *from the mouth's own curves* rather than beside them: the
- * teeth hang off the upper lip, the tongue rests just above the lower one.
- * Inside by construction, which is the whole reason the cavity used to come
- * apart — a shape that only happens to line up stops lining up the moment
- * anything moves.
- *
- * Each is **two quadratics that share their ends on the lip**, one with its
- * control point pushed into the mouth. `show` is how far. At 0 the two are the
- * same curve traced twice: the shape encloses nothing and nothing is painted,
- * so closed lips have nothing behind them to hide, by construction rather than
- * by arithmetic.
- *
- * That shared end is the whole of the redesign. The first version gave each
- * band an end of its own, a fraction of the way out, and joined the two with a
- * straight `L` — a vertical cut a few units tall at each end, with a step where
- * it met the lip. What it drew was a white slab with square corners and, under
- * it, a pink slab with square corners, the tongue being the worse of the two
- * because it was as wide as the mouth and half as deep: an open mouth was two
- * coloured blocks. Now the teeth taper into nothing before the corners the way
- * a row of upper teeth does, and the tongue is a narrow dome.
- */
-const BAND = Object.freeze({
-  /** Where each band starts and ends along its lip, as a fraction of it. */
-  teethFrom: 0.14, teethTo: 0.86,
-  // Much narrower than the mouth: a tongue is a shape *in* the cavity, and one
-  // that reaches the corners is the cavity's floor instead.
-  tongueFrom: 0.29, tongueTo: 0.71,
-  /**
-   * How thick each is in the middle, as a fraction of the drawn cavity. A
-   * quadratic reaches half its control point's offset, hence the doubling
-   * where these are used.
-   */
-  teeth: 0.3, tongue: 0.48,
-  /**
-   * How far the near edge sits inside the lip, as a fraction of the far one.
-   * The lip's outline is 3.8 units wide and centred on the path, so a band
-   * whose edge lies exactly on it paints over the inner half and the lip goes
-   * thin where the teeth are.
-   */
-  tuck: 0.2,
-  /**
-   * The tongue's own two: how far it floats off the lower lip -- the dark line
-   * under it is what makes it a tongue in a mouth rather than the floor of one
-   * -- and how far its underside flattens towards the chord, which is what
-   * makes the shape a dome instead of a symmetric lens.
-   */
-  tongueLift: 0.1, tongueBase: 0.22
-});
-
-/**
- * How far a band reaches at full stretch: half the cavity of a fully open
- * mouth, and a **constant**.
- *
- * Deriving it from the pose (`(bottom - top) / 2` of *this* mouth) made every
- * point of a band a product of `open` and `show`, and the rig drives the two
- * separately: one shape key moves the band down with the lip, another brings it
- * out. A product is not the sum of its ends, so a tongue at half `tongue` on a
- * wide open mouth came out half-sized *and halfway up the cavity*, floating
- * clear of the lip it grows from. Constant here, scaled by the driver there,
- * and the two keys add up to exactly the drawing.
- */
-const BAND_REACH = (MOUTH.floorY + MOUTH.openDrop - MOUTH.lipY) / 2;
-
-/**
- * One band: two quadratics sharing their ends on the lip, one control point
- * pushed `offset` into the mouth and the other `tuck`.
- *
- * A quadratic reaches half its control point's offset, so the drawn thickness
- * in the middle is half the difference. `tuck` is what keeps the near edge off
- * the lip's own stroke: the outline is 3.8 units wide and centred on the path,
- * so a band whose edge lies exactly on that path paints over the inner half of
- * it and the lip goes thin where the teeth are. The ends still pinch to the
- * lip, which is what makes the band taper away instead of stopping.
- *
- * `lift` moves the whole band, ends and all, off the lip it hangs from — the
- * tongue's, so that a dark line of cavity shows under it. At `show 0` every one
- * of the three is 0, which is what keeps the empty shape empty.
- */
-const band = (lip, from, to, offset, tuck, lift = 0) => {
-  const a = lip(from), b = lip(to), control = through(a, lip((from + to) / 2), b);
-  const at = (delta) => point({ x: control.x, y: control.y + lift + delta });
-  return `M${point({ x: a.x, y: a.y + lift })} Q${at(tuck)} ${point({ x: b.x, y: b.y + lift })}`
-    + ` Q${at(offset)} ${point({ x: a.x, y: a.y + lift })} Z`;
-};
-
-export function teethPath({ open = 0, smile = 0, arc = 0, show = 0, round: pucker = 0 } = {}) {
-  const g = mouthGeometry({ open, smile, arc, round: pucker });
-  const drop = BAND_REACH * BAND.teeth * show * 2;
-  return band((t) => quad(g.left, g.top, g.right, t), BAND.teethFrom, BAND.teethTo, drop, drop * BAND.tuck);
-}
-
-export function tonguePath({ open = 0, smile = 0, arc = 0, show = 0, round: pucker = 0 } = {}) {
-  const g = mouthGeometry({ open, smile, arc, round: pucker });
-  const rise = -BAND_REACH * BAND.tongue * show * 2;
-  // The lower lip, walked right to left, so the tongue is wound the same way
-  // round as the teeth and the two shapes stay comparable. It rests *above* the
-  // lip rather than on it: a tongue whose edge is the lip is the floor of the
-  // mouth, and the dark line under it is what makes it a tongue in a mouth.
-  return band((t) => quad(g.right, g.bottom, g.left, t), BAND.tongueFrom, BAND.tongueTo, rise * (1 - BAND.tongueLift), rise * BAND.tongueBase, rise * BAND.tongueLift);
-}
-
-export const MOUTH_REST = mouthPath();
-export const TEETH_REST = teethPath();
-export const TONGUE_REST = tonguePath();
 
 /* ------------------------------------------------------------------- nose -- */
 
@@ -1016,8 +986,6 @@ export function buildMascotFaceSvg({ palette = FACE_PALETTE, box = FACE_ARTBOARD
   const c = { ...FACE_PALETTE, ...palette };
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${box.x} ${box.y} ${box.width} ${box.height}" role="img" aria-label="Cartoon mascot face">
   <defs>
-    <clipPath id="eyeSocketLeft"><ellipse cx="${EYE.left}" cy="${EYE.cy}" rx="${EYE.rx}" ry="${EYE.ry}" /></clipPath>
-    <clipPath id="eyeSocketRight"><ellipse cx="${EYE.right}" cy="${EYE.cy}" rx="${EYE.rx}" ry="${EYE.ry}" /></clipPath>
     <clipPath id="headShape"><path d="${HEAD_REST}" /></clipPath>
   </defs>
   ${before}

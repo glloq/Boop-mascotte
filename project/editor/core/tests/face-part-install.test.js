@@ -6,12 +6,13 @@ import { createFakeFaceCanvas, boxesFromReferenceBox, templateBoxes } from './he
 import { FACE_PART_DOMAINS, FACE_PART_FIELDS, applyFacePartRemoval, applyFacePartReplacement, planFacePartRemoval, planFacePartReplacement, scrubRemovedArtwork } from '../face-library/face-part-install.js';
 import { remapArtworkIds } from '../face-library/face-part-artwork.js';
 import { artworkIds, normalizeFacePart } from '../face-library/face-part-model.js';
-import { MOUTH_SIMPLE } from '../face-library/builtin/mouth-simple.js';
-import { MOUTH_WIDE } from '../face-library/builtin/mouth-wide.js';
+import { MOUTH_FULL } from '../face-library/builtin/mouth-full.js';
+import { MOUTH_LINE } from './fixtures/mouth-line.js';
 import { NOSE_DOT } from '../face-library/builtin/nose-dot.js';
 import { validateRig } from '../validation/rig-validator.js';
 import { isHeadPoseKeyform } from '../head-pose/head-pose-model.js';
 import { PROJECT_DOMAINS } from '../state/project-document.js';
+import { compileRigFrame, parsePath, resolveStateParams } from '../../../runtime/runtime.js';
 
 /**
  * Putting a library asset onto the template face (docs/FACE_PART_LIBRARY.md,
@@ -57,7 +58,7 @@ function install(fixtureOf, categoryId, definition, { fit = null } = {}) {
 test('the plan names what goes, where the new drawing lands, and what the author had moved', () => {
   const state = createTemplateProjectState();
   state.elements.mouth.baseTransform = { ...state.elements.mouth.baseTransform, x: 4, y: -2, rotation: 5, scaleX: 1.2, scaleY: 1.2 };
-  const plan = planFacePartReplacement(state, 'mouth', asset(MOUTH_SIMPLE));
+  const plan = planFacePartReplacement(state, 'mouth', asset(MOUTH_FULL));
   assert.equal(plan.ok, true);
   assert.deepEqual(plan.removeIds, ['mouth', 'teeth', 'tongue'], 'every role of the part, and nothing drawn inside them because nothing is');
   assert.equal(plan.partId, 'mouth');
@@ -97,17 +98,17 @@ test('a part drawn around other parts is refused, and says which; the skull is w
   // A hand drawn inside a part counts the same way.
   const around = createTemplateProjectState();
   around.hands.left.element = 'mouth';
-  assert.match(planFacePartReplacement(around, 'mouth', asset(MOUTH_SIMPLE)).reason, /the left hand/);
+  assert.match(planFacePartReplacement(around, 'mouth', asset(MOUTH_FULL)).reason, /the left hand/);
 });
 
 test('the plan refuses what cannot be planned, in words', () => {
   const state = createTemplateProjectState();
-  assert.equal(planFacePartReplacement(state, 'nope', asset(MOUTH_SIMPLE)).reason, 'Unknown category "nope".');
-  assert.equal(planFacePartReplacement(state, 'facialHair', asset(MOUTH_SIMPLE)).reason, '"mouth.simple" is not a facial hair asset.');
-  assert.equal(planFacePartReplacement(state, 'nose', asset(MOUTH_SIMPLE)).reason, '"mouth.simple" is not a nose asset.');
+  assert.equal(planFacePartReplacement(state, 'nope', asset(MOUTH_FULL)).reason, 'Unknown category "nope".');
+  assert.equal(planFacePartReplacement(state, 'facialHair', asset(MOUTH_FULL)).reason, '"mouth.full" is not a facial hair asset.');
+  assert.equal(planFacePartReplacement(state, 'nose', asset(MOUTH_FULL)).reason, '"mouth.full" is not a nose asset.');
   assert.equal(planFacePartReplacement(state, 'nose', null).reason, '"?" is not a nose asset.');
-  assert.equal(planFacePartReplacement({}, 'mouth', asset(MOUTH_SIMPLE)).reason, 'Start from a face, or import artwork, before choosing a part.');
-  assert.throws(() => applyFacePartReplacement({}, planFacePartReplacement({}, 'mouth', asset(MOUTH_SIMPLE)), {}), /Start from a face/);
+  assert.equal(planFacePartReplacement({}, 'mouth', asset(MOUTH_FULL)).reason, 'Start from a face, or import artwork, before choosing a part.');
+  assert.throws(() => applyFacePartReplacement({}, planFacePartReplacement({}, 'mouth', asset(MOUTH_FULL)), {}), /Start from a face/);
 });
 
 test('scrubbing takes every reference to the old shapes with them', () => {
@@ -130,6 +131,10 @@ test('scrubbing takes every reference to the old shapes with them', () => {
     // touch (docs/FACE_SVG_STATES.md).
     'lidUpperLeft-eyeSquint', 'lidUpperLeft-eyeCurve', 'lidLowerLeft-eyeSquint', 'lidLowerLeft-eyeCurve',
       'lidUpperRight-eyeSquint', 'lidUpperRight-eyeCurve', 'lidLowerRight-eyeSquint', 'lidLowerRight-eyeCurve',
+    // And the four creases that draw those lids' edges, bent by the same two
+    // controls -- a crease *is* the lid's edge (docs/EYE_BUILDS.md).
+    'creaseUpperLeft-eyeSquint', 'creaseUpperLeft-eyeCurve', 'creaseLowerLeft-eyeSquint', 'creaseLowerLeft-eyeCurve',
+      'creaseUpperRight-eyeSquint', 'creaseUpperRight-eyeCurve', 'creaseLowerRight-eyeSquint', 'creaseLowerRight-eyeCurve',
     'head-jaw'], 'nothing of the mouth\'s is left; the lids\' and the jaw\'s keys stay');
   assert.equal(state.keyforms.some((keyform) => ['mouth', 'teeth', 'tongue'].includes(keyform.target?.id)), false);
   assert.equal(state.rigPins.length, browPins, 'the brows keep their pins');
@@ -141,23 +146,25 @@ test('scrubbing takes every reference to the old shapes with them', () => {
   assert.ok(state.params.mouthOpen && state.params.smile, 'scrubbing artwork touches no parameter');
 });
 
-test('a simple mouth over the template: the movements stay, on drivers the new drawing can carry', () => {
+test('a lesser mouth over the template: the movements stay, on drivers the new drawing can carry', () => {
   const fx = fixture();
   const original = structuredClone(fx.store.getDocument());
   fx.store.execute({ type: 'test/move', domains: ['artwork'], source: 'test', apply: (document) => { document.elements.mouth.baseTransform.x = 5; document.elements.mouth.baseTransform.rotation = 3; } });
-  const { summary, document } = install(fx, 'mouth', MOUTH_SIMPLE);
-  // A line has nothing to pucker with: `mouthRound` needs a shape the drawing
-  // does not carry, so it goes off beside the teeth and the tongue.
-  assert.deepEqual(summary, { partId: 'mouth', rootId: 'mouth-simple', ids: ['mouth-simple', 'mouth'], roles: { mouth: 'mouth' }, parts: {}, detached: [], enabled: ['mouthOpen', 'smile', 'mouthWidth'], disabled: ['mouthRound', 'teeth', 'tongue'], pinned: true, turned: true, fitted: false, skull: false, rehomed: [], hosted: null, removed: ['mouth', 'teeth', 'tongue'] });
+  const { summary, document } = install(fx, 'mouth', MOUTH_LINE);
+  // A line has nothing to pucker with and nothing inside it: `mouthRound` needs
+  // a shape the drawing does not carry, so it goes off beside the teeth and the
+  // tongue. The library's own mouth carries all three (docs/MOUTH_BUILD.md);
+  // this is the fixture that does not, which is what the check needs.
+  assert.deepEqual(summary, { partId: 'mouth', rootId: 'mouth-line', ids: ['mouth-line', 'mouth'], roles: { mouth: 'mouth' }, parts: {}, detached: [], enabled: ['mouthOpen', 'smile', 'mouthWidth'], disabled: ['mouthRound', 'teeth', 'tongue'], pinned: true, turned: true, fitted: false, skull: false, rehomed: [], hosted: null, removed: ['mouth', 'teeth', 'tongue'] });
   assert.equal(fx.canvas.calls.replace.length, 1);
-  assert.deepEqual(fx.canvas.calls.replace[0], { removeIds: ['mouth', 'teeth', 'tongue'], fragment: MOUTH_SIMPLE.artwork, mountPoint: 'faceRoot', before: 'eyeLeft', behind: null, rehome: [] });
+  assert.deepEqual(fx.canvas.calls.replace[0], { removeIds: ['mouth', 'teeth', 'tongue'], fragment: MOUTH_LINE.artwork, mountPoint: 'faceRoot', before: 'eyeLeft', behind: null, rehome: [] });
 
   // The drawing: the fragment where the mouth was, the old three gone.
-  assert.deepEqual(layerChildren(document, 'faceRoot'), ['hairBack', 'earLeft', 'earRight', 'head', 'faceShading', 'mouth-simple', 'eyeLeft', 'eyeRight', 'eyebrows', 'nose', 'hairTop', 'hairFront']);
-  assert.deepEqual(layerChildren(document, 'mouth-simple'), ['mouth']);
+  assert.deepEqual(layerChildren(document, 'faceRoot'), ['hairBack', 'earLeft', 'earRight', 'head', 'faceShading', 'mouth-line', 'eyeLeft', 'eyeRight', 'eyebrows', 'nose', 'hairTop', 'hairFront']);
+  assert.deepEqual(layerChildren(document, 'mouth-line'), ['mouth']);
   assert.equal('tongue' in document.elements, false);
   assert.equal('teeth' in document.elements, false);
-  assert.match(document.svgMarkup, /<g id="mouth-simple" data-name="Mouth">/);
+  assert.match(document.svgMarkup, /<g id="mouth-line" data-name="Mouth">/);
   assert.equal(document.svgMarkup.includes('id="tongue"'), false);
 
   // The part: the same part, its roles on the new shapes, and its asset recorded.
@@ -170,15 +177,15 @@ test('a simple mouth over the template: the movements stay, on drivers the new d
     mouthWidth: { method: 'transform', property: 'scaleX', roles: ['mouth'] }
   }, 'the shape keys deformed a shape that is gone; the registry\'s transform strategies move the new one');
   assert.deepEqual(mouth.calibration, {});
-  assert.deepEqual([mouth.assetId, mouth.assetRoot], ['mouth.simple', 'mouth-simple']);
+  assert.deepEqual([mouth.assetId, mouth.assetRoot], ['mouth.line', 'mouth-line']);
   assert.deepEqual(Object.keys(document.elements.mouth.bindings).sort(), ['scaleX', 'scaleY', 'translateY']);
   assert.equal(document.elements.mouth.bindings.translateY.expression, 'smile');
   assert.deepEqual(document.elements.mouth.bindings.translateY.generatedBy, { semanticPart: 'mouth', control: 'smile' });
   assert.equal(document.elements.mouth.restPath, undefined, 'a fresh record: nothing of the old mouth\'s shape keys rides along');
 
   // What was moved stays moved, on the root; every new piece pivots about its middle.
-  assert.deepEqual(document.elements['mouth-simple'].baseTransform, { x: 5, y: 0, rotation: 3, scaleX: 1, scaleY: 1, pivotX: 120, pivotY: 176.5 });
-  assert.deepEqual([document.elements.mouth.baseTransform.pivotX, document.elements.mouth.baseTransform.pivotY], [120, 176.5]);
+  assert.deepEqual(document.elements['mouth-line'].baseTransform, { x: 5, y: 0, rotation: 3, scaleX: 1, scaleY: 1, pivotX: 120, pivotY: 179.5 });
+  assert.deepEqual([document.elements.mouth.baseTransform.pivotX, document.elements.mouth.baseTransform.pivotY], [120, 179.5]);
 
   // The parameters: nothing the face meant is lost. `teeth` and `tongue`
   // have nothing to move, and the expressions that name them keep naming them.
@@ -195,13 +202,15 @@ test('a simple mouth over the template: the movements stay, on drivers the new d
   assert.deepEqual(document.shapeKeys.map((key) => key.id), [
     'lidUpperLeft-eyeSquint', 'lidUpperLeft-eyeCurve', 'lidLowerLeft-eyeSquint', 'lidLowerLeft-eyeCurve',
       'lidUpperRight-eyeSquint', 'lidUpperRight-eyeCurve', 'lidLowerRight-eyeSquint', 'lidLowerRight-eyeCurve',
+    'creaseUpperLeft-eyeSquint', 'creaseUpperLeft-eyeCurve', 'creaseLowerLeft-eyeSquint', 'creaseLowerLeft-eyeCurve',
+      'creaseUpperRight-eyeSquint', 'creaseUpperRight-eyeCurve', 'creaseLowerRight-eyeSquint', 'creaseLowerRight-eyeCurve',
     'head-jaw']);
   const pins = document.rigPins.filter((pin) => pin.target === 'mouth').map((pin) => pin.id);
   assert.deepEqual(pins, ['mouth-corner-left', 'mouth-corner-right', 'mouth-lower-lip'], 'the corners and the lip are pinned on the new mouth');
   assert.ok(document.rigPins.some((pin) => pin.target === 'browLeft'), 'the brows keep theirs');
   const targets = headPoseTargets(document);
   assert.equal(targets.has('mouth'), true, 'the new mouth turns with the head');
-  for (const id of ['teeth', 'tongue', 'mouth-simple']) assert.equal(targets.has(id), false, `${id} has no pose`);
+  for (const id of ['teeth', 'tongue', 'mouth-line']) assert.equal(targets.has(id), false, `${id} has no pose`);
   assert.equal(document.keyforms.filter(isHeadPoseKeyform).length, original.keyforms.filter(isHeadPoseKeyform).length - 21 + 7, 'three old shapes\' poses gone, one new shape\'s poses made');
   assert.equal(document.keyforms.filter((keyform) => isHeadPoseKeyform(keyform) && keyform.target.id === 'eyeLeft').length, original.keyforms.filter((keyform) => isHeadPoseKeyform(keyform) && keyform.target.id === 'eyeLeft').length, 'the eyes\' poses are exactly as they were');
   assert.deepEqual(validateRig(document), []);
@@ -221,35 +230,50 @@ test('a fit lands the root where this face is, and the author\'s adjustments rid
   assert.deepEqual(validateRig(document), []);
 });
 
-test('a wide mouth after the simple one: the teeth come back as a drawn movement, the tongue part waits', () => {
+test('the full mouth after a lesser one: what the last drawing could not carry stays off', () => {
   const fx = fixture();
-  install(fx, 'mouth', MOUTH_SIMPLE);
-  const { plan, summary, document } = install(fx, 'mouth', MOUTH_WIDE);
-  assert.deepEqual(plan.removeIds, ['mouth-simple', 'mouth'], 'the asset root the last install left, with what it drew');
+  install(fx, 'mouth', MOUTH_LINE);
+  const { plan, summary, document } = install(fx, 'mouth', MOUTH_FULL);
+  assert.deepEqual(plan.removeIds, ['mouth-line', 'mouth'], 'the asset root the last install left, with what it drew');
   assert.deepEqual([plan.mountPoint, plan.before], ['faceRoot', 'eyeLeft']);
   assert.deepEqual(summary.enabled, ['mouthOpen', 'smile', 'mouthWidth'], 'the movements the part had');
-  assert.deepEqual(summary.disabled, [], 'teeth was already off, so nothing is switched off');
+  assert.deepEqual(summary.disabled, [], 'the other three were already off, so nothing is switched off');
   const mouth = part(document, 'mouth');
-  assert.deepEqual(mouth.roles, { mouth: 'mouth', teeth: 'teeth' });
-  assert.deepEqual(mouth.controls, ['mouthOpen', 'smile', 'mouthWidth'], 'a movement switched off by the last replacement stays off: switching it on is Face Setup\'s');
-  assert.deepEqual(layerChildren(document, 'mouth-wide'), ['mouth', 'teeth']);
-  assert.equal(Object.keys(document.elements).filter((id) => /^mouth/.test(id)).join(','), 'mouth-wide,mouth');
+  // The roles the new drawing plays are taken -- it draws teeth and a tongue --
+  // but a movement switched off by the last replacement stays off: the drawing
+  // can carry it and nobody has asked for it back. Switching it on is Face
+  // Setup's, which is the same rule for every part.
+  assert.deepEqual(mouth.roles, { mouth: 'mouth', teeth: 'teeth', tongue: 'tongue' });
+  assert.deepEqual(mouth.controls, ['mouthOpen', 'smile', 'mouthWidth']);
+  assert.deepEqual(layerChildren(document, 'mouth-full'), ['mouth', 'teeth', 'tongue']);
+  assert.equal(Object.keys(document.elements).filter((id) => /^mouth/.test(id)).join(','), 'mouth-full,mouth');
   assert.deepEqual(validateRig(document), []);
 });
 
-test('a wide mouth straight over the template: the teeth show by opacity, on the piece the asset draws', () => {
+test('the full mouth straight over the template: the bands grow from the lips they are drawn from', () => {
   const fx = fixture();
-  const { summary, document } = install(fx, 'mouth', MOUTH_WIDE);
-  assert.deepEqual(summary.enabled, ['mouthOpen', 'smile', 'mouthWidth', 'teeth']);
-  // The pucker goes with the tongue, and for the same reason: the asset does
-  // not claim it, and a drawing that cannot round its aperture would carry a
-  // movement that moved nothing (docs/VISEME_SYSTEM.md, "What a library mouth
-  // can say").
-  assert.deepEqual(summary.disabled, ['mouthRound', 'tongue']);
+  const { summary, document } = install(fx, 'mouth', MOUTH_FULL);
+  // All six, where every retired mouth claimed three or four and not one of them
+  // could pucker (docs/MOUTH_BUILD.md).
+  assert.deepEqual(summary.enabled, ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'teeth', 'tongue']);
+  assert.deepEqual(summary.disabled, []);
   const mouth = part(document, 'mouth');
-  assert.deepEqual(mouth.controlDrivers.teeth, { method: 'transform', property: 'opacity', roles: ['teeth'] });
-  assert.deepEqual(document.elements.teeth.bindings, { opacity: { enabled: true, mode: 'simple', expression: 'teeth', curve: 'linear', amplitude: 1, offset: 0, generatedBy: { semanticPart: 'mouth', control: 'teeth' } } }, 'hidden at 0, drawn at 1, nothing to capture');
-  assert.deepEqual(document.elements['mouth-wide'].baseTransform, { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 120, pivotY: 179 });
+  // The bands **grow** rather than fade. `DRAWN_DRIVERS` would make each an
+  // opacity movement, which is right for a card that draws a finished row of
+  // teeth and hides it; these are drawn *empty* -- two quadratics sharing their
+  // ends -- so an opacity could never bring them out (docs/MOUTH_BUILD.md).
+  assert.equal(mouth.controlDrivers.teeth.method, 'shapeKey');
+  assert.equal(mouth.controlDrivers.tongue.method, 'shapeKey');
+  assert.deepEqual(Object.values(document.elements.teeth.bindings || {})
+    .filter((binding) => binding.generatedBy?.semanticPart === 'mouth'), [], 'a shape writes no transform');
+  // And the sentence is a **product**, so closed lips have nothing behind them
+  // to show however far the control is up.
+  const key = (target, control) => document.shapeKeys.find((item) => item.target === target && item.generatedBy?.control === control);
+  assert.equal(key('teeth', 'teeth').driver.expression, 'mouthOpen * teeth');
+  assert.equal(key('tongue', 'tongue').driver.expression, 'mouthOpen * tongue');
+  // The pucker is a shape too, so it writes no binding either.
+  assert.equal(mouth.controlDrivers.mouthRound.method, 'shapeKey');
+  assert.equal(document.elements.mouth.bindings.shapeKey, undefined);
   assert.deepEqual(validateRig(document), []);
 });
 
@@ -257,7 +281,10 @@ test('a parameter nothing else names goes with its movement', () => {
   const state = createTemplateProjectState();
   for (const expression of state.expressions) delete expression.controls.tongue;
   for (const clip of state.animationClips) delete clip.tracks.tongue;
-  const { document } = install(fixture(state), 'mouth', MOUTH_SIMPLE);
+  // The lesser mouth, because the library's own draws a tongue and keeps the
+  // movement: what is being checked is the word going with the movement that
+  // named it (docs/MOUTH_BUILD.md).
+  const { document } = install(fixture(state), 'mouth', MOUTH_LINE);
   assert.equal('tongue' in document.params, false, 'the tongue movement is off and nobody asks for it');
   assert.ok(document.params.teeth, 'the teeth are still named by an expression, so the parameter stays');
   assert.equal('tongue' in document.states.idle, false);
@@ -286,46 +313,54 @@ test('a nose, and a category with no part yet', () => {
 test('the application refuses a canvas that drew nothing for a role', () => {
   const fx = fixture();
   const before = fx.store.getDocument();
-  const plan = planFacePartReplacement(before, 'mouth', asset(MOUTH_SIMPLE));
-  const artwork = fx.canvas.replaceArtwork(plan.removeIds, MOUTH_SIMPLE.artwork, { mountPoint: plan.mountPoint, before: plan.before });
+  const plan = planFacePartReplacement(before, 'mouth', asset(MOUTH_FULL));
+  const artwork = fx.canvas.replaceArtwork(plan.removeIds, MOUTH_FULL.artwork, { mountPoint: plan.mountPoint, before: plan.before });
   const missing = { ...artwork, elements: Object.fromEntries(Object.entries(artwork.elements).filter(([id]) => id !== 'mouth')) };
-  assert.throws(() => applyFacePartReplacement(structuredClone(before), plan, { asset: asset(MOUTH_SIMPLE), artwork: missing, ids: ['mouth-simple', 'mouth'] }), /names "mouth" for its mouth, and the canvas did not draw it/);
-  const nothing = { ...artwork, elements: Object.fromEntries(Object.entries(artwork.elements).filter(([id]) => !['mouth', 'mouth-simple'].includes(id))) };
-  assert.throws(() => applyFacePartReplacement(structuredClone(before), plan, { asset: asset(MOUTH_SIMPLE), artwork: nothing, ids: ['mouth-simple', 'mouth'] }), /drew nothing/);
+  assert.throws(() => applyFacePartReplacement(structuredClone(before), plan, { asset: asset(MOUTH_FULL), artwork: missing, ids: ['mouth-full', 'mouth'] }), /names "mouth" for its mouth, and the canvas did not draw it/);
+  const nothing = { ...artwork, elements: Object.fromEntries(Object.entries(artwork.elements).filter(([id]) => !['mouth', 'mouth-full'].includes(id))) };
+  assert.throws(() => applyFacePartReplacement(structuredClone(before), plan, { asset: asset(MOUTH_FULL), artwork: nothing, ids: ['mouth-full', 'mouth'] }), /drew nothing/);
 });
 
 test('every lid rests where it is drawn: its own amplitude, its own offset, hinted or not', async () => {
-  const { EYES_ROUND_LARGE } = await import('../face-library/builtin/eyes.js');
-  const lids = (definition) => {
+  const { EYES_SIMPLE } = await import('../face-library/builtin/eyes.js');
+  const lids = (definition, property = 'scaleY') => {
     const document = install(fixture(), 'eyes', definition).document;
     return Object.fromEntries(['lidUpperLeft', 'lidLowerLeft'].map((id) => {
-      const binding = document.elements[id].bindings.translateY;
+      const binding = document.elements[id].bindings[property];
       // `eyeOpen` rests at 1, so `atRest` is where the lid sits with the eye
-      // open; `shut` is where it goes at 0, and for an upper lid that has to be
-      // *downwards* -- a lid that retracts as the eye closes is a blink played
-      // backwards, which is what the registry's generic `+8` used to give.
+      // open -- which must be exactly as drawn, 1 for a scale and 0 for a
+      // slide -- and `shut` is where it goes at 0.
       return [id, { amplitude: binding.amplitude, atRest: binding.amplitude * 1 + binding.offset, shut: binding.offset }];
     }));
   };
-  const eyelids = (over) => ({ ...EYES_ROUND_LARGE, id: 'eyes.test', parts: { ...EYES_ROUND_LARGE.parts, eyelids: { ...EYES_ROUND_LARGE.parts.eyelids, ...over } } });
+  const eyelids = (over) => ({ ...EYES_SIMPLE, id: 'eyes.test', parts: { ...EYES_SIMPLE.parts, eyelids: { ...EYES_SIMPLE.parts.eyelids, ...over } } });
 
   // A side that travels its own distance and leaves the offset out: the rest
   // offset is the one *that* amplitude needs, not the one the shared amplitude
   // needed, or the lower lid sits 78px down the face with the eye wide open.
-  assert.deepEqual(lids(eyelids({ drivers: { eyeOpen: { property: 'translateY', amplitude: -38, roles: { leftLower: { amplitude: 40 }, rightLower: { amplitude: 40 } } } } })),
+  assert.deepEqual(lids(eyelids({ drivers: { eyeOpen: { property: 'translateY', amplitude: -38, roles: { leftLower: { amplitude: 40 }, rightLower: { amplitude: 40 } } } } }), 'translateY'),
     { lidUpperLeft: { amplitude: -38, atRest: 0, shut: 38 }, lidLowerLeft: { amplitude: 40, atRest: 0, shut: -40 } });
 
   // And a part that claims the movement without saying how it carries it: the
   // registry's own driver has to rest as drawn *and* shut the right way. A lid
   // is the one control that rests at its maximum, so its amplitude is negative.
-  const { drivers, ...hintless } = EYES_ROUND_LARGE.parts.eyelids;
-  assert.deepEqual(lids({ ...EYES_ROUND_LARGE, id: 'eyes.test2', parts: { ...EYES_ROUND_LARGE.parts, eyelids: hintless } }),
+  const { drivers, ...hintless } = EYES_SIMPLE.parts.eyelids;
+  assert.deepEqual(lids({ ...EYES_SIMPLE, id: 'eyes.test2', parts: { ...EYES_SIMPLE.parts, eyelids: hintless } }, 'translateY'),
     { lidUpperLeft: { amplitude: -8, atRest: 0, shut: 8 }, lidLowerLeft: { amplitude: -8, atRest: 0, shut: 8 } });
 
-  // A hint that gives both keeps both, untouched: the built-in eyes are drawn
-  // open, each lid's edge on the top or the bottom of the eye, and each travels
-  // the half-socket to the middle, where the two meet without crossing.
-  assert.deepEqual(lids(EYES_ROUND_LARGE), { lidUpperLeft: { amplitude: -22.5, atRest: 0, shut: 22.5 }, lidLowerLeft: { amplitude: 22.5, atRest: 0, shut: -22.5 } });
+  // A hint that gives both keeps both, untouched. A shipped lid **grows**
+  // rather than slides (docs/EYE_BUILDS.md): it is drawn as a sliver on the rim
+  // it swings from, rests at `scaleY 1` as every drawing does, and reaches
+  // `cover` shut -- the factor that takes the sliver across the whole eye. The
+  // lower lid comes up a third as far, because a real blink is the upper lid.
+  assert.deepEqual(lids(EYES_SIMPLE),
+    { lidUpperLeft: { amplitude: -7.33, atRest: 1, shut: 8.33 }, lidLowerLeft: { amplitude: -2.2, atRest: 1, shut: 3.2 } });
+
+  // Which is the whole point: a lid that grows about the rim needs no socket to
+  // hide it, so the eye's box is the eye and nothing is parked outside a mask.
+  const document = install(fixture(), 'eyes', EYES_SIMPLE).document;
+  assert.equal(/<clipPath/.test(document.svgMarkup.slice(document.svgMarkup.indexOf('eyes-simple'))), false, 'no socket comes with the drawing');
+  assert.deepEqual(document.elements.lidUpperLeft.bindings.translateY, undefined, 'and the lid it replaced slides no more');
 });
 
 test('what a replacement writes is covered by the domains it notifies', () => {
@@ -334,13 +369,13 @@ test('what a replacement writes is covered by the domains it notifies', () => {
 });
 
 test('a pair of eyes is three parts: the eyes, the pupils and the lids take their roles on the new shapes, movements kept', async () => {
-  const { EYES_ROUND_LARGE } = await import('../face-library/builtin/eyes.js');
+  const { EYES_SIMPLE } = await import('../face-library/builtin/eyes.js');
   const fx = fixture();
   const original = structuredClone(fx.store.getDocument());
-  const { plan, summary, document } = install(fx, 'eyes', EYES_ROUND_LARGE);
+  const { plan, summary, document } = install(fx, 'eyes', EYES_SIMPLE);
   assert.equal(plan.skull, false);
   assert.ok(plan.removeIds.includes('eyeLeft') && plan.removeIds.includes('pupilRight') && plan.removeIds.includes('lidLowerLeft'), 'the eye groups go, pupils and lids inside them');
-  assert.deepEqual([summary.rootId, summary.roles], ['eyes-round-large', { leftEye: 'eyeLeft', rightEye: 'eyeRight' }]);
+  assert.deepEqual([summary.rootId, summary.roles], ['eyes-simple', { leftEye: 'eyeLeft', rightEye: 'eyeRight' }]);
   assert.deepEqual(summary.parts, { gaze: { partId: 'gaze', roles: { leftPupil: 'pupilLeft', rightPupil: 'pupilRight' } }, eyelids: { partId: 'eyelids', roles: { leftUpper: 'lidUpperLeft', leftLower: 'lidLowerLeft', rightUpper: 'lidUpperRight', rightLower: 'lidLowerRight' } } });
   assert.deepEqual(summary.enabled, ['eyeOpen', 'lookX', 'lookY', 'pupilScale', 'eyeOpen'], 'the eyes\' own, then the pupils\', then the lids\'');
   // The lids' two shape axes go: a library eye pair says it can open and
@@ -349,33 +384,82 @@ test('a pair of eyes is three parts: the eyes, the pupils and the lids take thei
   // that names one keeps meaning what it meant -- and the Face states panel is
   // where a corrective would be captured for the new drawing.
   assert.deepEqual(summary.disabled, ['eyeSquint', 'eyeCurve']);
-  // The eyes: the same part, on the new groups, a gentle squash as the lids do the closing.
   const eyes = part(document, 'eyes');
-  assert.deepEqual([eyes.roles, eyes.controls, eyes.assetId, eyes.assetRoot], [{ leftEye: 'eyeLeft', rightEye: 'eyeRight' }, ['eyeOpen'], 'eyes.round-large', 'eyes-round-large']);
+  assert.deepEqual([eyes.roles, eyes.controls, eyes.assetId, eyes.assetRoot], [{ leftEye: 'eyeLeft', rightEye: 'eyeRight' }, ['eyeOpen'], 'eyes.simple', 'eyes-simple']);
+  // The eye itself barely moves when it blinks: the lids cover it and the white
+  // keeps its shape, which is what a socket used to buy by cropping a squashed
+  // eye. *Barely*, not *not at all* -- a real eye squashes a little under a
+  // closing lid, and the asset has to say so: leaving the driver out gets the
+  // registry's own (amplitude 1, offset 0), which reads 1 open and **0** shut.
+  // That scales the eye group to nothing, and the pupil, the iris and both lids
+  // inside it with it, so a blink erases the eye instead of closing it.
   assert.deepEqual(document.elements.eyeLeft.bindings.scaleY, { enabled: true, mode: 'simple', expression: 'eyeOpen + eyeOpenLeft', curve: 'linear', amplitude: 0.12, offset: 0.88, generatedBy: { semanticPart: 'eyes', control: 'eyeOpen' } }, 'a side of its own, as before');
+  // Which is a claim about the numbers, so it is checked as one: the eye is as
+  // drawn with `eyeOpen 1` and still visible at 0.
+  const squash = (at) => document.elements.eyeLeft.bindings.scaleY.amplitude * at + document.elements.eyeLeft.bindings.scaleY.offset;
+  assert.equal(squash(1), 1, 'open, the eye is exactly as drawn');
+  assert.ok(squash(0) > 0.8, `shut, the eye is still there: ${squash(0)}`);
   // The pupils: the gaze part on the new pupils, looking with both axes and scaling on both.
   const gaze = part(document, 'gaze');
   assert.deepEqual([gaze.roles, gaze.controls], [{ leftPupil: 'pupilLeft', rightPupil: 'pupilRight' }, ['lookX', 'lookY', 'pupilScale']]);
   assert.equal(document.elements.pupilLeft.bindings.translateX.expression, 'lookX + lookXLeft');
   assert.equal(document.elements.pupilRight.bindings.translateY.expression, 'lookY + lookYRight');
   assert.deepEqual([document.elements.pupilLeft.bindings.scaleX?.expression, document.elements.pupilLeft.bindings.scaleY?.expression], ['pupilScale + pupilScaleLeft', 'pupilScale + pupilScaleLeft'], 'a pupil scales on both axes');
+  // And no further than the white: the gaze hint carries the travel the drawing
+  // has room for, so a pupil never rides out over its own outline.
+  assert.equal(document.elements.pupilLeft.bindings.translateX.amplitude, 9.5, 'the white has room for the radius, less the pupil and a margin');
   assert.equal(gaze.assetId, undefined, 'the eyes are the asset; the pupils are drawn by it');
-  // The lids: drawn open, the upper coming down and the lower coming up as the eye shuts, each side its own.
+  // The lids: drawn as slivers on the rim, growing across the eye as it shuts,
+  // each side its own. The pivot is the rim, not the sliver's middle -- a lid
+  // pivoted at its middle opens away from the eye in both directions at once.
   const lids = part(document, 'eyelids');
   assert.deepEqual(lids.roles, { leftUpper: 'lidUpperLeft', leftLower: 'lidLowerLeft', rightUpper: 'lidUpperRight', rightLower: 'lidLowerRight' });
-  const upper = document.elements.lidUpperRight.bindings.translateY, lower = document.elements.lidLowerRight.bindings.translateY;
-  assert.deepEqual([upper.expression, upper.amplitude, upper.offset], ['eyeOpen + eyeOpenRight', -22.5, 22.5]);
-  assert.deepEqual([lower.expression, lower.amplitude, lower.offset], ['eyeOpen + eyeOpenRight', 22.5, -22.5], 'the lower lid closes upwards');
-  assert.equal(lids.controlDrivers.eyeOpen.property, 'translateY');
+  const upper = document.elements.lidUpperRight.bindings.scaleY, lower = document.elements.lidLowerRight.bindings.scaleY;
+  assert.deepEqual([upper.expression, upper.amplitude, upper.offset], ['eyeOpen + eyeOpenRight', -7.33, 8.33]);
+  assert.deepEqual([lower.expression, lower.amplitude, lower.offset], ['eyeOpen + eyeOpenRight', -2.2, 3.2], 'the lower lid comes up a third as far');
+  assert.equal(lids.controlDrivers.eyeOpen.property, 'scaleY');
+  const box = (id) => [document.elements[id].baseTransform.pivotY, document.elements[id].baseTransform.pivotY];
+  assert.ok(document.elements.lidUpperLeft.baseTransform.pivotY < document.elements.eyeLeft.baseTransform.pivotY, 'the upper lid swings from the top of the eye');
+  assert.ok(document.elements.lidLowerLeft.baseTransform.pivotY > document.elements.eyeLeft.baseTransform.pivotY, 'and the lower from the bottom');
+  assert.deepEqual(box('lidUpperLeft'), box('lidUpperLeft'));
   // The parameters the face had, sides included, are all still there; the old eyes' poses are gone, the new ones turn.
   for (const name of ['eyeOpen', 'eyeOpenLeft', 'eyeOpenRight', 'lookX', 'lookXLeft', 'pupilScale', 'pupilScaleRight']) assert.ok(document.params[name], `${name} is still a parameter`);
   assert.deepEqual(document.expressions.find((item) => item.id === 'wink')?.controls ?? original.animationClips.find((clip) => clip.id === 'wink').tracks.eyeOpenLeft, original.animationClips.find((clip) => clip.id === 'wink').tracks.eyeOpenLeft);
   const targets = headPoseTargets(document);
   assert.ok(targets.has('eyeLeft') && targets.has('pupilLeft'), 'the new eyes and pupils turn with the head');
   assert.ok(!document.keyforms.some((keyform) => keyform.target?.id === 'glintLeft' && !isHeadPoseKeyform(keyform)));
-  assert.match(document.svgMarkup, /<clipPath id="socketLeft">/, 'the sockets come with the drawing');
-  assert.match(document.svgMarkup, /<g id="eyeLeft" data-name="Left eye" clip-path="url\(#socketLeft\)">/);
+  // **No socket.** The old sets came with a `<clipPath>` that appeared in
+  // neither the layer tree nor `document.elements`, so an author could not see
+  // it, move it or delete it -- and the lids parked outside it made the eye's
+  // own box three times too tall to grab.
+  assert.equal(document.svgMarkup.includes('id="socketLeft"'), false, 'the socket is gone');
+  assert.match(document.svgMarkup, /<g id="eyeLeft" data-name="Left eye">/);
   assert.deepEqual(validateRig(document), []);
+});
+
+test('an iris is a role of the gaze, so the pupil never slides out of it', async () => {
+  const { EYES_IRIS, EYES_DOT } = await import('../face-library/builtin/eyes.js');
+  const { document } = install(fixture(), 'eyes', EYES_IRIS);
+  const gaze = part(document, 'gaze');
+  assert.deepEqual(gaze.roles, { leftPupil: 'pupilLeft', rightPupil: 'pupilRight', leftIris: 'irisLeft', rightIris: 'irisRight' });
+  // The same two look axes, the same distance, the same side offsets: the iris
+  // and the pupil in it are one movement seen twice.
+  for (const axis of [['lookX', 'translateX'], ['lookY', 'translateY']]) {
+    const [control, property] = axis;
+    const iris = document.elements.irisLeft.bindings[property], pupil = document.elements.pupilLeft.bindings[property];
+    assert.deepEqual([iris.expression, iris.amplitude, iris.offset], [`${control} + ${control}Left`, pupil.amplitude, pupil.offset], `${control} carries both`);
+  }
+  // It does not dilate, though: `pupilScale` is the pupil's alone, and an iris
+  // that grew with it would swallow the white.
+  assert.equal(document.elements.irisLeft.bindings.scaleX, undefined);
+  assert.equal(document.elements.pupilLeft.bindings.scaleX.expression, 'pupilScale + pupilScaleLeft');
+  assert.deepEqual(validateRig(document), []);
+
+  // And a build with no iris says nothing about one: the roles are optional, so
+  // the dot and the simple eye install as they always did.
+  const dot = install(fixture(), 'eyes', EYES_DOT).document;
+  assert.deepEqual(part(dot, 'gaze').roles, { leftPupil: 'pupilLeft', rightPupil: 'pupilRight' });
+  assert.deepEqual(validateRig(dot), []);
 });
 
 test('a head asset on the template goes on the skull: the face keeps turning, the jaw takes the new shape', async () => {
@@ -570,10 +654,12 @@ test('a face wears several accessories, one per mount point; the same mount repl
 
 test('a role pointing at artwork outside the old part, which the new asset does not draw, stays with that artwork', () => {
   const fx = fixture();
-  install(fx, 'mouth', MOUTH_SIMPLE);
+  // The lesser mouth, because the library's own *draws* a tongue: what is being
+  // checked is a role the new asset leaves alone (docs/MOUTH_BUILD.md).
+  install(fx, 'mouth', MOUTH_LINE);
   // A tongue drawn by hand beside the library mouth: the nose stands in for it.
   fx.store.execute({ type: 'test/role', domains: ['semanticRig'], source: 'test', apply: (document) => { part(document, 'mouth').roles.tongue = 'nose'; } });
-  const { plan, document } = install(fx, 'mouth', MOUTH_WIDE);
+  const { plan, document } = install(fx, 'mouth', MOUTH_LINE);
   assert.equal(plan.removeIds.includes('nose'), false, 'not the part\'s root: it stays on the canvas');
   assert.ok(document.elements.nose);
   assert.equal(part(document, 'mouth').roles.tongue, 'nose', 'and keeps its role rather than being orphaned');
@@ -613,7 +699,7 @@ test('a driver hint without an offset leaves the binding at the property\'s own 
   const scaled = nose.document.elements[part(nose.document, 'nose').roles.nose].bindings.scaleY;
   assert.deepEqual([scaled.amplitude, scaled.offset], [-0.3, 1], 'a scale rests at 1');
   // And the reverse: the registry's mouthWidth is a scale; a hint that makes it a translation rests at 0.
-  const shifted = { ...MOUTH_SIMPLE, drivers: { mouthWidth: { property: 'translateX', amplitude: 4 } } };
+  const shifted = { ...MOUTH_FULL, drivers: { mouthWidth: { property: 'translateX', amplitude: 4 } } };
   const mouth = install(fx, 'mouth', shifted);
   assert.ok(mouth.summary.enabled.includes('mouthWidth'));
   const moved = mouth.document.elements.mouth.bindings.translateX;
@@ -632,16 +718,90 @@ test('a jaw pose that cannot become a shape key leaves a parameter an expression
 });
 
 test('an offset left out puts the drawing at rest as drawn when the movement sits at its default: a scale with a default of one rests at one, an opacity rests at one', async () => {
-  const { EYES_CARTOON } = await import('../face-library/builtin/eyes.js');
+  const { EYES_SIMPLE } = await import('../face-library/builtin/eyes.js');
   const fx = fixture();
   // eyeOpen defaults to 1 (open): amplitude 1 on scaleY needs offset 0 to rest at 1, not the 2 a bare "1 for a scale" would give.
-  const eyes = { ...EYES_CARTOON, drivers: { ...EYES_CARTOON.drivers, eyeOpen: { property: 'scaleY', amplitude: 1 } } };
+  const eyes = { ...EYES_SIMPLE, drivers: { ...EYES_SIMPLE.drivers, eyeOpen: { property: 'scaleY', amplitude: 1 } } };
   const { document } = install(fx, 'eyes', eyes);
   const lid = document.elements[part(document, 'eyes').roles.leftEye].bindings.scaleY;
   assert.deepEqual([lid.amplitude, lid.offset], [1, 0]);
   // teeth default to 0: an opacity that fades as the movement rises rests at 1.
-  const teeth = { ...MOUTH_WIDE, drivers: { ...MOUTH_WIDE.drivers, teeth: { property: 'opacity', amplitude: -1 } } };
+  const teeth = { ...MOUTH_FULL, drivers: { ...MOUTH_FULL.drivers, teeth: { property: 'opacity', amplitude: -1 } } };
   const mouth = install(fx, 'mouth', teeth);
   const shown = mouth.document.elements[part(mouth.document, 'mouth').roles.teeth].bindings.opacity;
   assert.deepEqual([shown.amplitude, shown.offset], [-1, 1]);
+});
+
+/**
+ * The one mouth, and the vowels it can say (docs/MOUTH_BUILD.md).
+ *
+ * The library held five human mouths and not one of them could **speak**.
+ * `mouthRound` is the control the visemes turn on, and none of them claimed it
+ * because none of them could: a shaped movement needs the asset to ship the
+ * shape it deforms to, and the installer only knew how to build one for a jaw.
+ */
+test('the one mouth puckers, which is what makes a vowel, and the installer builds the shape for it', async () => {
+  const { MOUTH_FULL } = await import('../face-library/builtin/mouth-full.js');
+  const { document, summary } = install(fixture(), 'mouth', MOUTH_FULL);
+  const mouth = part(document, 'mouth');
+
+  // All six, where every retired mouth claimed three or four.
+  assert.deepEqual(summary.enabled, ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'teeth', 'tongue']);
+  assert.deepEqual(summary.disabled, []);
+  assert.deepEqual([...mouth.controls], ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'teeth', 'tongue']);
+
+  // The pucker is **shaped**: no transform, a shape key per lip it moves.
+  assert.equal(mouth.controlDrivers.mouthRound.method, 'shapeKey');
+  assert.equal(document.elements.mouth.bindings.shapeKey, undefined, 'a shape is not a transform');
+  const keys = document.shapeKeys.filter((key) => key.generatedBy?.control === 'mouthRound');
+  assert.deepEqual(keys.map((key) => key.target).sort(), ['mouth', 'teeth', 'tongue'],
+    'the lips, and the two shapes drawn from them: each puckers as its own lip does');
+  for (const key of keys) {
+    assert.equal(key.driver.expression, 'mouthRound', 'driven by the movement\'s own sentence');
+    assert.ok(key.delta?.length, `${key.target} deforms to somewhere`);
+    // A shape key is a delta, so the rest it deforms from has to be recorded on
+    // the element: without it the runtime has nothing to add the delta to.
+    assert.ok(document.elements[key.target].restPath, `${key.target} records the shape it rests at`);
+  }
+  // Which is the check that matters: at `mouthRound 1` the aperture is *rounder*
+  // -- narrower and taller -- and not merely smaller, which is all a `scaleX`
+  // could ever make it (docs/VISEME_SYSTEM.md).
+  const shape = (values) => parsePath(compileRigFrame(document.elements, { ...resolveStateParams(document.params, document.states?.[document.activeState]), ...values },
+    document.globalConstraints, null, { keyforms: document.keyforms, shapeKeys: document.shapeKeys, rigPins: document.rigPins }).mouth.path).values;
+  const spread = (v) => { const p = shape(v); return { width: p[4] - p[0], height: (p[7] + p[5]) / 2 - (p[3] + p[1]) / 2 }; };
+  const rest = spread({}), round = spread({ mouthRound: 1 });
+  assert.ok(round.width < rest.width * 0.75, `a rounded mouth is narrower: ${round.width} against ${rest.width}`);
+  assert.ok(round.height / round.width > rest.height / rest.width * 1.8,
+    `and taller for its width, which is the whole of a vowel: ${(round.height / round.width).toFixed(3)} against ${(rest.height / rest.width).toFixed(3)}`);
+
+  // The teeth and the tongue are drawn empty -- two quadratics sharing their
+  // ends -- and *grow*, gated on the mouth being open: a product, so closed lips
+  // have nothing behind them to show however far the control is up.
+  for (const role of ['teeth', 'tongue']) {
+    const band = document.shapeKeys.find((item) => item.target === role && item.generatedBy?.control === role);
+    assert.ok(band, `${role} grows out of the lip it is drawn from`);
+    assert.equal(band.driver.expression, `mouthOpen * ${role}`);
+    // No transform of the *mouth's*. The tongue also carries the `tongue` part's
+    // own movements -- it moves on its own once a mouth draws one -- and those
+    // are not this movement's to write.
+    assert.deepEqual(Object.values(document.elements[role].bindings || {})
+      .filter((binding) => binding.generatedBy?.semanticPart === 'mouth'), [], `${role} writes no transform for the mouth`);
+  }
+  assert.deepEqual(validateRig(document), []);
+});
+
+test('a shaped movement the drawing cannot carry goes off, rather than becoming a slider that moves nothing', async () => {
+  const { MOUTH_FULL } = await import('../face-library/builtin/mouth-full.js');
+  // The same card with the pose taken out: it still *claims* `mouthRound`, and
+  // there is nothing to build. That has to read as "this drawing cannot", not as
+  // a movement the Face states panel offers and no author can see working.
+  const { drivers, ...poseless } = MOUTH_FULL;
+  const { summary, document } = install(fixture(), 'mouth', { ...poseless, id: 'mouth.test' });
+  assert.deepEqual(summary.enabled, ['mouthOpen', 'smile', 'mouthWidth', 'teeth', 'tongue']);
+  assert.deepEqual(summary.disabled, ['mouthRound']);
+  assert.equal(part(document, 'mouth').controls.includes('mouthRound'), false);
+  // The parameter stays, because an expression or a clip that names it keeps
+  // meaning what it meant; only the movement here is gone.
+  assert.ok(document.params.mouthRound, 'the word is still a word');
+  assert.deepEqual(validateRig(document), []);
 });

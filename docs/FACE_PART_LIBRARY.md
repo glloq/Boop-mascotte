@@ -29,14 +29,14 @@ editor or by a pack, and read by one installer.
 
 The rule that makes this safe (roadmap phase 4): **the runtime never sees an
 asset.** It sees the semantic part the asset becomes — `mouth`, with the
-control `smile` — so `smile = 0.8` means the same thing on `mouth.simple`,
-`mouth.wide` and every mouth anyone draws later.
+control `smile` — so `smile = 0.8` means the same thing on `mouth.full`,
+on every beak, and on every mouth anyone draws later.
 
 ## An asset
 
 ```js
 {
-  id: 'mouth.wide',                  // category.name: lower case, digits, dashes
+  id: 'mouth.full',                  // category.name: lower case, digits, dashes
   category: 'mouth',                 // one of FACE_PART_CATEGORIES
   name: 'Wide',
   description: 'A wide grin with a row of teeth.',
@@ -46,7 +46,7 @@ control `smile` — so `smile = 0.8` means the same thing on `mouth.simple`,
   referenceBox: { x: 80, y: 168, width: 80, height: 22 },   // what it was drawn against
   mountPoint: 'mouth.center',        // where it mounts; the category's default when omitted
   host: { part: 'ears', role: 'leftEar' },   // optional: the part it belongs to, and is drawn inside
-  variant: { of: 'mouth.wide', style: 'workshop' },  // optional: the drawing it restyles, and into which style
+  variant: { of: 'mouth.full', style: 'workshop' },  // optional: the drawing it restyles, and into which style
   slot: 'beak',                      // optional: where Design offers it, when that is not its category
   morphologies: ['beak', 'monster'], // optional: the kinds of face it suits; none means every kind
   tags: ['duck', 'pointed'],         // optional: words an author finds it by
@@ -65,7 +65,7 @@ control `smile` — so `smile = 0.8` means the same thing on `mouth.simple`,
 | **referenceBox** | The box the artwork was drawn against. Auto-fit (PR 4) maps it onto the measured box of the face it joins, the way `fitFeatureArtwork` already does for the eyebrows. |
 | **mountPoint** | One of `FACE_MOUNT_POINTS` (roadmap phase 5): `head.top`, `head.center`, `head.bottom`, `eyes`, `eye.left`, `eye.right`, `brows`, `brow.left`, `brow.right`, `nose.center`, `mouth.center`, `ears`, `ear.left`, `ear.right`, `hair.top`. The layout context resolves it to a point on the face the asset joins ("Layout and auto-fit" below). |
 | **host** | Optional. The part this drawing *belongs to*, as a semantic part and one of its roles: `{ part: 'ears', role: 'leftEar' }`. A mount point is an anchor, resolved once at fit time; a host is a parent, and the install draws the artwork inside the shape that plays the role, so everything that moves the host moves this too ("Hosted on a part" below). |
-| **variant** | Optional. The drawing this one *restyles* and the style it restyles it into: `{ of: 'mouth.wide', style: 'workshop' }`. Same category, same roles, same movements, another drawing. It is reached through the drawing it restyles and is no card of its own ("The style axis" below). The chain is one link long: a style of a style is refused, and `baseAssetId` is how any drawing finds the one it is a style of. |
+| **variant** | Optional. The drawing this one *restyles* and the style it restyles it into: `{ of: 'mouth.full', style: 'workshop' }`. Same category, same roles, same movements, another drawing. It is reached through the drawing it restyles and is no card of its own ("The style axis" below). The chain is one link long: a style of a style is refused, and `baseAssetId` is how any drawing finds the one it is a style of. |
 | | **Soft Cartoon is the style the library is drawn in** (`FACE_BASE_STYLE_ID`, MASC-08A), so no asset is ever a `soft-cartoon` variant — asking for the base style resolves to the drawing itself. A base drawing has variants; variants do not have variants. |
 | **slot** | Optional. Where Design offers the drawing, when that is not simply its category (`docs/MASC_LIBRARY_BASELINE.md`; MASC-01). A slot is what an author picks and a category is what the rig understands, and several slots may name one category: `beak` installs as a `mouth` because it opens, and `muzzle`, `whiskers`, `horns`, `crest`, `antenna` and `panels` install as accessories, because that is what they are to the runtime. Left out, the slot *is* the category. |
 | **morphologies** | Optional. The kinds of face the drawing suits, from `FACE_MORPHOLOGY_IDS`: `human`, `muzzle`, `beak`, `robot`, `monster`. **An asset that says nothing is universal** — which is why every drawing written before the field existed keeps working with no migration. `['*']` says the same thing out loud; saying both is refused. |
@@ -158,8 +158,8 @@ import { FACE_PART_LIBRARY, registerFacePart, registerAccessory, createFacePartR
 
 FACE_PART_LIBRARY.list('mouth');          // every asset of one category, in registration order
 FACE_PART_LIBRARY.cards('mouth');         // the ones the category offers on their own: what the builder lists
-FACE_PART_LIBRARY.variant('mouth.wide', 'workshop');   // the drawing that restyles it into that style, or null
-FACE_PART_LIBRARY.variantsOf('mouth.wide');            // every style of one drawing
+FACE_PART_LIBRARY.variant('mouth.full', 'workshop');   // the drawing that restyles it into that style, or null
+FACE_PART_LIBRARY.variantsOf('mouth.full');            // every style of one drawing
 FACE_PART_LIBRARY.categories();           // every category with its count
 registerFacePart(asset);                  // from a pack or a plugin (roadmap phase 44); throws FacePartError with .issues
 registerAccessory({ id: 'accessory.round-glasses', … });
@@ -177,8 +177,8 @@ is a command over the document, below.
 gives the builder two calls:
 
 ```js
-commands.plan('mouth', 'mouth.wide');     // what replacing would do, or why it cannot: no write
-commands.replace('mouth', 'mouth.wide');  // the replacement, as one undo step
+commands.plan('mouth', 'mouth.full');     // what replacing would do, or why it cannot: no write
+commands.replace('mouth', 'mouth.full');  // the replacement, as one undo step
 // → { ok: true, partId, rootId, ids, roles, enabled, disabled, pinned, turned, removed }
 // → { ok: false, reason }
 ```
@@ -533,7 +533,7 @@ The axis is one field on an asset and one on a preset:
 
 // the preset: the parts it names, in the look it wants them in
 { id: 'workshop-professor', name: 'Workshop professor', style: 'workshop',
-  parts: { head: 'head.oval', mouth: 'mouth.small', … }, accessories: ['accessory.glasses'], palette: 'warm' }
+  parts: { head: 'head.oval', mouth: 'mouth.full', … }, accessories: ['accessory.glasses'], palette: 'warm' }
 ```
 
 **Resolving is one function**, `styledAsset(assetId, style, library)`: the
@@ -596,7 +596,7 @@ reader's guide is `docs/FACE_PRESETS.md`). A face style preset is a
 
 ```js
 { id: 'professor', name: 'Professor',
-  parts: { head: 'head.oval', ears: 'ears.round', eyes: 'eyes.round-small', eyebrows: 'eyebrows.thick', nose: 'nose.hook', mouth: 'mouth.small', hair: 'hair.bald', facialHair: 'facialhair.moustache' },
+  parts: { head: 'head.oval', ears: 'ears.round', eyes: 'eyes.simple', eyebrows: 'eyebrows.thick', nose: 'nose.hook', mouth: 'mouth.full', hair: 'hair.bald', facialHair: 'facialhair.moustache' },
   accessories: ['accessory.glasses'],
   style: 'workshop',                                           // optional: the look it wants those drawings in ("The style axis" above)
   palette: 'warm',
@@ -799,9 +799,17 @@ preset applies this way, so the face is the preset as designed and *Reset*
 puts a moved part back.
 
 `TEMPLATE_ROLE_BOXES` is the template's parts as the canvas measures them,
-written down so the template's layout can be derived without a browser;
-the browser test holds the live face to them within a pixel, so a change to
-the template artwork is a change here too.
+written down so the template's layout can be derived without a browser; a
+browser test (`tests/e2e/face-guides.spec.js`) holds the live face to them
+within a pixel, so a change to the template artwork is a change here too. That
+test is new, and it found the drift it was written to prevent: the two eye
+boxes were still the 92 x 135 of a group with its lids parked outside a socket,
+three times the 48 x 45 an eye is now (docs/EYE_BUILDS.md).
+
+The same fit is what the canvas draws as a **guide**: a dashed box where each
+missing part would go, and a frame where a card under the pointer will land
+(docs/FACE_GUIDES.md). Both go through `fitFacePart`, so a guide is a promise
+the install keeps rather than a second opinion about where things go.
 
 ## Custom parts
 
@@ -1171,7 +1179,7 @@ for:
 
 ```text
  Face parts library
- 150 drawings. Choosing one replaces that part of the face: where you had
+ 132 drawings. Choosing one replaces that part of the face: where you had
  moved it and the movements it had are kept.
 
   Head 24  [Eyes 21]  Brows 19  Nose 9  Mouth 20  Ears 15  Hair 6  …

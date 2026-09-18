@@ -123,7 +123,7 @@ replace the other.
 
 ### Which parts turn, and on whose word
 
-Three answers, asked in this order:
+Four answers, asked in this order:
 
 1. **The drawing's own profile.** A library asset says how each role it draws
    behaves when the head turns — `depth`, `side`, `squash`, `narrow`, `ear`,
@@ -134,9 +134,15 @@ Three answers, asked in this order:
    twenty-one rows keyed by role, is what a drawing that says nothing falls
    back to. It is still the default, and it is still what the template face
    turns by.
-3. **Nothing.** A role with neither is not in the turn at all. Hands and
-   generic accessories fall off the end of that: one is not on the head, and
-   the other could be anything until it says what it is.
+3. **The surface.** A drawing no role names at all, on a face drawn flat, rides
+   the face it is painted on: `{ depth: 0, squash: true }`, which is the
+   outline's own travel and the outline's own narrowing. A blush, freckles, a
+   scar — not features, paint. Asked only where the head element is a *shape*:
+   where it is a group, everything on the face is already inside it and a
+   sibling of that group is something else on the mascot (3D-12,
+   `docs/PSEUDO_3D_BASELINE.md`).
+4. **Nothing.** Hands and generic accessories fall off the end of that: one is
+   not on the head, and the other could be anything until it says what it is.
 
 A role stopped being enough to answer with as soon as several drawings shared
 one. All five accessories play the single role `element`

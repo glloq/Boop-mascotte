@@ -3,14 +3,16 @@
  * the manifest written from it (`core/face-library/pilots/beak-soft-cartoon.js`,
  * docs/BEAK_SOFT_CARTOON_PILOT.md).
  *
- * Thirty drawings for the planche's thirty-three pieces: two of its four
+ * Twenty-four drawings for the planche's thirty-three pieces: two of its four
  * accessories already existed, because an accessory that declares no
  * `morphologies` is universal and `accessory.glasses` *is* Lunettes rondes,
- * `accessory.bow-tie` *is* Nœud papillon.
+ * `accessory.bow-tie` *is* Nœud papillon — and the six eye sets turned out to
+ * be the shipped construction at other radii, which the three builds in
+ * `builtin/eyes.js` cover for every head there is (docs/EYE_BUILDS.md). A
+ * bird's eye is a big round white with a disc in it, which is `eyes.simple`.
  *
  * ```text
  * heads       head        the bare feathered silhouette, and a jaw — a bird is soft
- * eyes        eyes        composites, pupils inside them, for the third time
  * brows       eyebrows    the "formes d'yeux / sourcils", drawn as brows
  * beaks       beak        ← the first drawings this slot has ever had
  * crests      crest       ← and this one; head.top, closing MASC-09's question
@@ -27,12 +29,11 @@
  * order `npm run face:assets` reviews them in.
  */
 import { BIRD_HEADS } from './heads.js';
-import { BIRD_EYES } from './eyes.js';
 import { BIRD_BEAKS, BIRD_BROWS } from './features.js';
 import { ACCESSORY_MONOCLE, BIRD_CRESTS } from './crests.js';
 
-export { BIRD_HEADS, BIRD_EYES, BIRD_BROWS, BIRD_BEAKS, BIRD_CRESTS, ACCESSORY_MONOCLE };
+export { BIRD_HEADS, BIRD_BROWS, BIRD_BEAKS, BIRD_CRESTS, ACCESSORY_MONOCLE };
 
 export const BIRD_FACE_PARTS = Object.freeze([
-  ...BIRD_HEADS, ...BIRD_EYES, ...BIRD_BROWS, ...BIRD_BEAKS, ...BIRD_CRESTS, ACCESSORY_MONOCLE
+  ...BIRD_HEADS, ...BIRD_BROWS, ...BIRD_BEAKS, ...BIRD_CRESTS, ACCESSORY_MONOCLE
 ]);

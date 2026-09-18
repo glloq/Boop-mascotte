@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { FACE_PART_LIBRARY, FacePartError, createFacePartRegistry, registerAccessory, registerFacePart } from '../face-library/face-part-registry.js';
 import { BUILTIN_FACE_PARTS } from '../face-library/builtin/index.js';
-import { MOUTH_SIMPLE } from '../face-library/builtin/mouth-simple.js';
+import { MOUTH_LINE } from './fixtures/mouth-line.js';
+import { MOUTH_FULL } from '../face-library/builtin/mouth-full.js';
 import { FACE_PART_CATEGORY_IDS } from '../face-library/face-part-model.js';
 import { FACE_ARTBOARD } from '../sample/templates/face-artwork.js';
 
@@ -14,22 +15,25 @@ const glasses = { id: 'accessory.round-glasses', name: 'Round glasses', artwork:
 
 test('the editor\'s library ships the built-in assets, frozen and by category', () => {
   assert.equal(FACE_PART_LIBRARY.size, BUILTIN_FACE_PARTS.length);
-  assert.deepEqual(FACE_PART_LIBRARY.list().map((asset) => asset.id), ['head.round', 'head.oval', 'head.wide', 'head.narrow', 'head.square-soft', 'head.pear', 'head.chin', 'head.heart', 'eyes.round-large', 'eyes.round-small', 'eyes.sleepy', 'eyes.cartoon', 'eyes.minimal', 'eyebrows.thin', 'eyebrows.normal', 'eyebrows.thick', 'eyebrows.flat', 'eyebrows.expressive', 'nose.dot', 'nose.hook', 'nose.soft', 'nose.cartoon', 'mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive', 'ears.round', 'ears.large', 'ears.small', 'hair.short', 'hair.spiky', 'hair.curly', 'hair.long', 'hair.balding', 'hair.bald', 'facialhair.moustache', 'facialhair.large-moustache', 'facialhair.goatee', 'facialhair.beard', 'facialhair.sideburns', 'accessory.glasses', 'accessory.square-glasses', 'accessory.hat', 'accessory.earring', 'accessory.earring-right', 'accessory.bow-tie',
+  assert.deepEqual(FACE_PART_LIBRARY.list().map((asset) => asset.id), ['head.round', 'head.oval', 'head.wide', 'head.narrow', 'head.square-soft', 'head.pear', 'head.chin', 'head.heart', 'eyes.dot', 'eyes.simple', 'eyes.iris', 'eyebrows.thin', 'eyebrows.normal', 'eyebrows.thick', 'eyebrows.flat', 'eyebrows.expressive', 'nose.dot', 'nose.hook', 'nose.soft', 'nose.cartoon', 'mouth.full', 'ears.round', 'ears.large', 'ears.small', 'hair.short', 'hair.spiky', 'hair.curly', 'hair.long', 'hair.balding', 'hair.bald', 'facialhair.moustache', 'facialhair.large-moustache', 'facialhair.goatee', 'facialhair.beard', 'facialhair.sideburns', 'accessory.glasses', 'accessory.square-glasses', 'accessory.hat', 'accessory.earring', 'accessory.earring-right', 'accessory.bow-tie',
     // The Soft Cartoon animal pack (MASC-10B), registered behind them all and
-    // listed in the order it is reviewed in, not by category.
-    'head.animal-round', 'head.animal-narrow', 'head.animal-wide', 'head.animal-square', 'head.animal-small', 'head.animal-chubby', 'eyes.animal-round-large', 'eyes.animal-round-slit', 'eyes.animal-almond-alert', 'eyes.animal-small-cute', 'eyes.animal-sleepy', 'eyes.animal-happy', 'eyebrows.animal-thin-soft', 'eyebrows.animal-firm', 'eyebrows.animal-thick', 'eyebrows.animal-friendly-raised', 'eyebrows.animal-worried', 'ears.cat-pointed', 'ears.fox-large-pointed', 'ears.wolf-pointed', 'ears.dog-folded', 'ears.bear-round', 'ears.rabbit-long', 'ears.small-round', 'ears.tufted', 'accessory.muzzle-feline-short', 'accessory.muzzle-feline-rounded', 'accessory.muzzle-canine-medium', 'accessory.muzzle-canine-narrow', 'accessory.muzzle-bear-broad', 'accessory.muzzle-rodent-small', 'nose.triangle-small', 'nose.bear-broad', 'nose.button-tiny', 'nose.oval-soft', 'nose.animal-rounded', 'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve', 'accessory.whiskers-three-straight', 'accessory.whiskers-two-soft', 'accessory.whiskers-long-curved', 'accessory.whiskers-subtle-short',
+    // listed in the order it is reviewed in, not by category. It brings **no
+    // eyes**: its six were the shipped construction at other radii, which its
+    // own header said out loud, and the three builds serve a muzzle exactly as
+    // they serve a face (docs/EYE_BUILDS.md).
+    'head.animal-round', 'head.animal-narrow', 'head.animal-wide', 'head.animal-square', 'head.animal-small', 'head.animal-chubby', 'eyebrows.animal-thin-soft', 'eyebrows.animal-firm', 'eyebrows.animal-thick', 'eyebrows.animal-friendly-raised', 'eyebrows.animal-worried', 'ears.cat-pointed', 'ears.fox-large-pointed', 'ears.wolf-pointed', 'ears.dog-folded', 'ears.bear-round', 'ears.rabbit-long', 'ears.small-round', 'ears.tufted', 'accessory.muzzle-feline-short', 'accessory.muzzle-feline-rounded', 'accessory.muzzle-canine-medium', 'accessory.muzzle-canine-narrow', 'accessory.muzzle-bear-broad', 'accessory.muzzle-rodent-small', 'nose.triangle-small', 'nose.bear-broad', 'nose.button-tiny', 'nose.oval-soft', 'nose.animal-rounded', 'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve', 'accessory.whiskers-three-straight', 'accessory.whiskers-two-soft', 'accessory.whiskers-long-curved', 'accessory.whiskers-subtle-short',
     // The Soft Cartoon robot pack (MASC-11B), behind it, in its own review order.
     'head.robot-screen-rounded', 'head.robot-retro-square', 'head.robot-industrial-plate', 'head.robot-toy-round', 'ears.robot-screen-round', 'ears.robot-retro-round', 'ears.robot-industrial-bolt', 'ears.robot-toy-colorful', 'eyes.robot-display-friendly', 'eyes.robot-retro-led', 'eyes.robot-industrial-led', 'eyes.robot-toy-expressive', 'eyebrows.robot-screen-simple', 'eyebrows.robot-retro-plate', 'eyebrows.robot-industrial-visor', 'eyebrows.robot-toy-cute', 'mouth.robot-display', 'mouth.robot-retro-grille', 'mouth.robot-industrial-vent', 'mouth.robot-toy-simple', 'accessory.antenna-single-short', 'accessory.antenna-retro-multi', 'accessory.antenna-industrial-robust', 'accessory.antenna-toy-fun', 'accessory.panels-light-panel', 'accessory.panels-retro-buttons', 'accessory.panels-warning-stripe', 'accessory.panels-toy-buttons',
-    // The Soft Cartoon bird pack (MASC-12B), behind them, in its own review order.
-    'head.bird-owl', 'head.bird-duck', 'head.bird-parrot', 'head.bird-crow', 'head.bird-cute', 'head.bird-slim', 'eyes.bird-round-large', 'eyes.bird-soft', 'eyes.bird-bright', 'eyes.bird-sleepy', 'eyes.bird-happy', 'eyes.bird-piercing', 'eyebrows.bird-angry', 'eyebrows.bird-curious', 'eyebrows.bird-relaxed', 'eyebrows.bird-happy', 'eyebrows.bird-sharp', 'mouth.beak-owl', 'mouth.beak-duck', 'mouth.beak-parrot', 'mouth.beak-crow', 'mouth.beak-small', 'mouth.beak-wide', 'accessory.crest-owl-tufts', 'accessory.crest-simple', 'accessory.crest-messy-tuft', 'accessory.crest-smooth-feather', 'accessory.crest-parrot-tall', 'accessory.crest-round-tuft', 'accessory.monocle']);
-  assert.deepEqual(FACE_PART_LIBRARY.list('mouth').map((asset) => asset.id), ['mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive', 'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve', 'mouth.robot-display', 'mouth.robot-retro-grille', 'mouth.robot-industrial-vent', 'mouth.robot-toy-simple', 'mouth.beak-owl', 'mouth.beak-duck', 'mouth.beak-parrot', 'mouth.beak-crow', 'mouth.beak-small', 'mouth.beak-wide']);
+    // The Soft Cartoon bird pack (MASC-12B), behind them, in its own review order — and no eyes either, for the same reason.
+    'head.bird-owl', 'head.bird-duck', 'head.bird-parrot', 'head.bird-crow', 'head.bird-cute', 'head.bird-slim', 'eyebrows.bird-angry', 'eyebrows.bird-curious', 'eyebrows.bird-relaxed', 'eyebrows.bird-happy', 'eyebrows.bird-sharp', 'mouth.beak-owl', 'mouth.beak-duck', 'mouth.beak-parrot', 'mouth.beak-crow', 'mouth.beak-small', 'mouth.beak-wide', 'accessory.crest-owl-tufts', 'accessory.crest-simple', 'accessory.crest-messy-tuft', 'accessory.crest-smooth-feather', 'accessory.crest-parrot-tall', 'accessory.crest-round-tuft', 'accessory.monocle']);
+  assert.deepEqual(FACE_PART_LIBRARY.list('mouth').map((asset) => asset.id), ['mouth.full', 'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve', 'mouth.robot-display', 'mouth.robot-retro-grille', 'mouth.robot-industrial-vent', 'mouth.robot-toy-simple', 'mouth.beak-owl', 'mouth.beak-duck', 'mouth.beak-parrot', 'mouth.beak-crow', 'mouth.beak-small', 'mouth.beak-wide']);
   assert.deepEqual(FACE_PART_LIBRARY.list('pupils'), [], 'the pupils come with the eyes');
   assert.equal(FACE_PART_LIBRARY.get('nose.dot').origin, 'builtin');
   assert.ok(Object.isFrozen(FACE_PART_LIBRARY.get('nose.dot')));
   assert.equal(FACE_PART_LIBRARY.get('nope'), null);
   const categories = FACE_PART_LIBRARY.categories();
   assert.deepEqual(categories.map((category) => category.id), [...FACE_PART_CATEGORY_IDS]);
-  assert.deepEqual(Object.fromEntries(categories.map((category) => [category.id, category.count])), { head: 24, eyes: 21, pupils: 0, eyelids: 0, eyebrows: 19, nose: 9, mouth: 20, ears: 15, hair: 6, facialHair: 5, accessory: 31 });
+  assert.deepEqual(Object.fromEntries(categories.map((category) => [category.id, category.count])), { head: 24, eyes: 7, pupils: 0, eyelids: 0, eyebrows: 19, nose: 9, mouth: 16, ears: 15, hair: 6, facialHair: 5, accessory: 31 });
 });
 
 test('an asset claims the colours it paints, and no others', () => {
@@ -47,23 +51,23 @@ test('an asset claims the colours it paints, and no others', () => {
 
 test('a registry validates on the way in and refuses with the issues attached', () => {
   const registry = createFacePartRegistry();
-  const asset = registry.register(MOUTH_SIMPLE);
-  assert.equal(asset.id, 'mouth.simple');
-  assert.equal(registry.has('mouth.simple'), true);
-  assert.throws(() => registry.register(MOUTH_SIMPLE), (error) => error instanceof FacePartError && error.issues.some((item) => item.code === 'id-taken') && /already registered/.test(error.message));
-  assert.throws(() => registry.register({ ...MOUTH_SIMPLE, id: 'mouth.broken', artwork: '<g id="x"><script/></g>' }), (error) => error.name === 'FacePartError' && error.issues.map((item) => item.code).includes('artwork-unsafe'));
+  const asset = registry.register(MOUTH_LINE);
+  assert.equal(asset.id, 'mouth.line');
+  assert.equal(registry.has('mouth.line'), true);
+  assert.throws(() => registry.register(MOUTH_LINE), (error) => error instanceof FacePartError && error.issues.some((item) => item.code === 'id-taken') && /already registered/.test(error.message));
+  assert.throws(() => registry.register({ ...MOUTH_LINE, id: 'mouth.broken', artwork: '<g id="x"><script/></g>' }), (error) => error.name === 'FacePartError' && error.issues.map((item) => item.code).includes('artwork-unsafe'));
   assert.equal(registry.size, 1, 'a refused asset leaves nothing behind');
   assert.equal(registry.validate({}).ok, false, 'and can be asked without registering');
-  assert.equal(registry.remove('mouth.simple'), true);
-  assert.equal(registry.remove('mouth.simple'), false);
+  assert.equal(registry.remove('mouth.line'), true);
+  assert.equal(registry.remove('mouth.line'), false);
   assert.equal(registry.size, 0);
 });
 
 test('a pack registers all of its assets or none of them', () => {
   const registry = createFacePartRegistry();
-  assert.throws(() => registry.registerMany([MOUTH_SIMPLE, { ...MOUTH_SIMPLE, id: 'mouth.dup', name: '' }]), /name/);
+  assert.throws(() => registry.registerMany([MOUTH_LINE, { ...MOUTH_LINE, id: 'mouth.dup', name: '' }]), /name/);
   assert.equal(registry.size, 0, 'the good one was not kept');
-  assert.throws(() => registry.registerMany([MOUTH_SIMPLE, MOUTH_SIMPLE]), /appears twice/);
+  assert.throws(() => registry.registerMany([MOUTH_LINE, MOUTH_LINE]), /appears twice/);
   assert.equal(registry.size, 0);
   const registered = registry.registerMany(BUILTIN_FACE_PARTS);
   assert.equal(registered.length, BUILTIN_FACE_PARTS.length);
@@ -93,36 +97,36 @@ test('a module outside the editor registers into the shared library, and an acce
 test('a drawing that restyles another is in the library and not in the category\'s cards', () => {
   const registry = createFacePartRegistry();
   registry.registerMany(BUILTIN_FACE_PARTS);
-  const workshop = { ...MOUTH_SIMPLE, id: 'mouth.simple-workshop', name: 'Simple, in the workshop style', artwork: MOUTH_SIMPLE.artwork.replace('id="mouth-simple"', 'id="mouth-simple-workshop"'), variant: { of: 'mouth.simple', style: 'workshop' } };
+  const workshop = { ...MOUTH_FULL, id: 'mouth.full-workshop', name: 'Simple, in the workshop style', artwork: MOUTH_FULL.artwork.replace('id="mouth-full"', 'id="mouth-full-workshop"'), variant: { of: 'mouth.full', style: 'workshop' } };
   registry.register(workshop);
   assert.equal(registry.size, BUILTIN_FACE_PARTS.length + 1);
-  assert.equal(registry.get('mouth.simple-workshop').name, 'Simple, in the workshop style', 'the library holds it');
-  assert.deepEqual(registry.list('mouth').map((asset) => asset.id), ['mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive', 'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve', 'mouth.robot-display', 'mouth.robot-retro-grille', 'mouth.robot-industrial-vent', 'mouth.robot-toy-simple', 'mouth.beak-owl', 'mouth.beak-duck', 'mouth.beak-parrot', 'mouth.beak-crow', 'mouth.beak-small', 'mouth.beak-wide', 'mouth.simple-workshop'], 'everything the library holds');
-  assert.deepEqual(registry.cards('mouth').map((asset) => asset.id), ['mouth.simple', 'mouth.wide', 'mouth.small', 'mouth.cartoon', 'mouth.expressive', 'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve', 'mouth.robot-display', 'mouth.robot-retro-grille', 'mouth.robot-industrial-vent', 'mouth.robot-toy-simple', 'mouth.beak-owl', 'mouth.beak-duck', 'mouth.beak-parrot', 'mouth.beak-crow', 'mouth.beak-small', 'mouth.beak-wide'], 'and not a card of its own');
+  assert.equal(registry.get('mouth.full-workshop').name, 'Simple, in the workshop style', 'the library holds it');
+  assert.deepEqual(registry.list('mouth').map((asset) => asset.id), ['mouth.full', 'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve', 'mouth.robot-display', 'mouth.robot-retro-grille', 'mouth.robot-industrial-vent', 'mouth.robot-toy-simple', 'mouth.beak-owl', 'mouth.beak-duck', 'mouth.beak-parrot', 'mouth.beak-crow', 'mouth.beak-small', 'mouth.beak-wide', 'mouth.full-workshop'], 'everything the library holds');
+  assert.deepEqual(registry.cards('mouth').map((asset) => asset.id), ['mouth.full', 'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve', 'mouth.robot-display', 'mouth.robot-retro-grille', 'mouth.robot-industrial-vent', 'mouth.robot-toy-simple', 'mouth.beak-owl', 'mouth.beak-duck', 'mouth.beak-parrot', 'mouth.beak-crow', 'mouth.beak-small', 'mouth.beak-wide'], 'and not a card of its own');
   assert.equal(registry.cards().length, registry.size - 1);
   // Reached through the drawing it restyles, by name.
-  assert.equal(registry.variant('mouth.simple', 'workshop').id, 'mouth.simple-workshop');
-  assert.equal(registry.variant('mouth.simple', 'night'), null, 'a style nobody has drawn yet');
-  assert.equal(registry.variant('mouth.wide', 'workshop'), null);
-  assert.equal(registry.variant('mouth.simple', ''), null);
-  assert.deepEqual(registry.variantsOf('mouth.simple').map((asset) => asset.id), ['mouth.simple-workshop']);
-  assert.deepEqual(registry.variantsOf('mouth.wide'), []);
+  assert.equal(registry.variant('mouth.full', 'workshop').id, 'mouth.full-workshop');
+  assert.equal(registry.variant('mouth.full', 'night'), null, 'a style nobody has drawn yet');
+  assert.equal(registry.variant('mouth.beak-owl', 'workshop'), null);
+  assert.equal(registry.variant('mouth.full', ''), null);
+  assert.deepEqual(registry.variantsOf('mouth.full').map((asset) => asset.id), ['mouth.full-workshop']);
+  assert.deepEqual(registry.variantsOf('mouth.beak-owl'), []);
   // A second drawing cannot answer for the same style of the same part.
-  assert.throws(() => registry.register({ ...workshop, id: 'mouth.simple-shed' }), (error) => error.issues.some((issue) => issue.code === 'variant-taken'));
-  registry.remove('mouth.simple-workshop');
-  assert.equal(registry.variant('mouth.simple', 'workshop'), null, 'forgotten, and the style with it');
+  assert.throws(() => registry.register({ ...workshop, id: 'mouth.full-shed' }), (error) => error.issues.some((issue) => issue.code === 'variant-taken'));
+  registry.remove('mouth.full-workshop');
+  assert.equal(registry.variant('mouth.full', 'workshop'), null, 'forgotten, and the style with it');
 });
 
 test('a pack may write a style down before the drawing it restyles, and is taken in as one', () => {
   const registry = createFacePartRegistry();
-  const simple = { ...MOUTH_SIMPLE };
-  const workshop = { ...MOUTH_SIMPLE, id: 'mouth.simple-workshop', name: 'Workshop', artwork: MOUTH_SIMPLE.artwork.replace('id="mouth-simple"', 'id="mouth-simple-workshop"'), variant: { of: 'mouth.simple', style: 'workshop' } };
+  const simple = { ...MOUTH_LINE };
+  const workshop = { ...MOUTH_LINE, id: 'mouth.line-workshop', name: 'Workshop', artwork: MOUTH_LINE.artwork.replace('id="mouth-line"', 'id="mouth-line-workshop"'), variant: { of: 'mouth.line', style: 'workshop' } };
   registry.registerMany([workshop, simple]);
-  assert.equal(registry.variant('mouth.simple', 'workshop').id, 'mouth.simple-workshop', 'checked against the rest of the batch, not against the order it is in');
+  assert.equal(registry.variant('mouth.line', 'workshop').id, 'mouth.line-workshop', 'checked against the rest of the batch, not against the order it is in');
   const other = createFacePartRegistry();
   assert.throws(() => other.registerMany([workshop]), (error) => error.issues.some((issue) => issue.code === 'variant-unknown'), 'and a style of a drawing nobody ships is refused');
   assert.equal(other.size, 0);
-  assert.throws(() => other.registerMany([simple, workshop, { ...workshop, id: 'mouth.simple-shed' }]), (error) => error.issues.some((issue) => issue.code === 'variant-taken'), 'two answers for one style, in one pack');
+  assert.throws(() => other.registerMany([simple, workshop, { ...workshop, id: 'mouth.line-shed' }]), (error) => error.issues.some((issue) => issue.code === 'variant-taken'), 'two answers for one style, in one pack');
   assert.equal(other.size, 0);
 });
 
@@ -153,39 +157,60 @@ test('every built-in drawing fits inside the artboard it is drawn in', () => {
 });
 
 /**
- * A shut eye is a **seam**: the two lids meet on one line and neither goes
- * through the other.
+ * A shut eye shows **no eye**, and a lid never shows past one.
  *
- * The lids are drawn open and the asset says how far each one travels to close
+ * The lids are drawn open and the asset says how each one closes
  * (`parts.eyelids.drivers.eyeOpen`), so the drawing and the movement are two
- * halves of one claim and only measuring them together can check it. They
- * disagreed: the travel carried each lid's own curved edge a second time —
- * the drawing had already placed it — so on the round eyes the upper lid
- * arrived sixteen units below the middle and the lower one fourteen above,
- * thirty units of lid through lid on a socket forty-five tall.
+ * halves of one claim and only measuring them together can check it.
+ *
+ * The claim used to be that two sliding lids *met* on a seam, and it was
+ * measured on their paths. It was also wrong twice over: the travel carried
+ * each lid's own curved edge a second time -- the drawing had already placed it
+ * -- so on the round eyes the upper arrived sixteen units below the middle and
+ * the lower fourteen above, thirty units of lid through lid on a socket
+ * forty-five tall. And it took a socket to hide the overshoot, which is the
+ * mask an author could neither see nor move.
+ *
+ * A lid now **grows**: it is the eye's own ellipse squashed to a sliver on the
+ * rim it swings from, scaled about that rim until it covers the eye
+ * (docs/EYE_BUILDS.md). The arithmetic is exact and there is nothing to clip, so
+ * the two things worth measuring are that a lid is *as drawn* with the eye open
+ * and that it lands on the far rim with it shut. Short of the rim leaves an eye
+ * looking through its own eyelid; past it shows skin on the cheek.
+ */
+const lidReach = (asset, role) => {
+  const driver = asset.parts.eyelids.drivers.eyeOpen;
+  const hint = driver.roles?.[role] || driver;
+  // `amplitude * eyeOpen + offset`, and `eyeOpen` rests at 1 and shuts at 0.
+  return { open: hint.amplitude + hint.offset, shut: hint.offset };
+};
+
+/** The `ry` one lid is drawn with: the sliver an open eye shows of it. */
+const lidDrawn = (asset, side, which) => {
+  const id = `lid${which}${side[0].toUpperCase()}${side.slice(1)}`;
+  const found = new RegExp(`id="${id}"[^>]*ry="([\\d.]+)"`).exec(asset.artwork);
+  return found ? Number(found[1]) : NaN;
+};
+
+/**
+ * A shutter's leading edge, walked rather than solved.
+ *
+ * `M l back L r back L r edge Q cx control l edge Z`: the edge is the quadratic,
+ * sampled at 257 steps -- finer than any difference that would show on a face.
  */
 const lidEdge = (d) => {
-  // `M l back L r back L r edge Q cx control l edge Z`: the leading edge is the
-  // quadratic, walked rather than solved -- 256 steps is finer than any
-  // difference that would show on a face.
   const [, , , , right, edge, cx, control, left] = d.match(/-?[\d.]+/g).map(Number);
-  const points = Array.from({ length: 257 }, (_, step) => {
+  const points = Array.from({ length: 257 }, (unused, step) => {
     const at = step / 256, u = 1 - at;
     return { x: u * u * right + 2 * u * at * cx + at * at * left, y: u * u * edge + 2 * u * at * control + at * at * edge };
   });
   return (x) => points.reduce((best, point) => (Math.abs(point.x - x) < Math.abs(best.x - x) ? point : best)).y;
 };
 
-test('every built-in eye shuts to a seam: the lids meet and neither crosses the other', () => {
-  // Asked of the lids that travel. An eye drawn shut (`eyes.animal-happy`) has
-  // its two lids already at the seam and no `eyeOpen` to move them, so there is
-  // no travel to check -- the seam is where the artwork puts it, and the pair
-  // of paths is identical by construction rather than by arithmetic.
-  const eyes = BUILTIN_FACE_PARTS.filter((asset) => asset.parts?.eyelids?.drivers?.eyeOpen);
-  assert.ok(eyes.length, 'the library draws eyes with lids');
-  assert.deepEqual(BUILTIN_FACE_PARTS.filter((asset) => asset.parts?.eyelids && !asset.parts.eyelids.drivers?.eyeOpen).map((asset) => asset.id),
-    ['eyes.animal-happy'], 'and that is the only eye in the library with nothing left to close');
-  for (const asset of eyes) {
+test('a robot\'s shutters meet on one line and neither goes through the other', () => {
+  const shutters = BUILTIN_FACE_PARTS.filter((asset) => asset.parts?.eyelids?.drivers?.eyeOpen?.property === 'translateY');
+  assert.ok(shutters.length, 'the robots close by sliding');
+  for (const asset of shutters) {
     const driver = asset.parts.eyelids.drivers.eyeOpen;
     const shut = (role) => (role.endsWith('Lower') ? driver.roles[role] : driver).offset;
     const path = (id) => asset.artwork.match(new RegExp(`id="${id}"[^>]*d="([^"]+)"`))[1];
@@ -196,10 +221,55 @@ test('every built-in eye shuts to a seam: the lids meet and neither crosses the 
       let met = false;
       for (let at = x; at <= x + width; at += 0.5) {
         const over = (upper(at) + up) - (lower(at) + down);
-        assert.ok(over <= 1e-6, `${asset.id} ${side}: the lids cross by ${over} at x ${at}`);
+        assert.ok(over <= 1e-6, `${asset.id} ${side}: the shutters cross by ${over} at x ${at}`);
         if (over > -1e-6) met = true;
       }
-      assert.ok(met, `${asset.id} ${side}: the lids never meet, so a closed eye is left open`);
+      assert.ok(met, `${asset.id} ${side}: the shutters never meet, so a closed eye is left open`);
     }
+  }
+});
+
+test('a shut eye shows no eye, and an open one shows the lids exactly as drawn', () => {
+  const lidded = BUILTIN_FACE_PARTS.filter((asset) => asset.parts?.eyelids?.drivers?.eyeOpen);
+  assert.ok(lidded.length, 'the library draws eyes with lids');
+  // A build with no lids at all is the dot: nothing to close *with*, so the
+  // pupil itself flattens onto the line it closes to.
+  assert.deepEqual(BUILTIN_FACE_PARTS.filter((asset) => asset.parts?.eyelids && !asset.parts.eyelids.drivers?.eyeOpen).map((asset) => asset.id),
+    ['eyes.dot'], 'and that is the only eye in the library that closes without a lid');
+  // A **shutter** is the other construction, and the robots are the only eyes
+  // that have one: a panel that slides over a lit element, in a housing that is
+  // part of the drawing rather than a mask hiding what is parked outside it
+  // (`builtin/robots/eyes.js`). It closes by `translateY` and is measured below.
+  const eyes = lidded.filter((asset) => asset.parts.eyelids.drivers.eyeOpen.property === 'scaleY');
+  assert.deepEqual(lidded.filter((asset) => !eyes.includes(asset)).map((asset) => asset.id),
+    ['eyes.robot-display-friendly', 'eyes.robot-retro-led', 'eyes.robot-industrial-led', 'eyes.robot-toy-expressive'],
+    'and a shutter is a robot\'s, nobody else\'s');
+
+  for (const asset of eyes) {
+    // The eye's own half-height, which is what an upper lid has to cross.
+    const ry = asset.referenceBox.height / 2;
+    for (const side of ['left', 'right']) {
+      for (const which of ['Upper', 'Lower']) {
+        const role = `${side}${which}`;
+        const { open, shut } = lidReach(asset, role);
+        const drawn = lidDrawn(asset, side, which);
+        assert.ok(Number.isFinite(drawn), `${asset.id} ${role}: drawn as an ellipse on the rim`);
+        assert.equal(open, 1, `${asset.id} ${role}: open, the lid is exactly as drawn`);
+        // Scaled about the rim, a lid of half-height `drawn` reaches
+        // `2 * drawn * k` into the eye. The upper crosses the whole of it and
+        // lands on the far rim; the lower comes up between a quarter and a half
+        // of the way, because a real blink is the upper lid -- two lids meeting
+        // in the middle is what a *squint* looks like, and getting that
+        // asymmetry right is the difference between sleepy and suspicious.
+        const reach = 2 * drawn * shut;
+        if (which === 'Upper') assert.ok(Math.abs(reach - ry * 2) <= 0.6, `${asset.id} ${role}: reaches ${reach.toFixed(2)} of the ${(ry * 2).toFixed(2)} that covers the eye`);
+        else assert.ok(reach > ry * 0.5 && reach < ry * 1, `${asset.id} ${role}: comes up ${reach.toFixed(2)}, which is not a quarter to a half of ${(ry * 2).toFixed(2)}`);
+      }
+      // And the pair leaves nothing of the eye showing.
+      const covered = 2 * lidDrawn(asset, side, 'Upper') * lidReach(asset, `${side}Upper`).shut;
+      assert.ok(covered >= ry * 2 - 0.6, `${asset.id} ${side}: a shut eye still shows ${(ry * 2 - covered).toFixed(2)} units of eye`);
+    }
+    // No socket, and so nothing drawn outside the eye for one to crop.
+    assert.equal(/<clipPath/.test(asset.artwork), false, `${asset.id}: no hidden mask`);
   }
 });

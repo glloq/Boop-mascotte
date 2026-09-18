@@ -150,7 +150,7 @@ test('no bird head paints with anything the palette cannot hold', () => {
   }
 });
 
-test('a beak face seeds seven of the twelve tokens, so a bird head has one skin tone', () => {
+test('a beak face seeds eight of the thirteen tokens, so a bird head has one skin tone', () => {
   // Not asserted — counted. A token is seeded off one role of one semantic part
   // (`TOKEN_SEEDS`), a part reaches the face on an asset the morphology has a
   // slot for, and the role has to be one that asset actually plays. So walk
@@ -168,10 +168,13 @@ test('a beak face seeds seven of the twelve tokens, so a bird head has one skin 
   }
   const seeded = [...new Set(TOKEN_SEEDS.filter((seed) => played.has(`${seed.part}.${seed.role}`)).map((seed) => seed.token))].sort();
 
-  assert.deepEqual(seeded, ['accessoryPrimary', 'accessorySecondary', 'eyeWhite', 'mouth', 'outline', 'pupil', 'skin']);
+  // `iris` joined them without the pack changing: the eye row is the library's
+  // three builds now, one of which draws an iris, and a bird that can wear it
+  // can colour it (docs/EYE_BUILDS.md).
+  assert.deepEqual(seeded, ['accessoryPrimary', 'accessorySecondary', 'eyeWhite', 'iris', 'mouth', 'outline', 'pupil', 'skin']);
   // `skinShadow` is read from a nose, `hair` and `hairShadow` from hair, and
   // `teeth` and `tongue` from roles a beak does not play. A bird has none of
-  // those, so five of the twelve swatches never appear on its face and the
+  // those, so five of the thirteen swatches never appear on its face and the
   // drawings must not paint with them: the colour would simply stick.
   assert.deepEqual(PALETTE_TOKENS.filter((token) => !seeded.includes(token)),
     ['skinShadow', 'hair', 'hairShadow', 'tongue', 'teeth']);

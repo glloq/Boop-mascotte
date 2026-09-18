@@ -12,7 +12,7 @@ species      Hibou · Canard · Perroquet · Corbeau · Oiseau mignon · Oiseau 
 ```
 
 **All thirty are drawn**, in `core/face-library/builtin/birds/`, and ship in
-`BUILTIN_FACE_PARTS` alongside the six presets. The library holds 150 drawings
+`BUILTIN_FACE_PARTS` alongside the six presets. The library holds 132 drawings
 and 22 presets; `npm run face:assets` reviews all of them with no geometry
 warnings. **`beak` is available**, which makes four kinds of face offered out of
 five.
@@ -88,6 +88,15 @@ a bare fur one. The owl's tufts and the parrot's side feathers belong to the
 are tall.
 
 ### 2 · Yeux — 6
+
+> **Superseded for the eyes row.** The six eye sets below were drawn and have
+> since been retired: they were the shipped construction at other radii, which
+> this pack's own header said out loud. The row is answered by the library's
+> three builds — `eyes.dot`, `eyes.simple`, `eyes.iris` — which suit every kind
+> of head (docs/EYE_BUILDS.md). *Endormis* and *Joyeux* were never drawings
+> either: sleepy is `eyeOpen` partway and happy is `eyeOpen 0` with `eyeCurve`
+> up. The table is kept as the record of what was asked for.
+
 | Planche | Id | Nom | Pour |
 | --- | --- | --- | --- |
 | Grands ronds (style hibou) | `eyes.bird-round-large` | Big round | owl |

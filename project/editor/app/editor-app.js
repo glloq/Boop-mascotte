@@ -751,10 +751,16 @@ export function createEditorApp({ root = document.getElementById('app'), recover
    * writes them into the expression being shaped, as one undoable step, and in
    * Animate it writes a key at the playhead (V3-13).
    */
-  /** Artwork is the task that draws, so it is the task that shows the edges. */
+  /**
+   * Artwork is the task that draws, so it is the task that shows the edges --
+   * and, for the same reason, the one that shows where a face's parts go
+   * (docs/FACE_GUIDES.md). Everywhere else the mascot is being tried on rather
+   * than made, and a dashed box over it is clutter.
+   */
   function syncArtboard() {
     const drawing = shell.getWorkspace() === 'create';
     canvas.showArtboardFrame(drawing);
+    canvas.showFaceGuides?.(drawing);
     if (drawing) artboard.render();
   }
 

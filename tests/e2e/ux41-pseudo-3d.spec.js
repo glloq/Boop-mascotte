@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, openSetupSection, startBasicFace } from './editor-helpers.js';
+import { enterProject, goToMode, openFreshEditor, openSetupSection, startBasicFace } from './editor-helpers.js';
 
 /**
  * The pseudo-3D baseline (3D-01, docs/PSEUDO_3D_BASELINE.md).
@@ -127,4 +127,82 @@ test('@critical the nine poses of the head turn, measured', async ({ page }) => 
   //    a turn, whatever the numbers inside them say.
   const signatures = new Set(POSES.map(([name]) => PARTS.map((id) => `${Math.round(poses[name][id].cx)},${Math.round(poses[name][id].cy)}`).join('|')));
   expect(signatures.size, 'two of the nine poses look identical').toBe(POSES.length);
+});
+
+/**
+ * A face somebody drew, and the marks on it nobody named (3D-12).
+ *
+ * The turn was built out of the semantic roles, so a drawing that plays no
+ * role was in no layer of it: a blush, freckles, a scar. The template hid
+ * that, because its head role is the whole `faceRoot` group and everything
+ * painted on the face is *inside* it -- nesting carried them, and a flat
+ * drawing has no nesting to be carried by.
+ *
+ * Measured before the fix, on this drawing: the mouth travelled 64 px, the
+ * outline 11, and the two blushes travelled **zero**. The face turned out from
+ * under its own cheeks.
+ *
+ * What is asserted is the property, not the numbers: a mark painted on the
+ * face goes where the face goes. It rides the surface -- it narrows by the
+ * same cosine as the outline, and it lands where the cheek under it lands,
+ * which for a mark off the middle line is *not* the same distance the outline
+ * travels. That asymmetry is the point: a narrowing face carries a mark on its
+ * near cheek further than its own centre, and one on its far cheek back the
+ * other way.
+ */
+const DRAWN_FACE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">
+  <ellipse id="myHead" cx="120" cy="120" rx="95" ry="105" fill="#ffd8a8"/>
+  <ellipse id="myEyeL" cx="88" cy="104" rx="20" ry="22" fill="#fff" stroke="#333" stroke-width="3"/>
+  <ellipse id="myEyeR" cx="152" cy="104" rx="20" ry="22" fill="#fff" stroke="#333" stroke-width="3"/>
+  <rect id="myMouth" x="95" y="160" width="50" height="14" rx="7" fill="#9f3d46"/>
+  <circle id="myBlushL" cx="72" cy="140" r="14" fill="#ff9aa2" opacity="0.5"/>
+  <circle id="myBlushR" cx="168" cy="140" r="14" fill="#ff9aa2" opacity="0.5"/>
+</svg>`;
+
+test('@critical a mark on a drawn face turns with it, though no role names it', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await enterProject(page, 'svg', 'drawn-face.svg', DRAWN_FACE);
+  await goToMode(page, 'rig.assign');
+  for (const [role, element] of [['head', 'myHead'], ['leftEye', 'myEyeL'], ['rightEye', 'myEyeR'], ['mouth', 'myMouth']]) {
+    const row = page.locator(`[data-face-role="${role}"]`);
+    await row.locator('[data-face-role-assign]').click();
+    await page.locator(`[data-face-role-manual="${role}"]`).selectOption(element);
+    await expect(row).toHaveAttribute('data-face-role-status', 'assigned');
+  }
+  // Nobody assigned the blushes, and nobody should have to: they are not a
+  // part of the face, they are paint on it.
+  await openSetupSection(page, 'head-pose');
+  await page.locator('#head-pose [data-head-action="generate"]').click();
+  await expect(page.locator('#head-pose')).toHaveAttribute('data-head-pose-captured', /[1-9]/);
+
+  const box = (id) => page.locator(`#canvas #${id}`).evaluate((node) => {
+    const r = node.getBoundingClientRect();
+    return { cx: r.x + r.width / 2, w: r.width };
+  });
+  const ids = ['myHead', 'myMouth', 'myBlushL', 'myBlushR'];
+  const rest = Object.fromEntries(await Promise.all(ids.map(async (id) => [id, await box(id)])));
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('headX', 1));
+  await page.waitForTimeout(200);
+  const turned = Object.fromEntries(await Promise.all(ids.map(async (id) => [id, await box(id)])));
+
+  const travel = (id) => turned[id].cx - rest[id].cx;
+  const narrow = (id) => turned[id].w / rest[id].w;
+
+  // It is in the turn at all, which is the whole bug: both of these were 0.
+  for (const id of ['myBlushL', 'myBlushR']) {
+    expect(Math.abs(travel(id)), `${id} does not move at all: the face turned out from under it`).toBeGreaterThan(2);
+    expect(narrow(id), `${id} does not narrow with the face it is painted on`).toBeLessThan(0.95);
+  }
+  // Riding the surface, not swinging out in front of it: a mark is not a nose.
+  expect(Math.abs(travel('myBlushL')), 'a mark travels less than a feature with depth of its own')
+    .toBeLessThan(Math.abs(travel('myMouth')));
+  // The near cheek carries its mark further than the outline's own centre
+  // goes, and the far cheek carries its one back the other way. Two marks
+  // drawn symmetrically about the middle line must not move as one.
+  expect(travel('myBlushL'), 'the near cheek carries its mark further than the outline travels')
+    .toBeGreaterThan(travel('myHead'));
+  expect(travel('myBlushR'), 'and the far cheek carries its one back the other way')
+    .toBeLessThan(travel('myHead'));
+  // And they narrow exactly as the outline does: they are painted on it.
+  expect(Math.abs(narrow('myBlushL') - narrow('myHead')), 'a mark narrows by the face\'s own cosine').toBeLessThan(0.02);
 });

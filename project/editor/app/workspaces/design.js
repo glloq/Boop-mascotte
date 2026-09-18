@@ -12,6 +12,7 @@
  */
 import { createFacePartCommands } from '../../core/face-library/face-part-commands.js';
 import { createFaceLibraryPanel } from '../../rig-editor/semantic-parts/face-library-panel.js';
+import { FACE_PART_LIBRARY } from '../../core/face-library/face-part-registry.js';
 import { createHandStatesPanel } from '../../ui/hands/hand-states.js';
 import { HAND_LOOKS, handElementId } from '../../core/hands/hand-style-art.js';
 import { HAND_REVEAL_SECONDS, handShowParameterName } from '../../../runtime/hands.js';
@@ -139,7 +140,12 @@ export function createDesignWorkspace({
     onStatus: setStatus,
     // Selected, because the piece that just arrived is the one the Inspector's
     // two questions are about.
-    onSelect: (id) => { if (id) editorContext.update({ selectedId: id }); }
+    onSelect: (id) => { if (id) editorContext.update({ selectedId: id }); },
+    // Pointing at a card frames where that drawing lands on *this* head, which
+    // is the one thing the picture on the card cannot say (docs/FACE_GUIDES.md).
+    // The asset rather than its id: the canvas wants a reference box and a
+    // mount point, and the library is where those are looked up.
+    onPreview: (id) => canvas.previewFacePart?.(id ? FACE_PART_LIBRARY.get(id) : null)
   });
 
   /**

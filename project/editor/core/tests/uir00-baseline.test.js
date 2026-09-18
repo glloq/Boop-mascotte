@@ -164,7 +164,7 @@ test('UIR-00: installing a face part leaves the hands, their states and their ri
 
   // The command the re-presented Character Builder keeps driving (UIR-04):
   // swap the mouth for another one out of the library.
-  assert.equal(parts.replace('mouth', 'mouth.wide').ok, true);
+  assert.equal(parts.replace('mouth', 'mouth.full').ok, true);
 
   const after = store.getDocument();
   assert.notEqual(after.svgMarkup, before.svgMarkup, 'the face really was redrawn');

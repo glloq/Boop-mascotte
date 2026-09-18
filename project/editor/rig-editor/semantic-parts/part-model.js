@@ -1,4 +1,4 @@
-import { driverProperties, getSemanticPartDefinition, semanticControlDriver, semanticControlParameters, semanticDriverProperties, sideParameterName, sideParametersFor, supportsSideControl } from './part-registry.js';
+import { driverProperties, driverPropertyList, getSemanticPartDefinition, semanticControlDriver, semanticControlParameters, semanticDriverProperties, sideParameterName, sideParametersFor, supportsSideControl } from './part-registry.js';
 import { canMorphPaths } from '../../core/morph/path-morph.js';
 import { bindingNeutral } from '../../../runtime/runtime.js';
 
@@ -83,6 +83,38 @@ export function restingOffset(property, amplitude, parameterDefault) {
   return bindingNeutral(property) - (Number.isFinite(amplitude) ? amplitude : 0) * (Number(parameterDefault) || 0);
 }
 
+/**
+ * How far a control moves a role, when nothing has said.
+ *
+ * The registry's own `drivers[control].amplitude` is the first answer and the
+ * right one — *for the property the registry names*. It is the wrong one for any
+ * other: the eyelids' `eyeOpen` carries `-8`, which is eight units of
+ * `translateY`, and written onto a `scaleY` it reads 1 with the eye open (the
+ * offset saves it) and **9** with the eye shut — a lid grown nine times over,
+ * which on artwork with no socket to crop it is skin across the cheek.
+ *
+ * So a property the registry did not name gets a property-shaped default. The
+ * sign is the interesting half: a control that **rests at its maximum** — a lid,
+ * which is open at 1 and shut at 0 — has to move as the number *falls*, so its
+ * amplitude is negative. Left positive, a reset lid retracted to nothing as the
+ * eye closed, which is a blink played backwards.
+ *
+ * The magnitude is deliberately modest. The registry cannot know how tall an eye
+ * is, so what it offers is a movement an author can see and then calibrate,
+ * never one that throws the drawing off the face.
+ */
+export function defaultDriverAmplitude(definition, control, property) {
+  const declared = definition?.drivers?.[control];
+  if (declared && driverPropertyList(declared.property).includes(property) && Number.isFinite(Number(declared.amplitude))) {
+    return Number(declared.amplitude);
+  }
+  const parameter = definition?.parameters?.[control];
+  const restsAtMax = parameter && Number(parameter.default) === Number(parameter.max) && Number(parameter.max) > Number(parameter.min);
+  if (property === 'opacity') return restsAtMax ? -1 : 1;
+  if (property.startsWith('scale')) return restsAtMax ? -1 : 1;
+  return restsAtMax ? -8 : 8;
+}
+
 export function enableSemanticControl(rig, partId, control, options = {}) {
   const part = requiredPart(rig, partId), definition = getSemanticPartDefinition(part.type);
   if (!definition.controls.includes(control)) throw new Error(`Control "${control}" is not supported by ${part.type}.`);
@@ -116,8 +148,8 @@ export function enableSemanticControl(rig, partId, control, options = {}) {
     const element = rig.elements?.[part.roles[role]];
     if (!element || !property) continue;
     element.bindings ||= {};
-    const amplitude = Number(options.amplitude ?? defaults.amplitude ?? (property.startsWith('scale') ? 1 : 8));
-element.bindings[property] = { enabled: true, mode: 'simple', expression: controlExpression(definition, part, control, role), curve: 'linear', amplitude, offset: Number(options.offset ?? defaults.offset ?? restingOffset(property, amplitude, parameter?.default)), generatedBy:{semanticPart:part.id,control} };
+    const amplitude = Number(options.amplitude ?? defaultDriverAmplitude(definition, control, property));
+element.bindings[property] = { enabled: true, mode: 'simple', expression: controlExpression(definition, part, control, role), curve: 'linear', amplitude, offset: Number(options.offset ?? (amplitude === defaults.amplitude ? defaults.offset : undefined) ?? restingOffset(property, amplitude, parameter?.default)), generatedBy:{semanticPart:part.id,control} };
   }
   return rig.params[control];
 }
@@ -303,7 +335,16 @@ export function captureSemanticMorph(rig, partId, control, pose, pathByRole) {
 
 export function resetSemanticMorph(rig,partId,control){const part=requiredPart(rig,partId);cleanupOwnedDriver(rig,part.id,control);delete part.calibration?.[control];}
 
-function cleanupOwnedDriver(rig,partId,control){
+/**
+ * Every binding, morph and shape key one control of one part owns.
+ *
+ * Exported because turning a control **off** is not the only time its old
+ * driver has to go: re-enabling it on a different property leaves the binding
+ * it used to write still generated, still driven by the same parameter and
+ * still moving the artwork. A lid re-installed as a `scaleY` kept the
+ * `translateY` it had been installed with and blinked by doing both.
+ */
+export function cleanupOwnedDriver(rig,partId,control){
   for(const element of Object.values(rig.elements||{})){for(const [property,binding] of Object.entries(element.bindings||{}))if(binding.generatedBy?.semanticPart===partId&&binding.generatedBy?.control===control)delete element.bindings[property];if(element.morph?.generatedBy?.semanticPart===partId&&element.morph.generatedBy?.control===control)delete element.morph;}
   // Shape keys are owned the same way, so switching a control's method takes
   // its shapes with it rather than leaving them deforming the artwork.
@@ -400,7 +441,7 @@ function rebuildGeneratedBindings(rig,part,{amplitudes='keep'}={}){
   // decides what drives them, not how far they move.
   const previous=new Map();
   for(const [elementId,element] of Object.entries(rig.elements||{}))for(const [property,binding] of Object.entries(element.bindings||{}))if(binding.generatedBy?.semanticPart===part.id){previous.set(`${elementId}:${property}`,binding);delete element.bindings[property];}
-  const def=getSemanticPartDefinition(part.type);for(const control of part.controls||[]){const driver=part.controlDrivers?.[control],defaults=def.drivers?.[control]||{};if(driver&&driver.method!=='transform')continue;for(const role of driver?.roles||[])for(const property of (driverProperties(driver).length?driverProperties(driver):semanticDriverProperties(def,control))){const elementId=part.roles[role],element=rig.elements?.[elementId];if(!element||!property)continue;element.bindings||={};const kept=amplitudes==='keep'?(element.bindings[property]||previous.get(`${elementId}:${property}`)):null;const existing=element.bindings[property]||kept;if(existing&&existing.generatedBy?.semanticPart!==part.id)continue;const amplitude=kept?.amplitude??defaults.amplitude??(property.startsWith('scale')?1:8);element.bindings[property]={enabled:true,mode:'simple',expression:controlExpression(def,part,control,role),curve:kept?.curve||'linear',amplitude,offset:kept?.offset??defaults.offset??restingOffset(property,amplitude,def.parameters?.[control]?.default),generatedBy:{semanticPart:part.id,control}};}}
+  const def=getSemanticPartDefinition(part.type);for(const control of part.controls||[]){const driver=part.controlDrivers?.[control],defaults=def.drivers?.[control]||{};if(driver&&driver.method!=='transform')continue;for(const role of driver?.roles||[])for(const property of (driverProperties(driver).length?driverProperties(driver):semanticDriverProperties(def,control))){const elementId=part.roles[role],element=rig.elements?.[elementId];if(!element||!property)continue;element.bindings||={};const kept=amplitudes==='keep'?(element.bindings[property]||previous.get(`${elementId}:${property}`)):null;const existing=element.bindings[property]||kept;if(existing&&existing.generatedBy?.semanticPart!==part.id)continue;const amplitude=kept?.amplitude??defaultDriverAmplitude(def,control,property);element.bindings[property]={enabled:true,mode:'simple',expression:controlExpression(def,part,control,role),curve:kept?.curve||'linear',amplitude,offset:kept?.offset??(amplitude===defaults.amplitude?defaults.offset:undefined)??restingOffset(property,amplitude,def.parameters?.[control]?.default),generatedBy:{semanticPart:part.id,control}};}}
 }
 export function renameSemanticParameterReferences(rig, from, to) {
   for (const part of Object.values(rig.semanticParts || {})) {part.controls = (part.controls || []).map((name) => name === from ? to : name);if(part.controlDrivers?.[from]){part.controlDrivers[to]=part.controlDrivers[from];delete part.controlDrivers[from];}if(part.calibration?.[from]){part.calibration[to]=part.calibration[from];delete part.calibration[from];}}

@@ -36,15 +36,19 @@ test('@critical the library shows its drawings, and one press puts a pair of eye
   await startBasicFace(page);
   const panel = await openFaceLibrary(page);
 
-  // A hundred and fifty drawings, in the categories that have one.
-  await expect(panel).toHaveAttribute('data-face-library-total', '150');
+  // A hundred and thirty-two drawings, in the categories that have one. It was a
+  // hundred and fifty: seventeen of the twenty-one pairs of eyes were one
+  // construction at different radii and five human mouths were one curve at
+  // different radii, so three eye builds and one mouth replaced twenty-two cards
+  // (docs/EYE_BUILDS.md, docs/MOUTH_BUILD.md).
+  await expect(panel).toHaveAttribute('data-face-library-total', '132');
   await expect(panel).toHaveAttribute('data-face-library-category', 'eyes');
   expect(await panel.locator('[data-face-library-category]').count()).toBeGreaterThanOrEqual(9);
   const cards = panel.locator('[data-face-library-card]');
-  expect(await cards.count()).toBeGreaterThanOrEqual(20);
-  // The drawing itself, not its name: *Sleepy* and *Cartoon* are not words
-  // anybody can choose eyes by. And each preview's ids are its own, so twenty
-  // cards are twenty drawings rather than twenty clips of the first socket.
+  expect(await cards.count()).toBeGreaterThanOrEqual(3);
+  // The drawing itself, not its name: *Sleepy* and *Cartoon* were not words
+  // anybody could choose eyes by. And each preview's ids are its own, so no card
+  // on the shelf is clipped to another card's mask.
   const preview = cards.first().locator('svg.face-library-preview');
   await expect(preview).toBeVisible();
   expect(await preview.innerHTML()).not.toContain('url(#socketLeft)');
@@ -54,18 +58,25 @@ test('@critical the library shows its drawings, and one press puts a pair of eye
 
   const before = await revision(page);
   const oldPivot = (await state(page)).elements[(await partOfType(page, 'eyes')).roles.leftEye].baseTransform.pivotY;
-  await panel.locator('[data-face-library-card="eyes.sleepy"] [data-face-library-wear]').click();
+  await panel.locator('[data-face-library-card="eyes.simple"] [data-face-library-wear]').click();
   expect(await revision(page), 'a press is a write').toBeGreaterThan(before);
-  await expect(panel.locator('[data-face-library-card="eyes.sleepy"]')).toHaveClass(/face-library-worn/);
+  await expect(panel.locator('[data-face-library-card="eyes.simple"]')).toHaveClass(/face-library-worn/);
   await expect(panel).toContainText('Wearing');
 
   // The drawing arrives on the canvas, the roles are taken by its shapes, and
   // the movement the old eyes had is kept on a driver the new ones can carry.
   const eyes = await partOfType(page, 'eyes');
-  expect(eyes.assetId, 'the part records the drawing it came from').toBe('eyes.sleepy');
+  expect(eyes.assetId, 'the part records the drawing it came from').toBe('eyes.simple');
   expect(await markupHas(page, eyes.assetRoot), 'and the drawing itself is in the artwork').toBe(true);
   const eye = (await state(page)).elements[eyes.roles.leftEye];
-  expect(eye.baseTransform.pivotY, 'fitted to this head, not dropped in at its own size').not.toBe(oldPivot);
+  // Fitted to this head, and the fit is now very nearly the identity: the three
+  // builds are drawn at the template's own eye centres and their box is exactly
+  // what they paint, where the old sets reported a box three times too tall
+  // because their lids were parked outside a socket (docs/EYE_BUILDS.md). So
+  // what is asked is that the eye lands on the template's own eye line rather
+  // than that the fit moved it.
+  expect(Math.abs(eye.baseTransform.pivotY - oldPivot), 'on the template\'s own eye line').toBeLessThan(2);
+  expect(eyes.assetFit, 'and the fit was measured, not skipped').toBeTruthy();
   expect(eyes.controls, 'the movement it had is still the part’s').toContain('eyeOpen');
   expect(eye.bindings.scaleY.expression, 'and it reaches the new drawing, sides and all').toBe('eyeOpen + eyeOpenLeft');
   expect(eye.bindings.scaleY.generatedBy.control).toBe('eyeOpen');
@@ -73,7 +84,7 @@ test('@critical the library shows its drawings, and one press puts a pair of eye
   // One command, so one undo: the drawing leaves and the old eyes come back.
   await page.keyboard.press('Control+z');
   await expect.poll(async () => (await partOfType(page, 'eyes')).assetId).toBeFalsy();
-  expect(await markupHas(page, 'eyes-sleepy'), 'the whole drawing, in one step').toBe(false);
+  expect(await markupHas(page, 'eyes-simple'), 'the whole drawing, in one step').toBe(false);
   expect((await state(page)).elements[(await partOfType(page, 'eyes')).roles.leftEye].baseTransform.pivotY).toBe(oldPivot);
 
   // Another category is another press, not another screen.
@@ -100,7 +111,7 @@ test('@critical the Inspector says what a piece is, for a path as well as a pict
   // knows, grouped by the part that owns it.
   await expect(role).toHaveValue('nose.nose');
   expect(await role.locator('optgroup').count()).toBeGreaterThanOrEqual(9);
-  expect(await role.locator('option').count(), 'the vocabulary, and the one that means none of it').toBe(26);
+  expect(await role.locator('option').count(), 'the vocabulary, and the one that means none of it').toBe(28);
   // A role another drawing holds says so, so nobody takes one by surprise.
   await expect(role.locator('option[value="mouth.mouth"]')).toContainText('now');
 
@@ -134,8 +145,10 @@ test('@critical the checklist is eight, and the other seventeen are one disclosu
   // rather than only from Rig ▸ Deform ▸ All parts.
   const extras = panel.locator('details.face-role-extras');
   await extras.locator('> summary').click();
-  await expect(extras.locator('[data-face-role-optional="true"]')).toHaveCount(17);
-  await expect(extras.locator('[data-face-role-group]')).toHaveCount(9);
+  // Nineteen since the gaze grew an iris per side, grouped into ten: the gaze
+  // has extras of its own now, where both its roles used to be in the eight.
+  await expect(extras.locator('[data-face-role-optional="true"]')).toHaveCount(19);
+  await expect(extras.locator('[data-face-role-group]')).toHaveCount(10);
   for (const id of ['eyelids.leftUpper', 'nose.nose', 'ears.leftEar', 'hair.hairBack', 'mouth.teeth', 'jaw.jaw']) {
     await expect(extras.locator(`[data-face-role="${id}"]`)).toBeVisible();
   }

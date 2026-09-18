@@ -76,12 +76,15 @@ test('"just a piece" is an answer, and it is the first one offered', () => {
   // had no *Hair* to offer was the gap this closes: hair, ears, a nose, a jaw,
   // a tongue, teeth and the lids had nowhere to be said
   // (semantic-parts/face-role-vocabulary.js).
-  assert.equal(INTAKE_ROLES.length, 24);
+  // Twenty-six since the gaze grew an iris per side: a build that draws one
+  // needs somewhere to say so when the drawing arrives as a picture
+  // (docs/EYE_BUILDS.md).
+  assert.equal(INTAKE_ROLES.length, 26);
   assert.ok(INTAKE_ROLES.every((entry) => entry.label && entry.hint));
   assert.deepEqual(INTAKE_ROLES.slice(1, 9).map((entry) => entry.id),
     ['head', 'leftEye', 'rightEye', 'leftPupil', 'rightPupil', 'leftBrow', 'rightBrow', 'mouth'],
     'the beginner eight first, in their own order');
-  for (const role of ['hair', 'hairBack', 'leftEar', 'nose', 'jaw', 'tongue', 'teeth', 'leftUpper', 'facialHair']) {
+  for (const role of ['hair', 'hairBack', 'leftEar', 'nose', 'jaw', 'tongue', 'teeth', 'leftUpper', 'leftIris', 'rightIris', 'facialHair']) {
     assert.ok(INTAKE_ROLES.some((entry) => entry.id === role), `${role} can be said`);
   }
   // One name for one role: the tongue is a role of the mouth *and* a part of

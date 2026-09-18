@@ -22,8 +22,13 @@ import { BIRD_FACE_PARTS } from '../../face-library/builtin/birds/index.js';
  * ```text
  * animals  muzzle  45  MASC-10B
  * robots   robot   28  MASC-11B
- * birds    beak    30  MASC-12B, of which one is universal
+ * birds    beak    24  MASC-12B, of which one is universal
  * ```
+ *
+ * The counts fell by six each for the animals and the birds when the eyes
+ * became three builds: each pack had shipped six eye sets that were the shipped
+ * construction at other radii, which one library of three covers for every kind
+ * of face (docs/EYE_BUILDS.md).
  */
 export const FACE_PACKS = Object.freeze([
   Object.freeze({ id: 'animals', morphology: 'muzzle', milestone: 'MASC-10B', parts: ANIMAL_FACE_PARTS }),
@@ -31,8 +36,19 @@ export const FACE_PACKS = Object.freeze([
   Object.freeze({ id: 'birds', morphology: 'beak', milestone: 'MASC-12B', parts: BIRD_FACE_PARTS })
 ]);
 
-/** How many drawings the library held before any pack arrived (PR 6, phase 45). */
-export const HUMAN_LIBRARY_SIZE = 47;
+/**
+ * How many drawings the library holds that no pack shipped (PR 6, phase 45).
+ *
+ * Forty-seven until the eyes became three builds and the mouth became one card.
+ *
+ * Seventeen of the library's twenty-one pairs of eyes were one construction at
+ * different radii, and the five human ones went the way of the packs' twelve
+ * (docs/EYE_BUILDS.md). The five human mouths went the same way and for the same
+ * reason — a radius, a fill and whether the teeth were drawn, which is a size, a
+ * palette and a movement — and not one of them could pucker, which is the
+ * control the vowels turn on (docs/MOUTH_BUILD.md).
+ */
+export const HUMAN_LIBRARY_SIZE = 41;
 
 /** Every id any pack ships, universal pieces included. */
 export const PACKED_IDS = Object.freeze(new Set(FACE_PACKS.flatMap((pack) => pack.parts.map((asset) => asset.id))));

@@ -165,15 +165,22 @@ test('the six species are recipes over shared drawings, not six libraries', () =
   // The whole point: drawings used by more than one species, and no species
   // owning a private copy of a shared piece.
   const shared = drawings.filter((item) => item.species.length > 1).map((item) => item.id);
-  assert.ok(shared.includes('eyes.animal-almond-alert'), 'one pair of eyes dresses the fox and the wolf');
   assert.ok(shared.includes('nose.triangle-small'), 'one nose dresses the cat and the fox');
   assert.ok(shared.includes('accessory.muzzle-canine-medium'), 'one muzzle dresses the dog and the wolf');
-  assert.ok(shared.length >= 6, `${shared.length} drawings are shared between species`);
-  // Forty-five drawings, of which thirty-eight are claimed by a recipe: six
+  assert.ok(shared.length >= 4, `${shared.length} drawings are shared between species`);
+  // The eyes are shared the furthest of anything, and by the whole pack rather
+  // than between two species: the row is the library's three builds, reused
+  // (`standalone: false`), so they are not in `drawings` at all. Three cover
+  // six species where the pack had drawn six (docs/EYE_BUILDS.md).
+  const eyes = PILOT_ASSETS.filter((item) => item.reviewGroup === 'eyes');
+  assert.deepEqual(eyes.map((item) => item.id), ['eyes.dot', 'eyes.simple', 'eyes.iris']);
+  assert.deepEqual(eyes.filter((item) => item.standalone !== false), [], 'none of them is this pack\'s to draw');
+  assert.deepEqual(eyes.find((item) => item.id === 'eyes.iris').species, ['cat', 'fox', 'wolf'], 'one build dresses three species');
+  // Thirty-nine drawings, of which thirty-four are claimed by a recipe: six
   // species over eight slots would be forty-eight if each owned its own.
-  assert.equal(drawings.length, 45);
-  assert.equal(drawings.filter((item) => !item.catalogue).length, 38);
-  assert.ok(38 < PILOT_SPECIES.length * 8, 'six independent libraries would be more');
+  assert.equal(drawings.length, 39);
+  assert.equal(drawings.filter((item) => !item.catalogue).length, 34);
+  assert.ok(34 < PILOT_SPECIES.length * 8, 'six independent libraries would be more');
 });
 
 test('every recipe dresses a whole face, and the pupils come with the eyes', () => {
@@ -198,7 +205,14 @@ test('every recipe dresses a whole face, and the pupils come with the eyes', () 
     assert.ok(pupils.drawnBy.includes(preset.parts.eyes), `${preset.id}'s pupils are drawn by its eyes`);
     assert.equal(pupils.standalone, false, 'and are not a card of their own');
   }
-  assert.equal(presetCoverage('cat').pupils, 'pupils.vertical', 'a cat has slit pupils');
+  // A cat wears round pupils in a coloured iris, and the slit is the one thing
+  // the three builds gave up: a slit is a *shape*, not a size, and `pupilScale`
+  // scales both axes together on purpose -- a pupil narrowed on one axis is an
+  // oval. The manifest records that rather than pretending otherwise, and an
+  // author who wants a slit draws the pupil and assigns it the role.
+  assert.equal(presetCoverage('cat').pupils, 'pupils.round', 'a cat wears an iris, and its pupil is round');
+  assert.deepEqual(pilotAsset('pupils.vertical').drawnBy, [], 'no build draws a slit');
+  assert.match(pilotAsset('pupils.vertical').notes, /No build draws one/);
   assert.equal(presetCoverage('nope'), null);
 });
 
@@ -237,8 +251,13 @@ test('every planned drawing is wanted by a recipe, or is a catalogue piece that 
   }
   // The catalogue is the seven the sheet draws beyond the six recipes: a parts
   // library exists to be combined, and its own header says so.
+  // Six, and it was seven. `eyes.animal-sleepy` and `eyes.animal-happy` were
+  // the two the sheet itself marked as expressions rather than species, and it
+  // was right: sleepy is `eyeOpen` partway and happy is `eyeOpen 0` with
+  // `eyeCurve` up. Two controls where there were two drawings, and a control
+  // can be keyed and animated (docs/EYE_BUILDS.md).
   assert.deepEqual(catalogueAssets().map((item) => item.id),
-    ['eyes.animal-sleepy', 'eyes.animal-happy', 'eyebrows.animal-worried', 'ears.small-round', 'ears.tufted', 'accessory.muzzle-feline-rounded', 'mouth.animal-happy-curve']);
+    ['eyes.dot', 'eyebrows.animal-worried', 'ears.small-round', 'ears.tufted', 'accessory.muzzle-feline-rounded', 'mouth.animal-happy-curve']);
   // The pupils are the exception, and say so rather than being missing.
   for (const item of pilotAssets({ group: 'pupils' })) {
     assert.equal(named.has(item.id), false);
@@ -249,7 +268,7 @@ test('every planned drawing is wanted by a recipe, or is a catalogue piece that 
 
 /* ── The audit, and the discipline that keeps the count down ───────────── */
 
-test('the shipped library was audited, and the sheet drawing its own moved four verdicts', () => {
+test('the shipped library was audited, and the eye row is the one thing reused outright', () => {
   const verdicts = new Map(PILOT_REUSE.map((item) => [item.id, item.verdict]));
   assert.equal(verdicts.size, PILOT_REUSE.length, 'no drawing judged twice');
   for (const item of PILOT_REUSE) {
@@ -257,12 +276,14 @@ test('the shipped library was audited, and the sheet drawing its own moved four 
     assert.ok(PILOT_REUSE_VERDICTS.includes(item.verdict), `${item.verdict} is a verdict`);
     assert.ok(item.why.length > 15, `${item.id} says why`);
   }
-  assert.equal(PILOT_REUSE.length, 47, 'every shipped drawing was looked at');
-  // The sheet draws its own brow, its own noses and its own mouths, so nothing
-  // is reused outright any more: a recipe names only pilot drawings, and the
-  // four that were going to stand in are fallbacks rather than plans.
-  assert.deepEqual(PILOT_REUSE.filter((item) => item.verdict === 'reuse'), []);
-  for (const id of ['eyebrows.thin', 'nose.cartoon', 'mouth.small', 'mouth.cartoon']) {
+  assert.equal(PILOT_REUSE.length, 41, 'every shipped drawing was looked at');
+  // The sheet draws its own brow, its own noses and its own mouths, so those are
+  // fallbacks rather than plans. The **eyes** went the other way: the six the
+  // pack drew were the shipped construction at other radii, so the row is
+  // answered by the library's own builds and the verdict is `reuse` -- the only
+  // two in the audit that are (docs/EYE_BUILDS.md).
+  assert.deepEqual(PILOT_REUSE.filter((item) => item.verdict === 'reuse').map((item) => item.id), ['eyes.simple', 'eyes.iris']);
+  for (const id of ['eyebrows.thin', 'nose.cartoon', 'mouth.full']) {
     assert.equal(pilotReuse(id).verdict, 'possible-reuse', `${id} is the fallback if a planned drawing is cut`);
   }
   // And what an animal may still wear is what the audit is worth now.
@@ -340,15 +361,16 @@ test('what is still open is written down, and the turn profiles nobody may guess
 
 test('the manifest can be read the ways MASC-10B will read it', () => {
   assert.deepEqual(pilotSummary(), {
-    drawings: 45, planned: 47, claimed: 38, catalogue: 7, reused: 0, drawn: 47, presets: 6,
-    groups: { heads: 6, eyes: 6, pupils: 2, brows: 5, ears: 8, muzzles: 6, noses: 5, mouths: 5, whiskers: 4 }
+    drawings: 39, planned: 44, claimed: 34, catalogue: 6, reused: 0, drawn: 44, presets: 6,
+    groups: { heads: 6, eyes: 3, pupils: 2, brows: 5, ears: 8, muzzles: 6, noses: 5, mouths: 5, whiskers: 4 }
   });
-  // The eight sections of the sheet, in its own order.
-  assert.deepEqual(PILOT_REVIEW_GROUPS.map((group) => pilotAssets({ group }).length), [6, 6, 2, 5, 8, 6, 5, 5, 4]);
+  // The eight sections of the sheet, in its own order. The eye row is three
+  // rather than six, and none of the three is a drawing this pack owns.
+  assert.deepEqual(PILOT_REVIEW_GROUPS.map((group) => pilotAssets({ group }).length), [6, 3, 2, 5, 8, 6, 5, 5, 4]);
   assert.deepEqual(pilotAssetsForSlot('ears').map((item) => item.sheetLabel),
     ['Chat pointues', 'Renard grandes pointues', 'Chien tombantes', 'Ours rondes', 'Lapin grandes', 'Loup pointues', 'Petites rondes', 'Avec touffes']);
   assert.deepEqual(pilotAssetsForSpecies('bear').map((item) => item.id),
-    ['head.animal-wide', 'eyes.animal-small-cute', 'pupils.round', 'eyebrows.animal-thick', 'ears.bear-round', 'accessory.muzzle-bear-broad', 'nose.bear-broad', 'mouth.animal-neutral']);
+    ['head.animal-wide', 'eyes.simple', 'pupils.round', 'eyebrows.animal-thick', 'ears.bear-round', 'accessory.muzzle-bear-broad', 'nose.bear-broad', 'mouth.animal-neutral']);
   assert.deepEqual(pilotAssets({ status: 'approved' }), [], 'drawn is not approved: a person has still to look at these');
   assert.deepEqual(pilotAssets({ status: 'needs-art' }), [], 'and nothing is waiting to be drawn');
   assert.equal(pilotAssets({ status: 'candidate' }).length, PILOT_ASSETS.length);
@@ -359,7 +381,7 @@ test('the manifest can be read the ways MASC-10B will read it', () => {
   assert.equal(pilotAsset('nope'), null);
   assert.equal(pilotReuse('nope'), null);
   assert.equal(pilotAsset('ears.cat-pointed').slot, 'ears');
-  assert.deepEqual(catalogueAssets().length, 7);
+  assert.deepEqual(catalogueAssets().length, 6);
   // Frozen all the way down: a manifest a reader could edit is a manifest
   // that disagrees with the sheet drawn from it.
   assert.ok(Object.isFrozen(PILOT_ASSETS) && Object.isFrozen(PILOT_ASSETS[0]) && Object.isFrozen(PILOT_ASSETS[0].tags));

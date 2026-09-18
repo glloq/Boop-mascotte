@@ -44,12 +44,14 @@ test('every role the registry knows can be said, and the words are the author’
 
 test('the eight are the checklist and the rest are optional, and the two do not overlap', () => {
   assert.equal(FACE_ROLE_CHECKLIST.length, 8);
-  assert.equal(FACE_ROLE_EXTRAS.length, 17);
+  // Nineteen since the gaze grew an iris per side (docs/EYE_BUILDS.md). Both
+  // optional, as every extra is: two builds of three draw no iris at all.
+  assert.equal(FACE_ROLE_EXTRAS.length, 19);
   assert.equal(FACE_ROLE_CHECKLIST.length + FACE_ROLE_EXTRAS.length, FACE_ROLE_VOCABULARY.length);
   const basic = new Set(FACE_ROLE_CHECKLIST.map((entry) => `${entry.part}.${entry.role}`));
   assert.deepEqual(FACE_ROLE_EXTRAS.filter((entry) => basic.has(entry.id)), []);
   // The ones that had nowhere at all before.
-  for (const id of ['eyelids.leftUpper', 'nose.nose', 'ears.leftEar', 'hair.hair', 'hair.hairBack', 'jaw.jaw', 'tongue.tongue', 'mouth.teeth', 'mouth.cavity', 'facialHair.facialHair']) {
+  for (const id of ['eyelids.leftUpper', 'nose.nose', 'ears.leftEar', 'hair.hair', 'hair.hairBack', 'jaw.jaw', 'tongue.tongue', 'mouth.teeth', 'mouth.cavity', 'facialHair.facialHair', 'gaze.leftIris', 'gaze.rightIris']) {
     assert.ok(FACE_ROLE_EXTRAS.some((entry) => entry.id === id), `${id} can be assigned`);
   }
   assert.ok(FACE_ROLE_EXTRAS.every((entry) => entry.optional));
@@ -64,8 +66,10 @@ test('the optional rows never change what "complete" means', () => {
   assert.equal(checklist.assigned, 8);
   assert.equal(checklist.complete, true);
   const extras = deriveFaceRoleExtras(state);
-  assert.equal(extras.total, 17);
-  assert.equal(extras.groups.length, 9, 'grouped by the part that owns them');
+  assert.equal(extras.total, 19);
+  // Ten groups: the gaze has extras of its own now, where before both of its
+  // roles were in the beginner eight and it therefore had none.
+  assert.equal(extras.groups.length, 10, 'grouped by the part that owns them');
   assert.ok(extras.assigned > 0, 'the template draws lids, a nose, ears, hair, a jaw and a tongue');
 });
 
@@ -193,9 +197,13 @@ test('every role a file name can propose is a role the form offers', () => {
 test('the library offers its drawings, by category, with the drawing itself', () => {
   const state = template();
   const model = faceLibraryModel(state, { category: 'eyes' });
-  assert.equal(model.total, 150, 'every drawing the editor ships');
+  // A hundred and thirty-two, and it was a hundred and fifty: the eyes went from
+  // twenty-one pairs to three builds and the mouth from five cards to one,
+  // because what told the retired ones apart was a size, a palette and a
+  // movement (docs/EYE_BUILDS.md, docs/MOUTH_BUILD.md).
+  assert.equal(model.total, 132, 'every drawing the editor ships');
   assert.equal(model.active, 'eyes');
-  assert.ok(model.cards.length >= 20);
+  assert.ok(model.cards.length >= 3);
   // Every category the registry declares is reported, even one the library has
   // no drawing for: an author looking for Pupils deserves to be told.
   assert.deepEqual(model.categories.map((item) => item.id), FACE_PART_CATEGORIES.map((item) => item.id));
@@ -203,18 +211,24 @@ test('the library offers its drawings, by category, with the drawing itself', ()
   assert.ok(model.categories.filter((item) => item.count).length >= 9);
 });
 
-test('a card carries the drawing, with its own ids, so twenty previews are twenty drawings', () => {
+test('a card carries the drawing, with its own ids, so every preview is its own drawing', () => {
   const cards = libraryCards(template(), 'eyes');
-  const eye = cards.find((card) => card.id === 'eyes.round-large');
+  const eye = cards.find((card) => card.id === 'eyes.simple');
   assert.match(eye.preview.viewBox, /^[-\d.]+ [-\d.]+ [\d.]+ [\d.]+$/);
-  assert.ok(eye.preview.markup.includes('<g id="preview-eyes-round-large-'));
-  // The one that matters: several assets clip with `<clipPath id="socketLeft">`
-  // and reference it by `url(#socketLeft)`. Twenty cards sharing that id is
-  // twenty eyes clipped to the first card's socket.
-  assert.equal(eye.preview.markup.includes('url(#socketLeft)'), false);
-  assert.ok(eye.preview.markup.includes('url(#preview-eyes-round-large-socketLeft)'));
-  const sleepy = cards.find((card) => card.id === 'eyes.sleepy');
-  assert.equal(sleepy.preview.markup.includes('preview-eyes-round-large-'), false, 'and no card borrows another’s ids');
+  assert.ok(eye.preview.markup.includes('<g id="preview-eyes-simple-'));
+  const iris = cards.find((card) => card.id === 'eyes.iris');
+  assert.equal(iris.preview.markup.includes('preview-eyes-simple-'), false, 'and no card borrows another\u2019s ids');
+  // The one that matters: an asset that clips with `<clipPath id="...">` and
+  // references it by `url(#...)` would have every card on the shelf clipped to
+  // the first card's mask. The robot housings are what still do this -- the
+  // eyes stopped, because a lid that grows about the rim it sits on needs no
+  // mask at all, which is what made the old eye's box three times too tall.
+  const housing = cards.find((card) => card.id === 'eyes.robot-retro-led');
+  assert.equal(housing.preview.markup.includes('url(#robotSocketLeft)'), false);
+  assert.ok(housing.preview.markup.includes('url(#preview-eyes-robot-retro-led-robotSocketLeft)'));
+  for (const card of ['eyes.dot', 'eyes.simple', 'eyes.iris'].map((id) => cards.find((item) => item.id === id))) {
+    assert.equal(card.preview.markup.includes('<clipPath'), false, `${card.id} previews without a mask`);
+  }
 });
 
 test('the cards say which drawing the face is wearing', () => {
@@ -234,7 +248,10 @@ test('a drawing for another kind of face is marked, never hidden', () => {
   // An author who wants a beak on a round head is allowed one. A card that
   // vanished would read as a library that had lost something.
   const cards = libraryCards(template(), 'mouth');
-  assert.ok(cards.length >= 20);
+  // Sixteen: the library's own mouth, and the fifteen a muzzle, a beak or a
+  // machine brings (docs/MOUTH_BUILD.md).
+  assert.ok(cards.length >= 16, `${cards.length} mouths on the shelf`);
+  assert.ok(cards.some((card) => card.id === 'mouth.full' && card.compatible), 'and the one every face can wear');
   assert.ok(cards.every((card) => 'compatible' in card));
   assert.deepEqual(cards.filter((card) => card.compatible === undefined), []);
 });

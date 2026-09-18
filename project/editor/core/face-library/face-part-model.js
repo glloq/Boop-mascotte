@@ -32,7 +32,7 @@ export const FACE_MOUNT_POINTS = Object.freeze([
 
 /** The colours a face is painted with, as names (roadmap phase 9). An asset says which it uses. */
 export const PALETTE_TOKENS = Object.freeze([
-  'skin', 'skinShadow', 'outline', 'hair', 'hairShadow', 'eyeWhite', 'pupil', 'mouth', 'tongue', 'teeth', 'accessoryPrimary', 'accessorySecondary'
+  'skin', 'skinShadow', 'outline', 'hair', 'hairShadow', 'eyeWhite', 'iris', 'pupil', 'mouth', 'tongue', 'teeth', 'accessoryPrimary', 'accessorySecondary'
 ]);
 
 /**
@@ -112,6 +112,23 @@ export const assetHasTag = (asset, tag) => assetTags(asset).includes(String(tag 
  */
 export const parseFaceTags = (text) => [...new Set(String(text ?? '').split(/[,\s]+/).map((tag) => tag.trim().toLowerCase()).filter(Boolean))];
 
+/**
+ * The point a generated binding turns and scales about, as a word.
+ *
+ * An install measures each piece of a fragment and pivots it at its own middle,
+ * which is right for everything that rotates or slides and wrong for the one
+ * thing that *grows*: an eyelid is the eye's own ellipse scaled about the rim
+ * it sits on, so a lid pivoted at its middle opens away from the eye in both
+ * directions at once instead of sweeping across it
+ * (docs/EYE_BUILDS.md, *No socket*).
+ *
+ * Words rather than coordinates, because the asset does not know where the
+ * install will put its drawing — the fit may move and scale the whole fragment.
+ * `top` is the top of the piece's own measured box, and the installer resolves
+ * it after the fit, so it holds wherever the drawing lands.
+ */
+export const DRIVER_PIVOTS = Object.freeze(['top', 'bottom', 'left', 'right', 'centre']);
+
 const finite = (value) => (Number.isFinite(Number(value)) ? Number(value) : NaN);
 const strings = (value) => (Array.isArray(value) ? value.filter((item) => typeof item === 'string' && item.trim()).map((item) => item.trim()) : []);
 
@@ -134,19 +151,33 @@ export const DRIVER_PROPERTIES = Object.freeze(['translateX', 'translateY', 'rot
  * drawn open travels down by `-amplitude` as the eye shuts, and its lower
  * partner, listed under `roles`, travels up.
  */
+/** A pivot word the installer knows, or nothing: an unknown word leaves the piece at its middle, as every drawing without one is. */
+const pivotOf = (hint) => (DRIVER_PIVOTS.includes(hint?.pivot) ? { pivot: hint.pivot } : {});
+
 function driverHints(value) {
   const out = {};
   for (const [control, hint] of Object.entries(value && typeof value === 'object' ? value : {})) {
     if (!hint || typeof hint !== 'object') continue;
     const roles = {};
     for (const [role, override] of Object.entries(hint.roles && typeof hint.roles === 'object' ? hint.roles : {})) {
-      if (override && typeof override === 'object') roles[role] = Object.freeze({ amplitude: finite(override.amplitude), offset: finite(override.offset) });
+      if (!override || typeof override !== 'object') continue;
+      // A side's own shape, where the movement is shaped rather than
+      // transformed: a mouth's teeth and its tongue pucker as the lips they are
+      // drawn from do, and each needs its own pose (docs/MOUTH_BUILD.md).
+      const rolePose = typeof override.posePath === 'string' && override.posePath.trim() ? { posePath: override.posePath.trim() } : {};
+      roles[role] = Object.freeze({ amplitude: finite(override.amplitude), offset: finite(override.offset), ...pivotOf(override), ...rolePose });
     }
     // A shape driver carries the shape as drawn at the movement's end, and no amplitude: the pose is the amplitude.
     const posePath = typeof hint.posePath === 'string' && hint.posePath.trim() ? { posePath: hint.posePath.trim() } : {};
     // An offset left out is null, and the binding takes the property's own rest (1 for a scale, 0 otherwise); a NaN would move everything off the page.
     const offset = hint.offset === undefined || hint.offset === null || hint.offset === '' ? null : finite(hint.offset);
-    out[control] = Object.freeze({ property: typeof hint.property === 'string' ? hint.property.trim() : '', amplitude: finite(hint.amplitude), offset, roles: Object.freeze(roles), ...posePath });
+    // The sentence the movement is driven by, where the drawing needs one of its
+    // own. A band drawn *from* a lip shows only when the lip parts, which is
+    // `mouthOpen * teeth` -- a product -- while a card drawing a finished row of
+    // teeth and fading it in wants `teeth` alone (docs/MOUTH_BUILD.md). Only
+    // words the part itself moves are allowed, which validation checks.
+    const expression = typeof hint.expression === 'string' && hint.expression.trim() ? { expression: hint.expression.trim() } : {};
+    out[control] = Object.freeze({ property: typeof hint.property === 'string' ? hint.property.trim() : '', amplitude: finite(hint.amplitude), offset, roles: Object.freeze(roles), ...posePath, ...expression, ...pivotOf(hint) });
   }
   return Object.freeze(out);
 }

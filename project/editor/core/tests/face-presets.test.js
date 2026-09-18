@@ -50,7 +50,7 @@ function harness(storage = null, library = FACE_PART_LIBRARY) {
 function workshop() {
   const library = createFacePartRegistry();
   library.registerMany(BUILTIN_FACE_PARTS);
-  library.register({ ...library.get('mouth.small'), id: 'mouth.small-workshop', name: 'Small, in the workshop style', origin: 'custom', variant: { of: 'mouth.small', style: 'workshop' } });
+  library.register({ ...library.get('mouth.full'), id: 'mouth.full-workshop', name: 'Small, in the workshop style', origin: 'custom', variant: { of: 'mouth.full', style: 'workshop' } });
   library.register({ ...library.get('accessory.glasses'), id: 'accessory.glasses-workshop', name: 'Glasses, in the workshop style', origin: 'custom', paletteRoles: { accessory: { stroke: 'accessorySecondary' } }, variant: { of: 'accessory.glasses', style: 'workshop' } });
   return library;
 }
@@ -146,9 +146,9 @@ test('a preset is normalised and validated: real categories, real assets in them
   assert.deepEqual(codes({ id: 'x', name: 'x' }), ['parts-missing']);
   assert.deepEqual(codes({ id: 'x', name: 'x', parts: { hands: 'head.round' } }), ['parts-category-unknown']);
   assert.deepEqual(codes({ id: 'x', name: 'x', parts: { head: 'head.nope' } }), ['parts-asset-unknown']);
-  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { head: 'mouth.wide' } }), ['parts-asset-category']);
+  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { head: 'mouth.full' } }), ['parts-asset-category']);
   assert.deepEqual(codes({ id: 'x', name: 'x', parts: { head: 'head.round' }, accessories: ['nope'] }), ['accessories-asset-unknown']);
-  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { head: 'head.round' }, accessories: ['mouth.wide'] }), ['accessories-asset-category']);
+  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { head: 'head.round' }, accessories: ['mouth.full'] }), ['accessories-asset-category']);
   assert.deepEqual(codes({ id: 'x', name: 'x', parts: { head: 'head.round' }, palette: 'neon' }), ['palette-unknown']);
   assert.deepEqual(codes({ id: 'x', name: 'x', parts: { head: 'head.round' }, style: 'Workshop!' }), ['style-format']);
   // A style is a name, not a table: a preset may ask for one the library has
@@ -173,7 +173,7 @@ test('applying a preset is every step the builder runs, in order, as one undo st
   // What the professor does to the template: glasses on, the skull first.
   const steps = planFacePreset(ui.store.getDocument(), ui.presets.get('professor'));
   assert.deepEqual(steps.slice(0, 3).map((step) => `${step.kind}:${step.category || step.token}`), ['replace:head', 'replace:ears', 'replace:eyes']);
-  assert.deepEqual(steps.filter((step) => step.kind === 'replace').map((step) => step.assetId), ['head.oval', 'ears.round', 'eyes.round-small', 'eyebrows.thick', 'nose.hook', 'mouth.small', 'hair.bald', 'facialhair.moustache', 'accessory.glasses']);
+  assert.deepEqual(steps.filter((step) => step.kind === 'replace').map((step) => step.assetId), ['head.oval', 'ears.round', 'eyes.simple', 'eyebrows.thick', 'nose.hook', 'mouth.full', 'hair.bald', 'facialhair.moustache', 'accessory.glasses']);
   assert.deepEqual(steps.filter((step) => step.kind === 'retint').map((step) => step.token), [...PALETTE_TOKENS], 'then the palette');
   const result = ui.commands.applyPreset('professor');
   assert.deepEqual([result.ok, result.preset, result.refused], [true, 'professor', null]);
@@ -213,7 +213,7 @@ test('the face as a preset: what it wears and the colours it is painted in, save
   ui.commands.replace('accessory', 'accessory.hat');
   ui.commands.replace('facialHair', 'facialhair.goatee');
   const item = facePresetFromDocument(ui.store.getDocument(), ui.commands.palette(), { id: 'mine', name: 'Mine' });
-  assert.deepEqual(item.parts, { head: 'head.round', ears: 'ears.round', eyes: 'eyes.round-large', eyebrows: 'eyebrows.thin', nose: 'nose.dot', mouth: 'mouth.wide', hair: 'hair.spiky', facialHair: 'facialhair.goatee' });
+  assert.deepEqual(item.parts, { head: 'head.round', ears: 'ears.round', eyes: 'eyes.simple', eyebrows: 'eyebrows.thin', nose: 'nose.dot', mouth: 'mouth.full', hair: 'hair.spiky', facialHair: 'facialhair.goatee' });
   assert.deepEqual(item.accessories, ['accessory.hat']);
   assert.equal(item.palette.hair, '#a6603c');
   assert.equal(item.origin, 'custom');
@@ -240,7 +240,7 @@ test('the face as a preset: what it wears and the colours it is painted in, save
 test('a thumbnail is the preset\'s parts in the face\'s paint order, in its colours, with every id prefixed', () => {
   const thumb = presetThumbnail(FACE_PRESET_LIBRARY.get('robot'), FACE_PART_LIBRARY, { size: 40 });
   assert.match(thumb, /^<svg class="face-preset-thumb" viewBox="-10 -30 260 260" width="40" height="40"/);
-  const order = ['pv-robot-ears-small-earLeft', 'pv-robot-head-square-soft-skull', 'pv-robot-mouth-small-mouth', 'pv-robot-eyes-round-small-eyeLeft', 'pv-robot-accessory-bow-tie-accessory'].map((id) => thumb.indexOf(`id="${id}"`));
+  const order = ['pv-robot-ears-small-earLeft', 'pv-robot-head-square-soft-skull', 'pv-robot-mouth-full-mouth', 'pv-robot-eyes-simple-eyeLeft', 'pv-robot-accessory-bow-tie-accessory'].map((id) => thumb.indexOf(`id="${id}"`));
   assert.ok(order.every((index, position) => index > 0 && (position === 0 || index > order[position - 1])), `ears, skull, mouth, eyes, accessory, in that order: ${order}`);
   assert.match(thumb, /id="pv-robot-head-square-soft-skull"[^>]*fill="#c9d1d9" stroke="#3a4652"/, 'painted in the robot palette');
   assert.equal(thumb.includes(' id="skull"'), false);
@@ -268,19 +268,19 @@ test('the preset a face wears is read from its parts, whole set of extras includ
 
 test('a preset carries where the parts were put over their fit and what the hands rest on, saved from the face and applied with it', () => {
   // Normalised and validated: a side each, a known drawing, a real category.
-  const item = normalizeFacePreset({ id: 'x', name: 'X', parts: { mouth: 'mouth.wide' }, hands: { left: ' fist ', up: 'open' }, placements: { mouth: { x: '2', rotation: 3, scale: 0 }, nose: null } });
+  const item = normalizeFacePreset({ id: 'x', name: 'X', parts: { mouth: 'mouth.full' }, hands: { left: ' fist ', up: 'open' }, placements: { mouth: { x: '2', rotation: 3, scale: 0 }, nose: null } });
   assert.deepEqual([item.hands, item.placements], [{ left: 'fist' }, { mouth: { x: 2, y: 0, rotation: 3, scaleX: 1, scaleY: 1 } }]);
   const codes = (input) => validateFacePreset(input, FACE_PART_LIBRARY).issues.map((issue) => issue.code);
-  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.wide' }, hands: { left: 'nope' } }), ['hands-style-unknown']);
-  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.wide' }, placements: { hands: { x: 1 } } }), ['placements-target-unknown']);
-  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.wide' }, placements: { nose: { x: 1 } } }), ['placements-target-unnamed'], 'a placement the plan could not carry out is refused, not dropped');
-  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.wide' }, hands: { right: 'peace' }, placements: { mouth: { x: 1 } } }), []);
+  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.full' }, hands: { left: 'nope' } }), ['hands-style-unknown']);
+  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.full' }, placements: { hands: { x: 1 } } }), ['placements-target-unknown']);
+  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.full' }, placements: { nose: { x: 1 } } }), ['placements-target-unnamed'], 'a placement the plan could not carry out is refused, not dropped');
+  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.full' }, hands: { right: 'peace' }, placements: { mouth: { x: 1 } } }), []);
   assert.deepEqual(FACE_STYLE_PRESETS.find((preset) => preset.id === 'robot').hands, { left: 'fist', right: 'fist' }, 'the robot makes fists');
-  // Read from a face: the wide mouth moved, turned and enlarged over its fit; the left hand on a fist.
+  // Read from a face: the mouth moved, turned and enlarged over its fit; the left hand on a fist.
   const ui = harness();
-  ui.commands.replace('mouth', 'mouth.wide');
+  ui.commands.replace('mouth', 'mouth.full');
   const fit = ui.store.getDocument().semanticParts.mouth.assetFit;
-  ui.store.execute({ type: 'test/move', domains: ['artwork', 'hands'], source: 'test', apply: (document) => { const t = document.elements['mouth-wide'].baseTransform; t.x = fit.x + 5; t.y = fit.y - 3; t.rotation = 4; t.scaleX = fit.scaleX * 1.2; t.scaleY = fit.scaleY * 1.2; document.hands.left.styles.showing = 'fist'; } });
+  ui.store.execute({ type: 'test/move', domains: ['artwork', 'hands'], source: 'test', apply: (document) => { const t = document.elements['mouth-full'].baseTransform; t.x = fit.x + 5; t.y = fit.y - 3; t.rotation = 4; t.scaleX = fit.scaleX * 1.2; t.scaleY = fit.scaleY * 1.2; document.hands.left.styles.showing = 'fist'; } });
   const saved = facePresetFromDocument(ui.store.getDocument(), ui.commands.palette(), { id: 'moved', name: 'Moved' });
   assert.deepEqual(saved.placements, { mouth: { x: 5, y: -3, rotation: 4, scaleX: 1.2, scaleY: 1.2 } }, 'the move over the fit, and nothing for the parts that sit on theirs');
   assert.deepEqual(saved.hands, { left: 'fist', right: 'relaxed' });
@@ -292,14 +292,14 @@ test('a preset carries where the parts were put over their fit and what the hand
   fresh.presets.register(saved);
   const result = fresh.commands.applyPreset('moved');
   assert.deepEqual([result.ok, result.refused], [true, null]);
-  const root = fresh.store.getDocument().elements['mouth-wide'].baseTransform, freshFit = fresh.store.getDocument().semanticParts.mouth.assetFit;
+  const root = fresh.store.getDocument().elements['mouth-full'].baseTransform, freshFit = fresh.store.getDocument().semanticParts.mouth.assetFit;
   assert.deepEqual([root.x - freshFit.x, root.y - freshFit.y, root.rotation, Math.round((root.scaleX / freshFit.scaleX) * 1000) / 1000], [5, -3, 4, 1.2], 'placed as the preset had it, over this face\'s own fit');
   assert.equal(fresh.store.getDocument().hands.left.styles.showing, 'fist');
   assert.equal(fresh.store.getDocument().hands.right.styles.showing, 'relaxed');
   assert.deepEqual(fresh.history.getState(), { canUndo: true, canRedo: false });
   fresh.history.undo();
   assert.equal(fresh.store.getDocument().hands.left.styles.showing, 'relaxed', 'one undo, hands included');
-  assert.equal('mouth-wide' in fresh.store.getDocument().elements, false);
+  assert.equal('mouth-full' in fresh.store.getDocument().elements, false);
   // A hand the face has not got, a drawing it has not got: not a refusal.
   fresh.store.execute({ type: 'test/no-hand', domains: ['hands'], source: 'test', apply: (document) => { delete document.hands.left; } });
   assert.equal(fresh.commands.applyPreset('moved').ok, true);
@@ -309,15 +309,15 @@ test('a preset carries where the parts were put over their fit and what the hand
 
 test('a placement keeps a size per axis: a flipped or stretched part is saved and applied as it was, and `scale` is the shorthand for both', () => {
   const ui = harness();
-  ui.commands.replace('mouth', 'mouth.wide');
+  ui.commands.replace('mouth', 'mouth.full');
   const fit = ui.store.getDocument().semanticParts.mouth.assetFit;
-  assert.deepEqual(ui.commands.place('mouth', { x: 1, scaleX: -1, scaleY: 1.5 }), { ok: true, rootId: 'mouth-wide' });
-  const flipped = ui.store.getDocument().elements['mouth-wide'].baseTransform;
+  assert.deepEqual(ui.commands.place('mouth', { x: 1, scaleX: -1, scaleY: 1.5 }), { ok: true, rootId: 'mouth-full' });
+  const flipped = ui.store.getDocument().elements['mouth-full'].baseTransform;
   assert.ok(Math.abs(flipped.scaleX + fit.scaleX) < 1e-9 && Math.abs(flipped.scaleY - fit.scaleY * 1.5) < 1e-9, 'flipped and stretched over the fit');
   assert.deepEqual(placementOf(ui.store.getDocument(), ui.store.getDocument().semanticParts.mouth), { x: 1, y: 0, rotation: 0, scaleX: -1, scaleY: 1.5 }, 'read back as it is');
-  assert.deepEqual(normalizeFacePreset({ id: 'f', name: 'F', parts: { mouth: 'mouth.wide' }, placements: { mouth: { scale: 2 }, nose: { scaleX: 0, scaleY: 'x' } } }).placements, { mouth: { x: 0, y: 0, rotation: 0, scaleX: 2, scaleY: 2 }, nose: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 } }, 'the shorthand, and nothing for a size of zero or no number');
+  assert.deepEqual(normalizeFacePreset({ id: 'f', name: 'F', parts: { mouth: 'mouth.full' }, placements: { mouth: { scale: 2 }, nose: { scaleX: 0, scaleY: 'x' } } }).placements, { mouth: { x: 0, y: 0, rotation: 0, scaleX: 2, scaleY: 2 }, nose: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 } }, 'the shorthand, and nothing for a size of zero or no number');
   assert.equal(ui.commands.place('mouth', { scale: 0.5 }).ok, true);
-  const halved = ui.store.getDocument().elements['mouth-wide'].baseTransform;
+  const halved = ui.store.getDocument().elements['mouth-full'].baseTransform;
   assert.ok(Math.abs(halved.scaleX - fit.scaleX * 0.5) < 1e-9 && Math.abs(halved.scaleY - fit.scaleY * 0.5) < 1e-9);
 });
 
@@ -364,16 +364,16 @@ test('a preset with two facial hairs is the face\'s whichever went on first', ()
 
 test('a preset\'s own colours are colours by their syntax: a declaration smuggled after one is refused', () => {
   const codes = (input) => validateFacePreset(input, FACE_PART_LIBRARY).issues.map((issue) => issue.code);
-  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.wide' }, palette: { skin: '#fff;background:url(https://evil.example/leak)' } }), ['palette-colour-invalid']);
-  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.wide' }, palette: { skin: 'url(https://evil.example/leak)' } }), ['palette-colour-invalid']);
-  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.wide' }, palette: { skin: '#f9d9b0', outline: 'rgb(10, 20, 30)' } }), []);
+  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.full' }, palette: { skin: '#fff;background:url(https://evil.example/leak)' } }), ['palette-colour-invalid']);
+  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.full' }, palette: { skin: 'url(https://evil.example/leak)' } }), ['palette-colour-invalid']);
+  assert.deepEqual(codes({ id: 'x', name: 'x', parts: { mouth: 'mouth.full' }, palette: { skin: '#f9d9b0', outline: 'rgb(10, 20, 30)' } }), []);
 });
 
 /* ── One accessory of several (V3-04) ────────────────────────────────────── */
 
 test('a preset reaches one accessory of several by its asset id: the glasses move over their fit and the hat beside them does not', () => {
   const ui = harness();
-  assert.equal(ui.commands.replace('mouth', 'mouth.wide').ok, true);
+  assert.equal(ui.commands.replace('mouth', 'mouth.full').ok, true);
   assert.equal(ui.commands.replace('accessory', 'accessory.hat').ok, true);
   assert.equal(ui.commands.replace('accessory', 'accessory.glasses').ok, true, 'another mount: the glasses join the hat');
   // `accessory` names whichever went on first, and so names neither on purpose; the asset id names the one meant.
@@ -424,25 +424,25 @@ test('the facial hair a preset names under accessories is placed as itself, and 
  */
 test('a preset wears the parts it names in the style it asks for, and the ones nobody has restyled as they are', () => {
   const library = workshop();
-  assert.equal(styledAsset('mouth.small', 'workshop', library), 'mouth.small-workshop');
-  assert.equal(styledAsset('mouth.small', 'night', library), 'mouth.small', 'a style nobody has drawn yet');
-  assert.equal(styledAsset('mouth.small', '', library), 'mouth.small', 'and no style at all');
+  assert.equal(styledAsset('mouth.full', 'workshop', library), 'mouth.full-workshop');
+  assert.equal(styledAsset('mouth.full', 'night', library), 'mouth.full', 'a style nobody has drawn yet');
+  assert.equal(styledAsset('mouth.full', '', library), 'mouth.full', 'and no style at all');
   assert.equal(styledAsset('accessory.glasses-workshop', 'workshop', library), 'accessory.glasses-workshop', 'a drawing named by its own id is itself');
 
   const ui = harness(null, library);
-  const recipe = { name: 'Workshop professor', parts: { head: 'head.oval', ears: 'ears.round', eyes: 'eyes.round-small', eyebrows: 'eyebrows.thick', nose: 'nose.hook', mouth: 'mouth.small', hair: 'hair.bald' }, accessories: ['accessory.bow-tie', 'accessory.glasses'], palette: 'robot' };
+  const recipe = { name: 'Workshop professor', parts: { head: 'head.oval', ears: 'ears.round', eyes: 'eyes.simple', eyebrows: 'eyebrows.thick', nose: 'nose.hook', mouth: 'mouth.full', hair: 'hair.bald' }, accessories: ['accessory.bow-tie', 'accessory.glasses'], palette: 'robot' };
   ui.presets.register({ ...recipe, id: 'workshop-professor', style: 'workshop' });
   const drawings = presetDrawings(ui.presets.get('workshop-professor'), library);
-  assert.equal(drawings.parts.mouth, 'mouth.small-workshop');
+  assert.equal(drawings.parts.mouth, 'mouth.full-workshop');
   assert.equal(drawings.parts.head, 'head.oval', 'the oval skull has no workshop drawing: it is the one that goes on');
   assert.deepEqual(drawings.accessories, ['accessory.bow-tie', 'accessory.glasses-workshop']);
   const steps = planFacePreset(ui.store.getDocument(), ui.presets.get('workshop-professor'), library);
-  assert.deepEqual(steps.filter((step) => step.kind === 'replace').map((step) => step.assetId), ['head.oval', 'ears.round', 'eyes.round-small', 'eyebrows.thick', 'nose.hook', 'mouth.small-workshop', 'hair.bald', 'accessory.bow-tie', 'accessory.glasses-workshop']);
+  assert.deepEqual(steps.filter((step) => step.kind === 'replace').map((step) => step.assetId), ['head.oval', 'ears.round', 'eyes.simple', 'eyebrows.thick', 'nose.hook', 'mouth.full-workshop', 'hair.bald', 'accessory.bow-tie', 'accessory.glasses-workshop']);
 
   const result = ui.commands.applyPreset('workshop-professor');
   assert.deepEqual([result.ok, result.refused], [true, null]);
   const wearing = Object.values(ui.store.getDocument().semanticParts).filter((part) => part.assetId).map((part) => part.assetId);
-  assert.ok(wearing.includes('mouth.small-workshop') && wearing.includes('accessory.glasses-workshop'), 'the restyled drawings are on the face');
+  assert.ok(wearing.includes('mouth.full-workshop') && wearing.includes('accessory.glasses-workshop'), 'the restyled drawings are on the face');
   assert.equal(ui.commands.presetOf()?.id, 'workshop-professor', 'and the face reads back as the preset that chose them');
   // One accessory of two, in its own colour: the workshop glasses play the
   // trim token where the bow tie beside them plays the accessory one. No
@@ -456,7 +456,7 @@ test('a preset wears the parts it names in the style it asks for, and the ones n
 test('the style is part of which preset a face wears: two presets over the same parts are two faces', () => {
   const library = workshop();
   const ui = harness(null, library);
-  const recipe = { parts: { head: 'head.oval', ears: 'ears.round', eyes: 'eyes.round-small', eyebrows: 'eyebrows.thick', nose: 'nose.hook', mouth: 'mouth.small', hair: 'hair.bald' }, accessories: ['accessory.glasses'], palette: 'warm' };
+  const recipe = { parts: { head: 'head.oval', ears: 'ears.round', eyes: 'eyes.simple', eyebrows: 'eyebrows.thick', nose: 'nose.hook', mouth: 'mouth.full', hair: 'hair.bald' }, accessories: ['accessory.glasses'], palette: 'warm' };
   // Registered plain first: the first match wins, so the restyled face would have read as this one.
   ui.presets.register({ ...recipe, id: 'plain-professor', name: 'Plain professor' });
   ui.presets.register({ ...recipe, id: 'workshop-professor', name: 'Workshop professor', style: 'workshop' });
@@ -467,17 +467,17 @@ test('the style is part of which preset a face wears: two presets over the same 
   // The price of that decision: putting one drawing back to the one the
   // preset restyled is wearing another drawing, and no longer that preset.
   ui.commands.applyPreset('workshop-professor');
-  ui.commands.replace('mouth', 'mouth.small');
+  ui.commands.replace('mouth', 'mouth.full');
   assert.equal(presetOfFace(ui.store.getDocument(), ui.presets.list(), library), null);
 });
 
 test('a restyled preset\'s card is drawn from the restyled artwork, and its placements reach the restyled part', () => {
   const library = workshop();
   const ui = harness(null, library);
-  ui.presets.register({ id: 'workshop-face', name: 'Workshop face', parts: { head: 'head.oval', mouth: 'mouth.small' }, accessories: ['accessory.glasses'], style: 'workshop', palette: 'warm', placements: { 'accessory.glasses': { x: 7, y: -2 }, mouth: { x: 3 } } });
+  ui.presets.register({ id: 'workshop-face', name: 'Workshop face', parts: { head: 'head.oval', mouth: 'mouth.full' }, accessories: ['accessory.glasses'], style: 'workshop', palette: 'warm', placements: { 'accessory.glasses': { x: 7, y: -2 }, mouth: { x: 3 } } });
   const item = ui.presets.get('workshop-face');
   const thumb = presetThumbnail(item, library);
-  assert.match(thumb, /id="pv-workshop-face-mouth-small-workshop-mouth"/, 'the restyled drawing, from the same artwork');
+  assert.match(thumb, /id="pv-workshop-face-mouth-full-workshop-mouth"/, 'the restyled drawing, from the same artwork');
   assert.equal(thumb.includes('id="pv-workshop-face-mouth-small-mouth"'), false, 'never the one it restyles');
   assert.match(thumb, /id="pv-workshop-face-accessory-glasses-workshop-accessory"/);
   // A placement names the part as the preset names it; the part on the face is the restyled one.
@@ -492,10 +492,10 @@ test('a restyled preset\'s card is drawn from the restyled artwork, and its plac
 test('the face saved as a preset is the drawings it wears, restyled ones under their own ids, and goes back on as they are', () => {
   const library = workshop();
   const ui = harness(null, library);
-  ui.presets.register({ id: 'workshop-face', name: 'Workshop face', parts: { head: 'head.oval', mouth: 'mouth.small' }, accessories: ['accessory.glasses'], style: 'workshop', palette: 'warm' });
+  ui.presets.register({ id: 'workshop-face', name: 'Workshop face', parts: { head: 'head.oval', mouth: 'mouth.full' }, accessories: ['accessory.glasses'], style: 'workshop', palette: 'warm' });
   ui.commands.applyPreset('workshop-face');
   const saved = facePresetFromDocument(ui.store.getDocument(), ui.commands.palette(), { id: 'mine', name: 'Mine' });
-  assert.equal(saved.parts.mouth, 'mouth.small-workshop', 'what it wears, not what the preset wrote down');
+  assert.equal(saved.parts.mouth, 'mouth.full-workshop', 'what it wears, not what the preset wrote down');
   assert.deepEqual(saved.accessories, ['accessory.glasses-workshop']);
   assert.equal(saved.style, '', 'a face has parts, not a style');
   assert.deepEqual(validateFacePreset(saved, library).issues, [], 'a restyled drawing is an asset of its category like any other');
@@ -504,5 +504,5 @@ test('the face saved as a preset is the drawings it wears, restyled ones under t
   fresh.presets.register(saved);
   assert.deepEqual(fresh.commands.applyPreset('mine').refused, null);
   const wearing = Object.values(fresh.store.getDocument().semanticParts).filter((part) => part.assetId).map((part) => part.assetId).sort();
-  assert.deepEqual(wearing.filter((id) => id.endsWith('-workshop')), ['accessory.glasses-workshop', 'mouth.small-workshop']);
+  assert.deepEqual(wearing.filter((id) => id.endsWith('-workshop')), ['accessory.glasses-workshop', 'mouth.full-workshop']);
 });

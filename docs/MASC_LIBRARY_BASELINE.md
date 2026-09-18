@@ -635,12 +635,21 @@ presets are untouched, and still answer every question exactly as they did.
 * **The happy eyes.** A bare pair of arcs cannot be an eye set: an eye set is
   the part that *holds* the gaze and the eyelids, so one bringing neither is
   refused by the install, because swapping it in would take the pupils off the
-  face. `eyes.animal-happy` is therefore an ordinary composite with both lids
+  face. `eyes.animal-happy` was therefore an ordinary composite with both lids
   parked at the seam and arched rather than hanging, declaring no `eyeOpen` and
-  no gaze — an eye already closed has no blink left. It is the one drawing in
-  the library with `parts.eyelids` and no driver on them.
-* **A thirteenth palette token.** Not needed. `skinShadow` carries the muzzle
-  pad and the inner ear against all seven coats.
+  no gaze — an eye already closed has no blink left.
+
+  **That answer stands and the drawing is gone** (docs/EYE_BUILDS.md): a shut eye
+  was never a drawing, it is `eyeOpen 0`, and which shut — seam, happy, tired,
+  lashes — is `eyeCurve`. Two controls where there were two drawings, and a
+  control can be keyed, blended and animated where a second card could not. The
+  one drawing left with `parts.eyelids` and no driver on them is `eyes.dot`,
+  which has no lid to drive: it closes by flattening its own pupil.
+* **A thirteenth palette token.** Not needed *for an animal*. `skinShadow` carries the muzzle
+  pad and the inner ear against all seven coats. One arrived later and from
+  elsewhere: `iris`, for the eye build that paints a disc of colour, where a
+  ginger cat's amber against a grey cat's green is exactly what a palette is for
+  (docs/EYE_BUILDS.md).
 
 The fourth held: the ears do sit on top of the skull, carried there by the fit's
 offset-from-anchor rule, and the rabbit's reach y −36 with no overflow reported.

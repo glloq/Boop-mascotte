@@ -6,7 +6,7 @@
  * skin      ■  the head, the lids, the ears — every shape painted like the skull
  * outline   ■  the lines that carry the face
  * hair      ■  the fringe and the crown       hairShadow  ■  the back
- * eyeWhite  ■  pupil  ■  mouth  ■  teeth  ■  tongue  ■  …
+ * eyeWhite  ■  iris  ■  pupil  ■  mouth  ■  teeth  ■  tongue  ■  …
  * ```
  *
  * A token is a *reading* of the artwork, never a second record of it: its
@@ -23,7 +23,7 @@ import { layerParents } from './face-layout.js';
 
 export const TOKEN_LABELS = Object.freeze({
   skin: 'Skin', skinShadow: 'Skin shadow', outline: 'Outline', hair: 'Hair', hairShadow: 'Hair shadow',
-  eyeWhite: 'Eye white', pupil: 'Pupil', mouth: 'Mouth', tongue: 'Tongue', teeth: 'Teeth',
+  eyeWhite: 'Eye white', iris: 'Iris', pupil: 'Pupil', mouth: 'Mouth', tongue: 'Tongue', teeth: 'Teeth',
   accessoryPrimary: 'Accessory', accessorySecondary: 'Accessory trim'
 });
 
@@ -47,6 +47,7 @@ export const TOKEN_SEEDS = Object.freeze([
   { token: 'hair', part: 'hair', role: 'hairTop', property: 'fill' },
   { token: 'hairShadow', part: 'hair', role: 'hairBack', property: 'fill' },
   { token: 'eyeWhite', part: 'eyes', role: 'leftEye', property: 'fill', descend: true },
+  { token: 'iris', part: 'gaze', role: 'leftIris', property: 'fill' },
   { token: 'pupil', part: 'gaze', role: 'leftPupil', property: 'fill' },
   { token: 'mouth', part: 'mouth', role: 'mouth', property: 'either' },
   { token: 'teeth', part: 'mouth', role: 'teeth', property: 'fill' },

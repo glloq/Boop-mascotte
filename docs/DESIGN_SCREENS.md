@@ -44,11 +44,12 @@ changed each time:
 
 | | Assemble | Draw |
 | --- | --- | --- |
-| Face parts library (150 drawings) | ● first | |
+| Face parts library (132 drawings) | ● first | |
 | Bring a picture (3 ways in) | ● | |
 | Add a part (eyebrows, eyelids, hands) | ● | |
 | Ready · Continue to Rig | ● | |
 | Start over (3 cards, folded) | ● last | |
+| Face guides on the canvas | ● | ● |
 | The nine vector tools | | ● |
 | Working area | | ● |
 | Structure (the layer tree) | | ● |
@@ -65,6 +66,13 @@ Two orderings are deliberate:
 - **Start over is last, and folded.** Every card in it replaces the artwork the
   author has. A destructive act does not belong at the top of a column, and
   Home already offers the same three to somebody who has nothing yet.
+
+The guides are on **both**, and on nothing else, for the same reason the
+Inspector is: they are about making a mascot rather than about a screen. A head
+with no face on it gets a named, dashed box where each missing part goes, and a
+card under the pointer frames where that drawing will land
+(docs/FACE_GUIDES.md). Everywhere else the mascot is being tried on, and a
+dashed box over a finished one is clutter.
 
 The layer tree is not on Assemble. A hundred and thirty layers is the opposite
 of the point of the screen; a piece brought in arrives selected and the

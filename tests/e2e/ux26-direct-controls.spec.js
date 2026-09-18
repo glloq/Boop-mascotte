@@ -290,7 +290,15 @@ test('@critical one eye can close on its own, from inside the pair\'s own handle
   await expect(handle(page, 'eyeLeft')).toBeVisible();
   await expect(handle(page, 'eyeRight')).toBeVisible();
 
-  const lid = (side) => page.evaluate((name) => /translate\([-\d.]+ ([-\d.]+)\)/.exec(document.querySelector(`#canvas #lidUpper${name}`).getAttribute('transform'))?.[1], side);
+  // How far the lid has come across, measured on the drawing rather than off
+  // one channel of its transform: a lid is the eye's own ellipse squashed to a
+  // sliver and *scaled* about the rim it swings from (docs/EYE_BUILDS.md), so
+  // closing it makes it taller. Which channel carries that is the eye build's
+  // business; that a closing eye grows its lid is the part this test is about.
+  const lid = (side) => page.evaluate((name) => {
+    const box = document.querySelector(`#canvas #lidUpper${name}`).getBoundingClientRect();
+    return Math.round(box.height * 10) / 10;
+  }, side);
   const open = await lid('Left');
   expect(await lid('Right')).toBe(open);
 
@@ -298,7 +306,7 @@ test('@critical one eye can close on its own, from inside the pair\'s own handle
   const params_ = await params(page);
   expect(params_.eyeOpenLeft).toBeLessThan(0);
   expect(params_.eyeOpen).toBe(1, 'the shared movement is untouched: this is a wink, not a blink');
-  expect(Number(await lid('Left'))).toBeGreaterThan(Number(open));
+  expect(await lid('Left'), 'the winking eye draws its lid across').toBeGreaterThan(open);
   expect(await lid('Right')).toBe(open, 'the other eye stays open');
 });
 

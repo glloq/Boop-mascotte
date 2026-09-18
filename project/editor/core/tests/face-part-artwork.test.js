@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { documentIds, facePartThumbnail, remapArtworkIds, shapeSignature } from '../face-library/face-part-artwork.js';
-import { MOUTH_WIDE } from '../face-library/builtin/mouth-wide.js';
 import { NOSE_DOT } from '../face-library/builtin/nose-dot.js';
 import { createTemplateProjectState } from '../sample/templates/template-export.js';
+import { MOUTH_LINE } from './fixtures/mouth-line.js';
+import { MOUTH_FULL } from '../face-library/builtin/mouth-full.js';
 
 /**
  * An asset's artwork made ready for a document (docs/FACE_PART_LIBRARY.md,
@@ -28,7 +29,7 @@ test('ids the document already holds are renamed, references included', () => {
 });
 
 test('nothing taken, nothing renamed; a rename rule replaces the suffix rule', () => {
-  assert.deepEqual(remapArtworkIds(MOUTH_WIDE.artwork), { markup: MOUTH_WIDE.artwork, renamed: {} });
+  assert.deepEqual(remapArtworkIds(MOUTH_LINE.artwork), { markup: MOUTH_LINE.artwork, renamed: {} });
   const prefixed = remapArtworkIds("<g id='root'><path id='mouth' fill=\"url(#root)\"/></g>", { rename: (id) => `thumb-${id}` });
   assert.deepEqual(prefixed.renamed, { root: 'thumb-root', mouth: 'thumb-mouth' });
   assert.equal(prefixed.markup, "<g id='thumb-root'><path id='thumb-mouth' fill=\"url(#thumb-root)\"/></g>", 'single quotes are kept as they were');
@@ -38,20 +39,30 @@ test('nothing taken, nothing renamed; a rename rule replaces the suffix rule', (
 
 test('the document\'s ids are every id its markup carries, clips and defs included', () => {
   const ids = documentIds(createTemplateProjectState().svgMarkup);
-  for (const id of ['faceRoot', 'mouth', 'eyeSocketLeft', 'headShape', 'handLeft']) assert.ok(ids.has(id), `${id} is taken`);
-  assert.equal(ids.has('mouth-wide'), false);
+  // `headShape` is the one clip left: the fringe, the shading and the highlight
+  // are cut to the head's own outline. The two eye sockets are gone -- a lid that
+  // grows about its rim needs no mask (docs/EYE_BUILDS.md) -- and their absence
+  // is the point of this list: an id inside `<defs>` is an id an install must
+  // not collide with, seen or unseen.
+  for (const id of ['faceRoot', 'mouth', 'headShape', 'handLeft']) assert.ok(ids.has(id), `${id} is taken`);
+  assert.equal(ids.has('eyeSocketLeft'), false, 'and there is no socket left to collide with');
+  assert.equal(ids.has('mouth-full'), false);
 });
 
 test('a thumbnail is the artwork inside its own padded box, with every id prefixed', () => {
-  const thumb = facePartThumbnail(MOUTH_WIDE, { size: 40 });
+  // The library's own mouth, because it draws three shapes and so exercises the
+  // prefixing on more than one (docs/MOUTH_BUILD.md).
+  const box = MOUTH_FULL.referenceBox;
+  const thumb = facePartThumbnail(MOUTH_FULL, { size: 40 });
   assert.match(thumb, /^<svg class="face-part-thumb" viewBox="(-?[\d.]+) (-?[\d.]+) ([\d.]+) \3" width="40" height="40" aria-hidden="true" focusable="false" xmlns="http:\/\/www\.w3\.org\/2000\/svg">/, 'square, so every part sits the same way on a card');
   const [, x, y, side] = thumb.match(/viewBox="(-?[\d.]+) (-?[\d.]+) ([\d.]+)/);
-  assert.equal(Number(side), 80 * 1.3, 'the longer side of the box, padded on both sides');
-  assert.equal(Number(x) + Number(side) / 2, 80 + 40, 'centred on the box');
-  assert.equal(Number(y) + Number(side) / 2, 168 + 11);
-  assert.match(thumb, /<g id="thumb-mouth-wide-mouth-wide"/);
-  assert.match(thumb, /<path id="thumb-mouth-wide-mouth"/);
-  assert.match(thumb, /<path id="thumb-mouth-wide-teeth"/);
+  assert.equal(Number(side), box.width * 1.3, 'the longer side of the box, padded on both sides');
+  assert.equal(Number(x) + Number(side) / 2, box.x + box.width / 2, 'centred on the box');
+  assert.equal(Number(y) + Number(side) / 2, box.y + box.height / 2);
+  assert.match(thumb, /<g id="thumb-mouth-full-mouth-full"/);
+  assert.match(thumb, /<path id="thumb-mouth-full-mouth"/);
+  assert.match(thumb, /<path id="thumb-mouth-full-teeth"/);
+  assert.match(thumb, /<path id="thumb-mouth-full-tongue"/);
   assert.equal(thumb.includes(' id="mouth"'), false, 'no id a thumbnail shares with the mascot');
   assert.match(facePartThumbnail(NOSE_DOT), /width="48" height="48"/, 'the default size');
   assert.equal(facePartThumbnail({ ...NOSE_DOT, referenceBox: { x: 0, y: 0, width: 0, height: 4 } }), '', 'a box with no area is no picture');

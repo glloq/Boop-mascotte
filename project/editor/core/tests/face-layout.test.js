@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { FACE_MOUNT_POINTS } from '../face-library/face-part-model.js';
 import { LAYOUT_ROLES, TEMPLATE_FACE_LAYOUT, TEMPLATE_ROLE_BOXES, boxInMountSpace, composeFit, createFaceLayoutContext, faceRoleBoxes, fitFacePart, layoutFromBoxes, layoutOnHost, layoutRoleFor, layoutThroughRoot, pointInMountSpace, transformBox, transformPoint, unionBox } from '../face-library/face-layout.js';
 import { NOSE_DOT } from '../face-library/builtin/nose-dot.js';
-import { MOUTH_SIMPLE } from '../face-library/builtin/mouth-simple.js';
+import { MOUTH_LINE } from './fixtures/mouth-line.js';
 import { createTemplateProjectState } from '../sample/templates/template-export.js';
 import { createCleanProjectState } from '../state/store.js';
 import { createSemanticPart, assignSemanticRole } from '../../rig-editor/semantic-parts/part-model.js';
@@ -22,10 +22,12 @@ test('the template\'s layout is every mount point, measured, and the reference e
   for (const anchor of Object.values(layout.anchors)) assert.equal(anchor.measured, true);
   assert.deepEqual(layout.headBox, TEMPLATE_ROLE_BOXES.head);
   near(layout.centerX, 120, 'the face is centred in its frame');
-  // The eye line is the middle of the eye *groups*, lids and all: the lids are
-  // parked clear of the socket above and below it, which is not symmetric about
-  // the socket's own middle at 113.
-  near(layout.eyeLine, 112);
+  // The eye line is the middle of the eye *groups*, and the group is now the
+  // eye: 113, which is `EYE_FRAME.cy` -- the centre the geometry is built
+  // around (docs/EYE_BUILDS.md). It used to be 112, a pixel off, because the
+  // lids were parked clear of the socket above and below and the group's box
+  // was not symmetric about the eye it hid.
+  near(layout.eyeLine, 113);
   assert.equal(layout.scaleReference, 1);
   near(layout.anchors['head.top'].y, 22);
   near(layout.anchors['head.bottom'].y, 210);
@@ -49,7 +51,7 @@ test('a head somebody drew places what it has not got by the template\'s proport
   // The template's nose sits at (120.6, 148) in a head at (25.89, 22) 188 wide: the same fraction of this head.
   near(layout.anchors['nose.center'].x, 40 + ((120.615 - 25.89) / 188.21) * 100);
   near(layout.anchors['nose.center'].y, 30 + ((148 - 22) / 188) * 120);
-  near(layout.anchors.eyes.y, 30 + ((112 - 22) / 188) * 120);
+  near(layout.anchors.eyes.y, 30 + ((113 - 22) / 188) * 120);
   near(layout.eyeLine, layout.anchors.eyes.y);
   assert.ok(layout.anchors['hair.top'].y < 30, 'the hair starts above the head');
   assert.deepEqual(layout.boxes.nose, null);
@@ -100,7 +102,7 @@ test('the role boxes are read from the semantic parts, whatever the shapes are c
 test('fitting is one similarity: this head\'s size, the reference box centred on the mount point', () => {
   // On the template every asset is already where it belongs.
   assert.deepEqual(fitFacePart(NOSE_DOT, TEMPLATE_FACE_LAYOUT), { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 120, pivotY: 148, mountPoint: 'nose.center', anchor: { x: 120.615, y: 148, measured: true } });
-  assert.deepEqual(fitFacePart(MOUTH_SIMPLE, TEMPLATE_FACE_LAYOUT), { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 120, pivotY: 176.5, mountPoint: 'mouth.center', anchor: { x: 120, y: 175.25, measured: true } });
+  assert.deepEqual(fitFacePart(MOUTH_LINE, TEMPLATE_FACE_LAYOUT), { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 120, pivotY: 179.5, mountPoint: 'mouth.center', anchor: { x: 120, y: 175.25, measured: true } });
   // On a head half the size, elsewhere: half the size, at that head's nose.
   const layout = layoutFromBoxes({ head: { x: 300, y: 100, width: 94.105, height: 94 } });
   const fit = fitFacePart(NOSE_DOT, layout);

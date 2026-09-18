@@ -35,7 +35,13 @@ export const SEMANTIC_PART_REGISTRY = Object.freeze({
   // squint stop being impossible and the shared control keeps its meaning.
   // `pupilScale` is the one movement that has to write **both** scale axes: a
   // pupil that dilates on one axis is an oval, not a pupil.
-  gaze: { displayName: 'Pupils / Gaze', sides: { leftPupil: 'Left', rightPupil: 'Right' }, sided: ['lookX', 'lookY', 'pupilScale'], roles: ['leftPupil', 'rightPupil'], controls: ['lookX', 'lookY', 'pupilScale'], parameters: { lookX: number(-1, 1), lookY: number(-1, 1), pupilScale: number(0.4, 1.6, 1) }, bindings: { leftPupil: { lookX: 'translateX', lookY: 'translateY', pupilScale: ['scaleX', 'scaleY'] }, rightPupil: { lookX: 'translateX', lookY: 'translateY', pupilScale: ['scaleX', 'scaleY'] } }, drivers:{pupilScale:{property:['scaleX','scaleY'],amplitude:1,offset:0}}, calibration:{lookX:tri('LEFT','CENTER','RIGHT','left','center','right'),lookY:tri('UP','CENTER','DOWN','up','center','down'),pupilScale:{poses:[{key:'small',label:'SMALL',value:.4},{key:'normal',label:'NORMAL',value:1},{key:'large',label:'LARGE',value:1.6}]}}, symmetry: true },
+  // The **iris** is optional and travels with the pupil that sits in it: an eye
+  // drawn with one is a disc of colour with a dark centre, and a look that
+  // moved only the centre would slide the pupil out of its own iris
+  // (docs/EYE_BUILDS.md). It does not dilate — `pupilScale` is the pupil's, and
+  // an iris that grew with it would swallow the white — so it carries the two
+  // look axes and not the third.
+  gaze: { displayName: 'Pupils / Gaze', sides: { leftPupil: 'Left', rightPupil: 'Right', leftIris: 'Left', rightIris: 'Right' }, sided: ['lookX', 'lookY', 'pupilScale'], roles: ['leftPupil', 'rightPupil', 'leftIris', 'rightIris'], requiredRoles: ['leftPupil', 'rightPupil'], controls: ['lookX', 'lookY', 'pupilScale'], parameters: { lookX: number(-1, 1), lookY: number(-1, 1), pupilScale: number(0.4, 1.6, 1) }, bindings: { leftPupil: { lookX: 'translateX', lookY: 'translateY', pupilScale: ['scaleX', 'scaleY'] }, rightPupil: { lookX: 'translateX', lookY: 'translateY', pupilScale: ['scaleX', 'scaleY'] }, leftIris: { lookX: 'translateX', lookY: 'translateY' }, rightIris: { lookX: 'translateX', lookY: 'translateY' } }, drivers:{pupilScale:{property:['scaleX','scaleY'],amplitude:1,offset:0}}, calibration:{lookX:tri('LEFT','CENTER','RIGHT','left','center','right'),lookY:tri('UP','CENTER','DOWN','up','center','down'),pupilScale:{poses:[{key:'small',label:'SMALL',value:.4},{key:'normal',label:'NORMAL',value:1},{key:'large',label:'LARGE',value:1.6}]}}, symmetry: true },
   // A lid is the one movement in the registry that rests at its *maximum*:
   // `eyeOpen` sits at 1, and closing counts down to 0. So its amplitude is
   // **negative** -- the lid travels as the number falls -- and its offset is
@@ -54,7 +60,7 @@ export const SEMANTIC_PART_REGISTRY = Object.freeze({
   // is: `translateY` is spoken for by the blink, and a squint that slid the
   // whole lid would be a blink under another name. Both rest at 0, so a rig
   // that has never heard of them draws the lids it always drew.
-  eyelids: { displayName: 'Eyelids', sides: { leftUpper: 'Left', leftLower: 'Left', rightUpper: 'Right', rightLower: 'Right' }, sided: ['eyeOpen', 'eyeSquint', 'eyeCurve'], roles: ['leftUpper', 'leftLower', 'rightUpper', 'rightLower'], controls: ['eyeOpen', 'eyeSquint', 'eyeCurve'], parameters: { eyeOpen: number(0, 1, 1), eyeSquint: number(0, 1), eyeCurve: number(-1, 1) }, bindings:{leftUpper:{eyeOpen:'translateY',eyeSquint:'shapeKey',eyeCurve:'shapeKey'},leftLower:{eyeOpen:'translateY',eyeSquint:'shapeKey',eyeCurve:'shapeKey'},rightUpper:{eyeOpen:'translateY',eyeSquint:'shapeKey',eyeCurve:'shapeKey'},rightLower:{eyeOpen:'translateY',eyeSquint:'shapeKey',eyeCurve:'shapeKey'}}, drivers:{eyeOpen:{property:'translateY',amplitude:-8,offset:8},eyeSquint:{property:'shapeKey'},eyeCurve:{property:'shapeKey'}}, strategies:{eyeOpen:['translateY','rotation','morph'],eyeSquint:['shapeKey'],eyeCurve:['shapeKey']}, calibration:{eyeOpen:binary('CLOSED','OPEN')}, morph: true, symmetry: true },
+  eyelids: { displayName: 'Eyelids', sides: { leftUpper: 'Left', leftLower: 'Left', rightUpper: 'Right', rightLower: 'Right' }, sided: ['eyeOpen', 'eyeSquint', 'eyeCurve'], roles: ['leftUpper', 'leftLower', 'rightUpper', 'rightLower'], controls: ['eyeOpen', 'eyeSquint', 'eyeCurve'], parameters: { eyeOpen: number(0, 1, 1), eyeSquint: number(0, 1), eyeCurve: number(-1, 1) }, bindings:{leftUpper:{eyeOpen:'translateY',eyeSquint:'shapeKey',eyeCurve:'shapeKey'},leftLower:{eyeOpen:'translateY',eyeSquint:'shapeKey',eyeCurve:'shapeKey'},rightUpper:{eyeOpen:'translateY',eyeSquint:'shapeKey',eyeCurve:'shapeKey'},rightLower:{eyeOpen:'translateY',eyeSquint:'shapeKey',eyeCurve:'shapeKey'}}, drivers:{eyeOpen:{property:'translateY',amplitude:-8,offset:8},eyeSquint:{property:'shapeKey'},eyeCurve:{property:'shapeKey'}}, strategies:{eyeOpen:['translateY','scaleY','rotation','morph'],eyeSquint:['shapeKey'],eyeCurve:['shapeKey']}, calibration:{eyeOpen:binary('CLOSED','OPEN')}, morph: true, symmetry: true },
   // **Up is a negative translate**, because screen `y` grows downwards, and a
   // movement whose calibration says RAISED at +1 has to actually raise the
   // artwork. Without a driver of its own a translate falls back to +8, so
@@ -69,10 +75,34 @@ export const SEMANTIC_PART_REGISTRY = Object.freeze({
   // between AE and OO (docs/VISEME_SYSTEM.md). Shaped rather than transformed,
   // because narrowing a lens is not rounding it.
   //
+  // It writes the **teeth and the tongue as well as the lips**, because both are
+  // drawn from the lips: a band drawn from a resting lip curve is wider than a
+  // rounded mouth, so left alone it is a row of teeth floating beside an O. The
+  // template always keyed that (under the band's own control, where it can also
+  // read `mouthOpen`); saying it here is what lets a *card* ship the same three
+  // poses and have the installer build them (docs/MOUTH_BUILD.md).
+  //
   // `cavity`, `teeth` and `tongue` are what an open mouth has inside it, when
   // the artwork draws them as their own shapes. They are optional, and what
   // they buy is that the 2.5D turn moves them with the lip line instead of
   // leaving them behind, and that Teeth and Tongue are movements like any other.
+  //
+  // Neither carries a sentence here, because the right one depends on how the
+  // drawing carries the movement rather than on the part: a band drawn *from*
+  // the lips needs `mouthOpen * teeth`, a product, so closed lips have nothing
+  // behind them to show however far the control is up — while a card that draws
+  // a finished row of teeth and fades it in needs `teeth` alone. So the sentence
+  // is the **driver hint's** (`docs/MOUTH_BUILD.md`), which is where everything
+  // else about how a drawing carries a movement is said.
+  //
+  // A control writes **one property**, not one per role: `drivers[control]` names
+  // it, and `enableSemanticControl` writes that property on every role the table
+  // binds. So `smile` cannot be a `translateY` on the lips and a `shapeKey` on
+  // the bands — written that way it put a `translateY` on the tongue, which the
+  // tongue part already owns, and every rig in the suite refused with a binding
+  // conflict. A band follows its lip through its *own* pose instead: drawn at the
+  // movement's end, driven by the product `mouthOpen * teeth`
+  // (docs/MOUTH_BUILD.md).
   //
   // Both ways of showing them are strategies, because both are installed: the
   // template deforms bands out of its own lip curves (`shapeKey`), and a
@@ -80,7 +110,7 @@ export const SEMANTIC_PART_REGISTRY = Object.freeze({
   // (`DRAWN_DRIVERS` in `face-part-install.js`). Listing only the first left
   // the installer writing a method the Movement Inspector then refused to set
   // -- "Method \"opacity\" is not supported by teeth" on a mouth wearing one.
-  mouth: { displayName: 'Mouth', roles: ['mouth', 'cavity', 'teeth', 'tongue'], requiredRoles: ['mouth'], controls: ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'teeth', 'tongue'], parameters: { mouthOpen: number(0, 1), smile: number(-1, 1), mouthWidth: number(-1, 1), mouthRound: number(0, 1), teeth: number(0, 1), tongue: number(0, 1) }, bindings:{mouth:{mouthOpen:'scaleY',smile:'translateY',mouthWidth:'scaleX',mouthRound:'shapeKey'},teeth:{teeth:'shapeKey'},tongue:{tongue:'shapeKey'}}, drivers:{mouthOpen:{property:'scaleY',amplitude:1,offset:1},smile:{property:'translateY',amplitude:8,offset:0},mouthWidth:{property:'scaleX',amplitude:.25,offset:1},mouthRound:{property:'shapeKey'},teeth:{property:'shapeKey'},tongue:{property:'shapeKey'}}, strategies:{mouthOpen:['shapeKey','scaleY','morph'],smile:['shapeKey','translateY','morph'],mouthWidth:['scaleX'],mouthRound:['shapeKey'],teeth:['shapeKey','opacity'],tongue:['shapeKey','opacity']}, calibration:{mouthOpen:binary('CLOSED / NEUTRAL','OPEN')}, morph: true },
+  mouth: { displayName: 'Mouth', roles: ['mouth', 'cavity', 'teeth', 'tongue'], requiredRoles: ['mouth'], controls: ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'teeth', 'tongue'], parameters: { mouthOpen: number(0, 1), smile: number(-1, 1), mouthWidth: number(-1, 1), mouthRound: number(0, 1), teeth: number(0, 1), tongue: number(0, 1) }, bindings:{mouth:{mouthOpen:'scaleY',smile:'translateY',mouthWidth:'scaleX',mouthRound:'shapeKey'},teeth:{teeth:'shapeKey',mouthRound:'shapeKey'},tongue:{tongue:'shapeKey',mouthRound:'shapeKey'}}, drivers:{mouthOpen:{property:'scaleY',amplitude:1,offset:1},smile:{property:'translateY',amplitude:8,offset:0},mouthWidth:{property:'scaleX',amplitude:.25,offset:1},mouthRound:{property:'shapeKey'},teeth:{property:'shapeKey'},tongue:{property:'shapeKey'}}, strategies:{mouthOpen:['shapeKey','scaleY','morph'],smile:['shapeKey','translateY','morph'],mouthWidth:['scaleX'],mouthRound:['shapeKey'],teeth:['shapeKey','opacity'],tongue:['shapeKey','opacity']}, calibration:{mouthOpen:binary('CLOSED / NEUTRAL','OPEN')}, morph: true },
   // The tongue is its own part, not a fifth control on the mouth: the mouth's
   // `tongue` control says *whether it shows*, and these say where it is
   // (docs/FACE_CONTROL_RIG.md, CR-32 … CR-34). Two parts may share artwork so
