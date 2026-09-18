@@ -34,11 +34,11 @@ function dressed(...installs) {
 }
 
 test('a part that is a library asset drawn exactly is identified, with its root, its mount and the word its shapes sign as', () => {
-  const { state, before, library } = dressed(['mouth', 'mouth.wide'], ['eyes', 'eyes.round-large'], ['head', 'head.round']);
+  const { state, before, library } = dressed(['mouth', 'mouth.wide'], ['eyes', 'eyes.simple'], ['head', 'head.round']);
   const report = identifyFaceParts(state, library);
   assert.deepEqual(report.identified, [
     { partId: 'head', assetId: 'head.round', rootId: 'head-round' },
-    { partId: 'eyes', assetId: 'eyes.round-large', rootId: 'eyes-round-large' },
+    { partId: 'eyes', assetId: 'eyes.simple', rootId: 'eyes-simple' },
     { partId: 'mouth', assetId: 'mouth.wide', rootId: 'mouth-wide' }
   ]);
   for (const id of ['head', 'eyes', 'mouth']) {

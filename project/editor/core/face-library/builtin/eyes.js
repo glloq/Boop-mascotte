@@ -1,79 +1,171 @@
 /**
- * Eyes, as the template draws them: a socket clip, a white, a pupil, a
- * glint, two lids and an outline, one group a side, at the template's eye
- * centres (83 and 157, on the line at 113).
+ * The three pairs of eyes the library offers (docs/EYE_BUILDS.md).
  *
- * An eye is three parts of the rig -- the eyes, the gaze and the lids -- so
- * a pair of eyes is a *composite* asset: it names the pupils and the lids
- * under `parts`, and says how its lids move, because the registry knows a
- * lid's travel only as a shape. The lids are drawn open and parked outside
- * the socket; closing is the movement, so the artwork on its own is a face
- * with its eyes open.
+ * ```text
+ *   Dot                 Simple                 Iris
+ *   ●  ●              ╭───╮ ╭───╮            ╭───╮ ╭───╮
+ *                     │⬤ │ │ ⬤│            │◎ │ │ ◎│
+ *                     ╰───╯ ╰───╯            ╰───╯ ╰───╯
+ *   a pupil,        white · pupil ·       white · iris ·
+ *   nothing else    lid · outline         pupil · lid · outline
+ * ```
+ *
+ * There were **twenty-one**, and seventeen of them were one construction at
+ * different radii: round large, round small, sleepy, cartoon, minimal, and the
+ * same five again for muzzles and for beaks. Choosing between them was choosing
+ * a size — which is the scale field — and an expression — which is the
+ * controls. `eyes.sleepy` was `rest: 12`, a lid parked lower; that is
+ * `eyeOpen 0.6`, and it can be keyed.
+ *
+ * So the vocabulary is the two questions that actually change the drawing:
+ * **is there a white, and is there an iris.** None of the three declares a
+ * morphology, so all three suit every head — a muzzle and a beak no longer
+ * need eyes of their own, which is five cards and a compatibility warning
+ * gone (`compatibility.js`).
+ *
+ * The robot eyes stay where they are (`builtin/robots/eyes.js`): a lit panel
+ * is a different construction, with no white, no pupil and no lid, and folding
+ * it into these three would be claiming it is the same drawing.
+ *
+ * Every piece of geometry, and every expression that drives it, comes from
+ * `core/face/eye-build.js` — the same module the template draws with, so an eye
+ * from a card and the eye the sample ships are the same eye.
  */
-const SKIN = '#f9d9b0', LINE = '#a4674a', WHITE = '#ffffff', PUPIL = '#2f3a43';
-const CENTRES = Object.freeze({ Left: 83, Right: 157 });
-const CY = 113;
-const round = (value) => Math.round(value * 100) / 100;
+import { EYE_FRAME, eyeDrivers, eyeGeometry, eyeMarkup, round } from '../../face/eye-build.js';
 
-/** One side. The lids reach past the socket sideways and are clipped to it, as the template's are. */
-function eye(side, { rx, ry, pupil, bulge = 6, depth = 22, rest = 0 }) {
-  const cx = CENTRES[side], l = cx - rx - 8, r = cx + rx + 8;
-  // The upper lid's curved edge touches the top of the eye at rest, `rest`
-  // lower for a sleepy eye; the lower lid's touches the bottom.
-  const upperEdge = CY - ry + rest, lowerEdge = CY + ry;
-  const upper = `M${l} ${round(upperEdge - bulge - depth)} L${r} ${round(upperEdge - bulge - depth)} L${r} ${round(upperEdge - bulge)} Q${cx} ${round(upperEdge + bulge)} ${l} ${round(upperEdge - bulge)} Z`;
-  const lower = `M${l} ${round(lowerEdge + bulge + depth)} L${r} ${round(lowerEdge + bulge + depth)} L${r} ${round(lowerEdge + bulge)} Q${cx} ${round(lowerEdge - bulge)} ${l} ${round(lowerEdge + bulge)} Z`;
-  return `<g id="eye${side}" data-name="${side} eye" clip-path="url(#socket${side})">`
-    + `<ellipse id="eyeWhite${side}" data-name="${side} eye white" cx="${cx}" cy="${CY}" rx="${rx}" ry="${ry}" fill="${WHITE}" />`
-    + `<circle id="pupil${side}" data-name="${side} pupil" cx="${cx}" cy="${CY}" r="${pupil}" fill="${PUPIL}" />`
-    + `<circle id="glint${side}" data-name="${side} eye glint" cx="${round(cx - pupil * 0.4)}" cy="${round(CY - pupil * 0.45)}" r="${round(pupil * 0.34)}" fill="${WHITE}" opacity="0.9" />`
-    + `<ellipse id="rim${side}" data-name="${side} eye outline" cx="${cx}" cy="${CY}" rx="${rx}" ry="${ry}" fill="none" stroke="${LINE}" stroke-width="3" />`
-    + `<path id="lidUpper${side}" data-name="${side} upper eyelid" d="${upper}" fill="${SKIN}" stroke="${LINE}" stroke-width="3" stroke-linejoin="round" />`
-    + `<path id="lidLower${side}" data-name="${side} lower eyelid" d="${lower}" fill="${SKIN}" stroke="${LINE}" stroke-width="2" stroke-linejoin="round" />`
-    + '</g>';
-}
+const PALETTE = Object.freeze({
+  skin: '#f9d9b0', outline: '#a4674a', eyeWhite: '#ffffff', pupil: '#2f3a43',
+  iris: '#5b8dbd', glint: '#ffffff'
+});
 
-function eyes(slug, name, description, geometry) {
-  const { rx, ry, bulge = 6, rest = 0 } = geometry;
-  // How far a lid travels to shut the eye: from where its curved edge is drawn
-  // -- touching the top of the eye, or the bottom -- to the middle, where the
-  // two meet. A shut eye is a seam, so neither lid goes past it: the bulge is
-  // the shape of the edge and the drawing already places it, and a travel that
-  // carried it as well brought each lid that far through the other. On the
-  // round eyes that was thirty units of overlap on a socket forty-five tall,
-  // which reads as lids closing well past the middle of the eye.
-  const upperTravel = round(ry - rest), lowerTravel = round(ry);
-  const clips = ['Left', 'Right'].map((side) => `<clipPath id="socket${side}"><ellipse cx="${CENTRES[side]}" cy="${CY}" rx="${rx + 2}" ry="${ry + 2}" /></clipPath>`).join('');
+const SIDES = Object.freeze(['Left', 'Right']);
+const centre = (side) => (side === 'Left' ? EYE_FRAME.left : EYE_FRAME.right);
+
+/**
+ * One driver, as a generated binding the installer can apply.
+ *
+ * `roles` carries the per-side expression, because a wink is a side offset
+ * inside the binding's own expression and the two sides therefore never share
+ * one string (docs/FACE_CONTROL_RIG.md §5).
+ */
+const driver = (key, geometry, { rolePrefix }) => {
+  const spec = eyeDrivers(geometry)[key];
   return Object.freeze({
-    id: `eyes.${slug}`, category: 'eyes', name, description, origin: 'builtin',
-    artwork: `<g id="eyes-${slug}" data-name="Eyes"><defs>${clips}</defs>${eye('Left', geometry)}${eye('Right', geometry)}</g>`,
+    ...spec,
+    roles: Object.freeze(Object.fromEntries(SIDES.map((side) => [`${side.toLowerCase()}${rolePrefix}`,
+      Object.freeze({ amplitude: spec.amplitude, offset: spec.offset, pivot: spec.pivot })])))
+  });
+};
+
+function eyes(build, name, description, shape) {
+  const geometry = eyeGeometry({ ...shape, build });
+  const artwork = `<g id="eyes-${build}" data-name="Eyes">${SIDES.map((side) => eyeMarkup(side, centre(side), geometry, PALETTE, { seam: null })).join('')}</g>`;
+  const paletteRoles = Object.fromEntries(SIDES.flatMap((side) => [
+    ...(geometry.white ? [[`eyeWhite${side}`, Object.freeze({ fill: 'eyeWhite' })]] : []),
+    ...(geometry.iris ? [[`iris${side}`, Object.freeze({ fill: 'iris' })]] : []),
+    [`pupil${side}`, Object.freeze({ fill: 'pupil' })],
+    ...(geometry.rim ? [[`rim${side}`, Object.freeze({ stroke: 'outline' })]] : []),
+    ...(geometry.lids ? [[`lidUpper${side}`, Object.freeze({ fill: 'skin' })], [`lidLower${side}`, Object.freeze({ fill: 'skin' })]] : [])
+  ]));
+
+  /**
+   * The eyelids are a part of the rig, and a dot has none.
+   *
+   * On a dot the closing is the pupil flattening onto its own seam, so the
+   * `eyes` part carries `eyeOpen` itself. With lids it is the lids that carry
+   * it, and the eye keeps its own shape — which is what stops a blink from
+   * squashing the white.
+   */
+  const lidPart = !geometry.lids ? Object.freeze({
+    /**
+     * A dot covers the eyelids and draws none.
+     *
+     * Declared with no roles on purpose. The planner refuses to replace a part
+     * that is *drawn around* other parts unless the new asset covers them
+     * (`planFacePartReplacement`), and a face with lids replaced by a pair of
+     * dots has to lose them — a dot has no lid, and leaving four lid roles
+     * pointing at artwork that has gone is the state that refusal exists to
+     * prevent. So the dot says "the eyelids are mine, and there are none".
+     */
+    eyelids: Object.freeze({ roles: Object.freeze({}), capabilities: Object.freeze([]) })
+  }) : Object.freeze({
+    eyelids: Object.freeze({
+      roles: Object.freeze(Object.fromEntries(SIDES.flatMap((side) => [
+        [`${side.toLowerCase()}Upper`, `lidUpper${side}`], [`${side.toLowerCase()}Lower`, `lidLower${side}`]
+      ]))),
+      capabilities: Object.freeze(['eyeOpen']),
+      /**
+       * One control, two lids: the upper sweeps down and the lower comes up a
+       * third as far, both about the rim they are drawn on. Their own side
+       * offsets — which is what a wink is — are added by the rig when an author
+       * asks for them, exactly as for any other generated binding
+       * (docs/FACE_CONTROL_RIG.md §5).
+       */
+      drivers: Object.freeze({ eyeOpen: Object.freeze({
+        ...eyeDrivers(geometry).lidUpper,
+        roles: Object.freeze(Object.fromEntries(SIDES.flatMap((side) => [
+          [`${side.toLowerCase()}Upper`, Object.freeze({ ...eyeDrivers(geometry).lidUpper })],
+          [`${side.toLowerCase()}Lower`, Object.freeze({ ...eyeDrivers(geometry).lidLower })]
+        ])))
+      }) })
+    })
+  });
+
+  return Object.freeze({
+    id: `eyes.${build}`, category: 'eyes', name, description, origin: 'builtin',
+    artwork,
     roles: Object.freeze({ leftEye: 'eyeLeft', rightEye: 'eyeRight' }),
     capabilities: Object.freeze(['eyeOpen']),
-    // The lids do the closing; the eye itself only squashes a little with them.
-    drivers: Object.freeze({ eyeOpen: Object.freeze({ property: 'scaleY', amplitude: 0.12, offset: 0.88 }) }),
+    /**
+     * With lids, the eye barely moves when it blinks: the lids cover it and the
+     * white keeps its shape, which is the socket's whole job done by a pivot
+     * instead of by a hidden mask. *Barely*, not *not at all* — a real eye
+     * squashes a little under a closing lid, which is the 0.88 the shipped sets
+     * carried and which this keeps.
+     *
+     * It has to say so out loud. A part that claims `eyeOpen` and leaves the
+     * driver out gets the registry's own (`scaleY`, amplitude 1, offset 0),
+     * which reads 1 open and **0** shut: the eye group scaled to nothing, and
+     * with it the pupil, the iris and both lids inside. Every child's CTM had a
+     * vertical scale of zero, so a blink erased the eye instead of closing it.
+     */
+    drivers: Object.freeze(geometry.lids
+      ? { eyeOpen: Object.freeze({ property: 'scaleY', amplitude: 0.12, offset: 0.88 }) }
+      : { eyeOpen: driver('dot', geometry, { rolePrefix: 'Eye' }) }),
     parts: Object.freeze({
-      gaze: Object.freeze({ roles: Object.freeze({ leftPupil: 'pupilLeft', rightPupil: 'pupilRight' }), capabilities: Object.freeze(['lookX', 'lookY', 'pupilScale']) }),
-      eyelids: Object.freeze({
-        roles: Object.freeze({ leftUpper: 'lidUpperLeft', leftLower: 'lidLowerLeft', rightUpper: 'lidUpperRight', rightLower: 'lidLowerRight' }),
-        capabilities: Object.freeze(['eyeOpen']),
-        // Drawn at `eyeOpen 1`: the upper lid comes down as it shuts, the lower lid comes up.
-        drivers: Object.freeze({ eyeOpen: Object.freeze({ property: 'translateY', amplitude: -upperTravel, offset: upperTravel, roles: Object.freeze({ leftLower: Object.freeze({ amplitude: lowerTravel, offset: -lowerTravel }), rightLower: Object.freeze({ amplitude: lowerTravel, offset: -lowerTravel }) }) }) })
-      })
+      gaze: Object.freeze({
+        // The iris travels with the pupil that sits in it: a look that moved
+        // only the dark centre would slide it out of its own iris, which is
+        // why the iris is a role of the gaze rather than decoration.
+        roles: Object.freeze({
+          leftPupil: 'pupilLeft', rightPupil: 'pupilRight',
+          ...(geometry.iris ? { leftIris: 'irisLeft', rightIris: 'irisRight' } : {})
+        }),
+        capabilities: Object.freeze(['lookX', 'lookY', 'pupilScale']),
+        // How far the gaze may carry the pupil before its edge reaches the rim.
+        drivers: Object.freeze({
+          lookX: Object.freeze({ property: 'translateX', amplitude: geometry.travel, offset: 0 }),
+          lookY: Object.freeze({ property: 'translateY', amplitude: round(geometry.travel * 0.7), offset: 0 })
+        })
+      }),
+      ...lidPart
     }),
-    paletteRoles: Object.freeze(Object.fromEntries(['Left', 'Right'].flatMap((side) => [
-      [`eyeWhite${side}`, Object.freeze({ fill: 'eyeWhite' })], [`pupil${side}`, Object.freeze({ fill: 'pupil' })], [`rim${side}`, Object.freeze({ stroke: 'outline' })],
-      [`lidUpper${side}`, Object.freeze({ fill: 'skin', stroke: 'outline' })], [`lidLower${side}`, Object.freeze({ fill: 'skin', stroke: 'outline' })]
-    ]))),
-    referenceBox: Object.freeze({ x: CENTRES.Left - rx, y: CY - ry, width: CENTRES.Right - CENTRES.Left + rx * 2, height: ry * 2 }),
+    paletteRoles: Object.freeze(paletteRoles),
+    // The eye, and nothing but the eye. Every previous set reported a box three
+    // times this tall, because its lids were parked outside a socket.
+    referenceBox: Object.freeze({
+      x: EYE_FRAME.left - geometry.rx, y: EYE_FRAME.cy - geometry.ry,
+      width: (EYE_FRAME.right - EYE_FRAME.left) + geometry.rx * 2, height: geometry.ry * 2
+    }),
     mountPoint: 'eyes',
-    palette: Object.freeze(['eyeWhite', 'pupil', 'skin', 'outline'])
+    // The colours it actually paints, derived: a dot has no white, no lid and
+    // no outline, and claiming those would be claiming a colour it never uses.
+    palette: Object.freeze([...new Set(Object.values(paletteRoles).flatMap((entry) => Object.values(entry)))])
   });
 }
 
-export const EYES_ROUND_LARGE = eyes('round-large', 'Round, large', 'Big round eyes with a glint.', { rx: 24, ry: 22.5, pupil: 10.5 });
-export const EYES_ROUND_SMALL = eyes('round-small', 'Round, small', 'Small round eyes.', { rx: 15, ry: 14, pupil: 7, bulge: 4, depth: 18 });
-export const EYES_SLEEPY = eyes('sleepy', 'Sleepy', 'Heavy lids, half over the eye.', { rx: 24, ry: 22.5, pupil: 10.5, rest: 12 });
-export const EYES_CARTOON = eyes('cartoon', 'Cartoon', 'Tall oval eyes with big pupils.', { rx: 20, ry: 27, pupil: 12, bulge: 7, depth: 24 });
-export const EYES_MINIMAL = eyes('minimal', 'Minimal', 'Two small dots.', { rx: 9, ry: 9, pupil: 6, bulge: 3, depth: 14 });
+export const EYES_DOT = eyes('dot', 'Dot', 'A pupil and nothing else. It flattens into a line to blink.', { pupil: 9 });
+export const EYES_SIMPLE = eyes('simple', 'Simple', 'A white, a pupil and eyelids — the eye most mascots want.', { rx: 24, ry: 22.5, pupil: 10.5 });
+export const EYES_IRIS = eyes('iris', 'Iris', 'A coloured iris inside the white, with the pupil in it.', { rx: 24, ry: 22.5, pupil: 7.5 });
 
-export const EYE_SETS = Object.freeze([EYES_ROUND_LARGE, EYES_ROUND_SMALL, EYES_SLEEPY, EYES_CARTOON, EYES_MINIMAL]);
+export const EYE_SETS = Object.freeze([EYES_DOT, EYES_SIMPLE, EYES_IRIS]);

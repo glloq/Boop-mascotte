@@ -320,7 +320,7 @@ export const PILOT_REUSE = Object.freeze([
   Object.freeze({ id: 'accessory.earring', verdict: 'not-relevant', why: 'It hangs on an ear, and a robot has side modules rather than ears to hang it from.' }),
   Object.freeze({ id: 'accessory.earring-right', verdict: 'not-relevant', why: 'The other side of the same answer: it hosts inside an ear element, and a side module is not one.' }),
   Object.freeze({ id: 'head.square-soft', verdict: 'replace', why: 'The nearest shipped shape to a retro caisson, and still a skull: a soft square of skin with a jaw that drops. A shell is rigid and bolted, and no palette makes one out of the other.' }),
-  Object.freeze({ id: 'eyes.round-small', verdict: 'replace', why: 'The shipped robot preset uses it, which is exactly the confusion this pilot exists to end: a white with a pupil in it is an eye, and a robot has a lamp.' }),
+  Object.freeze({ id: 'eyes.simple', verdict: 'replace', why: 'The shipped robot preset used a small one of these, which is exactly the confusion this pilot exists to end: a white with a pupil in it is an eye, and a robot has a lamp.' }),
   Object.freeze({ id: 'eyebrows.flat', verdict: 'possible-reuse', why: 'A level bar is a level bar, and `eyebrows.flat` is already one. It may stand in for the screen brow; the visors sheet decides whether a robot needs its own weight.' }),
   Object.freeze({ id: 'mouth.small', verdict: 'replace', why: 'A short lip line. Every mouth here is hardware — a grille, a vent, a lit panel — and a lip on a machine reads as a mistake.' }),
   Object.freeze({ id: 'nose.cartoon', verdict: 'not-relevant', why: 'The planche has no nose row at all, and a robot preset names none. See the `a-robot-names-no-nose` question.' }),

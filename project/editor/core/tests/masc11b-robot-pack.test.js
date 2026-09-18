@@ -239,7 +239,11 @@ test('four palettes, no new token, and nothing named for a colour', () => {
     assert.ok(palette, `${id} paints in a palette that exists`);
     assert.deepEqual(Object.keys(palette), [...PALETTE_TOKENS], 'every token a colour, as every palette has');
   }
-  assert.equal(PALETTE_TOKENS.length, 12, 'and no thirteenth for a machine');
+  // The thirteenth arrived for the iris build and not for a machine: a robot's
+  // eye is a lit element in a housing, not a ring of colour round a pupil, and
+  // nothing in this pack paints with it.
+  assert.equal(PALETTE_TOKENS.length, 13, 'and none of them added by a machine');
+  assert.deepEqual(ROBOT_FACE_PARTS.filter((asset) => asset.palette.includes('iris')), []);
   // The rule the variant question rests on: nothing is drawn twice for a
   // colour, and no id carries one. Which matters more here than it did for the
   // animals, because the planche's own triples are partly colour runs.

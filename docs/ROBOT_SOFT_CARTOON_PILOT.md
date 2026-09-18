@@ -185,7 +185,7 @@ animal.
 | --- | --- |
 | `reuse` | `accessory.bow-tie` — and only that |
 | `possible-reuse` | both pairs of glasses, the hat, `eyebrows.flat`, `ears.small` |
-| `replace` | `head.square-soft`, `eyes.round-small`, `mouth.small` |
+| `replace` | `head.square-soft`, `eyes.simple`, `mouth.small` |
 | `not-relevant` | the earrings, `nose.cartoon`, `hair.bald` |
 
 `head.square-soft` is the interesting `replace`: it is the nearest shipped shape

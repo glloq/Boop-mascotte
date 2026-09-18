@@ -84,11 +84,22 @@ export const BUILTIN_HEAD_TURNS = Object.freeze({
   'head.pear': '139:9ae6b641b1d414e9',
   'head.chin': '139:9ae6b641b1d414e9',
   'head.heart': '139:9ae6b641b1d414e9',
-  'eyes.round-large': '139:620f5cafd8c98fa2',
-  'eyes.round-small': '139:620f5cafd8c98fa2',
-  'eyes.sleepy': '139:620f5cafd8c98fa2',
-  'eyes.cartoon': '139:620f5cafd8c98fa2',
-  'eyes.minimal': '139:620f5cafd8c98fa2',
+  /* The three builds (docs/EYE_BUILDS.md) replaced seventeen drawings that were
+   * one construction at different radii, and **the word did not move**: a
+   * `simple` eye and an `iris` eye sign exactly what `eyes.round-large` signed,
+   * socket and sliding lids and all. That is the check worth having here. A
+   * turn is generated from roles and profiles, never from path data, so
+   * rebuilding an eye out of an ellipse scaled about its rim instead of a path
+   * parked outside a mask is a drawing change and not a look change -- and if
+   * it had re-proportioned a single sample, this line would say so.
+   *
+   * The dot is its own word, and has to be: it draws a pupil and nothing else,
+   * so there is no white, no outline and no pair of lids for the generator to
+   * write channels for. Twenty-eight fewer channels, which is four elements'
+   * worth -- exactly the four a dot does not draw, twice over for two eyes. */
+  'eyes.dot': '111:32375159a1d6d404',
+  'eyes.simple': '139:620f5cafd8c98fa2',
+  'eyes.iris': '139:620f5cafd8c98fa2',
   'eyebrows.thin': '139:e0f8bbe9e363dfa3',
   'eyebrows.normal': '139:e0f8bbe9e363dfa3',
   'eyebrows.thick': '139:e0f8bbe9e363dfa3',
@@ -130,7 +141,6 @@ export const BUILTIN_HEAD_TURNS = Object.freeze({
    *
    * ```text
    * head.animal-*      the template's own, as every human skull's is
-   * eyes.*             eyes.round-large's
    * eyebrows.*         eyebrows.thin's
    * nose.*             nose.dot's
    * mouth.animal-*     mouth.small's, and the open one mouth.wide's shape of it
@@ -146,10 +156,9 @@ export const BUILTIN_HEAD_TURNS = Object.freeze({
    * so write the seven channels of one more element, exactly as the glasses and
    * the hat do.
    *
-   * `eyes.animal-happy` is worth a second look here: an eye drawn shut signs
-   * the same word as an eye drawn open, which is the check that it really is a
-   * whole eye set — gaze, lids and all — rather than a pair of arcs wearing
-   * the category's name.
+   * The pack's six eyes are not here because the pack no longer has any: all
+   * six were the shipped construction at other radii, and the three builds
+   * above serve a muzzle exactly as they serve a face.
    */
   'head.animal-round': '139:9ae6b641b1d414e9',
   'head.animal-narrow': '139:9ae6b641b1d414e9',
@@ -157,12 +166,6 @@ export const BUILTIN_HEAD_TURNS = Object.freeze({
   'head.animal-square': '139:9ae6b641b1d414e9',
   'head.animal-small': '139:9ae6b641b1d414e9',
   'head.animal-chubby': '139:9ae6b641b1d414e9',
-  'eyes.animal-round-large': '139:620f5cafd8c98fa2',
-  'eyes.animal-round-slit': '139:620f5cafd8c98fa2',
-  'eyes.animal-almond-alert': '139:620f5cafd8c98fa2',
-  'eyes.animal-small-cute': '139:620f5cafd8c98fa2',
-  'eyes.animal-sleepy': '139:620f5cafd8c98fa2',
-  'eyes.animal-happy': '139:620f5cafd8c98fa2',
   'eyebrows.animal-thin-soft': '139:e0f8bbe9e363dfa3',
   'eyebrows.animal-firm': '139:e0f8bbe9e363dfa3',
   'eyebrows.animal-thick': '139:e0f8bbe9e363dfa3',
@@ -277,12 +280,6 @@ export const BUILTIN_HEAD_TURNS = Object.freeze({
   'head.bird-crow': '139:9ae6b641b1d414e9',
   'head.bird-cute': '139:9ae6b641b1d414e9',
   'head.bird-slim': '139:9ae6b641b1d414e9',
-  'eyes.bird-round-large': '139:620f5cafd8c98fa2',
-  'eyes.bird-soft': '139:620f5cafd8c98fa2',
-  'eyes.bird-bright': '139:620f5cafd8c98fa2',
-  'eyes.bird-sleepy': '139:620f5cafd8c98fa2',
-  'eyes.bird-happy': '139:620f5cafd8c98fa2',
-  'eyes.bird-piercing': '139:620f5cafd8c98fa2',
   'eyebrows.bird-angry': '139:e0f8bbe9e363dfa3',
   'eyebrows.bird-curious': '139:e0f8bbe9e363dfa3',
   'eyebrows.bird-relaxed': '139:e0f8bbe9e363dfa3',

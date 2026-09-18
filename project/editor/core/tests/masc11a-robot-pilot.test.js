@@ -262,9 +262,10 @@ test('four palettes, no new token, and nothing named for a colour', () => {
       assert.match(palette[token], /^#[0-9a-f]{6}$/, `${id}.${token} is a colour`);
     }
     // A manifest names what it paints; what it leaves out it leaves out on
-    // purpose, and these are the two a robot has no surface for. A registered
-    // palette carries all twelve, so MASC-11B fills them in at that point.
-    assert.deepEqual(PALETTE_TOKENS.filter((token) => !tokens.includes(token)), ['hair', 'hairShadow'], `${id} omits exactly the two a robot never paints`);
+    // purpose, and these are the three a robot has no surface for -- hair, and
+    // an iris, which is a ring of colour round a pupil and not a lamp. A
+    // registered palette carries all thirteen, so MASC-11B fills them in there.
+    assert.deepEqual(PALETTE_TOKENS.filter((token) => !tokens.includes(token)), ['hair', 'hairShadow', 'iris'], `${id} omits exactly the three a robot never paints`);
   }
   // The rule the whole variant question rests on: nothing is drawn twice for a
   // colour, and no id carries one.

@@ -303,7 +303,16 @@ export function captureSemanticMorph(rig, partId, control, pose, pathByRole) {
 
 export function resetSemanticMorph(rig,partId,control){const part=requiredPart(rig,partId);cleanupOwnedDriver(rig,part.id,control);delete part.calibration?.[control];}
 
-function cleanupOwnedDriver(rig,partId,control){
+/**
+ * Every binding, morph and shape key one control of one part owns.
+ *
+ * Exported because turning a control **off** is not the only time its old
+ * driver has to go: re-enabling it on a different property leaves the binding
+ * it used to write still generated, still driven by the same parameter and
+ * still moving the artwork. A lid re-installed as a `scaleY` kept the
+ * `translateY` it had been installed with and blinked by doing both.
+ */
+export function cleanupOwnedDriver(rig,partId,control){
   for(const element of Object.values(rig.elements||{})){for(const [property,binding] of Object.entries(element.bindings||{}))if(binding.generatedBy?.semanticPart===partId&&binding.generatedBy?.control===control)delete element.bindings[property];if(element.morph?.generatedBy?.semanticPart===partId&&element.morph.generatedBy?.control===control)delete element.morph;}
   // Shape keys are owned the same way, so switching a control's method takes
   // its shapes with it rather than leaving them deforming the artwork.

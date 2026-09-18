@@ -13,7 +13,7 @@ underneath -- the movements, the controls, the expressions -- is untouched
 
 ```json
 { "id": "professor", "name": "Professor", "description": "Bald, glasses, a moustache.",
-  "parts": { "head": "head.oval", "ears": "ears.round", "eyes": "eyes.round-small", "eyebrows": "eyebrows.thick",
+  "parts": { "head": "head.oval", "ears": "ears.round", "eyes": "eyes.simple", "eyebrows": "eyebrows.thick",
              "nose": "nose.hook", "mouth": "mouth.small", "hair": "hair.bald", "facialHair": "facialhair.moustache" },
   "accessories": ["accessory.glasses"],
   "style": "workshop",

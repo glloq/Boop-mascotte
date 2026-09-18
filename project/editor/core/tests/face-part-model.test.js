@@ -31,7 +31,11 @@ test('the categories are the roadmap\'s eleven, each reading its semantic part',
   assert.deepEqual(FACE_PART_CATEGORIES.filter((category) => category.multiple).map((category) => category.id), ['facialHair', 'accessory'], 'a face wears several of these');
   assert.equal(facePartCategory('nope'), null);
   assert.ok(Object.isFrozen(FACE_PART_CATEGORIES[0]));
-  assert.equal(PALETTE_TOKENS.length, 12);
+  // Thirteen since the iris build: an eye whose colour cannot be set is half a
+  // feature, and a blue-eyed mascot is exactly what the build is for.
+  assert.equal(PALETTE_TOKENS.length, 13);
+  assert.ok(PALETTE_TOKENS.includes('iris'));
+  assert.deepEqual([...facePartCategory('pupils').required], ['leftPupil', 'rightPupil'], 'the iris a gaze may hold is optional: two builds of three draw none');
 });
 
 test('an asset is normalised to one shape, defaults filled and frozen', () => {

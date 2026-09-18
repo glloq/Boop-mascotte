@@ -596,7 +596,7 @@ reader's guide is `docs/FACE_PRESETS.md`). A face style preset is a
 
 ```js
 { id: 'professor', name: 'Professor',
-  parts: { head: 'head.oval', ears: 'ears.round', eyes: 'eyes.round-small', eyebrows: 'eyebrows.thick', nose: 'nose.hook', mouth: 'mouth.small', hair: 'hair.bald', facialHair: 'facialhair.moustache' },
+  parts: { head: 'head.oval', ears: 'ears.round', eyes: 'eyes.simple', eyebrows: 'eyebrows.thick', nose: 'nose.hook', mouth: 'mouth.small', hair: 'hair.bald', facialHair: 'facialhair.moustache' },
   accessories: ['accessory.glasses'],
   style: 'workshop',                                           // optional: the look it wants those drawings in ("The style axis" above)
   palette: 'warm',

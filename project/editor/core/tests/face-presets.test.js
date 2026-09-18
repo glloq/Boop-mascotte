@@ -173,7 +173,7 @@ test('applying a preset is every step the builder runs, in order, as one undo st
   // What the professor does to the template: glasses on, the skull first.
   const steps = planFacePreset(ui.store.getDocument(), ui.presets.get('professor'));
   assert.deepEqual(steps.slice(0, 3).map((step) => `${step.kind}:${step.category || step.token}`), ['replace:head', 'replace:ears', 'replace:eyes']);
-  assert.deepEqual(steps.filter((step) => step.kind === 'replace').map((step) => step.assetId), ['head.oval', 'ears.round', 'eyes.round-small', 'eyebrows.thick', 'nose.hook', 'mouth.small', 'hair.bald', 'facialhair.moustache', 'accessory.glasses']);
+  assert.deepEqual(steps.filter((step) => step.kind === 'replace').map((step) => step.assetId), ['head.oval', 'ears.round', 'eyes.simple', 'eyebrows.thick', 'nose.hook', 'mouth.small', 'hair.bald', 'facialhair.moustache', 'accessory.glasses']);
   assert.deepEqual(steps.filter((step) => step.kind === 'retint').map((step) => step.token), [...PALETTE_TOKENS], 'then the palette');
   const result = ui.commands.applyPreset('professor');
   assert.deepEqual([result.ok, result.preset, result.refused], [true, 'professor', null]);
@@ -213,7 +213,7 @@ test('the face as a preset: what it wears and the colours it is painted in, save
   ui.commands.replace('accessory', 'accessory.hat');
   ui.commands.replace('facialHair', 'facialhair.goatee');
   const item = facePresetFromDocument(ui.store.getDocument(), ui.commands.palette(), { id: 'mine', name: 'Mine' });
-  assert.deepEqual(item.parts, { head: 'head.round', ears: 'ears.round', eyes: 'eyes.round-large', eyebrows: 'eyebrows.thin', nose: 'nose.dot', mouth: 'mouth.wide', hair: 'hair.spiky', facialHair: 'facialhair.goatee' });
+  assert.deepEqual(item.parts, { head: 'head.round', ears: 'ears.round', eyes: 'eyes.simple', eyebrows: 'eyebrows.thin', nose: 'nose.dot', mouth: 'mouth.wide', hair: 'hair.spiky', facialHair: 'facialhair.goatee' });
   assert.deepEqual(item.accessories, ['accessory.hat']);
   assert.equal(item.palette.hair, '#a6603c');
   assert.equal(item.origin, 'custom');
@@ -240,7 +240,7 @@ test('the face as a preset: what it wears and the colours it is painted in, save
 test('a thumbnail is the preset\'s parts in the face\'s paint order, in its colours, with every id prefixed', () => {
   const thumb = presetThumbnail(FACE_PRESET_LIBRARY.get('robot'), FACE_PART_LIBRARY, { size: 40 });
   assert.match(thumb, /^<svg class="face-preset-thumb" viewBox="-10 -30 260 260" width="40" height="40"/);
-  const order = ['pv-robot-ears-small-earLeft', 'pv-robot-head-square-soft-skull', 'pv-robot-mouth-small-mouth', 'pv-robot-eyes-round-small-eyeLeft', 'pv-robot-accessory-bow-tie-accessory'].map((id) => thumb.indexOf(`id="${id}"`));
+  const order = ['pv-robot-ears-small-earLeft', 'pv-robot-head-square-soft-skull', 'pv-robot-mouth-small-mouth', 'pv-robot-eyes-simple-eyeLeft', 'pv-robot-accessory-bow-tie-accessory'].map((id) => thumb.indexOf(`id="${id}"`));
   assert.ok(order.every((index, position) => index > 0 && (position === 0 || index > order[position - 1])), `ears, skull, mouth, eyes, accessory, in that order: ${order}`);
   assert.match(thumb, /id="pv-robot-head-square-soft-skull"[^>]*fill="#c9d1d9" stroke="#3a4652"/, 'painted in the robot palette');
   assert.equal(thumb.includes(' id="skull"'), false);
@@ -430,14 +430,14 @@ test('a preset wears the parts it names in the style it asks for, and the ones n
   assert.equal(styledAsset('accessory.glasses-workshop', 'workshop', library), 'accessory.glasses-workshop', 'a drawing named by its own id is itself');
 
   const ui = harness(null, library);
-  const recipe = { name: 'Workshop professor', parts: { head: 'head.oval', ears: 'ears.round', eyes: 'eyes.round-small', eyebrows: 'eyebrows.thick', nose: 'nose.hook', mouth: 'mouth.small', hair: 'hair.bald' }, accessories: ['accessory.bow-tie', 'accessory.glasses'], palette: 'robot' };
+  const recipe = { name: 'Workshop professor', parts: { head: 'head.oval', ears: 'ears.round', eyes: 'eyes.simple', eyebrows: 'eyebrows.thick', nose: 'nose.hook', mouth: 'mouth.small', hair: 'hair.bald' }, accessories: ['accessory.bow-tie', 'accessory.glasses'], palette: 'robot' };
   ui.presets.register({ ...recipe, id: 'workshop-professor', style: 'workshop' });
   const drawings = presetDrawings(ui.presets.get('workshop-professor'), library);
   assert.equal(drawings.parts.mouth, 'mouth.small-workshop');
   assert.equal(drawings.parts.head, 'head.oval', 'the oval skull has no workshop drawing: it is the one that goes on');
   assert.deepEqual(drawings.accessories, ['accessory.bow-tie', 'accessory.glasses-workshop']);
   const steps = planFacePreset(ui.store.getDocument(), ui.presets.get('workshop-professor'), library);
-  assert.deepEqual(steps.filter((step) => step.kind === 'replace').map((step) => step.assetId), ['head.oval', 'ears.round', 'eyes.round-small', 'eyebrows.thick', 'nose.hook', 'mouth.small-workshop', 'hair.bald', 'accessory.bow-tie', 'accessory.glasses-workshop']);
+  assert.deepEqual(steps.filter((step) => step.kind === 'replace').map((step) => step.assetId), ['head.oval', 'ears.round', 'eyes.simple', 'eyebrows.thick', 'nose.hook', 'mouth.small-workshop', 'hair.bald', 'accessory.bow-tie', 'accessory.glasses-workshop']);
 
   const result = ui.commands.applyPreset('workshop-professor');
   assert.deepEqual([result.ok, result.refused], [true, null]);
@@ -456,7 +456,7 @@ test('a preset wears the parts it names in the style it asks for, and the ones n
 test('the style is part of which preset a face wears: two presets over the same parts are two faces', () => {
   const library = workshop();
   const ui = harness(null, library);
-  const recipe = { parts: { head: 'head.oval', ears: 'ears.round', eyes: 'eyes.round-small', eyebrows: 'eyebrows.thick', nose: 'nose.hook', mouth: 'mouth.small', hair: 'hair.bald' }, accessories: ['accessory.glasses'], palette: 'warm' };
+  const recipe = { parts: { head: 'head.oval', ears: 'ears.round', eyes: 'eyes.simple', eyebrows: 'eyebrows.thick', nose: 'nose.hook', mouth: 'mouth.small', hair: 'hair.bald' }, accessories: ['accessory.glasses'], palette: 'warm' };
   // Registered plain first: the first match wins, so the restyled face would have read as this one.
   ui.presets.register({ ...recipe, id: 'plain-professor', name: 'Plain professor' });
   ui.presets.register({ ...recipe, id: 'workshop-professor', name: 'Workshop professor', style: 'workshop' });

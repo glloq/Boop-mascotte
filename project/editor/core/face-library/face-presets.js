@@ -25,10 +25,10 @@ import { isColour, tintArtwork } from './palette-model.js';
 /** Named palettes a preset paints the face in: every token a colour. */
 export const FACE_PALETTES = Object.freeze({
   // Every token its own colour: a colour belongs to the first token seeded with it, so two tokens painted alike would be one swatch.
-  warm: Object.freeze({ skin: '#f9d9b0', skinShadow: '#eab98a', outline: '#a4674a', hair: '#a6603c', hairShadow: '#7c4529', eyeWhite: '#ffffff', pupil: '#2f3a43', mouth: '#6d2831', tongue: '#d9707f', teeth: '#fff8ec', accessoryPrimary: '#33424f', accessorySecondary: '#c8a24a' }),
-  cool: Object.freeze({ skin: '#e9d6c4', skinShadow: '#d3b59d', outline: '#5a4a6a', hair: '#3b3b58', hairShadow: '#26263b', eyeWhite: '#ffffff', pupil: '#243b53', mouth: '#7a3b45', tongue: '#d27a86', teeth: '#fff8ec', accessoryPrimary: '#2e4a66', accessorySecondary: '#8fb3d9' }),
-  pale: Object.freeze({ skin: '#f3e4d3', skinShadow: '#dcc3ab', outline: '#8c6b5a', hair: '#d9d2c5', hairShadow: '#b3aa9a', eyeWhite: '#ffffff', pupil: '#4a4a4a', mouth: '#7a3b45', tongue: '#d9707f', teeth: '#fff8ec', accessoryPrimary: '#5c5c5c', accessorySecondary: '#c8a24a' }),
-  robot: Object.freeze({ skin: '#c9d1d9', skinShadow: '#a5b0bc', outline: '#3a4652', hair: '#8a96a3', hairShadow: '#5f6a76', eyeWhite: '#e6f0ff', pupil: '#1b6fd1', mouth: '#2a3441', tongue: '#7f8ea0', teeth: '#dfe7f0', accessoryPrimary: '#46525f', accessorySecondary: '#ffd166' }),
+  warm: Object.freeze({ skin: '#f9d9b0', skinShadow: '#eab98a', outline: '#a4674a', hair: '#a6603c', hairShadow: '#7c4529', eyeWhite: '#ffffff', iris: '#8a5a34', pupil: '#2f3a43', mouth: '#6d2831', tongue: '#d9707f', teeth: '#fff8ec', accessoryPrimary: '#33424f', accessorySecondary: '#c8a24a' }),
+  cool: Object.freeze({ skin: '#e9d6c4', skinShadow: '#d3b59d', outline: '#5a4a6a', hair: '#3b3b58', hairShadow: '#26263b', eyeWhite: '#ffffff', iris: '#5b7fa6', pupil: '#243b53', mouth: '#7a3b45', tongue: '#d27a86', teeth: '#fff8ec', accessoryPrimary: '#2e4a66', accessorySecondary: '#8fb3d9' }),
+  pale: Object.freeze({ skin: '#f3e4d3', skinShadow: '#dcc3ab', outline: '#8c6b5a', hair: '#d9d2c5', hairShadow: '#b3aa9a', eyeWhite: '#ffffff', iris: '#8fa08c', pupil: '#4a4a4a', mouth: '#7a3b45', tongue: '#d9707f', teeth: '#fff8ec', accessoryPrimary: '#5c5c5c', accessorySecondary: '#c8a24a' }),
+  robot: Object.freeze({ skin: '#c9d1d9', skinShadow: '#a5b0bc', outline: '#3a4652', hair: '#8a96a3', hairShadow: '#5f6a76', eyeWhite: '#e6f0ff', iris: '#7fc4f2', pupil: '#1b6fd1', mouth: '#2a3441', tongue: '#7f8ea0', teeth: '#dfe7f0', accessoryPrimary: '#46525f', accessorySecondary: '#ffd166' }),
   /* ── Coats (MASC-10B) ──────────────────────────────────────────────────
    * A ginger cat and a grey cat are **one drawing and two palettes**: nothing
    * in the animal pack is drawn twice for a colour, and no token was added for
@@ -39,12 +39,12 @@ export const FACE_PALETTES = Object.freeze({
    * face names no hair slot -- and are kept only so a face that mixes an
    * animal head with a human wig still has a colour for it.
    */
-  'cat-ginger': Object.freeze({ skin: '#e8a45c', skinShadow: '#f7e3c8', outline: '#8a4f22', hair: '#c9793a', hairShadow: '#a35d27', eyeWhite: '#ffffff', pupil: '#2f3a43', mouth: '#b4525c', tongue: '#e08a96', teeth: '#fff8ec', accessoryPrimary: '#8a4f22', accessorySecondary: '#f2b8ae' }),
-  'cat-grey': Object.freeze({ skin: '#9aa3ab', skinShadow: '#e2e6e9', outline: '#4a545c', hair: '#7b858d', hairShadow: '#5d666d', eyeWhite: '#ffffff', pupil: '#2f3a43', mouth: '#a8616a', tongue: '#e08a96', teeth: '#fff8ec', accessoryPrimary: '#4a545c', accessorySecondary: '#e6b4ae' }),
-  'dog-tan': Object.freeze({ skin: '#d3a878', skinShadow: '#f4e4cd', outline: '#7a5330', hair: '#b98a58', hairShadow: '#8f6539', eyeWhite: '#ffffff', pupil: '#3a2f26', mouth: '#a8515c', tongue: '#e08a96', teeth: '#fff8ec', accessoryPrimary: '#7a5330', accessorySecondary: '#eec4b6' }),
-  'fox-orange': Object.freeze({ skin: '#e9a25a', skinShadow: '#fbeedd', outline: '#8a4a1c', hair: '#d1762c', hairShadow: '#9c5219', eyeWhite: '#ffffff', pupil: '#2a231c', mouth: '#b4525c', tongue: '#e08a96', teeth: '#fff8ec', accessoryPrimary: '#8a4a1c', accessorySecondary: '#f0b9a8' }),
-  'bear-brown': Object.freeze({ skin: '#a97d55', skinShadow: '#e2c9a8', outline: '#5c3f28', hair: '#8d6544', hairShadow: '#6b4a2f', eyeWhite: '#ffffff', pupil: '#2a231c', mouth: '#9c4a53', tongue: '#d9707f', teeth: '#fff8ec', accessoryPrimary: '#5c3f28', accessorySecondary: '#e0b1a4' }),
-  'wolf-grey': Object.freeze({ skin: '#a9a6a0', skinShadow: '#e6e4e0', outline: '#4f4c48', hair: '#8b8882', hairShadow: '#66635f', eyeWhite: '#ffffff', pupil: '#2a2724', mouth: '#9c4a53', tongue: '#d9707f', teeth: '#fff8ec', accessoryPrimary: '#4f4c48', accessorySecondary: '#ddb2ab' }),
+  'cat-ginger': Object.freeze({ skin: '#e8a45c', skinShadow: '#f7e3c8', outline: '#8a4f22', hair: '#c9793a', hairShadow: '#a35d27', eyeWhite: '#ffffff', iris: '#c79a2e', pupil: '#2f3a43', mouth: '#b4525c', tongue: '#e08a96', teeth: '#fff8ec', accessoryPrimary: '#8a4f22', accessorySecondary: '#f2b8ae' }),
+  'cat-grey': Object.freeze({ skin: '#9aa3ab', skinShadow: '#e2e6e9', outline: '#4a545c', hair: '#7b858d', hairShadow: '#5d666d', eyeWhite: '#ffffff', iris: '#79a16a', pupil: '#2f3a43', mouth: '#a8616a', tongue: '#e08a96', teeth: '#fff8ec', accessoryPrimary: '#4a545c', accessorySecondary: '#e6b4ae' }),
+  'dog-tan': Object.freeze({ skin: '#d3a878', skinShadow: '#f4e4cd', outline: '#7a5330', hair: '#b98a58', hairShadow: '#8f6539', eyeWhite: '#ffffff', iris: '#8a5f34', pupil: '#3a2f26', mouth: '#a8515c', tongue: '#e08a96', teeth: '#fff8ec', accessoryPrimary: '#7a5330', accessorySecondary: '#eec4b6' }),
+  'fox-orange': Object.freeze({ skin: '#e9a25a', skinShadow: '#fbeedd', outline: '#8a4a1c', hair: '#d1762c', hairShadow: '#9c5219', eyeWhite: '#ffffff', iris: '#c08a35', pupil: '#2a231c', mouth: '#b4525c', tongue: '#e08a96', teeth: '#fff8ec', accessoryPrimary: '#8a4a1c', accessorySecondary: '#f0b9a8' }),
+  'bear-brown': Object.freeze({ skin: '#a97d55', skinShadow: '#e2c9a8', outline: '#5c3f28', hair: '#8d6544', hairShadow: '#6b4a2f', eyeWhite: '#ffffff', iris: '#6f4a2c', pupil: '#2a231c', mouth: '#9c4a53', tongue: '#d9707f', teeth: '#fff8ec', accessoryPrimary: '#5c3f28', accessorySecondary: '#e0b1a4' }),
+  'wolf-grey': Object.freeze({ skin: '#a9a6a0', skinShadow: '#e6e4e0', outline: '#4f4c48', hair: '#8b8882', hairShadow: '#66635f', eyeWhite: '#ffffff', iris: '#6b5a52', pupil: '#2a2724', mouth: '#9c4a53', tongue: '#d9707f', teeth: '#fff8ec', accessoryPrimary: '#4f4c48', accessorySecondary: '#ddb2ab' }),
 
   /* ── The robots (MASC-11B) ─────────────────────────────────────────────
    * A machine reads the tokens differently, and that is the whole of what a
@@ -59,10 +59,10 @@ export const FACE_PALETTES = Object.freeze({
    * shell's own greys so the table stays complete, and no swatch for them ever
    * reaches the Colours row.
    */
-  'robot-screen': Object.freeze({ skin: '#f5f7fa', skinShadow: '#d7dee6', outline: '#23272e', hair: '#6b7480', hairShadow: '#4a525c', eyeWhite: '#23272e', pupil: '#37c9e8', mouth: '#23272e', tongue: '#37c9e8', teeth: '#f5f7fa', accessoryPrimary: '#37c9e8', accessorySecondary: '#a8d4ef' }),
-  'robot-retro': Object.freeze({ skin: '#f2ece0', skinShadow: '#d8d0bf', outline: '#3a3630', hair: '#8a8d90', hairShadow: '#6a6d70', eyeWhite: '#3a3630', pupil: '#f2c230', mouth: '#3a3630', tongue: '#d1453f', teeth: '#f2ece0', accessoryPrimary: '#d1453f', accessorySecondary: '#7d9a72' }),
-  'robot-industrial': Object.freeze({ skin: '#b6b9bc', skinShadow: '#8f9497', outline: '#33373a', hair: '#55595e', hairShadow: '#3d4145', eyeWhite: '#33373a', pupil: '#e08a24', mouth: '#33373a', tongue: '#9b3a30', teeth: '#b6b9bc', accessoryPrimary: '#f0c02c', accessorySecondary: '#9b3a30' }),
-  'robot-toy': Object.freeze({ skin: '#fdfdfd', skinShadow: '#e3e8ee', outline: '#3b4046', hair: '#9aa2ab', hairShadow: '#79818a', eyeWhite: '#ffffff', pupil: '#3b4046', mouth: '#3b4046', tongue: '#f39ab4', teeth: '#ffffff', accessoryPrimary: '#e04a48', accessorySecondary: '#f5c93f' }),
+  'robot-screen': Object.freeze({ skin: '#f5f7fa', skinShadow: '#d7dee6', outline: '#23272e', hair: '#6b7480', hairShadow: '#4a525c', eyeWhite: '#23272e', iris: '#0f8fb0', pupil: '#37c9e8', mouth: '#23272e', tongue: '#37c9e8', teeth: '#f5f7fa', accessoryPrimary: '#37c9e8', accessorySecondary: '#a8d4ef' }),
+  'robot-retro': Object.freeze({ skin: '#f2ece0', skinShadow: '#d8d0bf', outline: '#3a3630', hair: '#8a8d90', hairShadow: '#6a6d70', eyeWhite: '#3a3630', iris: '#c08f18', pupil: '#f2c230', mouth: '#3a3630', tongue: '#d1453f', teeth: '#f2ece0', accessoryPrimary: '#d1453f', accessorySecondary: '#7d9a72' }),
+  'robot-industrial': Object.freeze({ skin: '#b6b9bc', skinShadow: '#8f9497', outline: '#33373a', hair: '#55595e', hairShadow: '#3d4145', eyeWhite: '#33373a', iris: '#a85f14', pupil: '#e08a24', mouth: '#33373a', tongue: '#9b3a30', teeth: '#b6b9bc', accessoryPrimary: '#f0c02c', accessorySecondary: '#9b3a30' }),
+  'robot-toy': Object.freeze({ skin: '#fdfdfd', skinShadow: '#e3e8ee', outline: '#3b4046', hair: '#9aa2ab', hairShadow: '#79818a', eyeWhite: '#ffffff', iris: '#6f7d8c', pupil: '#3b4046', mouth: '#3b4046', tongue: '#f39ab4', teeth: '#ffffff', accessoryPrimary: '#e04a48', accessorySecondary: '#f5c93f' }),
 
   /* ── The birds (MASC-12B) ──────────────────────────────────────────────
    * Six plumages, following the planche's own head colours. A feather is
@@ -77,13 +77,13 @@ export const FACE_PALETTES = Object.freeze({
    * plumage's own shades so the table stays complete, and no swatch for them
    * ever reaches the Colours row.
    */
-  'bird-owl-cream': Object.freeze({ skin: '#f0e2cd', skinShadow: '#d8c4a6', outline: '#8a6f4e', hair: '#d8c4a6', hairShadow: '#b89f7c', eyeWhite: '#ffffff', pupil: '#3a2c1e', mouth: '#c98a3c', tongue: '#d98f86', teeth: '#fff8ec', accessoryPrimary: '#c98a3c', accessorySecondary: '#d8c4a6' }),
-  'bird-duck-cream': Object.freeze({ skin: '#f5efe2', skinShadow: '#ddd3c0', outline: '#8f8368', hair: '#ddd3c0', hairShadow: '#bdb197', eyeWhite: '#ffffff', pupil: '#2f2a22', mouth: '#f2c230', tongue: '#d98f86', teeth: '#fff8ec', accessoryPrimary: '#f2c230', accessorySecondary: '#e8dcc4' }),
-  'bird-parrot-orange': Object.freeze({ skin: '#e8613c', skinShadow: '#c4482a', outline: '#7d2a16', hair: '#c4482a', hairShadow: '#9c3620', eyeWhite: '#ffffff', pupil: '#2a1a12', mouth: '#cfd3d6', tongue: '#d9707f', teeth: '#fff8ec', accessoryPrimary: '#cfd3d6', accessorySecondary: '#f2c230' }),
-  'bird-crow-slate': Object.freeze({ skin: '#6f767c', skinShadow: '#565c61', outline: '#2f3438', hair: '#565c61', hairShadow: '#3f4448', eyeWhite: '#ffffff', pupil: '#1e2225', mouth: '#3f4548', tongue: '#9c5a60', teeth: '#e8e6e2', accessoryPrimary: '#3f4548', accessorySecondary: '#565c61' }),
-  'bird-cute-blue': Object.freeze({ skin: '#9fcdf0', skinShadow: '#7fb2dc', outline: '#3f6b93', hair: '#7fb2dc', hairShadow: '#5f92bc', eyeWhite: '#ffffff', pupil: '#26333f', mouth: '#f0a23c', tongue: '#e08a96', teeth: '#ffffff', accessoryPrimary: '#f0a23c', accessorySecondary: '#f4a7c0' }),
-  'bird-slim-amber': Object.freeze({ skin: '#f0a94e', skinShadow: '#d88c34', outline: '#8a521c', hair: '#d88c34', hairShadow: '#b06f24', eyeWhite: '#ffffff', pupil: '#2f2114', mouth: '#e07a2c', tongue: '#d9707f', teeth: '#fff8ec', accessoryPrimary: '#e07a2c', accessorySecondary: '#f2c230' }),
-  'rabbit-cream': Object.freeze({ skin: '#f0dfc6', skinShadow: '#fdf6ec', outline: '#a3866a', hair: '#d8c2a3', hairShadow: '#b39f83', eyeWhite: '#ffffff', pupil: '#3a2f26', mouth: '#b46b74', tongue: '#e08a96', teeth: '#fff8ec', accessoryPrimary: '#a3866a', accessorySecondary: '#f2b8ae' })
+  'bird-owl-cream': Object.freeze({ skin: '#f0e2cd', skinShadow: '#d8c4a6', outline: '#8a6f4e', hair: '#d8c4a6', hairShadow: '#b89f7c', eyeWhite: '#ffffff', iris: '#d99b2c', pupil: '#3a2c1e', mouth: '#c98a3c', tongue: '#d98f86', teeth: '#fff8ec', accessoryPrimary: '#c98a3c', accessorySecondary: '#d8c4a6' }),
+  'bird-duck-cream': Object.freeze({ skin: '#f5efe2', skinShadow: '#ddd3c0', outline: '#8f8368', hair: '#ddd3c0', hairShadow: '#bdb197', eyeWhite: '#ffffff', iris: '#c9a13c', pupil: '#2f2a22', mouth: '#f2c230', tongue: '#d98f86', teeth: '#fff8ec', accessoryPrimary: '#f2c230', accessorySecondary: '#e8dcc4' }),
+  'bird-parrot-orange': Object.freeze({ skin: '#e8613c', skinShadow: '#c4482a', outline: '#7d2a16', hair: '#c4482a', hairShadow: '#9c3620', eyeWhite: '#ffffff', iris: '#b06a2c', pupil: '#2a1a12', mouth: '#cfd3d6', tongue: '#d9707f', teeth: '#fff8ec', accessoryPrimary: '#cfd3d6', accessorySecondary: '#f2c230' }),
+  'bird-crow-slate': Object.freeze({ skin: '#6f767c', skinShadow: '#565c61', outline: '#2f3438', hair: '#565c61', hairShadow: '#3f4448', eyeWhite: '#ffffff', iris: '#5f7b8a', pupil: '#1e2225', mouth: '#3f4548', tongue: '#9c5a60', teeth: '#e8e6e2', accessoryPrimary: '#3f4548', accessorySecondary: '#565c61' }),
+  'bird-cute-blue': Object.freeze({ skin: '#9fcdf0', skinShadow: '#7fb2dc', outline: '#3f6b93', hair: '#7fb2dc', hairShadow: '#5f92bc', eyeWhite: '#ffffff', iris: '#4f86b0', pupil: '#26333f', mouth: '#f0a23c', tongue: '#e08a96', teeth: '#ffffff', accessoryPrimary: '#f0a23c', accessorySecondary: '#f4a7c0' }),
+  'bird-slim-amber': Object.freeze({ skin: '#f0a94e', skinShadow: '#d88c34', outline: '#8a521c', hair: '#d88c34', hairShadow: '#b06f24', eyeWhite: '#ffffff', iris: '#c08a2c', pupil: '#2f2114', mouth: '#e07a2c', tongue: '#d9707f', teeth: '#fff8ec', accessoryPrimary: '#e07a2c', accessorySecondary: '#f2c230' }),
+  'rabbit-cream': Object.freeze({ skin: '#f0dfc6', skinShadow: '#fdf6ec', outline: '#a3866a', hair: '#d8c2a3', hairShadow: '#b39f83', eyeWhite: '#ffffff', iris: '#8a6a44', pupil: '#3a2f26', mouth: '#b46b74', tongue: '#e08a96', teeth: '#fff8ec', accessoryPrimary: '#a3866a', accessorySecondary: '#f2b8ae' })
 });
 
 /** The parts a preset names, in the order they go on: the skull first, then what sits on it. */
@@ -95,12 +95,12 @@ const THUMBNAIL_ORDER = Object.freeze(['ears', 'head', 'mouth', 'nose', 'eyes', 
 const preset = (id, name, description, parts, accessories, palette, { hands = {}, morphology = '', tags = [] } = {}) => Object.freeze({ id, name, description, parts: Object.freeze(parts), accessories: Object.freeze(accessories), palette, hands: Object.freeze(hands), morphology, tags: Object.freeze(tags), origin: 'builtin' });
 
 export const FACE_STYLE_PRESETS = Object.freeze([
-  preset('classic', 'Classic Cartoon', 'The round, bright face of a cartoon.', { head: 'head.round', ears: 'ears.round', eyes: 'eyes.round-large', eyebrows: 'eyebrows.thin', nose: 'nose.dot', mouth: 'mouth.cartoon', hair: 'hair.short' }, [], 'warm'),
-  preset('professor', 'Professor', 'Glasses, a moustache, and not much hair.', { head: 'head.oval', ears: 'ears.round', eyes: 'eyes.round-small', eyebrows: 'eyebrows.thick', nose: 'nose.hook', mouth: 'mouth.small', hair: 'hair.bald', facialHair: 'facialhair.moustache' }, ['accessory.glasses'], 'warm'),
-  preset('young', 'Young', 'Big eyes, spiky hair, a wide grin.', { head: 'head.round', ears: 'ears.round', eyes: 'eyes.round-large', eyebrows: 'eyebrows.thin', nose: 'nose.dot', mouth: 'mouth.wide', hair: 'hair.spiky' }, [], 'warm'),
-  preset('old', 'Old', 'Heavy lids, a long nose, a full beard.', { head: 'head.oval', ears: 'ears.large', eyes: 'eyes.sleepy', eyebrows: 'eyebrows.thick', nose: 'nose.hook', mouth: 'mouth.expressive', hair: 'hair.bald', facialHair: 'facialhair.beard' }, [], 'pale'),
-  preset('robot', 'Robot', 'A square head, small eyes, a flat brow.', { head: 'head.square-soft', ears: 'ears.small', eyes: 'eyes.round-small', eyebrows: 'eyebrows.flat', nose: 'nose.cartoon', mouth: 'mouth.small', hair: 'hair.bald' }, ['accessory.bow-tie'], 'robot', { hands: { left: 'fist', right: 'fist' } }),
-  preset('minimal', 'Minimal', 'A narrow head and the fewest lines.', { head: 'head.narrow', ears: 'ears.small', eyes: 'eyes.round-small', eyebrows: 'eyebrows.flat', nose: 'nose.soft', mouth: 'mouth.simple', hair: 'hair.bald' }, [], 'cool'),
+  preset('classic', 'Classic Cartoon', 'The round, bright face of a cartoon.', { head: 'head.round', ears: 'ears.round', eyes: 'eyes.simple', eyebrows: 'eyebrows.thin', nose: 'nose.dot', mouth: 'mouth.cartoon', hair: 'hair.short' }, [], 'warm'),
+  preset('professor', 'Professor', 'Glasses, a moustache, and not much hair.', { head: 'head.oval', ears: 'ears.round', eyes: 'eyes.simple', eyebrows: 'eyebrows.thick', nose: 'nose.hook', mouth: 'mouth.small', hair: 'hair.bald', facialHair: 'facialhair.moustache' }, ['accessory.glasses'], 'warm'),
+  preset('young', 'Young', 'Big eyes, spiky hair, a wide grin.', { head: 'head.round', ears: 'ears.round', eyes: 'eyes.simple', eyebrows: 'eyebrows.thin', nose: 'nose.dot', mouth: 'mouth.wide', hair: 'hair.spiky' }, [], 'warm'),
+  preset('old', 'Old', 'Heavy lids, a long nose, a full beard.', { head: 'head.oval', ears: 'ears.large', eyes: 'eyes.simple', eyebrows: 'eyebrows.thick', nose: 'nose.hook', mouth: 'mouth.expressive', hair: 'hair.bald', facialHair: 'facialhair.beard' }, [], 'pale'),
+  preset('robot', 'Robot', 'A square head, small eyes, a flat brow.', { head: 'head.square-soft', ears: 'ears.small', eyes: 'eyes.simple', eyebrows: 'eyebrows.flat', nose: 'nose.cartoon', mouth: 'mouth.small', hair: 'hair.bald' }, ['accessory.bow-tie'], 'robot', { hands: { left: 'fist', right: 'fist' } }),
+  preset('minimal', 'Minimal', 'A narrow head and the fewest lines.', { head: 'head.narrow', ears: 'ears.small', eyes: 'eyes.simple', eyebrows: 'eyebrows.flat', nose: 'nose.soft', mouth: 'mouth.simple', hair: 'hair.bald' }, [], 'cool'),
 
   /* ── The animals (MASC-10B) ────────────────────────────────────────────
    * Six species over one set of drawings, which is the whole argument of the
@@ -113,22 +113,22 @@ export const FACE_STYLE_PRESETS = Object.freeze([
    * `presetMorphology` says so without being told (MASC-08C).
    */
   preset('cat', 'Cat', 'Pointed ears, a short muzzle, a slit pupil and whiskers you can see.',
-    { head: 'head.animal-round', ears: 'ears.cat-pointed', eyes: 'eyes.animal-round-slit', eyebrows: 'eyebrows.animal-thin-soft', nose: 'nose.triangle-small', mouth: 'mouth.animal-smile' },
+    { head: 'head.animal-round', ears: 'ears.cat-pointed', eyes: 'eyes.iris', eyebrows: 'eyebrows.animal-thin-soft', nose: 'nose.triangle-small', mouth: 'mouth.animal-smile' },
     ['accessory.muzzle-feline-short', 'accessory.whiskers-three-straight'], 'cat-ginger', { morphology: 'muzzle', tags: ['cat', 'feline', 'animal'] }),
   preset('dog', 'Dog', 'Folded ears, a medium muzzle and an open, friendly mouth.',
-    { head: 'head.animal-chubby', ears: 'ears.dog-folded', eyes: 'eyes.animal-round-large', eyebrows: 'eyebrows.animal-friendly-raised', nose: 'nose.animal-rounded', mouth: 'mouth.animal-open-friendly' },
+    { head: 'head.animal-chubby', ears: 'ears.dog-folded', eyes: 'eyes.simple', eyebrows: 'eyebrows.animal-friendly-raised', nose: 'nose.animal-rounded', mouth: 'mouth.animal-open-friendly' },
     ['accessory.muzzle-canine-medium'], 'dog-tan', { morphology: 'muzzle', tags: ['dog', 'canine', 'animal'] }),
   preset('fox', 'Fox', 'Large pointed ears, a narrow muzzle and an alert almond eye.',
-    { head: 'head.animal-narrow', ears: 'ears.fox-large-pointed', eyes: 'eyes.animal-almond-alert', eyebrows: 'eyebrows.animal-firm', nose: 'nose.triangle-small', mouth: 'mouth.animal-small-smile' },
+    { head: 'head.animal-narrow', ears: 'ears.fox-large-pointed', eyes: 'eyes.iris', eyebrows: 'eyebrows.animal-firm', nose: 'nose.triangle-small', mouth: 'mouth.animal-small-smile' },
     ['accessory.muzzle-canine-narrow', 'accessory.whiskers-two-soft'], 'fox-orange', { morphology: 'muzzle', tags: ['fox', 'vulpine', 'animal'] }),
   preset('bear', 'Bear', 'Round ears high on the head, a broad muzzle and a big nose.',
-    { head: 'head.animal-wide', ears: 'ears.bear-round', eyes: 'eyes.animal-small-cute', eyebrows: 'eyebrows.animal-thick', nose: 'nose.bear-broad', mouth: 'mouth.animal-neutral' },
+    { head: 'head.animal-wide', ears: 'ears.bear-round', eyes: 'eyes.simple', eyebrows: 'eyebrows.animal-thick', nose: 'nose.bear-broad', mouth: 'mouth.animal-neutral' },
     ['accessory.muzzle-bear-broad'], 'bear-brown', { morphology: 'muzzle', tags: ['bear', 'ursine', 'animal'] }),
   preset('wolf', 'Wolf', 'Upright ears, a narrow face and long whiskers.',
-    { head: 'head.animal-square', ears: 'ears.wolf-pointed', eyes: 'eyes.animal-almond-alert', eyebrows: 'eyebrows.animal-firm', nose: 'nose.oval-soft', mouth: 'mouth.animal-neutral' },
+    { head: 'head.animal-square', ears: 'ears.wolf-pointed', eyes: 'eyes.iris', eyebrows: 'eyebrows.animal-firm', nose: 'nose.oval-soft', mouth: 'mouth.animal-neutral' },
     ['accessory.muzzle-canine-medium', 'accessory.whiskers-long-curved'], 'wolf-grey', { morphology: 'muzzle', tags: ['wolf', 'canine', 'lupine', 'animal'] }),
   preset('rabbit', 'Rabbit', 'Long upright ears, a small muzzle and a tiny pink nose.',
-    { head: 'head.animal-small', ears: 'ears.rabbit-long', eyes: 'eyes.animal-round-large', eyebrows: 'eyebrows.animal-thin-soft', nose: 'nose.button-tiny', mouth: 'mouth.animal-small-smile' },
+    { head: 'head.animal-small', ears: 'ears.rabbit-long', eyes: 'eyes.simple', eyebrows: 'eyebrows.animal-thin-soft', nose: 'nose.button-tiny', mouth: 'mouth.animal-small-smile' },
     ['accessory.muzzle-rodent-small', 'accessory.whiskers-subtle-short'], 'rabbit-cream', { morphology: 'muzzle', tags: ['rabbit', 'lagomorph', 'animal'] }),
 
   /* ── The robots (MASC-11B) ─────────────────────────────────────────────
@@ -171,22 +171,22 @@ export const FACE_STYLE_PRESETS = Object.freeze([
    * that is the only piece two of them share.
    */
   preset('owl', 'Owl', 'A broad tufted head, the biggest eyes on the sheet, and two pointed aigrettes.',
-    { head: 'head.bird-owl', eyes: 'eyes.bird-round-large', eyebrows: 'eyebrows.bird-relaxed', mouth: 'mouth.beak-owl' },
+    { head: 'head.bird-owl', eyes: 'eyes.simple', eyebrows: 'eyebrows.bird-relaxed', mouth: 'mouth.beak-owl' },
     ['accessory.crest-owl-tufts'], 'bird-owl-cream', { morphology: 'beak', tags: ['owl', 'bird'] }),
   preset('duck', 'Duck', 'Round, wide and friendly, with the flat bill and one smooth feather.',
-    { head: 'head.bird-duck', eyes: 'eyes.bird-soft', eyebrows: 'eyebrows.bird-curious', mouth: 'mouth.beak-duck' },
+    { head: 'head.bird-duck', eyes: 'eyes.simple', eyebrows: 'eyebrows.bird-curious', mouth: 'mouth.beak-duck' },
     ['accessory.crest-smooth-feather'], 'bird-duck-cream', { morphology: 'beak', tags: ['duck', 'bird'] }),
   preset('parrot', 'Parrot', 'Upright and loud: side feathers, a hooked bill and a tall fan crest.',
-    { head: 'head.bird-parrot', eyes: 'eyes.bird-bright', eyebrows: 'eyebrows.bird-curious', mouth: 'mouth.beak-parrot' },
+    { head: 'head.bird-parrot', eyes: 'eyes.simple', eyebrows: 'eyebrows.bird-curious', mouth: 'mouth.beak-parrot' },
     ['accessory.crest-parrot-tall'], 'bird-parrot-orange', { morphology: 'beak', tags: ['parrot', 'bird'] }),
   preset('crow', 'Crow', 'Angular and unimpressed: narrowed eyes, a straight point and a ragged tuft.',
-    { head: 'head.bird-crow', eyes: 'eyes.bird-piercing', eyebrows: 'eyebrows.bird-angry', mouth: 'mouth.beak-crow' },
+    { head: 'head.bird-crow', eyes: 'eyes.iris', eyebrows: 'eyebrows.bird-angry', mouth: 'mouth.beak-crow' },
     ['accessory.crest-messy-tuft'], 'bird-crow-slate', { morphology: 'beak', tags: ['crow', 'corvid', 'bird'] }),
   preset('cute-bird', 'Cute bird', 'A round head, happy eyes with two highlights, and a broad friendly beak.',
-    { head: 'head.bird-cute', eyes: 'eyes.bird-happy', eyebrows: 'eyebrows.bird-happy', mouth: 'mouth.beak-wide' },
+    { head: 'head.bird-cute', eyes: 'eyes.simple', eyebrows: 'eyebrows.bird-happy', mouth: 'mouth.beak-wide' },
     ['accessory.crest-round-tuft'], 'bird-cute-blue', { morphology: 'beak', tags: ['cute', 'bird', 'small'] }),
   preset('slim-bird', 'Slim bird', 'Tall and elegant: heavy lids, the smallest beak, three plain feathers.',
-    { head: 'head.bird-slim', eyes: 'eyes.bird-sleepy', eyebrows: 'eyebrows.bird-sharp', mouth: 'mouth.beak-small' },
+    { head: 'head.bird-slim', eyes: 'eyes.simple', eyebrows: 'eyebrows.bird-sharp', mouth: 'mouth.beak-small' },
     ['accessory.crest-simple'], 'bird-slim-amber', { morphology: 'beak', tags: ['slim', 'bird', 'elegant'] })
 ]);
 

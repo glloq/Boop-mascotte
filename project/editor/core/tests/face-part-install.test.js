@@ -295,37 +295,45 @@ test('the application refuses a canvas that drew nothing for a role', () => {
 });
 
 test('every lid rests where it is drawn: its own amplitude, its own offset, hinted or not', async () => {
-  const { EYES_ROUND_LARGE } = await import('../face-library/builtin/eyes.js');
-  const lids = (definition) => {
+  const { EYES_SIMPLE } = await import('../face-library/builtin/eyes.js');
+  const lids = (definition, property = 'scaleY') => {
     const document = install(fixture(), 'eyes', definition).document;
     return Object.fromEntries(['lidUpperLeft', 'lidLowerLeft'].map((id) => {
-      const binding = document.elements[id].bindings.translateY;
+      const binding = document.elements[id].bindings[property];
       // `eyeOpen` rests at 1, so `atRest` is where the lid sits with the eye
-      // open; `shut` is where it goes at 0, and for an upper lid that has to be
-      // *downwards* -- a lid that retracts as the eye closes is a blink played
-      // backwards, which is what the registry's generic `+8` used to give.
+      // open -- which must be exactly as drawn, 1 for a scale and 0 for a
+      // slide -- and `shut` is where it goes at 0.
       return [id, { amplitude: binding.amplitude, atRest: binding.amplitude * 1 + binding.offset, shut: binding.offset }];
     }));
   };
-  const eyelids = (over) => ({ ...EYES_ROUND_LARGE, id: 'eyes.test', parts: { ...EYES_ROUND_LARGE.parts, eyelids: { ...EYES_ROUND_LARGE.parts.eyelids, ...over } } });
+  const eyelids = (over) => ({ ...EYES_SIMPLE, id: 'eyes.test', parts: { ...EYES_SIMPLE.parts, eyelids: { ...EYES_SIMPLE.parts.eyelids, ...over } } });
 
   // A side that travels its own distance and leaves the offset out: the rest
   // offset is the one *that* amplitude needs, not the one the shared amplitude
   // needed, or the lower lid sits 78px down the face with the eye wide open.
-  assert.deepEqual(lids(eyelids({ drivers: { eyeOpen: { property: 'translateY', amplitude: -38, roles: { leftLower: { amplitude: 40 }, rightLower: { amplitude: 40 } } } } })),
+  assert.deepEqual(lids(eyelids({ drivers: { eyeOpen: { property: 'translateY', amplitude: -38, roles: { leftLower: { amplitude: 40 }, rightLower: { amplitude: 40 } } } } }), 'translateY'),
     { lidUpperLeft: { amplitude: -38, atRest: 0, shut: 38 }, lidLowerLeft: { amplitude: 40, atRest: 0, shut: -40 } });
 
   // And a part that claims the movement without saying how it carries it: the
   // registry's own driver has to rest as drawn *and* shut the right way. A lid
   // is the one control that rests at its maximum, so its amplitude is negative.
-  const { drivers, ...hintless } = EYES_ROUND_LARGE.parts.eyelids;
-  assert.deepEqual(lids({ ...EYES_ROUND_LARGE, id: 'eyes.test2', parts: { ...EYES_ROUND_LARGE.parts, eyelids: hintless } }),
+  const { drivers, ...hintless } = EYES_SIMPLE.parts.eyelids;
+  assert.deepEqual(lids({ ...EYES_SIMPLE, id: 'eyes.test2', parts: { ...EYES_SIMPLE.parts, eyelids: hintless } }, 'translateY'),
     { lidUpperLeft: { amplitude: -8, atRest: 0, shut: 8 }, lidLowerLeft: { amplitude: -8, atRest: 0, shut: 8 } });
 
-  // A hint that gives both keeps both, untouched: the built-in eyes are drawn
-  // open, each lid's edge on the top or the bottom of the eye, and each travels
-  // the half-socket to the middle, where the two meet without crossing.
-  assert.deepEqual(lids(EYES_ROUND_LARGE), { lidUpperLeft: { amplitude: -22.5, atRest: 0, shut: 22.5 }, lidLowerLeft: { amplitude: 22.5, atRest: 0, shut: -22.5 } });
+  // A hint that gives both keeps both, untouched. A shipped lid **grows**
+  // rather than slides (docs/EYE_BUILDS.md): it is drawn as a sliver on the rim
+  // it swings from, rests at `scaleY 1` as every drawing does, and reaches
+  // `cover` shut -- the factor that takes the sliver across the whole eye. The
+  // lower lid comes up a third as far, because a real blink is the upper lid.
+  assert.deepEqual(lids(EYES_SIMPLE),
+    { lidUpperLeft: { amplitude: -7.33, atRest: 1, shut: 8.33 }, lidLowerLeft: { amplitude: -2.2, atRest: 1, shut: 3.2 } });
+
+  // Which is the whole point: a lid that grows about the rim needs no socket to
+  // hide it, so the eye's box is the eye and nothing is parked outside a mask.
+  const document = install(fixture(), 'eyes', EYES_SIMPLE).document;
+  assert.equal(/<clipPath/.test(document.svgMarkup.slice(document.svgMarkup.indexOf('eyes-simple'))), false, 'no socket comes with the drawing');
+  assert.deepEqual(document.elements.lidUpperLeft.bindings.translateY, undefined, 'and the lid it replaced slides no more');
 });
 
 test('what a replacement writes is covered by the domains it notifies', () => {
@@ -334,13 +342,13 @@ test('what a replacement writes is covered by the domains it notifies', () => {
 });
 
 test('a pair of eyes is three parts: the eyes, the pupils and the lids take their roles on the new shapes, movements kept', async () => {
-  const { EYES_ROUND_LARGE } = await import('../face-library/builtin/eyes.js');
+  const { EYES_SIMPLE } = await import('../face-library/builtin/eyes.js');
   const fx = fixture();
   const original = structuredClone(fx.store.getDocument());
-  const { plan, summary, document } = install(fx, 'eyes', EYES_ROUND_LARGE);
+  const { plan, summary, document } = install(fx, 'eyes', EYES_SIMPLE);
   assert.equal(plan.skull, false);
   assert.ok(plan.removeIds.includes('eyeLeft') && plan.removeIds.includes('pupilRight') && plan.removeIds.includes('lidLowerLeft'), 'the eye groups go, pupils and lids inside them');
-  assert.deepEqual([summary.rootId, summary.roles], ['eyes-round-large', { leftEye: 'eyeLeft', rightEye: 'eyeRight' }]);
+  assert.deepEqual([summary.rootId, summary.roles], ['eyes-simple', { leftEye: 'eyeLeft', rightEye: 'eyeRight' }]);
   assert.deepEqual(summary.parts, { gaze: { partId: 'gaze', roles: { leftPupil: 'pupilLeft', rightPupil: 'pupilRight' } }, eyelids: { partId: 'eyelids', roles: { leftUpper: 'lidUpperLeft', leftLower: 'lidLowerLeft', rightUpper: 'lidUpperRight', rightLower: 'lidLowerRight' } } });
   assert.deepEqual(summary.enabled, ['eyeOpen', 'lookX', 'lookY', 'pupilScale', 'eyeOpen'], 'the eyes\' own, then the pupils\', then the lids\'');
   // The lids' two shape axes go: a library eye pair says it can open and
@@ -349,33 +357,82 @@ test('a pair of eyes is three parts: the eyes, the pupils and the lids take thei
   // that names one keeps meaning what it meant -- and the Face states panel is
   // where a corrective would be captured for the new drawing.
   assert.deepEqual(summary.disabled, ['eyeSquint', 'eyeCurve']);
-  // The eyes: the same part, on the new groups, a gentle squash as the lids do the closing.
   const eyes = part(document, 'eyes');
-  assert.deepEqual([eyes.roles, eyes.controls, eyes.assetId, eyes.assetRoot], [{ leftEye: 'eyeLeft', rightEye: 'eyeRight' }, ['eyeOpen'], 'eyes.round-large', 'eyes-round-large']);
+  assert.deepEqual([eyes.roles, eyes.controls, eyes.assetId, eyes.assetRoot], [{ leftEye: 'eyeLeft', rightEye: 'eyeRight' }, ['eyeOpen'], 'eyes.simple', 'eyes-simple']);
+  // The eye itself barely moves when it blinks: the lids cover it and the white
+  // keeps its shape, which is what a socket used to buy by cropping a squashed
+  // eye. *Barely*, not *not at all* -- a real eye squashes a little under a
+  // closing lid, and the asset has to say so: leaving the driver out gets the
+  // registry's own (amplitude 1, offset 0), which reads 1 open and **0** shut.
+  // That scales the eye group to nothing, and the pupil, the iris and both lids
+  // inside it with it, so a blink erases the eye instead of closing it.
   assert.deepEqual(document.elements.eyeLeft.bindings.scaleY, { enabled: true, mode: 'simple', expression: 'eyeOpen + eyeOpenLeft', curve: 'linear', amplitude: 0.12, offset: 0.88, generatedBy: { semanticPart: 'eyes', control: 'eyeOpen' } }, 'a side of its own, as before');
+  // Which is a claim about the numbers, so it is checked as one: the eye is as
+  // drawn with `eyeOpen 1` and still visible at 0.
+  const squash = (at) => document.elements.eyeLeft.bindings.scaleY.amplitude * at + document.elements.eyeLeft.bindings.scaleY.offset;
+  assert.equal(squash(1), 1, 'open, the eye is exactly as drawn');
+  assert.ok(squash(0) > 0.8, `shut, the eye is still there: ${squash(0)}`);
   // The pupils: the gaze part on the new pupils, looking with both axes and scaling on both.
   const gaze = part(document, 'gaze');
   assert.deepEqual([gaze.roles, gaze.controls], [{ leftPupil: 'pupilLeft', rightPupil: 'pupilRight' }, ['lookX', 'lookY', 'pupilScale']]);
   assert.equal(document.elements.pupilLeft.bindings.translateX.expression, 'lookX + lookXLeft');
   assert.equal(document.elements.pupilRight.bindings.translateY.expression, 'lookY + lookYRight');
   assert.deepEqual([document.elements.pupilLeft.bindings.scaleX?.expression, document.elements.pupilLeft.bindings.scaleY?.expression], ['pupilScale + pupilScaleLeft', 'pupilScale + pupilScaleLeft'], 'a pupil scales on both axes');
+  // And no further than the white: the gaze hint carries the travel the drawing
+  // has room for, so a pupil never rides out over its own outline.
+  assert.equal(document.elements.pupilLeft.bindings.translateX.amplitude, 9.5, 'the white has room for the radius, less the pupil and a margin');
   assert.equal(gaze.assetId, undefined, 'the eyes are the asset; the pupils are drawn by it');
-  // The lids: drawn open, the upper coming down and the lower coming up as the eye shuts, each side its own.
+  // The lids: drawn as slivers on the rim, growing across the eye as it shuts,
+  // each side its own. The pivot is the rim, not the sliver's middle -- a lid
+  // pivoted at its middle opens away from the eye in both directions at once.
   const lids = part(document, 'eyelids');
   assert.deepEqual(lids.roles, { leftUpper: 'lidUpperLeft', leftLower: 'lidLowerLeft', rightUpper: 'lidUpperRight', rightLower: 'lidLowerRight' });
-  const upper = document.elements.lidUpperRight.bindings.translateY, lower = document.elements.lidLowerRight.bindings.translateY;
-  assert.deepEqual([upper.expression, upper.amplitude, upper.offset], ['eyeOpen + eyeOpenRight', -22.5, 22.5]);
-  assert.deepEqual([lower.expression, lower.amplitude, lower.offset], ['eyeOpen + eyeOpenRight', 22.5, -22.5], 'the lower lid closes upwards');
-  assert.equal(lids.controlDrivers.eyeOpen.property, 'translateY');
+  const upper = document.elements.lidUpperRight.bindings.scaleY, lower = document.elements.lidLowerRight.bindings.scaleY;
+  assert.deepEqual([upper.expression, upper.amplitude, upper.offset], ['eyeOpen + eyeOpenRight', -7.33, 8.33]);
+  assert.deepEqual([lower.expression, lower.amplitude, lower.offset], ['eyeOpen + eyeOpenRight', -2.2, 3.2], 'the lower lid comes up a third as far');
+  assert.equal(lids.controlDrivers.eyeOpen.property, 'scaleY');
+  const box = (id) => [document.elements[id].baseTransform.pivotY, document.elements[id].baseTransform.pivotY];
+  assert.ok(document.elements.lidUpperLeft.baseTransform.pivotY < document.elements.eyeLeft.baseTransform.pivotY, 'the upper lid swings from the top of the eye');
+  assert.ok(document.elements.lidLowerLeft.baseTransform.pivotY > document.elements.eyeLeft.baseTransform.pivotY, 'and the lower from the bottom');
+  assert.deepEqual(box('lidUpperLeft'), box('lidUpperLeft'));
   // The parameters the face had, sides included, are all still there; the old eyes' poses are gone, the new ones turn.
   for (const name of ['eyeOpen', 'eyeOpenLeft', 'eyeOpenRight', 'lookX', 'lookXLeft', 'pupilScale', 'pupilScaleRight']) assert.ok(document.params[name], `${name} is still a parameter`);
   assert.deepEqual(document.expressions.find((item) => item.id === 'wink')?.controls ?? original.animationClips.find((clip) => clip.id === 'wink').tracks.eyeOpenLeft, original.animationClips.find((clip) => clip.id === 'wink').tracks.eyeOpenLeft);
   const targets = headPoseTargets(document);
   assert.ok(targets.has('eyeLeft') && targets.has('pupilLeft'), 'the new eyes and pupils turn with the head');
   assert.ok(!document.keyforms.some((keyform) => keyform.target?.id === 'glintLeft' && !isHeadPoseKeyform(keyform)));
-  assert.match(document.svgMarkup, /<clipPath id="socketLeft">/, 'the sockets come with the drawing');
-  assert.match(document.svgMarkup, /<g id="eyeLeft" data-name="Left eye" clip-path="url\(#socketLeft\)">/);
+  // **No socket.** The old sets came with a `<clipPath>` that appeared in
+  // neither the layer tree nor `document.elements`, so an author could not see
+  // it, move it or delete it -- and the lids parked outside it made the eye's
+  // own box three times too tall to grab.
+  assert.equal(document.svgMarkup.includes('id="socketLeft"'), false, 'the socket is gone');
+  assert.match(document.svgMarkup, /<g id="eyeLeft" data-name="Left eye">/);
   assert.deepEqual(validateRig(document), []);
+});
+
+test('an iris is a role of the gaze, so the pupil never slides out of it', async () => {
+  const { EYES_IRIS, EYES_DOT } = await import('../face-library/builtin/eyes.js');
+  const { document } = install(fixture(), 'eyes', EYES_IRIS);
+  const gaze = part(document, 'gaze');
+  assert.deepEqual(gaze.roles, { leftPupil: 'pupilLeft', rightPupil: 'pupilRight', leftIris: 'irisLeft', rightIris: 'irisRight' });
+  // The same two look axes, the same distance, the same side offsets: the iris
+  // and the pupil in it are one movement seen twice.
+  for (const axis of [['lookX', 'translateX'], ['lookY', 'translateY']]) {
+    const [control, property] = axis;
+    const iris = document.elements.irisLeft.bindings[property], pupil = document.elements.pupilLeft.bindings[property];
+    assert.deepEqual([iris.expression, iris.amplitude, iris.offset], [`${control} + ${control}Left`, pupil.amplitude, pupil.offset], `${control} carries both`);
+  }
+  // It does not dilate, though: `pupilScale` is the pupil's alone, and an iris
+  // that grew with it would swallow the white.
+  assert.equal(document.elements.irisLeft.bindings.scaleX, undefined);
+  assert.equal(document.elements.pupilLeft.bindings.scaleX.expression, 'pupilScale + pupilScaleLeft');
+  assert.deepEqual(validateRig(document), []);
+
+  // And a build with no iris says nothing about one: the roles are optional, so
+  // the dot and the simple eye install as they always did.
+  const dot = install(fixture(), 'eyes', EYES_DOT).document;
+  assert.deepEqual(part(dot, 'gaze').roles, { leftPupil: 'pupilLeft', rightPupil: 'pupilRight' });
+  assert.deepEqual(validateRig(dot), []);
 });
 
 test('a head asset on the template goes on the skull: the face keeps turning, the jaw takes the new shape', async () => {
@@ -632,10 +689,10 @@ test('a jaw pose that cannot become a shape key leaves a parameter an expression
 });
 
 test('an offset left out puts the drawing at rest as drawn when the movement sits at its default: a scale with a default of one rests at one, an opacity rests at one', async () => {
-  const { EYES_CARTOON } = await import('../face-library/builtin/eyes.js');
+  const { EYES_SIMPLE } = await import('../face-library/builtin/eyes.js');
   const fx = fixture();
   // eyeOpen defaults to 1 (open): amplitude 1 on scaleY needs offset 0 to rest at 1, not the 2 a bare "1 for a scale" would give.
-  const eyes = { ...EYES_CARTOON, drivers: { ...EYES_CARTOON.drivers, eyeOpen: { property: 'scaleY', amplitude: 1 } } };
+  const eyes = { ...EYES_SIMPLE, drivers: { ...EYES_SIMPLE.drivers, eyeOpen: { property: 'scaleY', amplitude: 1 } } };
   const { document } = install(fx, 'eyes', eyes);
   const lid = document.elements[part(document, 'eyes').roles.leftEye].bindings.scaleY;
   assert.deepEqual([lid.amplitude, lid.offset], [1, 0]);

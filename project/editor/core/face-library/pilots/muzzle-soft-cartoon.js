@@ -86,7 +86,6 @@ export const PILOT_STATUSES = Object.freeze(['needs-art', 'candidate', 'approved
  */
 const DRAWN = new Set([
   'head.animal-round', 'head.animal-narrow', 'head.animal-wide', 'head.animal-square', 'head.animal-small', 'head.animal-chubby',
-  'eyes.animal-round-large', 'eyes.animal-round-slit', 'eyes.animal-almond-alert', 'eyes.animal-sleepy', 'eyes.animal-happy', 'eyes.animal-small-cute',
   'eyebrows.animal-thin-soft', 'eyebrows.animal-firm', 'eyebrows.animal-thick', 'eyebrows.animal-friendly-raised', 'eyebrows.animal-worried',
   'ears.cat-pointed', 'ears.fox-large-pointed', 'ears.wolf-pointed', 'ears.dog-folded', 'ears.bear-round', 'ears.rabbit-long',
   'ears.small-round', 'ears.tufted',
@@ -95,7 +94,11 @@ const DRAWN = new Set([
   'nose.triangle-small', 'nose.bear-broad', 'nose.button-tiny', 'nose.oval-soft', 'nose.animal-rounded',
   'mouth.animal-smile', 'mouth.animal-neutral', 'mouth.animal-open-friendly', 'mouth.animal-small-smile', 'mouth.animal-happy-curve',
   'accessory.whiskers-three-straight', 'accessory.whiskers-two-soft', 'accessory.whiskers-long-curved', 'accessory.whiskers-subtle-short',
-  'pupils.round', 'pupils.vertical'
+  'pupils.round', 'pupils.vertical',
+  // The eye row, reused rather than drawn: the library's three builds exist, so
+  // the row is answered, and `standalone: false` keeps them out of the pack's
+  // own review (docs/EYE_BUILDS.md).
+  'eyes.dot', 'eyes.simple', 'eyes.iris'
 ]);
 
 /** The order the validation sheets are drawn in, coarse to fine (MASC-10A §23). */
@@ -181,15 +184,27 @@ export const PILOT_ASSETS = Object.freeze([
    * "6 styles d'yeux (pupilles intégrées)" — the sheet says out loud what the
    * library already does: an eye set draws its own pupils and lids. There is
    * no standalone pupils card, and no preset may name one.
+   *
+   * **The pack drew six and ships none.** They were drawn, and they were the
+   * shipped construction at other radii — this file's own companion said so in
+   * its header, *"built the way the shipped sets are built"* — and what told
+   * the six apart was a size, which is the scale field, and an expression,
+   * which is the controls. So the row is **reused**: the library's three builds
+   * dress a muzzle exactly as they dress a face (docs/EYE_BUILDS.md), and
+   * `standalone: false` says they are not this pack's drawings to review.
+   *
+   * *Endormis* and *Joyeux* were the two the sheet marked as expressions rather
+   * than species, and they were right about that: `eyeOpen` partway is sleepy,
+   * `eyeOpen 0` is shut, and which shut — seam, happy, tired, lashes — is
+   * `eyeCurve`. Two controls where there were two drawings, and controls can be
+   * keyed and animated.
    */
-  eyes('animal-round-large', 'Grands ronds', 'Big round', 'Big round eyes, round pupils, a glint high on each.', ['dog', 'rabbit'], ['animal', 'large', 'round', 'friendly'], 'Round pupils, where animal-round-slit has vertical ones.',
-    { notes: 'Composite: draws the gaze (leftPupil, rightPupil) and the eyelids under `parts`, as every shipped eye set does.' }),
-  eyes('animal-round-slit', 'Grands ronds pupilles fendues', 'Big round, slit', 'The same big round eye with a tall vertical slit pupil.', ['cat'], ['cat', 'feline', 'large', 'slit'], 'Vertical pupils; the socket and the lids are the big round eye\'s.'),
-  eyes('animal-almond-alert', 'En amande alerte', 'Alert almond', 'Almond eyes tilted up at the outer corner: awake rather than sweet.', ['fox', 'wolf'], ['animal', 'almond', 'alert'], 'Almond and tilted, where the round family is round.'),
-  eyes('animal-sleepy', 'Endormis', 'Sleepy', 'Heavy lids half over the eye, a narrow pupil beneath.', [], ['animal', 'sleepy', 'heavy'], 'Lids drawn low at rest.', { catalogue: true, notes: 'An expression, not a species: any of the six can wear it.' }),
-  eyes('animal-happy', 'Joyeux', 'Happy', 'Two closed upward arcs: an eye that is already smiling.', [], ['animal', 'happy', 'closed'], 'The only pair drawn shut.',
-    { catalogue: true, notes: 'Drawn shut, so it has no pupil to move and nothing left for eyeOpen to close. See the open question.' }),
-  eyes('animal-small-cute', 'Petits mignons', 'Small and cute', 'Small round eyes set wide, with a large pupil each.', ['bear'], ['animal', 'small', 'cute'], 'Smallest of the six, and the widest set.'),
+  eyes('dot', 'Simplistes', 'Dot', 'A pupil and nothing else: no white, no lid, no outline.', [], ['simple', 'dot', 'minimal'], 'The only build with no eye white.',
+    { catalogue: true, standalone: false, drawnBy: ['eyes.dot'], notes: 'The library\'s own, reused: an animal\'s eye is not a different construction from a person\'s.' }),
+  eyes('simple', 'Grands ronds', 'Simple', 'A white, a pupil and two eyelids — the eye most mascots want.', ['dog', 'rabbit', 'bear'], ['animal', 'round', 'friendly'], 'A white and lids, where the dot has neither.',
+    { standalone: false, drawnBy: ['eyes.simple'], notes: 'The library\'s own, reused. Composite: draws the gaze and the eyelids under `parts`, as every eye set does.' }),
+  eyes('iris', 'En amande alerte', 'Iris', 'A coloured iris inside the white, with the pupil in it.', ['cat', 'fox', 'wolf'], ['animal', 'iris', 'alert'], 'The only build with an iris, and the only one whose eye colour is a palette token.',
+    { standalone: false, drawnBy: ['eyes.iris'], notes: 'The library\'s own, reused. A cat\'s amber against a grey cat\'s green is the palette, not a second drawing.' }),
 
   /* ── Pupils, inside the eyes ───────────────────────────────────────────
    * Two families and no drawings of their own. Listed so the review has a
@@ -197,9 +212,17 @@ export const PILOT_ASSETS = Object.freeze([
    * can be checked for one.
    */
   pupils('round', '(pupilles intégrées)', 'Round pupils', 'A plain round pupil with a glint, as the shipped eyes have.', ['dog', 'fox', 'bear', 'wolf', 'rabbit'], ['animal', 'round'], 'Round, where pupils.vertical is a slit.',
-    { drawnBy: ['eyes.animal-round-large', 'eyes.animal-almond-alert', 'eyes.animal-sleepy', 'eyes.animal-small-cute'], standalone: false, notes: 'Reviewed inside the eye sets that draw it: it has no card, and no preset names it.' }),
+    { drawnBy: ['eyes.simple', 'eyes.iris', 'eyes.dot'], standalone: false, notes: 'Reviewed inside the eye sets that draw it: it has no card, and no preset names it.' }),
+  /**
+   * The one thing the three builds gave up, and it is recorded rather than
+   * quietly dropped: a slit is a *shape*, not a size, so no build draws one.
+   * `pupilScale` scales both axes together — a pupil that narrowed on one would
+   * be an oval, which is why it does — so a cat's slit cannot be a control
+   * either. An author who wants one draws the pupil and assigns it the role in
+   * Face Setup, which is the same path any hand-drawn part takes.
+   */
   pupils('vertical', '(pupilles intégrées)', 'Vertical pupils', 'A tall slit pupil, narrow at rest.', ['cat'], ['cat', 'feline', 'slit', 'vertical'], 'A slit, where pupils.round is round.',
-    { drawnBy: ['eyes.animal-round-slit'], standalone: false, notes: 'Must keep the gaze working: lookX, lookY and pupilScale drive it exactly as they drive a round pupil.' }),
+    { drawnBy: [], standalone: false, notes: 'No build draws one: a slit is a shape and the three builds are two questions about parts. Drawn by hand and given the leftPupil role, it keeps the whole gaze — lookX, lookY and pupilScale drive it exactly as they drive a round pupil.' }),
 
   /* ── 3 · Sourcils ──────────────────────────────────────────────────────
    * Five, and they carry more of the expression than anything but the ears.
@@ -295,8 +318,8 @@ export const PILOT_REUSE = Object.freeze([
   Object.freeze({ id: 'head.narrow', verdict: 'possible-reuse', why: 'Same question for animal-narrow and the fox.' }),
   Object.freeze({ id: 'head.wide', verdict: 'possible-reuse', why: 'A broad skull that might carry the bear without a drawing of its own.' }),
   Object.freeze({ id: 'ears.round', verdict: 'possible-reuse', why: 'Round ears, but at the side of the skull. If a bear reads with side ears, ears.bear-round is not needed.' }),
-  Object.freeze({ id: 'eyes.round-large', verdict: 'possible-reuse', why: 'Big round eyes with round pupils: close to the sheet\'s Grands ronds. The sheet decides whether an animal needs its own.' }),
-  Object.freeze({ id: 'eyes.cartoon', verdict: 'possible-reuse', why: 'Tall ovals with big pupils — another candidate for the friendly animal eye.' }),
+  Object.freeze({ id: 'eyes.simple', verdict: 'reuse', why: 'A white, a pupil and two lids: the sheet\'s Grands ronds at the scale an animal wants, and the pack drew nothing of its own in the end.' }),
+  Object.freeze({ id: 'eyes.iris', verdict: 'reuse', why: 'The same eye with a coloured iris, which is where a cat and a fox read: the eye colour is a palette token rather than a second drawing.' }),
   Object.freeze({ id: 'eyebrows.expressive', verdict: 'possible-reuse', why: 'A candidate for the fox\'s sharp brow, if angling eyebrows.thin is not enough.' }),
   Object.freeze({ id: 'mouth.simple', verdict: 'possible-reuse', why: 'One curve. It may carry the animal smile if the ω turns out not to be needed.' }),
   Object.freeze({ id: 'nose.dot', verdict: 'possible-reuse', why: 'A round dot. Too small for a muzzle but worth trying on the cat before drawing a triangle.' }),
@@ -305,9 +328,7 @@ export const PILOT_REUSE = Object.freeze([
   Object.freeze({ id: 'accessory.hat', verdict: 'possible-reuse', why: 'Sits at head.top; an animal wearing one needs the ears not to be in the way. Worth a sheet.' }),
   Object.freeze({ id: 'accessory.bow-tie', verdict: 'possible-reuse', why: 'At head.bottom, under the chin: works on any face.' }),
 
-  Object.freeze({ id: 'eyes.round-small', verdict: 'replace', why: 'Small round eyes read as a person squinting rather than as an animal.' }),
-  Object.freeze({ id: 'eyes.sleepy', verdict: 'replace', why: 'Heavy human lids: the animal expression comes from the pupil and the ear, not from the lid.' }),
-  Object.freeze({ id: 'eyes.minimal', verdict: 'replace', why: 'Two dots have no pupil to make vertical, which is where a cat reads.' }),
+  Object.freeze({ id: 'eyes.dot', verdict: 'possible-reuse', why: 'A pupil and nothing else. Too plain for the six species here, and exactly right for a mascot that wants the fewest lines.' }),
   Object.freeze({ id: 'nose.hook', verdict: 'replace', why: 'A hooked line is a human profile nose.' }),
   Object.freeze({ id: 'nose.soft', verdict: 'replace', why: 'A curve *under* the nose: a human shorthand with nothing for a muzzle to carry.' }),
   Object.freeze({ id: 'ears.large', verdict: 'replace', why: 'Big ovals at the side of the head: human ears, and the wrong place for every species here.' }),
@@ -378,7 +399,7 @@ export const PILOT_PRESETS = Object.freeze([
     id: 'cat', proposedName: 'Cat', species: 'cat', morphology: PILOT_MORPHOLOGY, style: PILOT_STYLE,
     direction: 'Friendly, compact, rounded: big eyes with a slit pupil, pointed ears, a short feline muzzle, a small triangular nose, whiskers you can see.',
     tags: Object.freeze(['cat', 'feline']),
-    parts: Object.freeze({ head: 'head.animal-round', eyes: 'eyes.animal-round-slit', eyebrows: 'eyebrows.animal-thin-soft', ears: 'ears.cat-pointed', nose: 'nose.triangle-small', mouth: 'mouth.animal-smile' }),
+    parts: Object.freeze({ head: 'head.animal-round', eyes: 'eyes.iris', eyebrows: 'eyebrows.animal-thin-soft', ears: 'ears.cat-pointed', nose: 'nose.triangle-small', mouth: 'mouth.animal-smile' }),
     accessories: Object.freeze(['accessory.muzzle-feline-short', 'accessory.whiskers-three-straight']),
     palette: 'cat-ginger', alternatePalettes: Object.freeze(['cat-grey'])
   }),
@@ -386,7 +407,7 @@ export const PILOT_PRESETS = Object.freeze([
     id: 'dog', proposedName: 'Dog', species: 'dog', morphology: PILOT_MORPHOLOGY, style: PILOT_STYLE,
     direction: 'Friendly and full-cheeked: big round eyes, brows raised at the outer end, folded ears, a medium canine muzzle, a rounded nose, an open mouth, no whiskers.',
     tags: Object.freeze(['dog', 'canine']),
-    parts: Object.freeze({ head: 'head.animal-chubby', eyes: 'eyes.animal-round-large', eyebrows: 'eyebrows.animal-friendly-raised', ears: 'ears.dog-folded', nose: 'nose.animal-rounded', mouth: 'mouth.animal-open-friendly' }),
+    parts: Object.freeze({ head: 'head.animal-chubby', eyes: 'eyes.simple', eyebrows: 'eyebrows.animal-friendly-raised', ears: 'ears.dog-folded', nose: 'nose.animal-rounded', mouth: 'mouth.animal-open-friendly' }),
     accessories: Object.freeze(['accessory.muzzle-canine-medium']),
     palette: 'dog-tan', alternatePalettes: Object.freeze([])
   }),
@@ -394,7 +415,7 @@ export const PILOT_PRESETS = Object.freeze([
     id: 'fox', proposedName: 'Fox', species: 'fox', morphology: PILOT_MORPHOLOGY, style: PILOT_STYLE,
     direction: 'Alert: a narrow face, almond eyes, firm brows, large pointed ears, a narrow muzzle, a small triangular nose, a light smile.',
     tags: Object.freeze(['fox', 'vulpine']),
-    parts: Object.freeze({ head: 'head.animal-narrow', eyes: 'eyes.animal-almond-alert', eyebrows: 'eyebrows.animal-firm', ears: 'ears.fox-large-pointed', nose: 'nose.triangle-small', mouth: 'mouth.animal-small-smile' }),
+    parts: Object.freeze({ head: 'head.animal-narrow', eyes: 'eyes.iris', eyebrows: 'eyebrows.animal-firm', ears: 'ears.fox-large-pointed', nose: 'nose.triangle-small', mouth: 'mouth.animal-small-smile' }),
     accessories: Object.freeze(['accessory.muzzle-canine-narrow', 'accessory.whiskers-two-soft']),
     palette: 'fox-orange', alternatePalettes: Object.freeze([])
   }),
@@ -402,7 +423,7 @@ export const PILOT_PRESETS = Object.freeze([
     id: 'bear', proposedName: 'Bear', species: 'bear', morphology: PILOT_MORPHOLOGY, style: PILOT_STYLE,
     direction: 'Broad and heavy: small wide-set eyes, thick brows, small round ears, a broad muzzle, a large nose, a plain mouth, no whiskers.',
     tags: Object.freeze(['bear', 'ursine']),
-    parts: Object.freeze({ head: 'head.animal-wide', eyes: 'eyes.animal-small-cute', eyebrows: 'eyebrows.animal-thick', ears: 'ears.bear-round', nose: 'nose.bear-broad', mouth: 'mouth.animal-neutral' }),
+    parts: Object.freeze({ head: 'head.animal-wide', eyes: 'eyes.simple', eyebrows: 'eyebrows.animal-thick', ears: 'ears.bear-round', nose: 'nose.bear-broad', mouth: 'mouth.animal-neutral' }),
     accessories: Object.freeze(['accessory.muzzle-bear-broad']),
     palette: 'bear-brown', alternatePalettes: Object.freeze([])
   }),
@@ -410,7 +431,7 @@ export const PILOT_PRESETS = Object.freeze([
     id: 'rabbit', proposedName: 'Rabbit', species: 'rabbit', morphology: PILOT_MORPHOLOGY, style: PILOT_STYLE,
     direction: 'Small and soft: a neat head under long upright ears, big round eyes, thin brows, a small rodent muzzle, a tiny pink nose, fine short whiskers.',
     tags: Object.freeze(['rabbit', 'lagomorph']),
-    parts: Object.freeze({ head: 'head.animal-small', eyes: 'eyes.animal-round-large', eyebrows: 'eyebrows.animal-thin-soft', ears: 'ears.rabbit-long', nose: 'nose.button-tiny', mouth: 'mouth.animal-small-smile' }),
+    parts: Object.freeze({ head: 'head.animal-small', eyes: 'eyes.simple', eyebrows: 'eyebrows.animal-thin-soft', ears: 'ears.rabbit-long', nose: 'nose.button-tiny', mouth: 'mouth.animal-small-smile' }),
     accessories: Object.freeze(['accessory.muzzle-rodent-small', 'accessory.whiskers-subtle-short']),
     palette: 'rabbit-cream', alternatePalettes: Object.freeze([])
   }),
@@ -418,7 +439,7 @@ export const PILOT_PRESETS = Object.freeze([
     id: 'wolf', proposedName: 'Wolf', species: 'wolf', morphology: PILOT_MORPHOLOGY, style: PILOT_STYLE,
     direction: 'Squared and watchful: almond eyes, firm brows, upright ears, a medium canine muzzle, a soft oval nose, a plain mouth, long whiskers.',
     tags: Object.freeze(['wolf', 'canine', 'lupine']),
-    parts: Object.freeze({ head: 'head.animal-square', eyes: 'eyes.animal-almond-alert', eyebrows: 'eyebrows.animal-firm', ears: 'ears.wolf-pointed', nose: 'nose.oval-soft', mouth: 'mouth.animal-neutral' }),
+    parts: Object.freeze({ head: 'head.animal-square', eyes: 'eyes.iris', eyebrows: 'eyebrows.animal-firm', ears: 'ears.wolf-pointed', nose: 'nose.oval-soft', mouth: 'mouth.animal-neutral' }),
     accessories: Object.freeze(['accessory.muzzle-canine-medium', 'accessory.whiskers-long-curved']),
     palette: 'wolf-grey', alternatePalettes: Object.freeze([])
   })

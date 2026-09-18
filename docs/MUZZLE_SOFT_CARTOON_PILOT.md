@@ -90,6 +90,15 @@ Every planned drawing, in the sheet's own order and under its own caption.
 | Joufflue | `head.animal-chubby` | Animal chubby | dog |
 
 ### 2 · Yeux — 6
+
+> **Superseded for the eyes row.** The six eye sets below were drawn and have
+> since been retired: they were the shipped construction at other radii, which
+> this pack's own header said out loud. The row is answered by the library's
+> three builds — `eyes.dot`, `eyes.simple`, `eyes.iris` — which suit every kind
+> of head (docs/EYE_BUILDS.md). *Endormis* and *Joyeux* were never drawings
+> either: sleepy is `eyeOpen` partway and happy is `eyeOpen 0` with `eyeCurve`
+> up. The table is kept as the record of what was asked for.
+
 | Sheet | Id | Name | For |
 | --- | --- | --- | --- |
 | Grands ronds | `eyes.animal-round-large` | Big round | dog, rabbit |

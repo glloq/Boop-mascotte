@@ -155,14 +155,23 @@ export const PILOT_ASSETS = Object.freeze([
    * animal planche used, and the same answer: an eye set draws its own pupils
    * and lids, there is no standalone pupils card, and `PRESET_PART_ORDER` does
    * not let a preset name one.
+   *
+   * **And the same second answer, arrived at twice.** The six were drawn, and
+   * they were the shipped construction at other radii — the file's own header
+   * said so, out loud, twice — so the row is answered by the library's own
+   * builds rather than by a third redrawing of one ellipse
+   * (docs/EYE_BUILDS.md). A bird's eye is a big round white with a disc in it,
+   * which is `eyes.simple`; *Perçants* is that eye with a coloured iris, which
+   * is where a crow reads intent; and *Endormis* and *Joyeux* were never
+   * drawings at all — they are `eyeOpen` partway and `eyeOpen 0` with
+   * `eyeCurve` up, which a control can be keyed and animated at.
    */
-  eyes('bird-round-large', 'Grands ronds (style hibou)', 'Big round', 'Very large round eyes with a wide pupil: the owl\'s stare.', ['owl'], ['bird', 'large', 'round', 'owl'], 'The largest of the six.',
-    { notes: 'Composite: draws the gaze (leftPupil, rightPupil) and the eyelids under `parts`, as every shipped eye set does.' }),
-  eyes('bird-soft', 'Doux (amicaux)', 'Soft', 'Round and gentle, a little smaller, with a soft highlight.', ['duck'], ['bird', 'soft', 'friendly'], 'Rounder and softer than alert; larger than sleepy.'),
-  eyes('bird-bright', 'Vifs (alerte)', 'Bright', 'Wide awake: a small pupil in a large white.', ['parrot'], ['bird', 'bright', 'alert'], 'The smallest pupil against the largest white.'),
-  eyes('bird-sleepy', 'Endormis (détendus)', 'Sleepy', 'Heavy lids drawn low over the eye.', ['slim'], ['bird', 'sleepy', 'heavy'], 'The only pair whose lids rest low.'),
-  eyes('bird-happy', 'Joyeux (mignons)', 'Happy', 'Big dark pupils with two highlights each.', ['cute'], ['bird', 'happy', 'cute'], 'The only pair with two highlights.'),
-  eyes('bird-piercing', 'Perçants (intenses)', 'Piercing', 'Narrowed and angled: intent rather than sweet.', ['crow'], ['bird', 'piercing', 'intense'], 'The only pair narrowed at the inner corner.'),
+  eyes('simple', 'Grands ronds (style hibou)', 'Simple', 'A white, a pupil and two eyelids — the eye most mascots want.', ['owl', 'duck', 'parrot', 'cute', 'slim'], ['round', 'friendly'], 'A white and lids, where the dot has neither.',
+    { standalone: false, notes: 'The library\'s own, reused. Composite: draws the gaze (leftPupil, rightPupil) and the eyelids under `parts`, as every eye set does.' }),
+  eyes('iris', 'Perçants (intenses)', 'Iris', 'A coloured iris inside the white, with the pupil in it.', ['crow'], ['iris', 'intense'], 'The only build with an iris, and the only one whose eye colour is a palette token.',
+    { standalone: false, notes: 'The library\'s own, reused. A crow\'s intent is the iris colour and the brow above it, not a narrower white.' }),
+  eyes('dot', 'Simplistes', 'Dot', 'A pupil and nothing else: no white, no lid, no outline.', [], ['dot', 'minimal'], 'The only build with no eye white.',
+    { standalone: false, catalogue: true, notes: 'The library\'s own, reused. No bird here wears it; a mascot that wants the fewest possible lines does.' }),
 
   /* ── 3 · Formes d'yeux / sourcils ──────────────────────────────────────
    * "5 styles de formes d'yeux / sourcils (à superposer)" — *to overlay*,
@@ -233,7 +242,8 @@ export const PILOT_REUSE = Object.freeze([
   Object.freeze({ id: 'accessory.earring-right', verdict: 'not-relevant', why: 'The other side of the same answer.' }),
   Object.freeze({ id: 'ears.round', verdict: 'not-relevant', why: 'A bird has no ears to draw, and the morphology does not offer the row. Nothing here would ever reach for a pair.' }),
   Object.freeze({ id: 'head.round', verdict: 'replace', why: 'A bare skull of skin, with a jaw that drops. A bird head is feathered and its jaw is the beak, which is a separate piece; no palette makes one out of the other.' }),
-  Object.freeze({ id: 'eyes.round-large', verdict: 'possible-reuse', why: 'Big round eyes with round pupils, which is close to the planche\'s Grands ronds. The eyes sheet decides whether an owl needs its own or can wear a person\'s.' }),
+  Object.freeze({ id: 'eyes.simple', verdict: 'reuse', why: 'A white, a pupil and two lids: the planche\'s Grands ronds at the scale an owl wants. The eyes sheet asked whether a bird needed its own and the answer, in the end, was no.' }),
+  Object.freeze({ id: 'eyes.iris', verdict: 'reuse', why: 'The same eye with a coloured iris, which is the planche\'s Perçants: a crow reads intent through the colour of its eye and the brow over it, not through a narrower white.' }),
   Object.freeze({ id: 'eyebrows.thin', verdict: 'possible-reuse', why: 'A thin arc reads as a bird brow as readily as a human one. The brows sheet decides whether five new pairs are five or fewer.' }),
   Object.freeze({ id: 'nose.dot', verdict: 'not-relevant', why: 'A `beak` face offers no nose slot: the beak is the whole of what is between the eyes and the chin.' }),
   Object.freeze({ id: 'mouth.small', verdict: 'replace', why: 'A beak installs *as* a mouth, so this is the drawing it replaces rather than one it sits beside. A lip line on a bird reads as a mistake.' }),
@@ -281,42 +291,42 @@ export const PILOT_PRESETS = Object.freeze([
     id: 'owl', proposedName: 'Owl', species: 'owl', morphology: PILOT_MORPHOLOGY, style: PILOT_STYLE,
     direction: 'Wide and watchful: a broad tufted head, the biggest eyes on the sheet, a level brow close over them, a short hooked beak and two pointed aigrettes.',
     tags: Object.freeze(['owl', 'bird']),
-    parts: Object.freeze({ head: 'head.bird-owl', eyes: 'eyes.bird-round-large', eyebrows: 'eyebrows.bird-relaxed', mouth: 'mouth.beak-owl' }),
+    parts: Object.freeze({ head: 'head.bird-owl', eyes: 'eyes.simple', eyebrows: 'eyebrows.bird-relaxed', mouth: 'mouth.beak-owl' }),
     accessories: Object.freeze(['accessory.crest-owl-tufts']), palette: 'bird-owl-cream'
   }),
   Object.freeze({
     id: 'duck', proposedName: 'Duck', species: 'duck', morphology: PILOT_MORPHOLOGY, style: PILOT_STYLE,
     direction: 'Round, wide and friendly: a smooth head, soft eyes, brows lifted clear of them, the flat bill, and one smooth feather lying back.',
     tags: Object.freeze(['duck', 'bird']),
-    parts: Object.freeze({ head: 'head.bird-duck', eyes: 'eyes.bird-soft', eyebrows: 'eyebrows.bird-curious', mouth: 'mouth.beak-duck' }),
+    parts: Object.freeze({ head: 'head.bird-duck', eyes: 'eyes.simple', eyebrows: 'eyebrows.bird-curious', mouth: 'mouth.beak-duck' }),
     accessories: Object.freeze(['accessory.crest-smooth-feather']), palette: 'bird-duck-cream'
   }),
   Object.freeze({
     id: 'parrot', proposedName: 'Parrot', species: 'parrot', morphology: PILOT_MORPHOLOGY, style: PILOT_STYLE,
     direction: 'Upright and loud: side feathers down the face, bright alert eyes, raised brows, the hooked bill and the tall fan crest.',
     tags: Object.freeze(['parrot', 'bird']),
-    parts: Object.freeze({ head: 'head.bird-parrot', eyes: 'eyes.bird-bright', eyebrows: 'eyebrows.bird-curious', mouth: 'mouth.beak-parrot' }),
+    parts: Object.freeze({ head: 'head.bird-parrot', eyes: 'eyes.simple', eyebrows: 'eyebrows.bird-curious', mouth: 'mouth.beak-parrot' }),
     accessories: Object.freeze(['accessory.crest-parrot-tall']), palette: 'bird-parrot-orange'
   }),
   Object.freeze({
     id: 'crow', proposedName: 'Crow', species: 'crow', morphology: PILOT_MORPHOLOGY, style: PILOT_STYLE,
     direction: 'Angular and unimpressed: a squared head, narrowed eyes, brows driven down towards the beak, a straight point, and a ragged tuft.',
     tags: Object.freeze(['crow', 'corvid', 'bird']),
-    parts: Object.freeze({ head: 'head.bird-crow', eyes: 'eyes.bird-piercing', eyebrows: 'eyebrows.bird-angry', mouth: 'mouth.beak-crow' }),
+    parts: Object.freeze({ head: 'head.bird-crow', eyes: 'eyes.iris', eyebrows: 'eyebrows.bird-angry', mouth: 'mouth.beak-crow' }),
     accessories: Object.freeze(['accessory.crest-messy-tuft']), palette: 'bird-crow-slate'
   }),
   Object.freeze({
     id: 'cute-bird', proposedName: 'Cute bird', species: 'cute', morphology: PILOT_MORPHOLOGY, style: PILOT_STYLE,
     direction: 'Small and delighted: a perfectly round head, happy eyes with two highlights, arched brows, a broad friendly beak and a soft round tuft.',
     tags: Object.freeze(['cute', 'bird', 'small']),
-    parts: Object.freeze({ head: 'head.bird-cute', eyes: 'eyes.bird-happy', eyebrows: 'eyebrows.bird-happy', mouth: 'mouth.beak-wide' }),
+    parts: Object.freeze({ head: 'head.bird-cute', eyes: 'eyes.simple', eyebrows: 'eyebrows.bird-happy', mouth: 'mouth.beak-wide' }),
     accessories: Object.freeze(['accessory.crest-round-tuft']), palette: 'bird-cute-blue'
   }),
   Object.freeze({
     id: 'slim-bird', proposedName: 'Slim bird', species: 'slim', morphology: PILOT_MORPHOLOGY, style: PILOT_STYLE,
     direction: 'Tall and elegant: a narrow head, heavy lids, a brow with a corner in it, the smallest beak, and three plain feathers straight up.',
     tags: Object.freeze(['slim', 'bird', 'elegant']),
-    parts: Object.freeze({ head: 'head.bird-slim', eyes: 'eyes.bird-sleepy', eyebrows: 'eyebrows.bird-sharp', mouth: 'mouth.beak-small' }),
+    parts: Object.freeze({ head: 'head.bird-slim', eyes: 'eyes.simple', eyebrows: 'eyebrows.bird-sharp', mouth: 'mouth.beak-small' }),
     accessories: Object.freeze(['accessory.crest-simple']), palette: 'bird-slim-amber'
   })
 ]);

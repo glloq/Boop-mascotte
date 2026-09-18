@@ -24,20 +24,25 @@ const SPECIES = ['owl', 'duck', 'parrot', 'crow', 'cute-bird', 'slim-bird'];
 const part = (id) => BIRD_FACE_PARTS.find((asset) => asset.id === id);
 const ids = new Set(BIRD_FACE_PARTS.map((asset) => asset.id));
 
-test('the pack is thirty drawings, and two more of the planche were already here', () => {
-  assert.equal(BIRD_FACE_PARTS.length, 30);
+test('the pack is twenty-four drawings, and the rest of the planche was already here', () => {
+  // Thirty when it arrived. The six eye sets were the shipped construction at
+  // other radii for the third time -- the file's own header said so, twice --
+  // and a bird's eye is a big round white with a disc in it, which is what
+  // `eyes.simple` draws (docs/EYE_BUILDS.md).
+  assert.equal(BIRD_FACE_PARTS.length, 24);
   const categories = {};
   for (const asset of BIRD_FACE_PARTS) categories[asset.category] = (categories[asset.category] || 0) + 1;
-  assert.deepEqual(categories, { head: 6, eyes: 6, eyebrows: 5, mouth: 6, accessory: 7 },
-    'six rows and not one new category: the beaks are mouths and the crests accessories');
+  assert.deepEqual(categories, { head: 6, eyebrows: 5, mouth: 6, accessory: 7 },
+    'five rows and not one new category: the beaks are mouths and the crests accessories');
   for (const asset of BIRD_FACE_PARTS) {
     assert.equal(asset.origin, 'builtin');
     assert.ok(Object.isFrozen(asset), `${asset.id} is frozen`);
     assert.ok(FACE_PART_LIBRARY.has(asset.id), `${asset.id} is in the library`);
   }
   // The planche's row 6 is four accessories and two of them already existed,
-  // because an accessory that declares no `morphologies` is universal. That is
-  // the whole reason thirty-three pieces cost thirty drawings.
+  // because an accessory that declares no `morphologies` is universal -- and
+  // its eye row is the library's own three builds, for the same reason. That is
+  // why thirty-three pieces cost twenty-four drawings.
   for (const id of ['accessory.glasses', 'accessory.bow-tie']) {
     assert.ok(FACE_PART_LIBRARY.has(id), `${id} was already here`);
     assert.deepEqual([...FACE_PART_LIBRARY.get(id).morphologies], [], `${id} suits every kind of face, a bird included`);
@@ -177,6 +182,8 @@ test('the six birds are recipes, and the sharing is exactly what the planche all
     }
     assert.match(preset.parts.mouth, /^mouth\.beak-/, `${id} wears a beak under the mouth key`);
     for (const asset of [...Object.values(preset.parts), ...preset.accessories]) {
+      // Everything but the eyes, which come from the library's three builds.
+      if (asset.startsWith('eyes.')) { assert.ok(['eyes.dot', 'eyes.simple', 'eyes.iris'].includes(asset), `${id} names ${asset}, which is not a build`); continue; }
       assert.ok(ids.has(asset), `${id} names ${asset}, which is not in the pack`);
     }
   }
@@ -187,9 +194,12 @@ test('the six birds are recipes, and the sharing is exactly what the planche all
     return [...Object.values(preset.parts), ...preset.accessories];
   });
   assert.equal(named.length, 30, 'four parts and a crest each');
-  assert.equal(new Set(named).size, 29, 'over twenty-nine drawings');
+  assert.equal(new Set(named).size, 25, 'over twenty-five drawings');
   const twice = named.filter((id, index) => named.indexOf(id) !== index);
-  assert.deepEqual(twice, ['eyebrows.bird-curious']);
+  // The brows are still the planche's own sharing. The eyes are shared five
+  // ways now, which is the argument for having three builds rather than six
+  // drawings: what told the six birds apart was never the construction.
+  assert.deepEqual(twice, ['eyes.simple', 'eyes.simple', 'eyebrows.bird-curious', 'eyes.simple', 'eyes.simple']);
   // The monocle is what no recipe names, and it is the catalogue by design.
   assert.deepEqual(BIRD_FACE_PARTS.filter((asset) => !new Set(named).has(asset.id)).map((asset) => asset.id), ['accessory.monocle']);
 });
@@ -200,7 +210,10 @@ test('six plumages, no new token, and nothing named for a colour', () => {
     assert.ok(palette, `${id} paints in a palette that exists`);
     assert.deepEqual(Object.keys(palette), [...PALETTE_TOKENS], 'every token a colour, as every palette has');
   }
-  assert.equal(PALETTE_TOKENS.length, 12, 'and no thirteenth for a bird either');
+  // The thirteenth arrived for the iris build and not for a bird: nothing in
+  // this pack paints with it, and an owl's amber eye is now a palette away.
+  assert.equal(PALETTE_TOKENS.length, 13, 'and none of them added by a bird');
+  assert.deepEqual(BIRD_FACE_PARTS.filter((asset) => asset.palette.includes('iris')), []);
   for (const asset of BIRD_FACE_PARTS) {
     assert.doesNotMatch(asset.id, /cream|orange|slate|amber|blue|yellow|green|grey|gray|pink|white|black/,
       `${asset.id} is named for a colour, and a colour is a palette`);
@@ -216,7 +229,7 @@ test('a bird face is offered the birds and everything universal', () => {
 
 test('every drawing in the pack places, and the review sheet has nothing to say about any of them', () => {
   const reviewed = reviewAssets({ morphology: 'beak' }).filter((item) => ids.has(item.id));
-  assert.equal(reviewed.length, 30, 'every one of them is reviewed');
+  assert.equal(reviewed.length, 24, 'every one of them is reviewed');
   assert.deepEqual(reviewed.filter((item) => item.geometryIssues.length).map((item) => `${item.id}: ${item.geometryIssues.map((issue) => issue.code).join(', ')}`), []);
   for (const item of reviewed) assert.ok(item.fit, `${item.id} has a fit onto the template`);
 });

@@ -19,7 +19,7 @@
  * shape that is not there is worse than none.
  */
 import { SEMANTIC_PART_REGISTRY, semanticDriverProperties } from '../../rig-editor/semantic-parts/part-registry.js';
-import { assignSemanticRole, createSemanticPart, disableSemanticControl, enableSemanticControl, removeSemanticPart, resetSemanticMorph, restingOffset } from '../../rig-editor/semantic-parts/part-model.js';
+import { assignSemanticRole, cleanupOwnedDriver, createSemanticPart, disableSemanticControl, enableSemanticControl, removeSemanticPart, resetSemanticMorph, restingOffset } from '../../rig-editor/semantic-parts/part-model.js';
 import { featureMountPoint } from '../sample/face-features.js';
 import { captureHeadPose, createHeadPoseAxes, isHeadPoseKeyform } from '../head-pose/head-pose-model.js';
 import { generateHeadTurn, headTurnElements } from '../head-pose/head-pose-turn.js';
@@ -449,9 +449,24 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
     rehomed.push({ partId: other.id, role: guest.role, host: onto });
   }
 
-  // Every new piece turns and scales about its own middle.
-  const centre = (id) => { const box = measure(id); return box && Number.isFinite(box.width) && box.width > 0 ? { x: box.x + box.width / 2, y: box.y + box.height / 2 } : null; };
-  for (const id of fragmentIds) { const at = centre(id); if (at) Object.assign(candidate.elements[id].baseTransform, { pivotX: round(at.x), pivotY: round(at.y) }); }
+  // Every new piece turns and scales about its own middle -- except where a
+  // driver asked for an edge, which is how a lid grows across the eye rather
+  // than away from it in both directions (`DRIVER_PIVOTS`, docs/EYE_BUILDS.md).
+  const anchor = (id, where = 'centre') => {
+    const box = measure(id);
+    if (!box || !Number.isFinite(box.width) || box.width <= 0) return null;
+    const mid = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    if (where === 'top') return { x: mid.x, y: box.y };
+    if (where === 'bottom') return { x: mid.x, y: box.y + box.height };
+    if (where === 'left') return { x: box.x, y: mid.y };
+    if (where === 'right') return { x: box.x + box.width, y: mid.y };
+    return mid;
+  };
+  for (const id of fragmentIds) { const at = anchor(id, 'centre'); if (at) Object.assign(candidate.elements[id].baseTransform, { pivotX: round(at.x), pivotY: round(at.y) }); }
+  for (const [id, where] of pivotWords(asset, idOf)) {
+    const at = candidate.elements[id] ? anchor(id, where) : null;
+    if (at) Object.assign(candidate.elements[id].baseTransform, { pivotX: round(at.x), pivotY: round(at.y) });
+  }
   // Fitted to this face (docs/FACE_PART_LIBRARY.md, "Layout and auto-fit"),
   // and where the author had put the old part on top of that. A piece
   // painted behind the face sits outside the root, so it takes the same
@@ -490,7 +505,7 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
     const sample = (candidate.keyforms || []).find(isHeadPoseKeyform);
     const axes = sample?.axes?.length === 2 ? createHeadPoseAxes({ x: sample.axes[0], y: sample.axes[1] }) : createHeadPoseAxes();
     const centers = {};
-    for (const layer of headTurnElements(candidate)) { const at = centre(layer.elementId); if (at) centers[layer.elementId] = at; }
+    for (const layer of headTurnElements(candidate)) { const at = anchor(layer.elementId); if (at) centers[layer.elementId] = at; }
     const head = partOfType(candidate, 'head')?.roles?.head;
     const headWidth = head ? Number(measure(head)?.width) || null : null;
     const fresh = new Set(fragmentIds);
@@ -587,6 +602,11 @@ function refreshControls(candidate, part, { wanted, supported, hints, enabled, d
       // travels down; drawn teeth show by opacity, which no strategy knows).
       const hint = hints[control];
       if (on) resetSemanticMorph(candidate, part.id, control);
+      // And the driver it *used* to write, which is not always the one it is
+      // about to: a lid installed as a `translateY` and re-installed as a
+      // `scaleY` kept both, and blinked by sliding and growing at once. The
+      // binding belongs to this part and this control, so it goes with it.
+      if (on) cleanupOwnedDriver(candidate, part.id, control);
       enableSemanticControl(candidate, part.id, control, hint ? { property: hint.property, amplitude: hint.amplitude, offset: hint.offset ?? restOffset(definition, control, hint) } : {});
       if (hint) applyHint(candidate, part, control, hint);
       enabled.push(control);
@@ -742,6 +762,34 @@ function installJawShapeKey(candidate, jaw, skull, hint) {
   element.restPath = rest;
   candidate.shapeKeys = upsertShapeKey(candidate.shapeKeys || [], shape.shapeKey);
   return true;
+}
+
+/**
+ * The pieces a driver asked to pivot somewhere other than their middle.
+ *
+ * `[elementId, 'top' | 'bottom' | ...]`, read off the asset's own drivers — the
+ * part's and each sub-part's, with each side's override winning over the shared
+ * word. An eyelid is the only thing in the library that needs it, and needs it
+ * badly: a lid is the eye's own ellipse **grown** about the rim it sits on, so
+ * pivoted at its middle it opens away from the eye in both directions instead
+ * of sweeping across it (docs/EYE_BUILDS.md).
+ *
+ * Element names are the asset's, so they go through `idOf`: the canvas renames
+ * anything already on the face.
+ */
+function pivotWords(asset, idOf) {
+  const out = new Map();
+  const read = (roles, drivers) => {
+    for (const hint of Object.values(drivers || {})) {
+      for (const [role, elementId] of Object.entries(roles || {})) {
+        const where = hint.roles?.[role]?.pivot ?? hint.pivot;
+        if (where && where !== 'centre') out.set(idOf(elementId), where);
+      }
+    }
+  };
+  read(asset.roles, asset.drivers);
+  for (const drawn of Object.values(asset.parts || {})) read(drawn.roles, drawn.drivers);
+  return out;
 }
 
 /**

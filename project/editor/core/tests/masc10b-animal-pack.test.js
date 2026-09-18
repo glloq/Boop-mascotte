@@ -5,6 +5,7 @@ import { BUILTIN_FACE_PARTS } from '../face-library/builtin/index.js';
 import { FACE_PART_LIBRARY } from '../face-library/face-part-registry.js';
 import { FACE_PRESET_LIBRARY, FACE_PALETTES, presetColours } from '../face-library/face-presets.js';
 import { PALETTE_TOKENS } from '../face-library/face-part-model.js';
+import { CLOSED_EYE_STYLES } from '../face/eye-build.js';
 import { assetSlot, compatibleMorphologies } from '../face-library/face-morphologies.js';
 import { NARROWED } from './fixtures/face-packs.js';
 import { availableMorphologies, presetsFor } from '../face-library/compatibility.js';
@@ -28,13 +29,20 @@ const SPECIES = ['cat', 'dog', 'fox', 'bear', 'wolf', 'rabbit'];
 const animal = (id) => ANIMAL_FACE_PARTS.find((asset) => asset.id === id);
 const COATS = ['cat-ginger', 'cat-grey', 'dog-tan', 'fox-orange', 'bear-brown', 'wolf-grey', 'rabbit-cream'];
 
-test('the pack is forty-five drawings in the categories the library already had', () => {
-  assert.equal(ANIMAL_FACE_PARTS.length, 45);
-  assert.ok(BUILTIN_FACE_PARTS.length >= 92, 'the 47 that were here, and these, and whatever arrived since');
+test('the pack is thirty-nine drawings in the categories the library already had', () => {
+  // Forty-five when it arrived. The six eyes went with the rest of the
+  // seventeen the library drew one way at different radii: the pack's own
+  // header said they were "built the way the shipped sets are built", which is
+  // an argument for reading them off the shipped sets rather than redrawing
+  // them (docs/EYE_BUILDS.md). An animal's eye is not a different construction
+  // from a person's, so the three builds dress a muzzle too.
+  assert.equal(ANIMAL_FACE_PARTS.length, 39);
+  assert.ok(BUILTIN_FACE_PARTS.length >= 86, 'the 45 that were here, and these, and whatever arrived since');
   const categories = {};
   for (const asset of ANIMAL_FACE_PARTS) categories[asset.category] = (categories[asset.category] || 0) + 1;
-  assert.deepEqual(categories, { head: 6, eyes: 6, eyebrows: 5, ears: 8, accessory: 10, nose: 5, mouth: 5 },
-    'no pupils card and no eyelids card: the eye sets draw both');
+  assert.deepEqual(categories, { head: 6, eyebrows: 5, ears: 8, accessory: 10, nose: 5, mouth: 5 },
+    'and no eyes, no pupils card and no eyelids card');
+  assert.deepEqual(ANIMAL_FACE_PARTS.filter((asset) => asset.category === 'eyes'), [], 'a muzzle wears the library\'s own three builds');
   for (const asset of ANIMAL_FACE_PARTS) {
     assert.equal(asset.origin, 'builtin');
     assert.ok(Object.isFrozen(asset), `${asset.id} is frozen`);
@@ -119,24 +127,29 @@ test('a muzzle leaves the nose and the mouth room, so nothing is drawn over anyt
   for (const mouth of mouths) assert.ok(mouth.capabilities.includes('mouthOpen') && mouth.capabilities.includes('smile'), mouth.id);
 });
 
-test('an eye drawn shut is still a whole eye set, and claims nothing it cannot do', () => {
-  // The other open question MASC-10A left. A bare pair of arcs would be refused
-  // by the install -- an eye set is the part that *holds* the gaze and the
-  // eyelids, so swapping in one that brings neither takes the pupils off the
-  // face -- which is why `eyes.animal-happy` is a composite like every other.
-  const shut = animal('eyes.animal-happy');
-  assert.ok(shut.parts.gaze.roles.leftPupil && shut.parts.gaze.roles.rightPupil, 'it holds the gaze');
-  assert.equal(Object.keys(shut.parts.eyelids.roles).length, 4, 'and all four lids');
-  assert.deepEqual(shut.capabilities, [], 'and claims no eyeOpen: there is no blink left in lids already met');
-  assert.deepEqual(shut.parts.eyelids.capabilities, []);
-  assert.deepEqual(shut.parts.gaze.capabilities, []);
-  assert.equal(shut.drivers, undefined);
-  // Every other eye set in the pack is an ordinary one, and says so.
-  for (const asset of ANIMAL_FACE_PARTS.filter((item) => item.category === 'eyes' && item !== shut)) {
-    assert.deepEqual(asset.capabilities, ['eyeOpen'], asset.id);
-    assert.deepEqual(asset.parts.gaze.capabilities, ['lookX', 'lookY', 'pupilScale'], asset.id);
-    assert.ok(asset.parts.eyelids.drivers.eyeOpen, asset.id);
+test('a shut eye is a control at zero, not a drawing of its own', () => {
+  // MASC-10A's open question was what an eye already closed does with `eyeOpen`
+  // and with the pupils it is supposed to own. `eyes.animal-happy` answered it
+  // by being a whole eye set drawn shut -- gaze, lids and all, because a bare
+  // pair of arcs would be refused by the install.
+  //
+  // The answer holds and the drawing is gone, because a shut eye was never a
+  // drawing: it is `eyeOpen 0`, which every build carries and which can be
+  // keyed, blended and animated. Which *kind* of shut -- the flat seam, the
+  // happy arc, the tired droop, a lash -- is `eyeCurve`, another control, and
+  // the styles name its values (`CLOSED_EYE_STYLES`, docs/EYE_BUILDS.md). Six
+  // drawings of expressions became two controls and four names.
+  assert.deepEqual(CLOSED_EYE_STYLES.map((style) => style.id), ['seam', 'happy', 'tired', 'lash']);
+  for (const style of CLOSED_EYE_STYLES) {
+    assert.ok(style.name && style.hint, `${style.id} is offered in words`);
+    assert.ok(style.eyeCurve >= -1 && style.eyeCurve <= 1, `${style.id} is a value of eyeCurve, which the rig already has`);
   }
+  // And the pack's eye expressions -- sleepy, happy -- are the same control at
+  // a value: `eyes.animal-sleepy` was a lid parked lower, which is `eyeOpen`
+  // partway, and it can be animated where a second drawing could not.
+  const lidded = FACE_PART_LIBRARY.list('eyes').filter((asset) => asset.parts?.eyelids?.capabilities?.includes('eyeOpen'));
+  assert.ok(lidded.length, 'the library still draws eyes that close');
+  for (const asset of lidded) assert.ok(asset.parts.eyelids.drivers.eyeOpen, `${asset.id} says how its lids close`);
 });
 
 test('the three rows that would not turn on their own say how they turn', () => {
@@ -171,7 +184,10 @@ test('the six animals are recipes over shared drawings, not six libraries', () =
     assert.ok(preset.tags.includes('animal'), `${preset.id} says what it is`);
     assert.equal(preset.parts.hair, undefined, `${preset.id} has fur, which its head is drawn with`);
     assert.ok(COATS.includes(preset.palette), `${preset.id} wears one of the coat palettes`);
+    // Every drawing but the eyes, which are the library's own three builds: a
+    // pack that redrew them would be redrawing one construction at a radius.
     for (const id of [...Object.values(preset.parts), ...preset.accessories]) {
+      if (id.startsWith('eyes.')) { assert.ok(['eyes.dot', 'eyes.simple', 'eyes.iris'].includes(id), `${preset.id} names ${id}, which is not a build`); continue; }
       assert.ok(animal(id), `${preset.id} names ${id}, which is not in the pack`);
     }
   }
@@ -181,12 +197,13 @@ test('the six animals are recipes over shared drawings, not six libraries', () =
   // cat and a fox a nose, a dog and a wolf a muzzle.
   const named = worn.flatMap((preset) => [...Object.values(preset.parts), ...preset.accessories]);
   assert.equal(named.length, 46, 'six parts each, and ten sets of whiskers and muzzles between them');
-  assert.equal(new Set(named).size, 38, 'over thirty-eight drawings: eight of them dress two species');
-  // The seven left over are the catalogue: two eye expressions, a worried brow,
-  // two ear pairs, a second feline muzzle and a wide happy mouth. A parts
-  // library exists to be combined, and the sheet's own header says so.
+  assert.equal(new Set(named).size, 36, 'over thirty-six drawings: six of them dress two species, and two eye builds dress all six');
+  // The five left over are the catalogue: a worried brow, two ear pairs, a
+  // second feline muzzle and a wide happy mouth. A parts library exists to be
+  // combined, and the sheet's own header says so. The two eye expressions that
+  // used to be here -- sleepy and happy -- are controls now, not drawings.
   assert.deepEqual(ANIMAL_FACE_PARTS.filter((asset) => !new Set(named).has(asset.id)).map((asset) => asset.id),
-    ['eyes.animal-sleepy', 'eyes.animal-happy', 'eyebrows.animal-worried', 'ears.small-round', 'ears.tufted',
+    ['eyebrows.animal-worried', 'ears.small-round', 'ears.tufted',
       'accessory.muzzle-feline-rounded', 'mouth.animal-happy-curve']);
 });
 
@@ -196,9 +213,13 @@ test('a ginger cat and a grey cat are one drawing and two palettes', () => {
     assert.ok(palette, `${id} is a palette`);
     assert.deepEqual(Object.keys(palette), [...PALETTE_TOKENS], 'every token a colour, as every palette has');
   }
-  // No thirteenth token: MASC-10A asked whether the muzzle pad and the inner ear
-  // needed one, and `skinShadow` carries both against all seven coats.
-  assert.equal(PALETTE_TOKENS.length, 12);
+  // MASC-10A asked whether the muzzle pad and the inner ear needed a token of
+  // their own, and `skinShadow` carries both against all seven coats. The
+  // thirteenth arrived for a different reason and from outside the pack: the
+  // iris build paints a disc of colour, and a cat's amber eye against a grey
+  // cat's green is exactly the kind of thing a palette is for.
+  assert.equal(PALETTE_TOKENS.length, 13);
+  for (const id of COATS) assert.ok(/^#[0-9a-f]{6}$/.test(FACE_PALETTES[id].iris), `${id} has an eye colour`);
   const cat = FACE_PRESET_LIBRARY.get('cat');
   assert.equal(cat.palette, 'cat-ginger');
   assert.notDeepEqual(presetColours(cat), presetColours({ ...cat, palette: 'cat-grey' }), 'the same drawings, painted differently');
@@ -222,7 +243,7 @@ test('every drawing in the pack places, and the review sheet has nothing to say 
   // artboard's top edge into the headroom.
   const pack = new Set(ANIMAL_FACE_PARTS.map((asset) => asset.id));
   const reviewed = reviewAssets({ morphology: 'muzzle' }).filter((item) => pack.has(item.id));
-  assert.equal(reviewed.length, 45, 'every one of them is reviewed');
+  assert.equal(reviewed.length, 39, 'every one of them is reviewed');
   assert.deepEqual(reviewed.filter((item) => item.geometryIssues.length).map((item) => `${item.id}: ${item.geometryIssues.map((issue) => issue.code).join(', ')}`), []);
   for (const item of reviewed) assert.ok(item.fit, `${item.id} has a fit onto the template`);
   const rabbit = animal('ears.rabbit-long');
