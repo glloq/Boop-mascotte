@@ -206,6 +206,11 @@ the install calls it before re-enabling.
 ```text
 core/face/eye-build.js                geometry, markup and drivers, shared
 core/face-library/builtin/eyes.js     the three cards
+core/sample/templates/
+  face-artwork.js                     the template's lids, creases and seam
+  template-project.js                 the scale, the pivots, the rim's fade
+svg-editor/svg-canvas.js              inside(): a group is draggable by its children
+svg-editor/transform-gizmo.js         a body press is claimed on the first move
 rig-editor/semantic-parts/
   part-registry.js                    gaze grew leftIris/rightIris; scaleY is a lid strategy
   part-model.js                       cleanupOwnedDriver exported
@@ -216,10 +221,67 @@ core/face-library/
   face-presets.js                     twenty-two recipes migrated; 21 palettes + iris
 ```
 
-## Still to do
+## The template's own eyes
 
-The **template's own eyes** (`core/sample/templates/face-artwork.js`) still draw
-`<clipPath id="eyeSocketLeft">` with their lids parked outside it, so the default
-mascot keeps the box an author cannot grab. They are the harder half, because the
-template's lids also carry the `eyeSquint` and `eyeCurve` shape keys that the
-closed-eye styles are made of, and a shape key needs a path.
+The library's cards were half of it. The **default mascot** — what every author
+opens the editor on — had the same socket, and the numbers were the ones the
+complaint described:
+
+| | Before | After |
+| --- | --- | --- |
+| The eye as drawn | 100 × 94 px | 100 × 94 px |
+| The eye group's **box** | 191 × 281 px | **100 × 94 px** |
+| The clip, in `document.elements` | absent | *there is none* |
+| Press the middle of the box and drag | nothing moves | the eye moves |
+
+The lids are slivers on the rim, scaled about it, exactly as the cards' are —
+but written as **paths**, because the template's lids carry the `eyeSquint` and
+`eyeCurve` shape keys the closed-eye styles are made of, and a shape key needs a
+path. Four cubics round a squashed ellipse; the half facing the pupil is the
+leading edge, and that is where both poses act.
+
+Three details the growing construction needed:
+
+- **The lid is a hairline at rest** (`slice: 0.05`, about two units tall). Drawn
+  any deeper its edge is a line across the white — and a hairline is also what
+  makes half a blink cover half the eye, because the edge starts *at* the rim and
+  travels linearly to the seam. Drawn a fifth of the eye deep, half a blink was
+  two thirds.
+- **The lid carries no outline.** A closed shape stroked all the way round draws
+  its rim half too, and the rim half of a sliver sits inside the eye at the
+  corners — so each lid read as a lens-shaped ring lying across the eye. The line
+  is its own path instead (`creaseUpperLeft` and its three companions), sharing
+  its lid's pivot, its `scaleY` and its shape keys, with `non-scaling-stroke` so
+  a 3-unit crease does not arrive as a 10-unit band. It cannot drift from the
+  lid, because it *is* the lid's edge — one piece of arithmetic read twice
+  (`leadingEdge`).
+- **The eye's outline goes out with the light.** A shut cartoon eye is a line,
+  not a circle with a line through it. `rim` fades on `eyeOpen`, on an `easeOut`
+  curve so the outline holds through most of the blink and only lets go at the
+  end.
+
+Both lids grow to the **seam** rather than across the whole eye — `LID_MEET`,
+which lands each leading edge on the line a shade below the middle where a lash
+line sits. That is the template's own closed-eye vocabulary kept exactly: two
+lids that meet on one line, which `eyeCurve` bends into the happy `^ ^` and the
+tired droop. The two arcs are matched (the lower lid's is divided by its own
+smaller scale) so a shut eye is one line and not two a unit apart.
+
+### Two more things this turned up
+
+**A group you could select and never drag.** The piece model that answers "is
+this shape inside the selected piece" is installed on Hands alone, so on Artwork
+`canDragBody` refused every press on a child — and a group is covered by its own
+children, so there was no point on it that was not on one of them. An eye an
+author could select and never move, which is the second half of what they
+reported. `inside()` reads the containment off the DOM the pointer just hit, and
+the gizmo claims a **body** press only on the first `pointermove`: claiming it on
+`pointerdown` killed the click two ways over — `preventDefault` suppresses the
+compatibility mouse events, and `setPointerCapture` redirects the ones that
+survive — so a click could no longer reach the shape under the pointer. Now a
+click selects the shape and a drag moves the group.
+
+**Catchlights that stayed behind.** `lookX 1` slid the pupil eight units and left
+both highlights where they were, so a mascot looking sideways had its glint on
+the white beside its pupil. They are siblings of the pupil rather than children
+of it, and they take its own bindings now.

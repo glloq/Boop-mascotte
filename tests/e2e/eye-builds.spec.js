@@ -159,3 +159,112 @@ test('@critical a lid grows across the eye to shut it, and rests exactly as draw
   expect(Math.abs(again.height - open.height), 'and rests exactly as drawn').toBeLessThan(1.5);
   expect((await state(page)).semanticParts[eyes.id].controlDrivers.eyeOpen, 'the eyes still carry the blink').toBeTruthy();
 });
+
+/**
+ * The template's own eyes, which is what an author opens the editor on.
+ *
+ * The library's cards were half the complaint; the default mascot was the other
+ * half, and it had the same socket. Three things had to become true, and the
+ * third was not about the eyes at all:
+ *
+ * ```text
+ * 1  the clip an author cannot see is gone
+ * 2  the eye's box is the eye, so the handles land on it
+ * 3  a group you can select is a group you can drag
+ * ```
+ */
+test('@critical the template eye has no socket, and its box is the eye', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openArtwork(page);
+
+  // The clip used to live in `<defs>`: in the markup, and in neither the layer
+  // tree nor `document.elements`. Unseeable, unmovable, undeletable.
+  expect(await page.evaluate(() => /clipPath id="eyeSocket/.test(window.__BOOP_E2E__.state().svgMarkup)),
+    'the socket is gone from the drawing').toBe(false);
+  expect(await page.evaluate(() => Object.keys(window.__BOOP_E2E__.state().elements).filter((id) => /socket/i.test(id))),
+    'and there is nothing socket-shaped left to look for').toEqual([]);
+
+  // 191 x 281 around an eye of 100 x 94, because two lids were parked outside
+  // the clip. Now the group is the eye it draws.
+  const group = await painted(page, 'eyeLeft');
+  const white = await painted(page, 'eyeWhiteLeft');
+  expect(group.height).toBeLessThan(white.height * 1.05);
+  expect(group.width).toBeLessThan(white.width * 1.05);
+  // And each lid is a sliver on its own rim, inside the eye, not a slab above it.
+  const lid = await painted(page, 'lidUpperLeft');
+  expect(lid.height).toBeLessThan(white.height * 0.2);
+  expect(lid.y).toBeGreaterThanOrEqual(white.y - 1);
+});
+
+test('@critical an eye can be grabbed and moved, which is what a group is for', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openArtwork(page);
+  await select(page, 'eyeLeft');
+
+  // The box is on the eye, where a hundred pixels of parked lid used to sit
+  // between the two.
+  const box = await painted(page, 'eyeLeft');
+  const gizmo = await gizmoBox(page);
+  expect(Math.abs(gizmo.x - box.x)).toBeLessThan(10);
+  expect(Math.abs(gizmo.height - box.height)).toBeLessThan(20);
+
+  // A point on the white, genuinely inside the selected eye.
+  const at = { x: gizmo.x + gizmo.width * 0.28, y: gizmo.y + gizmo.height * 0.62 };
+  expect(await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.id, [at.x, at.y]),
+    'the pointer is genuinely on a child of the eye').toBe('eyeWhiteLeft');
+
+  // A plain *click* there reaches the shape under the pointer, which is what a
+  // vector editor is for: the rule below is about the gesture, not the target.
+  await page.mouse.click(at.x, at.y);
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.session().selectedId)).toBe('eyeWhiteLeft');
+
+  // Dragged, the same press moves the **eye**, and the selection does not jump
+  // to the white. A group is covered by its own children, so without this there
+  // is no point on it that is not on one of them -- an eye an author could
+  // select and never move.
+  await select(page, 'eyeLeft');
+  const before = await page.evaluate(() => window.__BOOP_E2E__.state().elements.eyeLeft.baseTransform);
+  await page.mouse.move(at.x, at.y);
+  await page.mouse.down();
+  await page.mouse.move(at.x + 30, at.y + 10, { steps: 8 });
+  await page.mouse.up();
+  const after = await page.evaluate(() => window.__BOOP_E2E__.state().elements.eyeLeft.baseTransform);
+  expect(await page.evaluate(() => window.__BOOP_E2E__.session().selectedId), 'the eye is still what is selected').toBe('eyeLeft');
+  expect(Math.hypot(after.x - before.x, after.y - before.y), `the eye moved: ${JSON.stringify(before)} -> ${JSON.stringify(after)}`).toBeGreaterThan(5);
+  expect([after.pivotX, after.pivotY], 'and its pivot stayed put').toEqual([before.pivotX, before.pivotY]);
+});
+
+test('@critical the template blinks by growing its lids, and a shut eye is a seam', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openArtwork(page);
+
+  const open = { lid: await painted(page, 'lidUpperLeft'), crease: await painted(page, 'creaseUpperLeft'), eye: await painted(page, 'eyeWhiteLeft') };
+  expect(open.crease, 'each lid draws its edge as its own line').toBeTruthy();
+
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('eyeOpen', 0));
+  await page.waitForTimeout(220);
+  const shut = { lid: await painted(page, 'lidUpperLeft'), crease: await painted(page, 'creaseUpperLeft'), eye: await painted(page, 'eyeWhiteLeft') };
+
+  // The lid grows from its sliver to half the eye and stops on the seam, where
+  // the lower lid has come up to meet it.
+  expect(shut.lid.height).toBeGreaterThan(open.lid.height * 4);
+  expect(shut.lid.y, 'from the rim it swings from').toBeLessThan(shut.eye.y + 2);
+  expect(shut.lid.y + shut.lid.height, 'to the middle of the eye, not past it')
+    .toBeLessThan(shut.eye.y + shut.eye.height * 0.62);
+  const lower = await painted(page, 'lidLowerLeft');
+  expect(lower.y, 'and the lower lid meets it there').toBeLessThan(shut.lid.y + shut.lid.height + 4);
+  // The crease rides its lid exactly: it *is* the lid's edge, so the lowest
+  // point of the line is the lowest point of the skin it draws the edge of.
+  expect(Math.abs((shut.crease.y + shut.crease.height) - (shut.lid.y + shut.lid.height))).toBeLessThan(6);
+
+  // And the eye's own outline goes out with the light: a shut cartoon eye is a
+  // line, not a circle with a line through it.
+  expect(await page.evaluate(() => window.__BOOP_E2E__.state().elements.rimLeft.bindings.opacity.expression)).toBe('eyeOpen + eyeOpenLeft');
+
+  await page.evaluate(() => window.__BOOP_E2E__.clearLiveParam('eyeOpen'));
+  await page.waitForTimeout(220);
+  expect(Math.abs((await painted(page, 'lidUpperLeft')).height - open.lid.height), 'and rests exactly as drawn').toBeLessThan(1.5);
+});

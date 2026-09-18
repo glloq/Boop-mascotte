@@ -89,34 +89,47 @@ test('the pupil sits behind the eyelid instead of fading out', () => {
   applyTemplateProject(state);
   // The old rig faded the pupil away with `opacity <- eyeOpen`, which is why it
   // vanished rather than being covered. Nothing drives pupil opacity now: the
-  // lids close over it, and the socket clip hides whatever leaves the eye.
+  // lids close over it, opaquely, and there is nothing to crop -- a lid is a
+  // sliver on the rim it swings from, grown to the seam, so it is never outside
+  // the eye in the first place (docs/EYE_BUILDS.md).
   for (const id of ['pupilLeft', 'pupilRight']) assert.equal(state.elements[id].bindings.opacity, undefined);
-  assert.match(state.svgMarkup, /clipPath id="eyeSocketLeft"/);
-  assert.match(state.svgMarkup, /clip-path="url\(#eyeSocketLeft\)"/);
+  assert.equal(/clipPath id="eyeSocket/.test(state.svgMarkup), false, 'and no socket an author cannot see');
+  assert.equal(/clip-path="url\(#eyeSocket/.test(state.svgMarkup), false);
 
   const open = compileRigFrame(state.elements, { eyeOpen: 1 }), shut = compileRigFrame(state.elements, { eyeOpen: 0 });
   assert.equal(open.pupilLeft.opacity, 1);
   assert.equal(shut.pupilLeft.opacity, 1, 'the pupil is covered, never faded');
-  // Open: the lids are parked outside the socket, which is where the artwork
-  // draws them -- so opening the eyes is the identity and closing them is the
-  // movement. Closed: they meet over the socket.
-  assert.equal(open.lidUpperLeft.transform.y, 0);
-  assert.equal(open.lidLowerLeft.transform.y, 0);
-  // Each lid crosses the half-socket it covers and stops on the seam: more than
-  // the half-socket, since it parks clear of it, and nowhere near twice it.
-  assert.ok(shut.lidUpperLeft.transform.y > EYE.ry && shut.lidUpperLeft.transform.y < EYE.ry * 2);
-  assert.ok(-shut.lidLowerLeft.transform.y > EYE.ry && -shut.lidLowerLeft.transform.y < EYE.ry * 2);
+  // Open: each lid is exactly as drawn, a sliver on its own rim -- so opening the
+  // eyes is the identity and closing them is the movement. Closed: they grow to
+  // meet on the seam.
+  assert.equal(open.lidUpperLeft.transform.scaleY, 1);
+  assert.equal(open.lidLowerLeft.transform.scaleY, 1);
+  assert.equal(open.lidUpperLeft.transform.y, 0, 'and nothing slides: the movement is a scale');
+  // Each lid grows until its leading edge lands on the seam, which is the eye's
+  // own half-height away from the rim it swings from. Measured off the drawing
+  // rather than off a constant, because the drawing is what has to arrive there:
+  // the lid's leading edge, grown about its pivot.
+  const reach = (id) => {
+    const drawn = Math.max(...parsePath(state.elements[id].restPath).values.filter((_, index) => index % 2 === 1)
+      .map((y) => Math.abs(y - state.elements[id].baseTransform.pivotY)));
+    return drawn * shut[id].transform.scaleY;
+  };
+  assert.ok(reach('lidUpperLeft') > EYE.ry * 0.95 && reach('lidUpperLeft') < EYE.ry * 1.1, `the upper lid reaches ${reach('lidUpperLeft')}`);
+  assert.ok(reach('lidLowerLeft') > EYE.ry * 0.9 && reach('lidLowerLeft') < EYE.ry * 1.05, `the lower lid reaches ${reach('lidLowerLeft')}`);
   assert.ok(shut.eyeLeft.transform.scaleY < open.eyeLeft.transform.scaleY, 'and the eye still squashes a little');
-  assert.ok(shut.eyeLeft.transform.scaleY > 0.5, 'gently: the lids inside it have to keep covering the socket');
+  assert.ok(shut.eyeLeft.transform.scaleY > 0.5, 'gently: the lids inside it have to keep meeting on the seam');
 });
 
-test('the whole eye turns as one assembly, socket included', () => {
+test('the whole eye turns as one assembly, and there is no socket to keep up', () => {
   const state = loaded();
   applyTemplateProject(state);
-  // The clip is on the eye itself, so it travels with it. When it sat on a
-  // wrapper inside the eye, the white and the pupil slid out from under a
-  // socket pinned to the face, and a turned head came apart.
-  assert.match(state.svgMarkup, /<g id="eyeLeft"[^>]*clip-path="url\(#eyeSocketLeft\)"/);
+  // The clip used to be on the eye group itself so that it travelled with it:
+  // pinned to the face instead, the white and the pupil slid out from under it
+  // and a turned head came apart. The right answer to the wrong problem -- the
+  // lids only needed cropping because they were drawn outside the eye. There is
+  // no clip left to put anywhere (docs/EYE_BUILDS.md).
+  assert.match(state.svgMarkup, /<g id="eyeLeft" data-name="Left eye">/);
+  assert.equal(state.svgMarkup.includes('eyeSocket'), false);
   // Every parameter the rig has, then the one being posed: the pupils scale
   // now, and a scale left out of the bag reads as 0 rather than as "unchanged".
   const turned = compileRigFrame(state.elements, { ...state.params, headX: 1 }, {}, {}, { keyforms: state.keyforms });

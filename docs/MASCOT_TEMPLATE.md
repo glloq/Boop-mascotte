@@ -25,7 +25,7 @@ as shading. V2 is the same rig — the same ids, the same shape keys, the same
 
 Nothing about the rig moved. The numbers it needs — where the eyes are, how
 far a lid travels, the box a brow's pins hang on — now come **from the
-artwork** (`FACE_CENTRES`, `LID_TRAVEL`, `BROW_BOXES`, `MOUTH_BOX`) instead of
+artwork** (`FACE_CENTRES`, `LID_MEET`, `BROW_BOXES`, `MOUTH_BOX`) instead of
 being a second copy in `template-project.js`, which is the only reason a
 redraw of this size did not need every one of them found and edited twice.
 
@@ -103,39 +103,60 @@ on both sides of every point and there is no way to write a corner into one of
 these shapes by accident. V1's hair was hand-written cubics, and every join
 where two segments met without their control points lining up was a notch.
 
-## The eye is a clipped group
+## The eye is a group, and nothing is clipped
 
 `eyeLeft` and `eyeRight` are not the whites — they are the whole eye, a group
-carrying `clip-path="url(#eyeSocketLeft|Right)"` and holding the white, the
-pupil, the glint, the two eyelids and the outline.
+holding the white, the pupil, the two catchlights, the two eyelids, the two
+creases that draw their edges, and the outline.
 
-That is what makes a closed eye behave. The eyelids are ordinary skin-coloured
-shapes parked above and below the socket; `eyeOpen` drives their `translateY`
-so they meet over the middle as the eye shuts. The pupil does not fade — it is
-still there, **behind the lid**, exactly as it would be on paper. Everything
-the lids push past the socket edge is simply not drawn.
+It **was** a clipped group, and the clip was the problem an author reported: a
+`<clipPath>` in `<defs>` appears in neither the layer tree nor
+`document.elements`, so it could not be seen, moved, resized or deleted — and
+the lids it cropped were drawn open and parked *outside* it, which made the
+group's box 191 × 281 screen pixels around an eye of 100 × 94. The selection
+handles sat ninety pixels off the eye on every side.
+
+A lid is the eye's own ellipse now, squashed to a hairline on the rim it swings
+from and **scaled about that rim** until its leading edge lands on the seam
+(`LID_MEET`, docs/EYE_BUILDS.md). Nothing is ever outside the eye, so nothing
+needs cropping and the group's box is the eye. The pupil still does not fade —
+it is still there, **behind the lid**, exactly as it would be on paper, because
+the lid is still an opaque shape painted over it.
 
 The artwork draws them **open**, and the bindings carry an offset so `eyeOpen 1`
 lands on the drawing and `eyeOpen 0` is the movement. V1 drew them shut and let
 the rig lift them, which meant the artwork on its own — the file an author
 opens, the thumbnail, the `mascot.svg` Export writes — was a mascot asleep.
 
-How far they travel is `LID_TRAVEL`, and it is derived rather than tuned: the
-half-socket, plus the margin the lid is parked clear of it by, plus or minus
-where the seam sits under the middle of the eye. The rigging reads the same
-constant, so resizing the eye keeps a full blink covering it instead of needing
-both numbers found and re-tuned.
+How far they grow is `LID_MEET`, and it is derived rather than tuned: the eye's
+own half-height over the hairline the lid is drawn as, plus or minus where the
+seam sits under the middle. The rigging reads the same constant, so resizing the
+eye keeps a full blink meeting on its own middle instead of needing both numbers
+found and re-tuned.
 
-**A closed eye is a seam, not an overlap.** A lid's leading edge is a curve —
-the upper one bulges down by `bulge`, the lower one up by `dip` — and the
-travel is measured to the point of that curve which arrives first, so each lid
-comes onto the shut line and stops there. The two meet over the middle of the
-socket and touch; neither goes through the other. The travel used to carry the
-lid's own curve a second time (the drawing had already placed it), which put
-the upper lid 8 units *below* the seam and the lower one 6 above it: fourteen
-units of lid through lid across an eye 45 tall, read as "the lids come down too
-far". The numbers it cost: 47.5 and 41.5 became 31.5 and 29.5, and half a blink
-covers exactly what it always did — only the last of the close changed.
+**A closed eye is a seam, not an overlap.** Each lid grows until its leading
+edge lands on the shut line and stops there; the two meet over the middle of the
+eye and touch, and neither goes through the other. That used to need arithmetic
+and a mask: the travel carried the lid's own curve a second time — the drawing
+had already placed it — which put the upper lid 8 units *below* the seam and the
+lower one 6 above it, fourteen units of lid through lid across an eye 45 tall,
+and the socket hid it. Scaling an ellipse about its top point gives another
+ellipse sitting on that edge, so where the edge arrives is now exact rather than
+measured, and there is nothing to hide.
+
+**A lid draws its edge as its own line.** `creaseUpperLeft` and its three
+companions are the leading half of each lid, sharing its pivot, its scale and
+its shape keys — so the line cannot drift from the skin it bounds, because it
+*is* that edge (`leadingEdge`). Open, each is a crease under the eye's own
+outline; shut, the two have grown onto the seam and read as the one line a
+closed eye is, which is what `eyeCurve` bends into the happy `^ ^` and the tired
+droop. The lids themselves carry no outline: a closed shape stroked all the way
+round draws its rim half too, and the rim half of a hairline sits inside the eye
+at the corners, which read as a ring lying across it.
+
+**And the outline goes out with the light.** A shut cartoon eye is a line, not a
+circle with a line through it, so `rim` fades on `eyeOpen` — on an `easeOut`
+curve, so it holds through most of the blink and only lets go at the end.
 
 The previous face faded the pupil out with `opacity`, which is why a closing
 eye looked like a pupil dissolving rather than an eyelid coming down.

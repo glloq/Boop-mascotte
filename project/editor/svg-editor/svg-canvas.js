@@ -216,6 +216,20 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
   const snapshotAttributes = (node) => Object.fromEntries([...node.attributes].map((attribute) => [attribute.name, attribute.value]));
   const safeBBox = (node) => { try { return node.getBBox(); } catch { return null; } };
 
+  /**
+   * Whether one piece is drawn inside another.
+   *
+   * Off the DOM rather than off `document.layers`, because the DOM is what the
+   * pointer hit and the two agree by construction -- the layer tree is read from
+   * this markup. `contains` counts a node as containing itself, so the ancestor
+   * is excluded: "inside" means *strictly* inside.
+   */
+  const inside = (ancestorId, id) => {
+    if (!ancestorId || !id || ancestorId === id) return false;
+    const ancestor = documentModel.getNode(ancestorId), node = documentModel.getNode(id);
+    return Boolean(ancestor && node && ancestor !== node && ancestor.contains?.(node));
+  };
+
   /** A hairline still needs corners to grab, in the element's own units. */
   const MIN_SELECTION_SIZE = 8;
   /**
@@ -1301,10 +1315,14 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       for (let node = event.target; node && node !== container; node = node.parentNode) {
         const id = node.getAttribute?.('id');
         // A press on a shape *inside* the selected piece is a press on the
-        // piece: the eye is selected and the pointer is on its reflection, and
-        // dragging is what a person expects. Without this the new click rule
-        // would select an eye nobody could then move (audit §2.1).
-        if (id && elements[id]) return id === selectedId || Boolean(pieces?.contains?.(selectedId, id));
+        // piece: the eye is selected and the pointer is on its white, and
+        // dragging is what a person expects. Without this a group could be
+        // selected and never moved -- a group is covered by its own children, so
+        // there is no point on it that is not on one of them. An eye you could
+        // select and not move is exactly what an author reported
+        // (docs/EYE_BUILDS.md), and the piece model that used to answer this is
+        // installed on Hands alone.
+        if (id && elements[id]) return id === selectedId || inside(selectedId, id);
       }
       return true;
     },

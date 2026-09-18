@@ -95,7 +95,7 @@ faceRoot
 ├── earLeft, earRight          groups
 ├── hairBack, head, …          paths
 ├── faceShading                group, clip-path="url(#headShape)"
-├── eyeLeft, eyeRight          groups, each clip-path="url(#eyeSocket…)"
+├── eyeLeft, eyeRight          groups (no clip: a lid grows about its rim)
 ├── eyebrows                   group
 └── hairFront                  group, clip-path="url(#headShape)"
 ```

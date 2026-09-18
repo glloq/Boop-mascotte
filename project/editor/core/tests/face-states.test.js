@@ -19,7 +19,7 @@ import { installVisemes, installedVisemes } from '../face-library/face-state-ins
 import { createFaceStateCommands } from '../face-library/face-state-commands.js';
 import { faceStateModel } from '../face-library/face-state-model.js';
 import { compileRigFrame, composeExpressionParams, normalizeExpressions, parsePath, resolveStateParams, visemeBlendWeights } from '../../../runtime/runtime.js';
-import { LID_RESTS, lidPath, mouthGeometry } from '../sample/templates/face-artwork.js';
+import { LID_PIVOTS, LID_RESTS, lidPath, mouthGeometry } from '../sample/templates/face-artwork.js';
 
 /**
  * The states an eye and a mouth can be in, and the mouth speaking while it
@@ -52,17 +52,40 @@ const aperture = (state, values) => {
   return { width: Number(((right.x - left.x) * scaleX).toFixed(2)), height: Number((mid(left, bottom, right) - mid(left, top, right)).toFixed(2)) };
 };
 const lid = (state, values, role = 'lidUpperLeft') => pose(state, values)[role];
-/** Where a lid's edge actually sits, which is its own path plus what moved it. */
+/**
+ * Where a lid's leading edge actually sits: its own path, grown about the rim it
+ * swings from (docs/EYE_BUILDS.md).
+ *
+ * A lid is four cubics round a squashed ellipse, and the half facing the pupil is
+ * the one that matters — that is the edge the viewer reads as the eyelid, the one
+ * `eyeSquint` deepens and `eyeCurve` bends:
+ *
+ * ```text
+ *   M (cx-rx) cy  C .. .. (cx) rim  C .. .. (cx+rx) cy  C c1 c2 (cx) reach  C .. .. (cx-rx) cy Z
+ *     0      1                6 7                12 13    14.17  18  19
+ * ```
+ *
+ * `edge` is the middle of that leading half and `control` its own control points,
+ * which is what a bend moves while the ends stay put. Both are read through the
+ * scale, because a lid grows rather than slides now: a point's height is its
+ * distance from the rim, multiplied.
+ */
 const lidEdge = (state, values, role = 'lidUpperLeft') => {
   const frame = lid(state, values, role);
   const parsed = parsePath(frame.path);
-  // `M left back  L right back  L right edge  Q cx control left edge  Z`
-  //    0     1      2     3      4     5       6  7       8    9
+  const at = LID_PIVOTS[role], k = Number(frame.transform.scaleY ?? 1);
+  const grown = (y) => Number((at.y + (y - at.y) * k + Number(frame.transform.y || 0)).toFixed(2));
   return {
-    edge: Number((parsed.values[5] + Number(frame.transform.y || 0)).toFixed(2)),
-    control: Number((parsed.values[7] + Number(frame.transform.y || 0)).toFixed(2))
+    // The middle of the leading edge: what the viewer reads as the eyelid.
+    edge: grown(parsed.values[19]),
+    // Its own control points, which is what a bend moves.
+    control: grown((parsed.values[15] + parsed.values[17]) / 2),
+    // And the two ends, on the rim, which nothing but the blink moves.
+    ends: [grown(parsed.values[1]), grown(parsed.values[13])]
   };
 };
+/** How far a lid has grown: the one number a blink now moves. */
+const lidScale = (frame) => Number(Number(frame.transform.scaleY ?? 1).toFixed(3));
 
 /* ══ EYES ═══════════════════════════════════════════════════════════════════ */
 
@@ -89,24 +112,24 @@ test('2 · eyeOpen 1 → 0 travels the lid, monotonically and without a jump', (
 test('3 · a blink closes both eyes', () => {
   const state = template();
   const shut = pose(state, { eyeOpen: 0 });
-  assert.equal(Number(shut.lidUpperLeft.transform.y.toFixed(2)), Number(shut.lidUpperRight.transform.y.toFixed(2)));
-  assert.notEqual(Number(shut.lidUpperLeft.transform.y.toFixed(2)), 0, 'and it is not the open eye');
+  assert.equal(lidScale(shut.lidUpperLeft), lidScale(shut.lidUpperRight));
+  assert.notEqual(lidScale(shut.lidUpperLeft), 1, 'and it is not the open eye');
 });
 
 test('4 · a wink closes the left eye and leaves the right one open', () => {
   const state = template();
   const winked = pose(state, { eyeOpen: 1, eyeOpenLeft: -1 });
   const shut = pose(state, { eyeOpen: 0 });
-  assert.equal(winked.lidUpperLeft.transform.y, shut.lidUpperLeft.transform.y, 'the left eye is as shut as a blink');
-  assert.equal(winked.lidUpperRight.transform.y, pose(state, {}).lidUpperRight.transform.y, 'the right one has not moved at all');
-  assert.equal(winked.lidLowerLeft.transform.y, shut.lidLowerLeft.transform.y, 'and the lower lid came with it');
+  assert.equal(lidScale(winked.lidUpperLeft), lidScale(shut.lidUpperLeft), 'the left eye is as shut as a blink');
+  assert.equal(lidScale(winked.lidUpperRight), lidScale(pose(state, {}).lidUpperRight), 'the right one has not moved at all');
+  assert.equal(lidScale(winked.lidLowerLeft), lidScale(shut.lidLowerLeft), 'and the lower lid came with it');
 });
 
 test('5 · a wink the other way, and the eye states are written as one side’s own offset', () => {
   const state = template();
   const winked = pose(state, { eyeOpen: 1, eyeOpenRight: -1 });
-  assert.equal(winked.lidUpperRight.transform.y, pose(state, { eyeOpen: 0 }).lidUpperRight.transform.y);
-  assert.equal(winked.lidUpperLeft.transform.y, pose(state, {}).lidUpperLeft.transform.y);
+  assert.equal(lidScale(winked.lidUpperRight), lidScale(pose(state, { eyeOpen: 0 }).lidUpperRight));
+  assert.equal(lidScale(winked.lidUpperLeft), lidScale(pose(state, {}).lidUpperLeft));
   // Which is exactly what a per-side state resolves to: the shared control is
   // left alone and the offset carries the difference.
   assert.deepEqual(eyePoseValues(state, 'closed', 'left'), { eyeOpenLeft: -1, eyeSquintLeft: 0, eyeCurveLeft: 0 });
@@ -130,7 +153,7 @@ test('8 · a look and a blink at the same time, with neither losing the other', 
   const state = template();
   const both = pose(state, { lookX: 1, lookY: -0.5, eyeOpen: 0 });
   assert.equal(both.pupilLeft.transform.x, pose(state, { lookX: 1, lookY: -0.5 }).pupilLeft.transform.x, 'the gaze is untouched by the blink');
-  assert.equal(both.lidUpperLeft.transform.y, pose(state, { eyeOpen: 0 }).lidUpperLeft.transform.y, 'and the blink by the gaze');
+  assert.equal(lidScale(both.lidUpperLeft), lidScale(pose(state, { eyeOpen: 0 }).lidUpperLeft), 'and the blink by the gaze');
 });
 
 test('9 · an expression and a look compose, and every state keeps the gaze', () => {
@@ -194,8 +217,8 @@ test('the eight eye states are reachable from one set of artwork', () => {
     // do not carry, because what widens a cartoon eye is its pupil. Two states
     // that came out identical would be one state with two names.
     drawn.set(preset.id, [
-      frame.lidUpperLeft.path, Number(frame.lidUpperLeft.transform.y).toFixed(2),
-      frame.lidLowerLeft.path, Number(frame.lidLowerLeft.transform.y).toFixed(2),
+      frame.lidUpperLeft.path, lidScale(frame.lidUpperLeft),
+      frame.lidLowerLeft.path, lidScale(frame.lidLowerLeft),
       Number(frame.pupilLeft.transform.scaleY).toFixed(3)
     ].join('|'));
   }
@@ -211,12 +234,15 @@ test('a happy closed eye arcs upwards and a tired one droops', () => {
   const flat = lidEdge(state, { eyeOpen: 0 });
   const happy = lidEdge(state, { eyeOpen: 0, eyeCurve: 1 });
   const sad = lidEdge(state, { eyeOpen: 0, eyeCurve: -1 });
-  assert.equal(happy.edge, flat.edge, 'the seam’s ends stay where the travel put them');
-  assert.ok(happy.control < flat.control, 'the middle of the upper lid rises');
-  assert.ok(sad.control > flat.control, 'and drops the other way');
+  assert.deepEqual(happy.ends, flat.ends, 'the seam’s ends stay where the blink put them');
+  assert.deepEqual(sad.ends, flat.ends);
+  assert.ok(happy.edge < flat.edge, 'and the middle of the upper lid rises');
+  assert.ok(sad.edge > flat.edge, 'and drops the other way');
+  assert.ok(happy.control < flat.control, 'which is the control points moving, ends fixed');
+  assert.ok(sad.control > flat.control);
   // The lower lid arcs the *same* way, because what the viewer reads as the arc
   // is the two edges together.
-  assert.ok(lidEdge(state, { eyeOpen: 0, eyeCurve: 1 }, 'lidLowerLeft').control < lidEdge(state, { eyeOpen: 0 }, 'lidLowerLeft').control);
+  assert.ok(lidEdge(state, { eyeOpen: 0, eyeCurve: 1 }, 'lidLowerLeft').edge < lidEdge(state, { eyeOpen: 0 }, 'lidLowerLeft').edge);
 });
 
 test('a squint is the lower lid coming up much further than the upper comes down', () => {
