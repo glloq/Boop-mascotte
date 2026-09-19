@@ -162,9 +162,12 @@ drift from the white, and an author who resized one would have moved a cut that
 no longer matched anything. A reference cannot drift: the shape in the layer
 tree **is** the shape that cuts, carrying its own transform, so moving or
 resizing the socket moves and resizes the cut with it. What you see is what
-cuts, and there is nothing left that an author cannot find. The menu on the
-artwork already names what is cutting a piece, and the name it gives is now a
-drawing you can go and press.
+cuts, and there is nothing left that an author cannot find. The Layers panel
+marks both ends of every cut and the canvas menu names the shape doing it, and
+in both places that name is a drawing you can go and press
+(docs/VECTOR_EDITING.md, "A cut is a relationship between two drawings"). The
+head's own cut is written the same way now, which is how the fringe came to be
+cut by something with a name.
 
 The cut sits on a **wrapper group**, never on the lids themselves. `clip-path`
 is resolved in the user space an element establishes, which is the space *after*

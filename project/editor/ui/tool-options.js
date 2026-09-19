@@ -164,8 +164,12 @@ export function createToolOptions(host, { getTool, getOptions, setOptions, node 
         const focused = selection.focused?.() || ids[0];
         const cut = focused && selection.cutOn ? selection.cutOn(focused) : null;
         if (cut) {
-          parts.push(`<span class="tool-field tool-arrange" role="group" aria-label="Cut"><b>Cut</b><span>to ${esc(cut.clipId)}${cut.self ? '' : ` · on ${esc(cut.ownerId || 'a group above it')}`}</span>${
-            item('release', esc(focused), 'Stop cutting', 'Take the cut off. The shape that was doing the cutting comes back into the drawing')}</span>`);
+          parts.push(`<span class="tool-field tool-arrange" role="group" aria-label="Cut"><b>Cut</b><span>to ${esc(cut.named ? cut.shapeName : 'a shape with no name')}${cut.self ? '' : ` · on ${esc(cut.ownerName || cut.ownerId || 'a group above it')}`}</span>${
+            item('release', esc(focused), 'Stop cutting', cut.named
+              // `item` writes the title raw, and a shape's name is whatever an
+              // author typed into the rename field.
+              ? esc(`Take the cut off. ${cut.shapeName} stays in the drawing`)
+              : 'Take the cut off. The shape that was doing the cutting comes back into the drawing')}</span>`);
         }
       }
     }

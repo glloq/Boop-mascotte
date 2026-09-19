@@ -10,6 +10,7 @@ import { SvgDocument } from '../core/svg-document/svg-document.js';
 import { lifecycleDiagnostics as diagnostics } from '../core/diagnostics/lifecycle-diagnostics.js';
 import { createArtworkCommands } from '../core/commands/artwork-commands.js';
 import { artboardAround, artboardOverflow, readArtboard } from '../core/artwork/artboard.js';
+import { readCuts } from '../core/artwork/cuts.js';
 import { faceGuides, ghostHead, landingBox } from '../core/face-library/face-guides.js';
 import { createFaceLayoutContext } from '../core/face-library/face-layout.js';
 import { createTransformGizmo } from './transform-gizmo.js';
@@ -91,7 +92,38 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
     ids: () => Object.keys(store.getDocument().elements || {}),
     parallax: () => store.getDocument().parallax
   });
+  /**
+   * The markup this canvas last put into the store, or last loaded from it.
+   *
+   * `reconcileState` rebuilds the whole drawing when the store's markup is not
+   * this — that is how an undo, or another panel's edit, reaches the canvas. So
+   * a canvas that writes markup and forgets to record it has armed a rebuild
+   * against itself: the next unrelated change reloads the artwork from the
+   * markup it wrote earlier, and every DOM-only edit made since is rolled back
+   * without anybody asking. An author sees a move come undone the moment they
+   * click something else (`syncDocument`).
+   */
   let loadedMarkup = '';
+  /**
+   * Hand the document to the store, and remember what was handed over.
+   *
+   * Every canvas-side write that carries markup goes through here. The two that
+   * did not — the gizmo's commit and the legacy drag plugin's — each left
+   * `loadedMarkup` a version behind, which is the whole of the bug above.
+   */
+  const syncDocument = (patch, options) => {
+    if (typeof patch?.svgMarkup === 'string') loadedMarkup = patch.svgMarkup;
+    return commands.syncSvg(patch, options);
+  };
+  /**
+   * A transform gesture is finished, so the document says so too.
+   *
+   * `setTransform` writes `elements` and `applyElementTransform` writes the
+   * DOM; neither writes markup, so the store was left holding a drawing with
+   * the move missing from it. Nothing noticed until the next rebuild, which
+   * then restored that drawing — the move undone by nothing the author did.
+   */
+  const commitTransforms = () => commitDocument();
   let workspace = 'create';
   /**
    * What a click means on a surface where a person handles a mascot (audit
@@ -207,7 +239,26 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
   // duplicate handlers nor retain removed/replaced artwork.
   const attachedNodes = new WeakSet();
   const lastApplied = new WeakMap();
+  /**
+   * What the canvas last **drew** each piece with, in channels.
+   *
+   * The selection box is built from this, because a mascot being designed is
+   * posable: the box belongs where the piece is painted, not where its resting
+   * transform says it would be (`core/artwork/pose-transform.js`).
+   *
+   * Which only works if everything that writes a transform records it here. A
+   * preview frame did; the Inspector's fields, the arrange commands and the
+   * gizmo's own drag did not — so typing a number moved the artwork and left
+   * the box a hundred pixels behind, where it stayed until some later frame
+   * happened to run. That is the "rectangle de sélection pas centré sur
+   * l'élément" an author reported, and re-selecting the piece did not fix it
+   * because the stale entry outlived the selection.
+   */
   const lastRequested = new Map();
+  /** Record what a piece has just been drawn with, so its box can follow it. */
+  const drewWith = (id, transform) => { if (id) lastRequested.set(id, transformValues(transform)); };
+  /** A hierarchy resolves to one matrix and has no channels to remember. */
+  const drewMatrix = (id) => { if (id) lastRequested.delete(id); };
 
   const restoreRigNodes = (tool) => Object.entries(tool?.baseAttributes || {}).forEach(([id, attributes]) => {
     const node=documentModel.getNode(id);if(!node)return;
@@ -230,6 +281,12 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
     if (!ancestorId || !id || ancestorId === id) return false;
     const ancestor = documentModel.getNode(ancestorId), node = documentModel.getNode(id);
     return Boolean(ancestor && node && ancestor !== node && ancestor.contains?.(node));
+  };
+  /** Document order is paint order: `id` is drawn over `over` when it comes after it. */
+  const paintedOver = (id, over) => {
+    const a = documentModel.getNode(over), b = documentModel.getNode(id);
+    if (!a || !b || a === b) return false;
+    return Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
   };
 
   /** A hairline still needs corners to grab, in the element's own units. */
@@ -1414,6 +1471,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       const elements = store.getDocument().elements || {};
       for (let node = event.target; node && node !== container; node = node.parentNode) {
         const id = node.getAttribute?.('id');
+        if (!id || !elements[id]) continue;
         // A press on a shape *inside* the selected piece is a press on the
         // piece: the eye is selected and the pointer is on its white, and
         // dragging is what a person expects. Without this a group could be
@@ -1422,7 +1480,21 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
         // select and not move is exactly what an author reported
         // (docs/EYE_BUILDS.md), and the piece model that used to answer this is
         // installed on Hands alone.
-        if (id && elements[id]) return id === selectedId || inside(selectedId, id);
+        if (id === selectedId || inside(selectedId, id)) return true;
+        /**
+         * Some other piece is under the pointer. It wins only if it is painted
+         * **in front of** the selection.
+         *
+         * "Anything else means select that instead" read well and made a
+         * selected nose undraggable: a nose is a thin open stroke, so the
+         * middle of its own box is the head showing through, and pressing the
+         * middle of the thing you have just selected deselected it and picked
+         * the face. Behind the selection is background — the box is the
+         * author's claim on that area. In front of it is a piece they can see
+         * and are more likely reaching for, which is the case this rule was
+         * written for: the mouth inside the head's box.
+         */
+        return !paintedOver(id, selectedId);
       }
       return true;
     },
@@ -1450,12 +1522,19 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
     // corner to land on, and nothing is drawn on a mascot (`tool-options.js`
     // keeps Grid and Snap with the tools they serve).
     // Transient: the DOM moves, history and the store do not.
-    onPreview: (transform, drag) => { documentModel.getNode(drag.id)?.setAttribute('transform', transformString(snapMove(transform, drag))); },
+    onPreview: (transform, drag) => {
+      const shown = snapMove(transform, drag);
+      documentModel.getNode(drag.id)?.setAttribute('transform', transformString(shown));
+      // The box follows the pointer because the drag says where the piece is
+      // now; without this it stayed where the drag began.
+      drewWith(drag.id, shown);
+    },
     // One command for the whole gesture.
     onCommit: (rawTransform, drag) => {
       const transform = snapMove(rawTransform, drag);
       const id = drag.id;
       documentModel.getNode(id)?.setAttribute('transform', transformString(transform));
+      drewWith(id, transform);
       documentModel.captureAuthoringNode(id);
       /**
        * The drag leaves the piece where the pointer put it; the *project*
@@ -1474,7 +1553,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       // linked pair follows a drag exactly as it follows a number (audit §2.2).
       if (pieces?.commit?.(id, authored)) return;
       const current = store.getDocument();
-      commands.syncSvg({
+      syncDocument({
         elements: { ...current.elements, [id]: { ...(current.elements[id] || {}), baseTransform: authored } },
         svgMarkup: documentModel.serialize()
       }, { domains: ['artwork'], source: 'canvas' });
@@ -1580,7 +1659,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       if (store.getDocument().layerMetadata[id]?.locked) return;
       if(rigTool?.kind==='transform-pose'&&rigTool.ids.includes(id)){rigTool.temporary[id]=posedTransform(id,rigTool);return;}
       documentModel.captureAuthoringNode(id);
-      commands.syncSvg({elements:{...store.getDocument().elements,[id]:{...(store.getDocument().elements[id]||{}),baseTransform:parseTransform(element)}},svgMarkup:documentModel.serialize()}, {domains:['artwork'],source:'canvas'});
+      syncDocument({elements:{...store.getDocument().elements,[id]:{...(store.getDocument().elements[id]||{}),baseTransform:parseTransform(element)}},svgMarkup:documentModel.serialize()}, {domains:['artwork'],source:'canvas'});
     });
     return true;
   }
@@ -1602,6 +1681,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
   }
   function loadSvgTextNow(svgText, metadata = {}, options = {}) {
     const safeMarkup = sanitizeSvgMarkup(svgText);
+    lastRequested.clear();
     rootGroup.remove();
     // `deferAssetReferences` first: a browser starts fetching `asset:` the
     // moment the markup is parsed, so moving the reference aside afterwards
@@ -2203,6 +2283,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       commands.setTransform(move.id, { x: (Number(base.x) || 0) + local.x, y: (Number(base.y) || 0) + local.y }, { source: 'canvas', snapshot: false });
       api.applyElementTransform(move.id, store.getDocument().elements[move.id]);
     }
+    commitTransforms();
     renderMultiSelection();
     showNote(`${note}.`);
     return true;
@@ -2281,6 +2362,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
           commands.setTransform(id, { x: start.x + local.x, y: start.y + local.y }, { source: 'canvas', snapshot: false });
           api.applyElementTransform(id, store.getDocument().elements[id]);
         }
+        commitTransforms();
         renderMultiSelection();
         return;
       }
@@ -3184,7 +3266,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
   function commitDocumentNow(updateStore = true) {
     const markup = documentModel.serialize();
     loadedMarkup = markup;
-    if (updateStore) commands.syncSvg({svgMarkup:markup,layers:documentModel.getTree(),layerMetadata:documentModel.metadata},{snapshot:false});
+    if (updateStore) syncDocument({svgMarkup:markup,layers:documentModel.getTree(),layerMetadata:documentModel.metadata},{snapshot:false});
     return markup;
   }
 
@@ -3212,7 +3294,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
     // reconcile that still believed the old markup rebuilt the whole canvas --
     // which threw the zoom and pan away every time anything was drawn.
     loadedMarkup = state.svgMarkup;
-    commands.syncSvg({layers:state.layers,layerMetadata:state.layerMetadata,elements:state.elements,svgMarkup:state.svgMarkup},{snapshot:false,domains:removed?['artwork','layers','semanticRig','keyforms','hands']:undefined});
+    syncDocument({layers:state.layers,layerMetadata:state.layerMetadata,elements:state.elements,svgMarkup:state.svgMarkup},{snapshot:false,domains:removed?['artwork','layers','semanticRig','keyforms','hands']:undefined});
     store.mutateSession('selectedId',session=>{session.selectedId=selectId;});
   }
 
@@ -3795,7 +3877,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       history.snapshot();
       const artwork = api.setMeshNow(target, next);
       if (!artwork) return false;
-      commands.syncSvg({ ...artwork, meshes: (before.meshes || []).map((item) => (item.target === target ? next : item)) },
+      syncDocument({ ...artwork, meshes: (before.meshes || []).map((item) => (item.target === target ? next : item)) },
         { domains: ['artwork', 'keyforms'], source: 'mesh-drag', snapshot: false });
       renderMesh();
       return true;
@@ -4058,11 +4140,24 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
     // The whole chrome, not just the edge: a new working area is a new
     // artwork matrix, and everything drawn over the mascot is placed by it.
     setArtboard(box) { commands.setArtboard(box); placeChrome(); return readArtboard(store.getDocument().svgMarkup || ''); },
-    /** Which element is clipping this one, and to what. Null when nothing is. */
+    /**
+     * Which element is clipping this one, and **which drawing** does the
+     * cutting. Null when nothing is.
+     *
+     * The clip's own id (`headShape`) is a name for the relationship, not for
+     * anything an author can press. What they can press is the shape: the
+     * drawing a `<clipPath>` references, or the named shape it holds. Read
+     * from the markup so the Layers panel and this give the same answer
+     * (`core/artwork/cuts.js`).
+     */
     describeClip(id) {
       const clip = clipOwnerOf(id);
       if (!clip) return null;
-      return { ownerId: clip.ownerId, clipId: clip.clipId, self: clip.ownerId === id };
+      const cut = readCuts(store.getDocument().svgMarkup || '').byPiece[clip.ownerId] || null;
+      return {
+        ownerId: clip.ownerId, clipId: clip.clipId, self: clip.ownerId === id,
+        shapeId: cut?.shapeId || null, shapeName: cut?.shapeName || null, named: Boolean(cut?.named)
+      };
     },
     /**
      * Cut pieces to the shape of another (docs/VECTOR_EDITING.md).
@@ -4159,8 +4254,15 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
         const definition = host?.querySelector?.(`#${CSS.escape(reference)}`);
         const stillUsed = CUT_ATTRIBUTES.some((attribute) => [...(host?.querySelectorAll(`[${attribute}]`) || [])]
           .some((node) => (node.getAttribute(attribute) || '').includes(`#${reference}`)));
-        if (definition && !stillUsed && definition.firstElementChild) {
-          const shape = definition.firstElementChild;
+        const child = definition?.firstElementChild || null;
+        // A cut that points at a drawing has nothing to give back: the shape is
+        // in the artwork already, named and selectable, which is the whole
+        // reason the template's cuts are written `<use href="#head">` rather
+        // than with a frozen copy. Restoring the `<use>` itself would drop a
+        // second head into the drawing.
+        if (definition && !stillUsed && child?.localName === 'use') definition.remove();
+        else if (definition && !stillUsed && child) {
+          const shape = child;
           // It was drawn in the owner's user space; put it back beside the
           // owner, where that is what the parent's space is.
           // The shape comes back beside the owner, so it needs the owner's own
@@ -4210,6 +4312,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       if (!movable.length) return false;
       history.snapshot();
       for (const id of movable) { const base = store.getDocument().elements[id].baseTransform || {}; commands.setTransform(id, { x: (Number(base.x) || 0) + dx, y: (Number(base.y) || 0) + dy }, { source: 'canvas', snapshot: false }); api.applyElementTransform(id, store.getDocument().elements[id]); }
+      commitTransforms();
       renderMultiSelection();
       return true;
     },
@@ -4376,7 +4479,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       const tree=documentModel.load(svgRoot,documentModel.metadata);loadedMarkup=documentModel.serialize();
       const elements=structuredClone(store.getDocument().elements);const visit=(items)=>items.forEach((item)=>{if(!elements[item.id]){const node=wrapperFor(item.id),plugin=pluginRegistry.getByNode(node);if(plugin){elements[item.id]=plugin.createRigData(node,parseTransform(node));attachBehavior(node);}}visit(item.children);});visit(tree);
       const artwork={layers:tree,layerMetadata:structuredClone(documentModel.metadata),elements,svgMarkup:loadedMarkup};
-      if(updateStore)commands.syncSvg(artwork);
+      if(updateStore)syncDocument(artwork);
       return artwork;
     },
     /**
@@ -4455,6 +4558,8 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       // Rebuilding the artwork must not move the camera: an undo, or another
       // panel writing to the document, is not a reason to re-frame the mascot.
       const view = viewTransform();
+      // New nodes, so nothing is drawn with what the old ones were.
+      lastRequested.clear();
       rootGroup.remove(); rootGroup = draw.group().svg(deferAssetReferences(sanitizeSvgMarkup(state.svgMarkup))); raiseGizmoLayer(); paintAssets();
       setView(view);
       const svgRoot = rootGroup.node.querySelector('svg');
@@ -4483,6 +4588,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       const key = axis === 'y' ? 'scaleY' : 'scaleX', current = Number(element.baseTransform?.[key]);
       commands.setTransform(id, { [key]: -(Number.isFinite(current) && current !== 0 ? current : 1) }, { source: 'canvas' });
       api.applyElementTransform(id, store.getDocument().elements[id]);
+      commitTransforms();
       return true;
     },
     /** Move the piece by a step in artwork units — the arrow keys — one undo step per press. */
@@ -4497,6 +4603,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       if (pieces?.commit?.(id, next)) return true;
       commands.setTransform(id, next, { source: 'canvas' });
       api.applyElementTransform(id, store.getDocument().elements[id]);
+      commitTransforms();
       return true;
     },
     setVisibility(id, visible) { const changed = documentModel.setVisibility(id, visible); if (changed) commitDocument(); return changed; },
@@ -4552,7 +4659,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       const warping = warpGesture.active()?.target || null;
       Object.entries(frame.paths || {}).forEach(([id, d]) => { if (id === warping) return; const wrapper=wrapperFor(id),node=wrapper?.node;if(node&&wrapper.type==='path'){const previous=lastApplied.get(node)||{};if(previous.path!==d){wrapper.attr('d',d);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,path:d});}} });
       // A hierarchy resolves to one matrix; only a flat element uses channels.
-      Object.entries(frame.matrices || {}).forEach(([id, matrix]) => {const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;const next=matrixToString(matrix),previous=lastApplied.get(node)||{};if(previous.matrix!==next){wrapper.attr('transform',next);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,matrix:next,transform:null});}});
+      Object.entries(frame.matrices || {}).forEach(([id, matrix]) => {const wrapper=wrapperFor(id),node=wrapper?.node;if(!node)return;drewMatrix(id);const next=matrixToString(matrix),previous=lastApplied.get(node)||{};if(previous.matrix!==next){wrapper.attr('transform',next);diagnostics.increment('canvas.domWrites');lastApplied.set(node,{...previous,matrix:next,transform:null});}});
       // `scale 0` means collapsed, so only a missing or broken number falls back
       // to 1 -- `|| 1` kept a part the rig had closed open on the canvas alone.
       // Whether this frame moved the piece the author has selected, so its
@@ -4595,12 +4702,34 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
      * composed matrix the node was carrying, so claiming it still has one
      * would skip the next matrix write too.
      */
+    /**
+     * The document says what the drawing says.
+     *
+     * For the callers that write `elements` and the DOM and nothing else — a
+     * typed field, the arrow keys, a multi-selection drag. Once per finished
+     * gesture, never per step of one.
+     */
+    commitTransforms() { commitTransforms(); },
     applyElementTransform(id, element) {
       const node = wrapperFor(id); if (!node || store.getDocument().layerMetadata[id]?.locked) return;
       const values = transformValues(element.baseTransform || element);
       node.attr('transform', transformAttribute(element.baseTransform || element));
       lastApplied.set(node.node, { ...(lastApplied.get(node.node) || {}), transform: values, matrix: null });
+      // This *is* what the piece is drawn with now, pose and all: writing the
+      // authored transform straight to the DOM is what this call does. Saying
+      // so is what keeps the selection box on the piece (`lastRequested`).
+      drewWith(id, element.baseTransform || element);
       documentModel.captureAuthoringNode(id);
+      // And the box goes with it. Typing a number in the Inspector moved the
+      // artwork and left the handles behind, because nothing on this path ever
+      // asked the overlay to redraw: a frame did it, a drag did it, a typed
+      // field did not. Never mid-drag, where the pointer owns the box.
+      //
+      // The gizmo alone: this runs once per piece, and the frames around a
+      // multi-selection measure every piece in it, so drawing those here would
+      // be a square of the work on every step of a drag. The gestures that move
+      // several pieces redraw them once, when the pointer has finished.
+      if (!gizmo.dragging && id === selectedId) gizmo.render();
     },
     applyPathData(id, d) { const node = wrapperFor(id); if (node?.type !== 'path') return; node.attr('d', d); documentModel.captureAuthoringNode(id); commitDocument(); },
     syncLayerOrder(tree) { return previewOrder.authored(() => api.syncLayerOrderNow(tree)); },

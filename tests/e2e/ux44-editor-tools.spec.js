@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToMode, openFreshEditor, openSetupSection, startBasicFace, startBlankCanvas } from './editor-helpers.js';
+import { goToMode, hitTestablePoint, openArtwork, openFreshEditor, openSetupSection, startBasicFace, startBlankCanvas } from './editor-helpers.js';
 import { FACE_PALETTE } from '../../project/editor/core/sample/templates/face-artwork.js';
 
 /**
@@ -95,6 +95,99 @@ test('@critical a clip can be made, seen and taken back off', async ({ page }) =
   await page.locator('[data-canvas-menu-action="release-clip"]').click();
   await expect.poll(() => page.evaluate(() => Object.keys(window.__BOOP_E2E__.document().elements))).toEqual(['rect-1', 'ellipse-1']);
   await expect(page.locator('#canvas #rect-1')).not.toHaveAttribute('clip-path', /url/);
+});
+
+/**
+ * The cut the template ships with, in the tree and in the menu.
+ *
+ * « j'ai un soucis avec la fringe du model de base, il y a une decoupe avec un
+ *   autre element mais ca n'apparait nul part. on devrais pouvoir gerer le cut
+ *   et la gemotrie de coupe de facon simple mais ca n'apparait nul part (ni
+ *   dans les layers) »
+ *
+ * The fringe is cut to the head so it cannot cross the outline, and a
+ * `<clipPath>` is in no layer and no `elements` record -- so the one thing in
+ * the artwork an author could not see was also the one they could not reach.
+ * The cut names a drawing now (`<use href="#head">`), which is what gives the
+ * tree something to say and the menu something to press.
+ */
+test('@critical the fringe says what cuts it, and goes to the shape', async ({ page }) => {
+  await page.setViewportSize({ width: 1500, height: 950 });
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openArtwork(page);
+
+  // The cut is a `<use>` of the head, not a copy of it. A copy is what was
+  // there, and a copy cannot follow the head's jaw -- so the fringe kept its
+  // cut forty units above an open mouth's outline.
+  const markup = await page.evaluate(() => window.__BOOP_E2E__.document().svgMarkup);
+  expect(markup).toContain('<clipPath id="headShape"><use href="#head"');
+  expect(markup).not.toMatch(/<clipPath id="headShape">\s*<path/);
+
+  await page.locator('#layer-filter').fill('hair');
+  const row = (id) => page.locator(`#layers-panel [data-layer-id="${id}"]`);
+  const badge = row('hairFront').locator('> .layer-row > .cut-badge');
+  await expect(badge).toHaveCount(1);
+  await expect(badge).toHaveAttribute('title', /cut to the shape of Head shape/);
+
+  // Pressing it goes to the drawing that does the cutting, which is the whole
+  // of "where is the geometry of this cut".
+  await badge.click();
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.state().selectedId)).toBe('head');
+  // And the head's own row says what rides on it, because hiding or redrawing
+  // it takes them with it.
+  await page.locator('#layer-filter').fill('head');
+  await expect(row('head').locator('.layer-cut')).toContainText('cuts Face shading, Hair front');
+
+  // The same answer on the artwork itself: right-click the fringe, press the
+  // name, and the head is selected.
+  await page.locator('#layer-filter').fill('');
+  const point = await hitTestablePoint(page.locator('#canvas svg svg #hairFront'));
+  await page.mouse.click(point.x, point.y, { button: 'right' });
+  const menu = page.locator('[data-canvas-menu]');
+  await expect(menu.locator('[data-canvas-menu-clip]')).toContainText('Cut to the shape of Head shape');
+  await menu.locator('[data-canvas-menu-cutter]').click();
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.state().selectedId)).toBe('head');
+
+  // Hiding the shape that cuts hides everything it was keeping -- measured, on
+  // `display:none` and on `visibility:hidden` alike -- so the row says so
+  // instead of leaving an author staring at a face with no hair.
+  await page.locator('#layer-filter').fill('head');
+  await row('head').locator('[data-action="visibility"]').click();
+  await page.locator('#layer-filter').fill('hair');
+  await expect(badge).toHaveAttribute('title', /Head shape is hidden — so none of Hair front shows/);
+});
+
+/**
+ * Releasing a cut that points at a drawing takes the cut off and leaves the
+ * drawing alone.
+ *
+ * The restore path was written when every cut owned a frozen copy of its shape,
+ * and it put that copy back into the artwork. Run against a `<use href="#head">`
+ * it would have dropped a second head into the drawing.
+ */
+test('@critical stopping a cut that points at a drawing leaves the drawing alone', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openArtwork(page);
+  const before = await page.evaluate(() => Object.keys(window.__BOOP_E2E__.document().elements).length);
+
+  const release = async (id) => {
+    const point = await hitTestablePoint(page.locator(`#canvas svg svg #${id}`));
+    await page.mouse.click(point.x, point.y, { button: 'right' });
+    await page.locator('[data-canvas-menu-advanced] summary').click();
+    await page.locator('[data-canvas-menu-action="release-clip"]').click();
+  };
+  await release('hairFront');
+  // Shared: the shading is still cut to the head, so the definition stays.
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.document().svgMarkup.includes('id="headShape"'))).toBe(true);
+  await release('faceShading');
+
+  const after = await page.evaluate(() => window.__BOOP_E2E__.document());
+  expect(after.svgMarkup).not.toContain('id="headShape"');
+  expect(after.svgMarkup).not.toContain('href="#head"');
+  expect(Object.keys(after.elements).length, 'no second head came back into the drawing').toBe(before);
+  await expect(page.locator('#canvas svg svg #head')).toHaveCount(1);
 });
 
 test('@critical a colour is chosen from the mascot\'s own palette', async ({ page }) => {

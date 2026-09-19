@@ -59,6 +59,11 @@ export function createCanvasMenu(host, {
   const layerOf = (id) => findLayer(state().layers, id);
 
   node.addEventListener('click', (event) => {
+    // The shape that does the cutting is a drawing like any other, so its name
+    // is a way to it: press it and that drawing is selected, which is the
+    // answer to "where is the geometry of this cut" (core/artwork/cuts.js).
+    const cutter = event.target.closest('[data-canvas-menu-cutter]');
+    if (cutter) { const goTo = cutter.dataset.canvasMenuCutter; close(); select(goTo); return; }
     const button = event.target.closest('button[data-canvas-menu-action]');
     if (!button || !openId) return;
     const action = button.dataset.canvasMenuAction;
@@ -92,8 +97,12 @@ export function createCanvasMenu(host, {
     const part = getPart(id);
     // A clip is invisible until something says so, and an author redrawing the
     // hair taller has to be able to find the thing that is cutting it. Taking
-    // it off puts that shape back in the drawing, so a cut can be changed and
-    // not only removed; making one is the Select tool's "Cut to top".
+    // it off leaves that shape in the drawing, so a cut can be changed and not
+    // only removed; making one is the Select tool's "Cut to top".
+    //
+    // When the cut names a drawing, its name is a button that goes there --
+    // otherwise the line said "Cut to the shape of headShape" and headShape was
+    // in no layer, no menu and nothing an author could ever press.
     const clip = getClip(id);
     const locked = Boolean(document_.layerMetadata?.[id]?.locked);
     const visible = layer ? layer.visible !== false : true;
@@ -132,7 +141,9 @@ export function createCanvasMenu(host, {
         <label class="small" for="canvas-menu-name">Name</label>
         <input id="canvas-menu-name" data-canvas-menu-name value="${esc(name)}" aria-label="Name of this piece of artwork">
         <p class="small" data-canvas-menu-part>${part ? `Part of <b>${esc(part.name)}</b>` : 'Not assigned to a face part'}</p>
-        ${clip ? `<p class="small" data-canvas-menu-clip>Cut to the shape of <b>${esc(clip.clipId)}</b>${clip.self ? '' : ` (on ${esc(clip.ownerId || 'a group above it')})`}</p>` : ''}
+        ${clip ? `<p class="small" data-canvas-menu-clip>Cut to the shape of ${clip.named
+          ? `<button type="button" class="canvas-menu-cutter" data-canvas-menu-cutter="${esc(clip.shapeId)}" title="Select ${esc(clip.shapeName)}, the drawing that cuts this">${esc(clip.shapeName)}</button>`
+          : `<b>${esc(clip.clipId)}</b>, a shape with no name of its own`}${clip.self ? '' : ` — the cut is on ${esc(layerOf(clip.ownerId)?.name || clip.ownerId || 'a group above it')}`}</p>` : ''}
         ${locked ? '<p class="small" data-canvas-menu-locked>Locked: unlock it to move, reshape or delete it.</p>' : ''}
         ${visible ? '' : '<p class="small" data-canvas-menu-hidden>Hidden on the mascot.</p>'}
       </div>

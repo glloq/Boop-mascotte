@@ -47,7 +47,7 @@ test('@critical legacy empty state and demo bar are removed; Home, Artwork and P
   await expectNoLegacy(page, 'in Preview');
 });
 
-// The fixture has been re-signed six times, every time deliberately and
+// The fixture has been re-signed seven times, every time deliberately and
 // every time after checking that *only* the intended keys moved -- which is
 // what makes re-signing a guard against drift rather than a way of hiding it.
 //
@@ -160,6 +160,22 @@ test('@critical legacy empty state and demo bar are removed; Home, Artwork and P
 //                                never left the floor of it
 //   ~ teeth-show                 hung clear of the upper lip, which was drawn
 //                                over by the row of teeth
+//
+// And the head's own cut, which is two lines and no `rig.json` at all:
+//
+//   - <defs><clipPath id="headShape"><path d="…"/></clipPath></defs>
+//   + <clipPath id="headShape"><use href="#head"/></clipPath>   (in faceRoot)
+//
+// `headShape` was an anonymous copy of the head's outline in the definitions:
+// in no layer, in no `elements` record, so the fringe arrived cut and nothing
+// could say so or be pressed -- and a copy cannot follow `head-jaw`, so an open
+// jaw left the shading cut to a chin the face no longer had
+// (docs/VECTOR_EDITING.md, "A cut is a relationship between two drawings").
+// `rig.json` is byte for byte what it was, because a `<clipPath>` is not an
+// element and this changed no element: the whole of it is which shape does the
+// cutting. The eye sockets keep `use-1` and `use-2`; the head's is `use-3`
+// because it is written at the end of `faceRoot`, which is where the canvas's
+// importer puts a `<clipPath>` whatever the template says.
 test('@critical Basic Face export artifacts are identical to the pre-removal fixtures', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);

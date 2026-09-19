@@ -211,8 +211,13 @@ export function createEditorApp({ root = document.getElementById('app'), recover
           :result.message,result.ok?'info':'error');},
       // A cut is drawn on the canvas as a dashed outline, so the way to take it
       // off belongs beside the drawing rather than only in a menu.
-      cutOn:(id)=>(shell.getWorkspace()==='create'?canvas.describeClip(id):null),
-      release:(id)=>{if(canvas.releaseClip(id))shell.setStatus('The cut is off, and the shape that was doing it is back in the drawing. Redraw it and cut again, or undo.');}}
+      // In words, never in ids: the bar used to read "to headShape · on
+      // hairFront", which names two things an author has never seen written
+      // down (docs/VECTOR_EDITING.md, "A cut is a relationship between two
+      // drawings").
+      cutOn:(id)=>{const cut=shell.getWorkspace()==='create'?canvas.describeClip(id):null;
+        return cut?{...cut,ownerName:layerNameOf(store.getDocument().layers,cut.ownerId)}:null;},
+      release:(id)=>{const said=cutReleased(id);if(canvas.releaseClip(id))shell.setStatus(`${said} Redraw it and cut again, or undo.`);}}
   });
   const setDesignTool=(tool)=>{canvas.setTool(tool);shell.setDesignTool(tool);toolOptions.render();};
   shell.bindDesignTools(setDesignTool);
@@ -276,6 +281,23 @@ export function createEditorApp({ root = document.getElementById('app'), recover
     // keyboard and the on-canvas bar call: three doors, one implementation.
     onAction: (action, id, value) => runPieceAction(action, id, { value, from: 'menu' })
   });
+  /**
+   * What releasing this cut will have done, said before it is done -- the clip
+   * is gone by the time there is a message to write.
+   *
+   * "The shape comes back into the drawing" was the only outcome when every cut
+   * owned a frozen copy. A cut that points at a drawing (`<use href="#head">`)
+   * never took it out, so saying it came back sends an author looking for a
+   * second head (docs/VECTOR_EDITING.md).
+   */
+  const cutReleased = (id) => {
+    const cut = canvas.describeClip?.(id);
+    return cut?.named
+      ? `The cut is off. ${cut.shapeName} is in the drawing, where it always was.`
+      : 'The cut is off, and the shape that was doing it is back in the drawing.';
+  };
+  /** A piece's name for a sentence about it, never its id. */
+  const layerNameOf = (items, id) => { for (const item of items || []) { if (item.id === id) return item.name || id; const found = layerNameOf(item.children, id); if (found) return found; } return null; };
   const layerVisible = (items, id) => { for (const item of items || []) { if (item.id === id) return item.visible !== false; const found = layerVisible(item.children, id); if (found !== null) return found; } return null; };
   // Which surfaces take a piece gesture, and how deep their menu goes, is
   // `GESTURE_SURFACES` in `ui/piece-actions.js` -- one table instead of a set
@@ -513,8 +535,9 @@ export function createEditorApp({ root = document.getElementById('app'), recover
       return result.ok;
     }
     if (action === 'release-clip') {
+      const said = cutReleased(id);
       if (!canvas.releaseClip(id)) return false;
-      shell.setStatus('The cut is off, and the shape that was doing it is back in the drawing.', 'info', { action: { label: 'Undo', run: () => undo() } });
+      shell.setStatus(said, 'info', { action: { label: 'Undo', run: () => undo() } });
       return true;
     }
     if (action === 'part' || action === 'assign') {

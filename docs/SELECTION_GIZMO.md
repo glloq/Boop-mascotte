@@ -84,12 +84,33 @@ without a browser:
   component, so compensating one reference point compensates every point
   exactly.
 
-## Nested parts
+## Nested parts, and who owns a press
 
-A mascot's parts overlap: the mouth is inside the head's box. Pressing inside
-the box but on *other rigged artwork* selects that artwork instead of dragging
-the selection. Handles are always the gizmo's; the body is only the gizmo's
-when the press lands on the selection's own art.
+A mascot's parts overlap: the mouth is inside the head's box. Handles are
+always the gizmo's. The **body** is decided by paint order:
+
+| Under the pointer | What a press does |
+| --- | --- |
+| the selection, or something inside it | drags the selection |
+| a piece painted **in front of** the selection | selects that piece |
+| a piece painted **behind** it, or nothing | drags the selection |
+
+The rule used to be "anything else means select that instead", which is right
+for the mouth inside the head's box and wrong for everything thin: the
+template's nose is a stroked arc with no fill, so the middle of its own box is
+the cheek showing through, and pressing the middle of the piece you had just
+selected deselected it and picked the face. What is behind the selection is
+background — the box is the author's claim on that area. What is in front of it
+is a piece they can see and are more likely reaching for.
+
+A handle on the box never swallows the body either. The grab radius is eight
+screen pixels, which is right for a head and a wide net for an ear seen at a
+quarter zoom — thirty-two artwork units, three times the piece — so every point
+on it was within reach of some handle and it could be scaled from anywhere and
+moved from nowhere. The eight handles on the box give way to it: a third of its
+shorter side, at most. A box with no side at all, which is what a stroked line
+measures, keeps the full reach so its handles stay grabbable, and so does the
+rotate handle, which floats outside the box and competes with nothing.
 
 ## Several pieces
 
@@ -102,6 +123,44 @@ selection model and the geometry are in `core/state/selection.js` and
 `core/artwork/arrange.js` (`docs/VECTOR_EDITING.md`, "Several pieces at
 once"). A set moves only: to rotate or scale several pieces, group them and
 transform the group.
+
+## The box is drawn where the piece is *painted*
+
+A mascot being designed stays posable, so the transform a piece is drawn with
+is not the one the project holds. The canvas therefore remembers what it last
+drew each piece with, and the box is built from that
+(`core/artwork/pose-transform.js`).
+
+Which only works if **everything** that writes a transform says so. A preview
+frame did; a typed field in the Inspector, the arrange commands and the gizmo's
+own drag did not — so typing a number moved the artwork and left the handles a
+hundred pixels behind, where they stayed, because re-selecting the piece read
+the same stale answer. Every writer records now, a rebuilt drawing forgets what
+its old nodes were drawn with, and moving a piece asks the overlay to redraw.
+
+## An edit reaches the document, once
+
+```text
+edit ──▶ the DOM moves ──▶ `elements` ──▶ markup ──▶ the store
+                                                      │
+                            reconcileState ◀──────────┘
+                            (rebuild, if this is not what the canvas loaded)
+```
+
+`reconcileState` rebuilds the whole drawing when the store's markup is not the
+markup the canvas loaded — that is how an undo, or another panel's edit, reaches
+the artwork. So a canvas that writes markup and forgets to record what it wrote
+has armed a rebuild against itself: the next unrelated change reloads the
+drawing from the markup it wrote earlier, and every edit made since is rolled
+back without anybody asking. An author sees a move come undone the moment they
+click something else, which is exactly what one reported.
+
+Two writers had forgotten — the gizmo's commit and the legacy drag plugin's —
+and two gestures (a multi-selection drag, the arrow keys) wrote `elements`
+without ever refreshing the markup, so the drawing the store held was a drawing
+with the move missing from it. Every canvas-side write goes through one door
+now (`syncDocument`), and a transform gesture finishes by putting the drawing
+back in the document (`commitTransforms`).
 
 ## Undo
 
@@ -134,11 +193,16 @@ tools move onto the gizmo too.
 marquee rule, align, spread and the parent-space vectors;
 `ux38-multi-selection.spec.js` does the same in the browser.
 
-`gizmo-geometry.test.js` (31 cases) covers the transform round trip, handle
+`gizmo-geometry.test.js` (32 cases) covers the transform round trip, handle
 layout, the rotate handle following rotation, zoom-independent handle size, hit
-testing including a rotated box, all four drags, shift behaviour, rotation
-unwrapping, the zero-scale guard, pivot compensation across rotated and scaled
-elements, and cancel.
+testing including a rotated box and a piece smaller than its own handles, all
+four drags, shift behaviour, rotation unwrapping, the zero-scale guard, pivot
+compensation across rotated and scaled elements, and cancel.
+
+`selection-pose.spec.js` holds the two properties an author reported missing: a
+typed edit moves the artwork, takes its box with it and is still there after
+looking at something else; and the middle of a selected piece drags it even
+where another piece shows through.
 
 `transform-gizmo.test.js` (19 cases) covers the overlay's structure and
 transparency, the transient-then-one-command lifecycle, click-without-drag,

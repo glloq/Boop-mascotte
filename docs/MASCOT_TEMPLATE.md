@@ -71,6 +71,7 @@ eyebrows (browLeft · browRight)  drawn shapes, not strokes, so they can taper
 nose                             a small hook, seen from the front, turned by `headX`
 hairTop                          the volume above the skull, and the tuft on it
 hairFront > hair                 the fringe, clipped to the head
+headShape                        the cut itself: `<use href="#head" />`, so the head *is* what cuts
 ```
 
 There is no blush. It was two ellipses that never moved and never meant
@@ -174,6 +175,17 @@ The fringe is clipped the same way, to the head itself — `hairFront` carries
 purpose*. Whatever the turn or `hairSway` does to it, it can neither leave the
 silhouette nor slide off the hairline: it used to do both, sticking out past
 the outline on one side and uncovering the forehead on the other.
+
+**And `headShape` is the head**, `<clipPath id="headShape"><use href="#head" /></clipPath>`,
+for the same reason the socket is the white. It was an anonymous copy of the
+head's outline in `<defs>` — so the cut appeared in no layer and no menu, there
+was nothing to press and nothing to reshape, and being a copy it did not move:
+the head carries `head-jaw`, so an open jaw lengthens the outline by forty units
+while the shape cutting the fringe stayed where it was drawn. Now the two are
+one thing, and the Layers panel marks both ends of the cut
+(docs/VECTOR_EDITING.md, "A cut is a relationship between two drawings"). The
+price of a cut that follows its drawing: hide the head and the fringe goes with
+it, which is why the fringe's row says so.
 
 **The cut goes inside the eye, and it is made of the white.** A `clip-path` is
 resolved in the user space an element establishes — the space *after* its own

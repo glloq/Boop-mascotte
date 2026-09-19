@@ -315,13 +315,22 @@ test('the silhouette is a head rather than a ball', () => {
 });
 
 test('the clip path and the silhouette are the same geometry', () => {
-  // One source of truth. V1 clipped the hair and the shading to a
-  // circle of radius 100 while drawing the head as something else, which is a
-  // sliver of hair outside the outline waiting to happen.
-  assert.match(MASCOT_FACE_SVG, new RegExp(`<clipPath id="headShape"><path d="${HEAD_REST.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}" /></clipPath>`));
+  // One source of truth, and now one shape rather than two that agree. V1
+  // clipped the hair and the shading to a circle of radius 100 while drawing
+  // the head as something else, which is a sliver of hair outside the outline
+  // waiting to happen. A *copy* of the right outline was the same bug in slow
+  // motion: the head carries `head-jaw`, so an open jaw lengthens the outline
+  // by forty units while a copy stays exactly where it was written.
+  assert.match(MASCOT_FACE_SVG, /<clipPath id="headShape"><use href="#head" \/><\/clipPath>/);
+  assert.match(MASCOT_FACE_SVG, new RegExp(`<path id="head" data-name="Head shape" d="${HEAD_REST.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`));
   for (const id of ['faceShading', 'hairFront']) {
     assert.match(MASCOT_FACE_SVG, new RegExp(`<g id="${id}"[^>]*clip-path="url\\(#headShape\\)"`), `${id} is clipped to the head`);
   }
+  // In the artwork, after the shape it names, rather than in a `<defs>` block:
+  // that is what gives the cut a row, a name and somewhere to be pressed
+  // (docs/VECTOR_EDITING.md, "A cut is a relationship between two drawings").
+  assert.ok(!MASCOT_FACE_SVG.includes('<defs>'), 'nothing hides in the definitions any more');
+  assert.ok(MASCOT_FACE_SVG.indexOf('<clipPath id="headShape">') > MASCOT_FACE_SVG.indexOf('<path id="head"'));
 });
 
 test('the ears finish the silhouette instead of competing with the eyes', () => {

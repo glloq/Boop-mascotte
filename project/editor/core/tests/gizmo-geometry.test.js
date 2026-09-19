@@ -82,6 +82,30 @@ test('the hit tolerance follows the zoom so handles stay grabbable', () => {
   assert.equal(hitTestGizmo(model, { x: 6, y: 6 }, { scale: 4 }), 'body', 'a tight zoom needs a tight grab');
 });
 
+test('a handle never swallows the piece it is drawn on', () => {
+  // Zoomed out, eight screen pixels is a wide net: at a quarter zoom it is
+  // thirty-two artwork units, which is three times an ear. Every point on the
+  // piece was then within reach of some handle, so it could be scaled from
+  // anywhere and moved from nowhere -- and an author who zooms out to see the
+  // whole mascot is exactly the author trying to move a part of it.
+  const small = { x: 0, y: 0, width: 12, height: 9 };
+  const model = gizmoModel(small, rest({ pivotX: 6, pivotY: 4.5 }), { scale: 0.25 });
+  assert.equal(hitTestGizmo(model, { x: 6, y: 4.5 }, { scale: 0.25 }), 'body', 'the middle of a small piece drags it');
+  // And its corners are still corners: the net shrinks, it does not close.
+  assert.equal(hitTestGizmo(model, { x: 0, y: 0 }, { scale: 0.25 }), 'nw');
+  assert.equal(hitTestGizmo(model, { x: 12, y: 9 }, { scale: 0.25 }), 'se');
+  // The rotate handle floats outside the box, where it competes with nothing,
+  // so it keeps the full reach -- a small piece is exactly the one whose
+  // rotate handle needs finding.
+  assert.equal(hitTestGizmo(model, model.rotate, { scale: 0.25 }), 'rotate');
+  assert.equal(hitTestGizmo(model, { x: model.rotate.x + 12, y: model.rotate.y }, { scale: 0.25 }), 'rotate');
+  // A box with no side at all -- a stroked line measures zero -- keeps the full
+  // reach, or there would be nothing to grab it by.
+  const line = gizmoModel({ x: 0, y: 20, width: 80, height: 0 }, rest({ pivotX: 40, pivotY: 20 }));
+  assert.equal(hitTestGizmo(line, { x: 0, y: 20 }), 'nw');
+  assert.equal(hitTestGizmo(line, { x: 80, y: 20 }), 'ne');
+});
+
 test('the body test works on a rotated box, not just an axis-aligned one', () => {
   const model = gizmoModel(BOX, rest({ rotation: 45 }));
   assert.equal(hitTestGizmo(model, model.pivot, { mode: 'pivot' }), 'pivot');

@@ -76,6 +76,30 @@ test('@critical Shift+click selects several pieces, and dragging any of them mov
   expect(a.y).toBeGreaterThan(5);
   expect(await session(page)).toEqual({ id: first, ids: [second, first] });
 
+  /**
+   * And it is still there after looking at something else.
+   *
+   * ```text
+   * « on ne peut pas deplacer un groupe de d'elements selectionné »
+   * ```
+   *
+   * The drag did move them, and then put them back. A drag writes the DOM and
+   * the `elements` table; the *markup* in the store is refreshed separately,
+   * and the canvas had let its idea of that markup go stale — so the next
+   * unrelated change rebuilt the whole drawing from a version of it made
+   * before the drag, and the move vanished with nobody having asked. From the
+   * author's chair the pieces simply refused to be moved.
+   */
+  await page.mouse.click(canvas.x + canvas.width * .5, canvas.y + canvas.height * .92);
+  await expect.poll(() => session(page)).toEqual({ id: null, ids: [] });
+  const [stillA, stillB] = [await baseOf(page, first), await baseOf(page, second)];
+  expect(stillA, 'the drag survived a change of selection').toEqual(a);
+  expect(stillB).toEqual(b);
+  // The markup the store holds is the drawing on screen, which is what makes
+  // that true rather than lucky.
+  expect(await page.evaluate((id) => new RegExp(`id="${id}"[^>]*transform=`).test(window.__BOOP_E2E__.document().svgMarkup), first),
+    'the move is in the document, not only in the DOM').toBe(true);
+
   // One undo step for the whole drag.
   await page.keyboard.press('Control+z');
   await expect.poll(async () => (await baseOf(page, first)).x).toBe(0);

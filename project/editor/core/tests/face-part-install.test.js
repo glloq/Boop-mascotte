@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createTemplateProjectState } from '../sample/templates/template-export.js';
 import { createEditorStore } from '../state/editor-store.js';
 import { createFakeFaceCanvas, boxesFromReferenceBox, templateBoxes } from './helpers/fake-face-canvas.js';
-import { FACE_PART_DOMAINS, FACE_PART_FIELDS, applyFacePartRemoval, applyFacePartReplacement, planFacePartRemoval, planFacePartReplacement, scrubRemovedArtwork } from '../face-library/face-part-install.js';
+import { FACE_PART_DOMAINS, FACE_PART_FIELDS, applyFacePartRemoval, applyFacePartReplacement, followHeadClips, planFacePartRemoval, planFacePartReplacement, scrubRemovedArtwork } from '../face-library/face-part-install.js';
 import { remapArtworkIds } from '../face-library/face-part-artwork.js';
 import { artworkIds, normalizeFacePart } from '../face-library/face-part-model.js';
 import { MOUTH_FULL } from '../face-library/builtin/mouth-full.js';
@@ -506,22 +506,28 @@ test('a head asset on the template goes on the skull: the face keeps turning, th
 });
 
 /**
- * The shading and the fringe are cut to a copy of the head's own outline, kept
- * in the definitions (docs/MASCOT_TEMPLATE.md). Nothing used to write to that
- * copy, so a face wearing a library skull was still cut to the head that had
- * gone: the shading spilled over one edge of the new outline and stopped short
- * of the other, and so did the fringe.
+ * The shading and the fringe are cut to the head's own outline
+ * (docs/MASCOT_TEMPLATE.md). Nothing used to follow the head when it was
+ * replaced, so a face wearing a library skull was still cut to the head that
+ * had gone: the shading spilled over one edge of the new outline and stopped
+ * short of the other, and so did the fringe.
+ *
+ * The cut points at the drawing now rather than owning a copy of it, which
+ * makes "follow the head" a different job: the reference moves to whatever
+ * replaced it, or it names an element that is not there and a reference to
+ * nothing keeps nothing -- the fringe and the shading would go out altogether.
+ * Both shapes are followed, because an author's own cut is still a copy.
  */
 test('a clip cut from the head follows the head that replaces it', async () => {
   const { HEAD_SQUARE_SOFT, HEAD_NARROW } = await import('../face-library/builtin/heads.js');
-  const clip = (document) => /<clipPath id="headShape">\s*<path\b([^>]*)\/>/.exec(document.svgMarkup)?.[1] || '';
+  const clip = (document) => /<clipPath id="headShape">\s*<(?:path|use)\b([^>]*)\/>/.exec(document.svgMarkup)?.[1] || '';
   const drawn = (document, id) => new RegExp(`<path id="${id}"[^>]*\\sd="([^"]*)"`).exec(document.svgMarkup)?.[1] || null;
   const fx = fixture();
-  assert.equal(clip(fx.store.getDocument()).includes(drawn(fx.store.getDocument(), 'head')), true, 'the template cuts to its own outline');
+  assert.equal(clip(fx.store.getDocument()).trim(), 'href="#head"', 'the template cuts to its own outline, by pointing at it');
 
   const { document } = install(fx, 'head', HEAD_SQUARE_SOFT);
   assert.ok(drawn(document, 'skull'), 'the new skull is on the canvas');
-  assert.equal(clip(document).trim(), `d="${drawn(document, 'skull')}"`, 'and the clip is that outline, at rest where the skull is');
+  assert.equal(clip(document).trim(), 'href="#skull"', 'and the cut points at the skull that replaced it');
   // Both of them: one clip, and the two groups that name it keep naming it.
   for (const id of ['faceShading', 'hairFront']) assert.match(document.svgMarkup, new RegExp(`id="${id}"[^>]*clip-path="url\\(#headShape\\)"`));
 
@@ -533,7 +539,41 @@ test('a clip cut from the head follows the head that replaces it', async () => {
     apply: (moved) => { Object.assign(moved.elements['head-square-soft'].baseTransform, { x: 12, y: -7, scaleX: 1.1, scaleY: 1.1 }); }
   });
   const moved = install(fx, 'head', HEAD_NARROW).document;
-  assert.equal(clip(moved).trim(), `d="${drawn(moved, 'skull')}" transform="matrix(1.1 0 0 1.1 0 -18.6)"`, 'the outline the viewer sees, in the space the clip is read in');
+  // The space *above* the skull, and only that: the reference already draws the
+  // skull's own transform, so writing the whole chain would apply it twice.
+  // Here the fit sits on the group the skull arrived in, so the two coincide --
+  // which is what the copy used to be given.
+  assert.equal(clip(moved).trim(), 'href="#skull" transform="matrix(1.1 0 0 1.1 0 -18.6)"', 'the outline the viewer sees, in the space the clip is read in');
+});
+
+/**
+ * Both shapes of cut, side by side.
+ *
+ * The template points at the head; a cut an author makes with **Cut to top**
+ * owns a copy of whatever was in front (docs/VECTOR_EDITING.md). A head
+ * replacement has to carry both, and touch nothing else: a clip cut from the
+ * ear is somebody's own decision.
+ */
+test('following the head moves a reference by id and a copy by drawing, and leaves other cuts alone', () => {
+  const markup = [
+    '<svg>',
+    '<clipPath id="headShape"><use href="#head" /></clipPath>',
+    '<clipPath id="cut-1"><path d="OLD" fill="none" /></clipPath>',
+    '<clipPath id="cut-2"><path d="EAR" /></clipPath>',
+    '<clipPath id="cut-3"><use href="#earLeft" /></clipPath>',
+    '<use href="#head" />',
+    '</svg>'
+  ].join('');
+  const followed = followHeadClips(markup, { from: 'OLD', to: 'NEW', transform: 'matrix(2 0 0 2 0 0)', fromId: 'head', toId: 'skull', over: 'matrix(2 0 0 2 0 0)' });
+  assert.match(followed, /<clipPath id="headShape"><use href="#skull" transform="matrix\(2 0 0 2 0 0\)" \/><\/clipPath>/);
+  // The copy keeps everything the author put on it but the outline and where it sits.
+  assert.match(followed, /<clipPath id="cut-1"><path fill="none" d="NEW" transform="matrix\(2 0 0 2 0 0\)" \/><\/clipPath>/);
+  assert.match(followed, /<clipPath id="cut-2"><path d="EAR" \/><\/clipPath>/, 'a cut from something else is left alone');
+  assert.match(followed, /<clipPath id="cut-3"><use href="#earLeft" \/><\/clipPath>/);
+  // And only inside a cut: a `<use>` of the head in the drawing is artwork.
+  assert.match(followed, /<use href="#head" \/><\/svg>/);
+  // Nothing to say, nothing written.
+  assert.equal(followHeadClips(markup, {}), markup);
 });
 
 test('on a face whose head is a shape, a head asset is the head, and its movements move the new skull', async () => {
