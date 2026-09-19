@@ -36,9 +36,9 @@ const select = (page, id) => page.evaluate((elementId) => {
  *
  * The centre of a bounding box is not a point on the piece: the template's
  * nose is a stroked arc with `fill="none"`, so its middle is the cheek behind
- * it, and a press there is a press on the cheek. The gizmo knows that — it
- * refuses to drag the body when the pointer is on somebody else's artwork —
- * so a drag test has to aim at ink.
+ * it. The gizmo will now drag from there — what is *behind* the selection is
+ * background, and the box is the author's claim on that area — but a press on
+ * ink is what a person aiming at a shape does, so a drag test aims at ink.
  */
 const inkOf = (page, id) => page.evaluate((elementId) => {
   const node = document.querySelector(`#canvas svg svg #${elementId}`);
@@ -137,4 +137,91 @@ test('@critical a piece dragged while the head is turned keeps its resting artwo
   const rested = await page.evaluate(() => window.__BOOP_E2E__.state().elements.faceLight.baseTransform);
   expect(rested, 'resting the head authors nothing').toEqual(after);
   concentric(await framed(page, 'faceLight'), 'and the box is still on it at rest');
+});
+
+/**
+ * An edit shows at once, and stays.
+ *
+ * ```text
+ * « les modification ne sont pas mise a jour directement, et retourne a
+ *   l'etat precedent après selection d'un autre element »
+ * ```
+ *
+ * Two faults, one cause each. The box was drawn from the channels the last
+ * *frame* wrote, and a typed field is not a frame — so the nose moved and its
+ * handles stayed a hundred pixels behind, for good: re-selecting it read the
+ * same stale entry. And the canvas had armed a rebuild against itself, by
+ * writing markup into the store without recording what it wrote, so the next
+ * unrelated change reloaded the artwork from that older markup and every edit
+ * made since came undone. Selecting another piece was enough to trigger it.
+ */
+test('@critical a typed edit moves the artwork, takes its box with it, and stays put', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openArtwork(page);
+  await select(page, 'nose');
+  concentric(await framed(page, 'nose'), 'before the edit');
+  const before = await framed(page, 'nose');
+
+  const field = page.locator('#inspector input[data-transform="x"]');
+  await field.fill('40');
+  await field.press('Enter');
+  await expect.poll(async () => Math.round((await framed(page, 'nose')).art.x - before.art.x),
+    { message: 'the artwork moves' }).toBeGreaterThan(20);
+  const moved = await framed(page, 'nose');
+  concentric(moved, 'straight after the edit');
+
+  // The part that used to come undone: look at something else, then come back.
+  await select(page, 'mouth');
+  await select(page, 'nose');
+  const later = await framed(page, 'nose');
+  expect(Math.round(later.art.x), 'the nose stayed where it was put').toBe(Math.round(moved.art.x));
+  expect(later.art.x - before.art.x, 'and did not slide back').toBeGreaterThan(20);
+  concentric(later, 'after selecting something else and back');
+  await expect(page.locator('#inspector input[data-transform="x"]')).toHaveValue('40');
+});
+
+/**
+ * A piece you have selected drags from the middle of its own box.
+ *
+ * The rule was "the pointer is on somebody else's artwork, so select that
+ * instead", which is right for the mouth inside the head's box and wrong for
+ * everything thin. A nose is a stroked arc: the middle of its own box is the
+ * cheek showing through, so pressing the middle of the thing you had just
+ * selected deselected it and picked the face. Paint order decides now — what
+ * is behind the selection is background, what is in front of it is a piece the
+ * author can see and is more likely reaching for.
+ */
+test('@critical the middle of a selected piece drags it, even where another piece shows through', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openArtwork(page);
+  await select(page, 'nose');
+  const start = await framed(page, 'nose');
+  const middle = { x: start.gizmo.x + start.gizmo.w / 2, y: start.gizmo.y + start.gizmo.h / 2 };
+  // The premise: that point is somebody else's paint, and somebody drawn
+  // *before* the nose -- the cheek showing through the arc.
+  const under = await page.evaluate((point) => {
+    const node = document.elementFromPoint(point.x, point.y), nose = document.querySelector('#canvas svg svg #nose');
+    return { id: node?.id || '', behind: Boolean(node && nose && (nose.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_PRECEDING)) };
+  }, middle);
+  expect(under.id, 'the middle of the nose box is not the nose').not.toBe('nose');
+  expect(under.behind, `${under.id} is painted behind the nose`).toBe(true);
+
+  await page.mouse.move(middle.x, middle.y);
+  await page.mouse.down();
+  await page.mouse.move(middle.x + 45, middle.y + 20, { steps: 8 });
+  await page.mouse.up();
+  await expect.poll(async () => Math.round((await framed(page, 'nose')).art.x - start.art.x),
+    { message: 'the nose went with the pointer' }).toBeGreaterThan(30);
+  expect(await page.evaluate(() => window.__BOOP_E2E__.session().selectedId), 'and it is still the selection').toBe('nose');
+  concentric(await framed(page, 'nose'), 'after the drag');
+
+  // The rule it was written for still holds: the mouth is painted over the
+  // head, so a press there picks the mouth rather than dragging the head.
+  await select(page, 'head');
+  const mouth = await page.evaluate(() => { const r = document.querySelector('#canvas svg svg #mouth').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+  await page.mouse.click(mouth.x, mouth.y);
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.session().selectedId),
+    { message: 'a press on a piece in front selects it' }).toBe('mouth');
 });

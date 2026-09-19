@@ -257,10 +257,15 @@ export function createInspector(host, store, history, canvas, { openColour = nul
     }
     if (target.dataset.textContent !== undefined) { canvas.setTextContent?.(id, target.value); return; }
 
+    // A typed transform is a finished gesture, so the document is brought up
+    // to the drawing: `setTransform` writes `elements` and the canvas writes
+    // the DOM, and the markup in between was nobody's job
+    // (docs/SELECTION_GIZMO.md, "An edit reaches the document, once").
     if (target.dataset.transform) {
       const key = target.dataset.transform;
       commands.setTransform(id,{[key]:Number(target.value)});
       canvas.applyElementTransform(id, store.getDocument().elements[id]);
+      canvas.commitTransforms?.();
       return;
     }
     if (target.id === 'pivot-x' || target.id === 'pivot-y') {
@@ -268,6 +273,7 @@ export function createInspector(host, store, history, canvas, { openColour = nul
       const py = Number(host.querySelector('#pivot-y')?.value || element.baseTransform?.pivotY || 0);
       commands.setPivot(id,px,py);
       canvas.applyElementTransform(id, store.getDocument().elements[id]);
+      canvas.commitTransforms?.();
       return;
     }
 

@@ -106,14 +106,33 @@ export function gizmoModel(box, transform, { scale = 1, rotateOffset = ROTATE_HA
  * has aimed at it deliberately.
  */
 export function hitTestGizmo(model, point, { tolerance = 8, scale = 1, mode = 'move' } = {}) {
-  const radius = finite(tolerance, 8) / (finite(scale, 1) || 1);
-  const near = (candidate) => Math.hypot(candidate.x - finite(point?.x), candidate.y - finite(point?.y)) <= radius;
+  const zoom = finite(scale, 1) || 1;
+  const reach = finite(tolerance, 8) / zoom;
+  /**
+   * A handle on the box may never eat the body.
+   *
+   * Eight screen pixels is right for a head and a wide net for an ear seen at
+   * a quarter zoom: thirty-two artwork units, three times the piece. Every
+   * point on it was then within reach of some handle, so it could be scaled
+   * from anywhere and moved from nowhere — and an author who has zoomed out to
+   * see the whole mascot is exactly the author reaching for a part of it.
+   *
+   * So the eight handles *on* the box give way to it: a third of its shorter
+   * side, at most. A box with no side at all — what a stroked line measures —
+   * keeps the full reach, or there would be nothing to grab it by. The rotate
+   * handle floats outside the box and never competes with the body, so it
+   * keeps the full reach too.
+   */
+  const side = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const span = Math.min(side(model.handles.nw, model.handles.ne), side(model.handles.nw, model.handles.sw));
+  const grab = Math.min(reach, span / 3 || Infinity);
+  const near = (candidate, radius = reach) => Math.hypot(candidate.x - finite(point?.x), candidate.y - finite(point?.y)) <= radius;
   // The pivot marker sits in the middle of the selection, which is exactly
   // where a person presses to drag the thing. So it is only grabbable in Pivot
   // mode; everywhere else the middle drags the artwork, as it should.
   if (mode === 'pivot' && near(model.pivot)) return 'pivot';
   if (near(model.rotate)) return 'rotate';
-  for (const name of [...CORNER_HANDLES, ...EDGE_HANDLES]) if (near(model.handles[name])) return name;
+  for (const name of [...CORNER_HANDLES, ...EDGE_HANDLES]) if (near(model.handles[name], grab)) return name;
   return pointInQuad(model.outline, point) ? 'body' : null;
 }
 
