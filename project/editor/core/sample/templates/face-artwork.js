@@ -340,16 +340,19 @@ const LID = Object.freeze({
   /**
    * How tall a lid is drawn, as a fraction of the eye's own half-height.
    *
-   * A **hairline**, and deliberately: at rest the lid has to sit under the eye's
-   * own outline, where an open eye shows no lid at all -- which is what the old
-   * drawing showed too, because its lids were parked outside the socket and
-   * cropped away. Drawn any taller and the crease is a line across the white.
+   * A **hairline**, and it has to be: a lid is drawn on its rim and grown from
+   * there, so whatever is drawn is what an open eye shows of it. At a twentieth
+   * of the eye that was a band of skin and a crease inside the outline at rest
+   * -- an eye that never quite opened, which is what an author sees as *les
+   * paupières restent visibles légèrement*. At a seven-thousandth it is a third
+   * of a screen pixel, tucked under the outline's own stroke, and the factor it
+   * grows by takes up the difference.
    *
    * It is also what makes half a blink cover half the eye: the lid's edge starts
    * at the rim and travels linearly to the seam, so it is at the middle when
    * `eyeOpen` is. Drawn a fifth of the eye deep, half a blink was two thirds.
    */
-  slice: 0.05,
+  slice: 0.007,
   /** A shade below the middle of the eye, which is where a lash line sits. */
   seam: 1,
   /**
@@ -379,7 +382,18 @@ const LID = Object.freeze({
    * nearly shut eye it overshoots, and a squint there says nothing `eyeOpen` has
    * not already said.
    */
-  squintUpper: 3.5, squintLower: 9, arc: 1.05
+  squintUpper: 3.5, squintLower: 9,
+  /**
+   * How far a **shut** eye's seam arcs at `eyeCurve ±1`, in the eye's own
+   * units, divided back out by the factor that lid grows by.
+   *
+   * It used to be authored on the drawn sliver, which tied it to how thick the
+   * lid happened to be drawn: thinning the lid to a hairline so that an open
+   * eye shows none of it would have multiplied the arc sevenfold. Written
+   * where it is read -- on the seam -- it is the same eleven units however the
+   * lid is drawn.
+   */
+  seamArc: 11
 });
 
 /**
@@ -480,7 +494,7 @@ function lidEdge(way, { squint = 0, curve: bend = 0 } = {}) {
   // viewer reads as the arc is the two edges together, so both have to rise in
   // the middle. The lower lid's is divided by how much less far it grows, or
   // the two arrive at different arcs and a shut eye is two lines apart.
-  const arc = -bend * LID.arc * (way < 0 ? 1 : LID_MEET.upper / LID_MEET.lower);
+  const arc = -bend * (LID.seamArc / LID_MEET.upper) * (way < 0 ? 1 : LID_MEET.upper / LID_MEET.lower);
   return {
     rim,
     end: round(rim - way * (EYE.ry / meet + narrow)),
@@ -560,7 +574,7 @@ export const LID_ROLES = Object.freeze(['lidUpperLeft', 'lidLowerLeft', 'lidUppe
 export const LID_RESTS = Object.freeze(Object.fromEntries(LID_ROLES.map((role) => [role, lidPath(role)])));
 
 // The socket the lids are cut to, shared with the library's three eye builds.
-import { eyeLidsGroup, eyeSocketClip } from '../../face/eye-build.js';
+import { eyeInnerGroup, eyeSocketClip } from '../../face/eye-build.js';
 
 /**
  * Left and right are the viewer's, which is how an author points at them.
@@ -597,17 +611,20 @@ const eye = (side, cx) => {
   // quarter shut hangs past the outline on both sides, because scaling an
   // ellipse in `y` alone keeps its full width and the eye is narrower than
   // that everywhere but its middle.
-  const lids = `<path id="lidUpper${side}" data-name="${side} upper eyelid" d="${lid(cx, -1)}" fill="${FACE_PALETTE.skin}" />`
+  // Everything but the socket and the outline: the gaze, the catchlights and
+  // the lids. The pupil is in here because a gaze carries it across the white
+  // and nothing else stops it at the rim (docs/EYE_BUILDS.md).
+  const inside = `<circle id="pupil${side}" data-name="${side} pupil" cx="${cx}" cy="${cy}" r="${PUPIL.r}" fill="${FACE_PALETTE.pupil}" />`
+      + `<circle id="glint${side}" data-name="${side} eye glint" cx="${round(cx - 4.2)}" cy="${round(cy - 4.6)}" r="3.6" fill="${FACE_PALETTE.glint}" opacity="${FACE_STYLE.glintOpacity}" />`
+      + `<circle id="spark${side}" data-name="${side} eye catchlight" cx="${round(cx + 4.4)}" cy="${round(cy + 3.6)}" r="1.7" fill="${FACE_PALETTE.glint}" opacity="${FACE_STYLE.sparkOpacity}" />`
+      + `<path id="lidUpper${side}" data-name="${side} upper eyelid" d="${lid(cx, -1)}" fill="${FACE_PALETTE.skin}" />`
       + `<path id="creaseUpper${side}" data-name="${side} upper eyelid crease" d="${creasePath(`creaseUpper${side}`)}" fill="none" stroke="${FACE_PALETTE.outlinePrimary}" stroke-width="${FACE_STYLE.creaseUpper}" stroke-linecap="round" vector-effect="non-scaling-stroke" />`
       + `<path id="lidLower${side}" data-name="${side} lower eyelid" d="${lid(cx, 1)}" fill="${FACE_PALETTE.skin}" />`
       + `<path id="creaseLower${side}" data-name="${side} lower eyelid crease" d="${creasePath(`creaseLower${side}`)}" fill="none" stroke="${FACE_PALETTE.outlinePrimary}" stroke-width="${FACE_STYLE.creaseLower}" stroke-linecap="round" vector-effect="non-scaling-stroke" />`;
   return `<g id="eye${side}" data-name="${side} eye">
       <ellipse id="eyeWhite${side}" data-name="${side} eye socket" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${FACE_PALETTE.eyeWhite}" />
       ${eyeSocketClip(side)}
-      <circle id="pupil${side}" data-name="${side} pupil" cx="${cx}" cy="${cy}" r="${PUPIL.r}" fill="${FACE_PALETTE.pupil}" />
-      <circle id="glint${side}" data-name="${side} eye glint" cx="${round(cx - 4.2)}" cy="${round(cy - 4.6)}" r="3.6" fill="${FACE_PALETTE.glint}" opacity="${FACE_STYLE.glintOpacity}" />
-      <circle id="spark${side}" data-name="${side} eye catchlight" cx="${round(cx + 4.4)}" cy="${round(cy + 3.6)}" r="1.7" fill="${FACE_PALETTE.glint}" opacity="${FACE_STYLE.sparkOpacity}" />
-      ${eyeLidsGroup(side, lids)}
+      ${eyeInnerGroup(side, inside)}
       <ellipse id="rim${side}" data-name="${side} eye outline" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="none" stroke="${FACE_PALETTE.outlinePrimary}" stroke-width="${FACE_STYLE.eyeOutline}" />
     </g>`;
 };

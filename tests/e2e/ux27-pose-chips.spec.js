@@ -113,8 +113,8 @@ test('@critical an open mouth has teeth and a tongue, and a closed one has neith
   // once the mouth is open below.
   const shut = { teeth: (await box('teeth')).h, tongue: (await box('tongue')).h };
 
-  // Open, and both come out -- inside the mouth, which is what drawing them
-  // from its own curves buys.
+  // Open, and both come out -- drawn from the mouth's own curves, so neither
+  // can wander off sideways and the teeth cannot leave it at all.
   await set({ mouthOpen: 1, smile: 1 });
   const mouth = await box('mouth');
   await expect.poll(async () => (await box('teeth')).h).toBeGreaterThan(8);
@@ -123,8 +123,12 @@ test('@critical an open mouth has teeth and a tongue, and a closed one has neith
   expect(shut.tongue).toBeLessThan(tongue.h * 0.2);
   expect(teeth.y).toBeGreaterThanOrEqual(mouth.y - 1);
   expect(teeth.y + teeth.h).toBeLessThanOrEqual(mouth.y + mouth.h);
-  expect(tongue.y + tongue.h).toBeLessThanOrEqual(mouth.y + mouth.h + 1);
   expect(teeth.w).toBeLessThan(mouth.w);
+  // The tongue laps **over** the lower lip, which is what a tongue coming out
+  // is and the one thing it never did (docs/MOUTH_BUILD.md). It comes out of
+  // the middle, so the lip is still drawn on both sides of it.
+  expect(tongue.y + tongue.h, 'the tongue does not come out').toBeGreaterThan(mouth.y + mouth.h);
+  expect(tongue.w).toBeLessThan(mouth.w * 0.75);
 
   // And they travel with the mouth when the head turns, rather than staying
   // where the mouth used to be: the whole assembly narrows about one centre.

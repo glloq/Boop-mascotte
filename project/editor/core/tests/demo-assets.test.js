@@ -23,7 +23,7 @@ test('the template artwork parses into the records the canvas would build', () =
   // A hundred and thirty-six: four eyelid creases, and a group per eye holding
   // the pieces the socket cuts (docs/EYE_BUILDS.md).
   assert.equal(Object.keys(elements).length, 136, 'every layer the artwork draws — the face and the pair of hands — and nothing that only cuts');
-  for (const id of ['lidsLeft', 'lidsRight']) assert.equal(elements[id].meta.nodeType, 'g', `${id} is the group the cut goes on`);
+  for (const id of ['eyeInnerLeft', 'eyeInnerRight']) assert.equal(elements[id].meta.nodeType, 'g', `${id} is the group the cut goes on`);
   // A shape that only cuts is not a layer, wherever it is written: a clip path
   // in `<defs>`, and the `<use>` inside the eye's own socket.
   assert.equal(elements.headShape, undefined, 'a clip path is not a layer');
@@ -62,15 +62,16 @@ test('the template artwork parses into the records the canvas would build', () =
   assert.equal(face.name, 'Face');
   const eyeLeft = face.children.find((layer) => layer.id === 'eyeLeft');
   assert.deepEqual(eyeLeft.children.map((layer) => layer.id),
-    ['eyeWhiteLeft', 'pupilLeft', 'glintLeft', 'sparkLeft', 'lidsLeft', 'rimLeft'],
+    ['eyeWhiteLeft', 'eyeInnerLeft', 'rimLeft'],
     'the eye keeps its nesting, which the head turn reads');
-  // The four pieces that sweep across the eye hang in a group of their own,
-  // because that group is what carries the cut: `clip-path` is resolved after
-  // an element's own transform, so a lid that carried it would scale its own
-  // socket out of the way at exactly the moment it needs cutting
-  // (docs/EYE_BUILDS.md). Each lid is followed by the crease that draws its edge.
-  assert.deepEqual(eyeLeft.children.find((layer) => layer.id === 'lidsLeft').children.map((layer) => layer.id),
-    ['lidUpperLeft', 'creaseUpperLeft', 'lidLowerLeft', 'creaseLowerLeft']);
+  // Everything the socket cuts hangs in a group of its own, because that group
+  // is what carries the cut: `clip-path` is resolved after an element's own
+  // transform, so a piece that carried it would scale its own socket out of the
+  // way at exactly the moment it needs cutting (docs/EYE_BUILDS.md). The pupil
+  // is in it because a gaze carries it across the white, and each lid is
+  // followed by the crease that draws its edge.
+  assert.deepEqual(eyeLeft.children.find((layer) => layer.id === 'eyeInnerLeft').children.map((layer) => layer.id),
+    ['pupilLeft', 'glintLeft', 'sparkLeft', 'lidUpperLeft', 'creaseUpperLeft', 'lidLowerLeft', 'creaseLowerLeft']);
   assert.equal(face.children.find((layer) => layer.id === 'earLeft').name, 'Left ear');
   // The shading is a folder of its own, clipped to the head: three soft shapes
   // an author can turn off together, rather than three loose ones between the

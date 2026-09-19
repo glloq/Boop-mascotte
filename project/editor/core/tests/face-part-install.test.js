@@ -349,14 +349,15 @@ test('every lid rests where it is drawn: its own amplitude, its own offset, hint
     { lidUpperLeft: { amplitude: -8, atRest: 0, shut: 8 }, lidLowerLeft: { amplitude: -8, atRest: 0, shut: 8 } });
 
   // A hint that gives both keeps both, untouched. A shipped lid **grows**
-  // rather than slides (docs/EYE_BUILDS.md): it is drawn as a band on the rim
-  // it swings from, rests at `scaleY 1` as every drawing does, and reaches the
-  // seam shut. Both lids travel nearly the whole way, and the small difference
+  // rather than slides (docs/EYE_BUILDS.md): it is drawn as a *hairline* on the
+  // rim it swings from -- so an open eye shows none of it -- rests at `scaleY 1`
+  // as every drawing does, and reaches the seam shut. Seventy times over, which
+  // is what a hairline costs and why its stroke does not scale. Both lids travel nearly the whole way, and the small difference
   // between them is the seam sitting a shade below the eye's middle -- which is
   // what makes a blink read as mostly the upper lid. A lower lid that stopped
   // short would leave the bottom of the eye white.
   assert.deepEqual(lids(EYES_SIMPLE),
-    { lidUpperLeft: { amplitude: -9.4, atRest: 1, shut: 10.4 }, lidLowerLeft: { amplitude: -8.51, atRest: 1, shut: 9.51 } });
+    { lidUpperLeft: { amplitude: -72.47, atRest: 1, shut: 73.47 }, lidLowerLeft: { amplitude: -66.16, atRest: 1, shut: 67.16 } });
 
   // And the socket comes with the drawing, because it *is* part of the drawing:
   // the white, referenced. What it is not is a second ellipse hidden in
@@ -421,8 +422,8 @@ test('a pair of eyes is three parts: the eyes, the pupils and the lids take thei
   const lids = part(document, 'eyelids');
   assert.deepEqual(lids.roles, { leftUpper: 'lidUpperLeft', leftLower: 'lidLowerLeft', rightUpper: 'lidUpperRight', rightLower: 'lidLowerRight' });
   const upper = document.elements.lidUpperRight.bindings.scaleY, lower = document.elements.lidLowerRight.bindings.scaleY;
-  assert.deepEqual([upper.expression, upper.amplitude, upper.offset], ['eyeOpen + eyeOpenRight', -9.4, 10.4]);
-  assert.deepEqual([lower.expression, lower.amplitude, lower.offset], ['eyeOpen + eyeOpenRight', -8.51, 9.51],
+  assert.deepEqual([upper.expression, upper.amplitude, upper.offset], ['eyeOpen + eyeOpenRight', -72.47, 73.47]);
+  assert.deepEqual([lower.expression, lower.amplitude, lower.offset], ['eyeOpen + eyeOpenRight', -66.16, 67.16],
     'and the lower lid comes up to meet it, a shade less far because the seam sits below the middle');
   assert.equal(lids.controlDrivers.eyeOpen.property, 'scaleY');
   const box = (id) => [document.elements[id].baseTransform.pivotY, document.elements[id].baseTransform.pivotY];

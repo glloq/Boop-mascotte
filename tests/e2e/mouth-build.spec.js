@@ -105,11 +105,69 @@ test('@critical the teeth and the tongue show, and a closed mouth hides nothing'
   const open = { teeth: await painted(page, 'teeth'), tongue: await painted(page, 'tongue'), mouth: await painted(page, 'mouth') };
   expect(open.teeth.height, 'and they come out when the mouth opens').toBeGreaterThan(shut.teeth.height * 3);
   expect(open.tongue.height).toBeGreaterThan(shut.tongue.height * 3);
-  // Inside by construction: both are drawn *from* the lips, so neither can leave
-  // the aperture however far the controls go.
+  // Both are drawn *from* the lips, so neither can wander off sideways however
+  // far the controls go — and both are narrower than the mouth they hang in.
   for (const [name, band] of [['teeth', open.teeth], ['tongue', open.tongue]]) {
     expect(band.y, `${name} stays below the upper lip`).toBeGreaterThanOrEqual(open.mouth.y - 2);
-    expect(band.y + band.height, `${name} stays above the lower lip`).toBeLessThanOrEqual(open.mouth.y + open.mouth.height + 2);
     expect(band.width, `${name} is narrower than the mouth`).toBeLessThanOrEqual(open.mouth.width + 2);
   }
+  // The teeth stay in the mouth. The tongue does **not**: it laps over the
+  // lower lip, which is the whole of what a tongue coming out means and the one
+  // thing it never did (docs/MOUTH_BUILD.md).
+  expect(open.teeth.y + open.teeth.height, 'the teeth are inside the mouth').toBeLessThanOrEqual(open.mouth.y + open.mouth.height + 2);
+  expect(open.tongue.y + open.tongue.height, 'the tongue comes out over the lower lip').toBeGreaterThan(open.mouth.y + open.mouth.height);
+});
+
+/**
+ * The upper lip is drawn where the teeth are, and the tongue comes out.
+ *
+ * ```text
+ * « les dents sont au dessus de la lèvre supérieure, la langue ne sort pas du
+ *   tout (il faut un design plus cartoon pour la langue) »
+ * ```
+ *
+ * Two faults in one construction. The teeth hung from the upper lip with their
+ * ends *on* it, so a row of teeth painted over the inner half of the 3.8-unit
+ * stroke that draws it and the lip went missing where they were. And the tongue
+ * was a band like them — a small hump on the floor of the mouth that never left
+ * it, which is not what anybody means by a tongue.
+ */
+test('@critical the teeth hang under the upper lip, and the tongue laps over the lower one', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openArtwork(page);
+  await page.evaluate(() => {
+    window.__BOOP_E2E__.setLiveParam('mouthOpen', 1);
+    window.__BOOP_E2E__.setLiveParam('teeth', 1);
+    window.__BOOP_E2E__.setLiveParam('tongue', 1);
+  });
+  await page.waitForTimeout(240);
+  const mouth = await painted(page, 'mouth'), teeth = await painted(page, 'teeth'), tongue = await painted(page, 'tongue');
+
+  // The lip is still drawn where the teeth are: walk across the top of the
+  // aperture and the mouth's own stroke is what is painted there, not enamel.
+  const alongTheLip = await page.evaluate(() => {
+    const box = document.querySelector('#canvas #mouth').getBoundingClientRect();
+    return [0.35, 0.45, 0.55, 0.65].map((f) => {
+      const x = box.x + box.width * f, y = box.y + 2;
+      return document.elementsFromPoint(x, y).map((n) => n.id).filter(Boolean)[0] || '';
+    });
+  });
+  for (const hit of alongTheLip) expect(hit, 'the teeth are painted over the upper lip').toBe('mouth');
+  expect(teeth.y, 'and they hang clear of the stroke that draws it').toBeGreaterThan(mouth.y + 3);
+
+  // The tongue comes out: past the lower lip, from the middle of the mouth, so
+  // the lip is still drawn on both sides of it.
+  expect(tongue.y + tongue.height, 'the tongue does not come out at all').toBeGreaterThan(mouth.y + mouth.height);
+  expect(tongue.x, 'and it comes out of the middle, not over the corners').toBeGreaterThan(mouth.x + mouth.width * 0.15);
+  expect(tongue.x + tongue.width).toBeLessThan(mouth.x + mouth.width * 0.85);
+  // Big enough to read as one: it fills a good part of the aperture.
+  expect(tongue.height).toBeGreaterThan(mouth.height * 0.4);
+
+  // And a shut mouth still shows neither, which is what the product is for.
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('mouthOpen', 0));
+  await page.waitForTimeout(220);
+  const shut = { mouth: await painted(page, 'mouth'), tongue: await painted(page, 'tongue') };
+  expect(shut.tongue.height, 'a shut mouth keeps its tongue in').toBeLessThan(shut.mouth.height * 0.4);
+  for (const key of ['mouthOpen', 'teeth', 'tongue']) await page.evaluate((k) => window.__BOOP_E2E__.clearLiveParam(k), key);
 });

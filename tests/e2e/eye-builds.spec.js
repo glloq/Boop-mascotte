@@ -211,7 +211,7 @@ test('@critical the socket is a drawing an author can find, and the eye\'s box i
       clip: Boolean(clip && /<use[^>]+href="#eyeWhiteLeft"/.test(clip[1])),
       copies: Boolean(clip && /<(ellipse|path|circle|rect)/.test(clip[1])),
       white: Boolean(document_.elements.eyeWhiteLeft),
-      cut: Boolean(document_.elements.lidsLeft)
+      cut: Boolean(document_.elements.eyeInnerLeft)
     };
   });
   expect(socket.clip, 'the cut is a `use` of the white').toBe(true);
@@ -432,4 +432,74 @@ test('@critical the socket can be found, selected and moved, and the cut follows
     window.__BOOP_E2E__.setAuthoredTransform('eyeWhiteLeft', { x: 0, y: 0 });
     window.__BOOP_E2E__.clearLiveParam('eyeOpen');
   });
+});
+
+/**
+ * A look cannot leave the eye, and an open eye has no lid on it.
+ *
+ * ```text
+ * « les pupilles sortent de la limite des yeux, les paupières ne s'ouvrent pas
+ *   au maximum, elles restent visibles légèrement »
+ * ```
+ *
+ * Two more things the socket had been left out of. A gaze carries the pupil
+ * across the white and nothing stopped it at the rim — at a full diagonal look
+ * it sat on the outline, and on the iris build the iris is nearly twice the
+ * pupil's width and left the eye outright. And a lid is drawn on its rim and
+ * grown from there, so whatever is drawn is what an open eye shows of it: at a
+ * twentieth of the eye that was a band of skin and a crease inside the outline,
+ * an eye that never quite opened.
+ */
+test('@critical a gaze never carries the pupil out of the eye', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openArtwork(page);
+  const white = await painted(page, 'eyeWhiteLeft');
+  const centre = { x: white.x + white.width / 2, y: white.y + white.height / 2 };
+
+  /** What is painted on the outline itself, all the way round it. */
+  const onTheRim = () => page.evaluate(([cx, cy, rx, ry]) => {
+    const hits = new Set();
+    for (let step = 0; step < 48; step += 1) {
+      const angle = (step / 48) * Math.PI * 2;
+      // Just inside the outline, where a pupil that had left the eye would be.
+      const x = cx + Math.cos(angle) * rx * 0.99, y = cy + Math.sin(angle) * ry * 0.99;
+      for (const node of document.elementsFromPoint(x, y)) if (node.id) { hits.add(node.id); break; }
+    }
+    return [...hits];
+  }, [centre.x, centre.y, white.width / 2 + 3, white.height / 2 + 3]);
+
+  for (const [lx, ly] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+    await page.evaluate(([x, y]) => { window.__BOOP_E2E__.setLiveParam('lookX', x); window.__BOOP_E2E__.setLiveParam('lookY', y); }, [lx, ly]);
+    await page.waitForTimeout(140);
+    expect(await onTheRim(), `looking (${lx}, ${ly}) put the pupil outside the eye`).not.toContain('pupilLeft');
+  }
+  await page.evaluate(() => { window.__BOOP_E2E__.clearLiveParam('lookX'); window.__BOOP_E2E__.clearLiveParam('lookY'); });
+});
+
+test('@critical an open eye shows no lid at all', async ({ page }) => {
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await openArtwork(page);
+
+  // Down the middle of the eye, from just inside the outline at the top to just
+  // inside it at the bottom. With the eye open every one of those is the white
+  // or the pupil: the lids are hairlines on the rim, under its own stroke.
+  const down = () => page.evaluate(() => {
+    const box = document.querySelector('#canvas #eyeWhiteLeft').getBoundingClientRect();
+    return [0.06, 0.12, 0.25, 0.75, 0.88, 0.94].map((f) => {
+      const y = box.y + box.height * f;
+      return document.elementsFromPoint(box.x + box.width / 2, y).map((n) => n.id).filter(Boolean)[0] || '';
+    });
+  });
+  for (const hit of await down()) {
+    expect(['eyeWhiteLeft', 'pupilLeft', 'glintLeft', 'sparkLeft', 'rimLeft'], `an open eye shows ${hit}`).toContain(hit);
+  }
+
+  // And shutting it brings them straight back, so this is an eye that opens
+  // rather than an eye with no lids.
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('eyeOpen', 0.5));
+  await page.waitForTimeout(180);
+  expect((await down()).some((id) => /^lid|^crease/.test(id)), 'half shut, the lids are on the eye').toBe(true);
+  await page.evaluate(() => window.__BOOP_E2E__.clearLiveParam('eyeOpen'));
 });

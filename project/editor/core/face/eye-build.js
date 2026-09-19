@@ -136,7 +136,17 @@ export function eyeGeometry({ rx = 24, ry = 22.5, pupil = 10.5, iris = 0, build 
    * far edge is a curve at every opening and lands exactly on the eye's
    * opposite edge at `cover`.
    */
-  const lidRy = round(eyeRy * 0.05);
+  /**
+   * A **hairline**, and that is the whole of it.
+   *
+   * A lid is drawn on its rim and grown from there, so whatever is drawn is
+   * what an open eye shows of it. At a twentieth of the eye that was a band of
+   * skin and a crease inside the outline at rest — an eye that never quite
+   * opened. At a hairline it is a third of a screen pixel, tucked under the
+   * rim's own stroke, and the eye opens all the way; the factor it grows by
+   * takes up the difference.
+   */
+  const lidRy = round(eyeRy * 0.007);
   // A shade below the middle of the eye, which is where a lash line sits and
   // where the two lids therefore have to meet.
   const seam = round(eyeRy * 0.045);
@@ -155,7 +165,12 @@ export function eyeGeometry({ rx = 24, ry = 22.5, pupil = 10.5, iris = 0, build 
     irisR: parts.iris ? Math.max(pupil * 1.7, iris || 0) : 0,
     // How far the gaze may carry the pupil before its edge reaches the rim. A
     // pupil that touches the outline reads as an eye rolled back, not a look.
-    travel: dot ? round(pupil * 0.55) : round(Math.max(0, rx - pupil - 4))
+    //
+    // Measured against whatever the gaze actually *moves*, which on the iris
+    // build is the iris and not the pupil inside it. Against the pupil, the
+    // iris -- nearly twice as wide -- left the eye at a full look, which is
+    // what the socket now catches and what this stops needing caught.
+    travel: dot ? round(pupil * 0.55) : round(Math.max(0, rx - Math.max(pupil, parts.iris ? Math.max(pupil * 1.7, iris || 0) : 0) - 4))
   });
 }
 
@@ -241,12 +256,19 @@ export const eyeSocketClip = (side) => `<clipPath id="${eyeSocketId(side)}"><use
  * nothing at the moment it is needed. Measured — it is why the first attempt
  * drew an hourglass.
  *
- * So the lids hang in a group that nothing transforms, and the group carries
- * the cut. It is a real grouping besides: *Left eyelids*, the pieces that
- * sweep across that eye, which is how an author already thinks of them.
+ * So everything inside the eye hangs in a group that nothing transforms, and
+ * the group carries the cut. It is a real grouping besides: *inside the eye*
+ * is what an author means by everything but the socket and the outline.
+ *
+ * **The pupil is in it too**, and that was the second thing an author saw. A
+ * gaze carries the pupil across the white, and nothing stopped it at the rim:
+ * at a full diagonal look the pupil sat on the outline, and on the iris build
+ * the iris is wider than the travel was ever measured against, so it left the
+ * eye outright. The cut ends the whole class of it — a look, a `pupilScale`, a
+ * pupil an author drags, all of them.
  */
-export const eyeLidsGroup = (side, inner) =>
-  `<g id="lids${side}" data-name="${side} eyelids" clip-path="url(#${eyeSocketId(side)})">${inner}</g>`;
+export const eyeInnerGroup = (side, inner) =>
+  `<g id="eyeInner${side}" data-name="${side} eye, inside" clip-path="url(#${eyeSocketId(side)})">${inner}</g>`;
 
 /**
  * One eye, as markup.
@@ -268,40 +290,42 @@ export function eyeMarkup(side, cx, geometry, palette, { seam = 0, lash = false,
     pieces.push(`<ellipse id="${id('eyeWhite')}" data-name="${side} eye socket" ${at()} rx="${g.rx}" ry="${g.ry}" fill="${palette.eyeWhite}" />`);
     pieces.push(eyeSocketClip(side));
   }
-  if (g.iris) pieces.push(`<circle id="${id('iris')}" data-name="${side} iris" ${at()} r="${round(g.irisR)}" fill="${palette.iris}" />`);
-  pieces.push(`<circle id="${id('pupil')}" data-name="${side} pupil" ${at()} r="${round(g.pupil)}" fill="${palette.pupil}" />`);
-  pieces.push(`<circle id="${id('glint')}" data-name="${side} eye glint" ${at(-g.pupil * 0.4, -g.pupil * 0.45)} r="${round(g.pupil * 0.32)}" fill="${palette.glint}" opacity="0.92" />`);
+  /**
+   * Everything the socket cuts, in one group that nothing transforms.
+   *
+   * The pupil is in it for the same reason the lids are: a gaze carries it
+   * across the white and nothing used to stop it at the rim. What is *not* in
+   * it is the white itself — it is the shape doing the cutting — and the
+   * outline, which is drawn over the top so a closing lid passes under it
+   * rather than over it.
+   */
+  const inside = [];
+  if (g.iris) inside.push(`<circle id="${id('iris')}" data-name="${side} iris" ${at()} r="${round(g.irisR)}" fill="${palette.iris}" />`);
+  inside.push(`<circle id="${id('pupil')}" data-name="${side} pupil" ${at()} r="${round(g.pupil)}" fill="${palette.pupil}" />`);
+  inside.push(`<circle id="${id('glint')}" data-name="${side} eye glint" ${at(-g.pupil * 0.4, -g.pupil * 0.45)} r="${round(g.pupil * 0.32)}" fill="${palette.glint}" opacity="0.92" />`);
 
   /**
-   * The lids: the eye's own ellipse squashed to a lid's edge, sitting on the
-   * rim it swings from.
+   * The lids: the eye's own shape squashed to a hairline on the rim it swings
+   * from, and grown from there.
    *
-   * Drawn open, so the artwork on its own is a face with its eyes open — which
-   * is what an author expects on the canvas and what the rest of the editor
-   * assumes about a rest pose. The rig grows each one by `cover` to shut the
-   * eye, about the rim it is drawn on, so it sweeps across the eye and stops
-   * exactly on the far edge.
+   * Drawn there, an open eye shows **none** of it — the hairline is under the
+   * outline's own stroke — so the eye opens all the way, and the artwork on its
+   * own is still a face with its eyes open. They carry their own line, which
+   * the cut is what makes possible: a closed shape stroked all the way round
+   * draws every edge it has, and this lid's other three are outside the socket.
+   * So the only stroke that survives is the one facing the pupil. One shape,
+   * one line, and they cannot drift apart.
+   *
+   * `non-scaling-stroke`, because the lid grows seventy times over to reach the
+   * seam: a two-unit line would arrive as a black band across a shut eye.
    */
   if (g.lids) {
-    /**
-     * The lids carry their own line, and the cut is what makes that possible.
-     *
-     * A closed shape stroked all the way round draws every edge it has, which
-     * is why this used to need a crease path of its own: the rim half of a
-     * lid shaped like the eye sits *inside* the eye at the corners, so each
-     * lid read as a lens-shaped ring lying across the white. This lid's other
-     * three edges are outside the socket — that is what closes the corners —
-     * so the cut takes them away and the only stroke that survives is the one
-     * facing the pupil. One shape, one line, and they cannot drift apart.
-     *
-     * `non-scaling-stroke` because the lid grows four times over: a two-unit
-     * line would arrive as an eight-unit band across a shut eye.
-     */
     const line = `fill="${palette.skin}" stroke="${palette.outline}" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"`;
-    pieces.push(eyeLidsGroup(side,
-      `<path id="${id('lidUpper')}" data-name="${side} upper eyelid" d="${eyeLidPath(cx, cy, g, -1)}" ${line} />`
-      + `<path id="${id('lidLower')}" data-name="${side} lower eyelid" d="${eyeLidPath(cx, cy, g, 1)}" ${line} />`));
+    inside.push(`<path id="${id('lidUpper')}" data-name="${side} upper eyelid" d="${eyeLidPath(cx, cy, g, -1)}" ${line} />`);
+    inside.push(`<path id="${id('lidLower')}" data-name="${side} lower eyelid" d="${eyeLidPath(cx, cy, g, 1)}" ${line} />`);
   }
+  pieces.push(g.white ? eyeInnerGroup(side, inside.join('')) : inside.join(''));
+
   /**
    * The seam is the line a shut eye is, drawn over the lids and under the
    * outline. It is the template's, not a library card's: a card can only drive

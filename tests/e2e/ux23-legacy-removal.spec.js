@@ -140,6 +140,26 @@ test('@critical legacy empty state and demo bar are removed; Home, Artwork and P
 // holding a `<use>` of that eye's own white, so the shape that cuts is the
 // shape in the layer tree. The white is renamed *eye socket* to say so. Again
 // no parameter, state, reaction or element outside the eyes moved.
+//
+// Then four more things an author could see, and three of them were the socket
+// being left out of something:
+//
+//   ~ lidsLeft/Right → eyeInnerLeft/Right   the cut holds the *pupil* now too.
+//                                A gaze carried it across the white and nothing
+//                                stopped it at the rim; on the iris build the
+//                                iris is nearly twice as wide and left the eye
+//   ~ the lids and creases (8)   drawn as hairlines rather than a twentieth of
+//                                the eye, so an open eye shows none of them.
+//                                Whatever is drawn is what it shows: the factor
+//                                they grow by takes up the difference
+//   ~ their shape keys (12)      the same two poses over the new rests, and
+//                                `eyeCurve` authored on the seam rather than on
+//                                the sliver so thinning the lid cannot rescale it
+//   ~ tongue, and its five keys  a rounded slab that fills the lower mouth and
+//                                laps over the lip, where it was a hump that
+//                                never left the floor of it
+//   ~ teeth-show                 hung clear of the upper lip, which was drawn
+//                                over by the row of teeth
 test('@critical Basic Face export artifacts are identical to the pre-removal fixtures', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
