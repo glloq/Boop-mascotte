@@ -89,6 +89,9 @@ export function createAppShell(root) {
   q('#collapse-left').onclick = () => collapse('left');
   q('#collapse-right').onclick = () => collapse('right');
   q('#collapse-timeline').onclick = () => collapse('timeline');
+  // How much of the Behavior column the mascot keeps, restored before the first
+  // paint so the board is not drawn once at one size and again at another.
+  root.dataset.boardStage = ['off', 'small', 'large'].includes(preferences.boardStage) ? preferences.boardStage : 'small';
   root.classList.toggle('left-collapsed', preferences.leftCollapsed);
   root.classList.toggle('right-collapsed', preferences.rightCollapsed);
   root.classList.toggle('timeline-collapsed', preferences.timelineCollapsed);

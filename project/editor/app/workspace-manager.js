@@ -25,7 +25,9 @@ import { RENDER_TARGETS } from '../core/state/render-plan.js';
 export const CONTEXT_RENDER_PLAN = Object.freeze(['rigPanel', 'faceSetup', 'faceMovements', 'headPose',
   // `states` reads `authorMode` from the context: a deep link that set it used
   // to leave the States editor on whatever mode it last drew.
-  'handSetup', 'warpPanel', 'expressionStudio', 'motionStudio', 'reactionStudio', 'timeline', 'states']);
+  // `behaviorBoard` reads the lens and the board selection from the context,
+  // exactly as `states` reads `authorMode`.
+  'handSetup', 'warpPanel', 'expressionStudio', 'motionStudio', 'reactionStudio', 'timeline', 'states', 'behaviorBoard']);
 
 /**
  * Should the inspector slide into view?

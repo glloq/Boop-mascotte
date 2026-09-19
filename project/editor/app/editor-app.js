@@ -623,7 +623,10 @@ export function createEditorApp({ root = document.getElementById('app'), recover
   // render plan and the rest of the wiring already know them by.
   const workspaceContext = { store, history, shell, preview, editorContext, navigate: (route) => taskRouter.navigate(route), setStatus: (message, tone) => shell.setStatus(message, tone) };
   const animate = createAnimateWorkspace({ ...workspaceContext, isMobile: () => responsive.layout === 'mobile' });
-  const behavior = createBehaviorWorkspace(workspaceContext);
+  // The Behavior workspace shrinks the canvas to a 200 px stage
+  // (docs/BEHAVIOR_STUDIO.md), so it has to be able to re-fit the mascot into
+  // it: a view framed for a 790 px column shows an eyebrow at 200 px.
+  const behavior = createBehaviorWorkspace({ ...workspaceContext, fitCanvas: () => canvas.fitToCanvas() });
   syncGraphHighlight = () => behavior.syncLive();
   const { expressionStudio, motionStudio } = animate.panels;
   const { states, reactionStudio, automaticPanel } = behavior.panels;

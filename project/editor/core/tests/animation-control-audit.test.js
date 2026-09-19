@@ -9,7 +9,7 @@ import { createPreviewController } from '../preview-runtime/preview-controller.j
 import { createClip, addTrack, upsertKeyframe } from '../../animation-editor/timeline/clip-operations.js';
 import { duplicateSelectedKeys } from '../../animation-editor/timeline/timeline-operations.js';
 import { linkBows } from '../../core/state-machine/graph-layout.js';
-import { renderStateGraph } from '../../animation-editor/state-machine/graph-view.js';
+import { renderBoard } from '../../ui/behavior-studio/board.js';
 import { createExpressionCommands } from '../expressions/expression-commands.js';
 import { expressionBlend } from '../expressions/expression-model.js';
 import { createExportRig } from '../export/export-rig.js';
@@ -50,7 +50,7 @@ test('every transition is drawn on its own curve, so every one of them is clicka
   assert.equal(bows.get('Idle->Angry'), 0, 'and a link with no opposite is drawn straight');
 
   const rig = { states: { Idle: {}, Happy: {}, Angry: {} }, transitions, activeState: 'Idle' };
-  const html = renderStateGraph(rig, {});
+  const html = renderBoard(rig, { lens: 'states' });
   const hits = [...html.matchAll(/class="graph-link-hit" d="([^"]+)" data-select-transition="([^"]+)"/g)];
   assert.equal(hits.length, 3, 'one hit target per transition');
   assert.equal(new Set(hits.map((match) => match[2])).size, 3, 'each one selects its own transition');

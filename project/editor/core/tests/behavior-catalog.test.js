@@ -5,7 +5,7 @@ import { createEditorStore } from '../state/editor-store.js';
 import { createHistory } from '../undo/history.js';
 import { createBehaviorCommands } from '../../animation-editor/behaviors/behavior-commands.js';
 import { BEHAVIOR_CATALOG, BEHAVIOR_TITLES, renderBehaviorCatalog } from '../../animation-editor/behaviors/behavior-catalog.js';
-import { renderBehaviorInspector } from '../../animation-editor/behaviors/behavior-inspector.js';
+import { renderAutomaticTuning } from '../../ui/behavior-studio/tuning.js';
 import { validateRig } from '../validation/rig-validator.js';
 import { BEHAVIOR_TYPES } from '../../../runtime/runtime.js';
 
@@ -24,6 +24,11 @@ import { BEHAVIOR_TYPES } from '../../../runtime/runtime.js';
  * create is a behaviour the validator is happy with and the inspector can edit
  * down to its last field. A fifth type added to one table and not the others
  * fails here rather than a release later.
+ *
+ * The inspector is the Behavior tuning rail since docs/BEHAVIOR_STUDIO.md: the
+ * panel that used to hold one of its own is a list and an Add now, because one
+ * array with two editors is how the Automatic cards and the advanced fields
+ * came to disagree about what a behaviour is called.
  */
 
 const rigged = () => {
@@ -66,11 +71,12 @@ test('a drift added from the catalogue is valid, named and editable to its last 
   assert.deepEqual(validateRig(store.getDocument()).filter((issue) => /drift/.test(issue)), [],
     'the defaults the catalogue creates already satisfy the validator');
 
-  // And both settings are on screen, under the target picker every type shares.
-  const inspector = renderBehaviorInspector(store.getDocument(), index);
-  assert.match(inspector, /<h3>Drift<\/h3>/);
+  // And both settings are on screen, under the waveform every type now gets.
+  const inspector = renderAutomaticTuning(store.getDocument(), added.id);
+  assert.match(inspector, /data-tune-kind="automatic"/);
+  assert.match(inspector, /data-tune-wave="drift"/, 'a drift is drawn before it is typed at');
   for (const field of ['parameter', 'amplitude', 'travelMin', 'travelMax', 'intervalMin', 'intervalMax']) {
-    assert.match(inspector, new RegExp(`data-behavior-field="${field}"`), `${field} is editable`);
+    assert.match(inspector, new RegExp(`data-tune-behavior-field="${field}"`), `${field} is editable`);
   }
 });
 

@@ -11,7 +11,8 @@ import {
   GRAPH_NODE, GRAPH_ZOOM, autoLayoutNodes, fitView, graphBounds, groupBox, isEmptyLayout,
   linkBows, linkGeometry, movedNodes, nodesFor, nodesInMarquee, normalizeGraphLayout, rankStates, toGraph, zoomedBy
 } from '../state-machine/graph-layout.js';
-import { deriveGraph, renderStateGraph } from '../../animation-editor/state-machine/graph-view.js';
+import { deriveBoard } from '../behavior-graph/behavior-graph.js';
+import { renderBoard } from '../../ui/behavior-studio/board.js';
 
 /**
  * The state machine as a diagram (V4-100 … V4-106, docs/V4_ROADMAP.md Phase 10).
@@ -22,7 +23,16 @@ import { deriveGraph, renderStateGraph } from '../../animation-editor/state-mach
  * that: **a position is authored data**. It is undone like a transition, saved
  * like a transition, and it never reaches `rig.json`, because the runtime runs
  * a state machine without drawing one.
+ *
+ * The renderer is the Behavior board since docs/BEHAVIOR_STUDIO.md — the same
+ * geometry, drawn across the window instead of in a 300 px column, with three
+ * more kinds of node beside the states. This suite is the states' half of it,
+ * looked at through the `states` lens; `behavior-studio.test.js` is the rest.
  */
+
+/** The board, with only the states on it, which is what this suite is about. */
+const stateGraph = (document, options = {}) => deriveBoard(document, { lens: 'states', ...options });
+const stateMarkup = (document, options = {}) => renderBoard(document, { lens: 'states', ...options });
 
 const machine = (extra = {}) => createProjectDocument({
   svgMarkup: '<svg><path id="head" d="M0 0"/></svg>',
@@ -117,33 +127,35 @@ test('a pair of transitions is two curves, and a self-transition is a loop', () 
 });
 
 test('the diagram carries every state, every link and what each one is worth', () => {
-  const graph = deriveGraph(machine({ transitionSettings: { 'idle->talk': { duration: 120, easing: 'linear' } } }), { selectedEdge: 'idle->talk' });
-  assert.deepEqual(graph.states.map((item) => item.name), ['idle', 'talk', 'sleep']);
-  assert.equal(graph.states.find((item) => item.name === 'idle').initial, true);
-  assert.equal(graph.states.find((item) => item.name === 'talk').incoming, 1);
-  assert.equal(graph.states.find((item) => item.name === 'idle').outgoing, 2);
-  const link = graph.links.find((item) => item.key === 'idle->talk');
+  const graph = stateGraph(machine({ transitionSettings: { 'idle->talk': { duration: 120, easing: 'linear' } } }), { edges: ['idle->talk'] });
+  const states = graph.nodes.filter((item) => item.kind === 'state');
+  assert.deepEqual(states.map((item) => item.name), ['idle', 'talk', 'sleep']);
+  assert.equal(states.find((item) => item.name === 'idle').initial, true);
+  assert.equal(states.find((item) => item.name === 'talk').incoming, 1);
+  assert.equal(states.find((item) => item.name === 'idle').outgoing, 2);
+  const link = graph.edges.find((item) => item.key === 'idle->talk');
   assert.equal(link.duration, 120);
   assert.equal(link.selected, true);
+  assert.equal(link.easing, 'linear');
   // A transition naming a state that is gone is not drawn, rather than drawn
   // from nowhere.
-  assert.equal(deriveGraph(machine({ transitions: { idle: ['ghost'] } })).links.length, 0);
+  assert.equal(stateGraph(machine({ transitions: { idle: ['ghost'] } })).edges.length, 0);
 });
 
 test('the markup says what is live and what is firing', () => {
-  const html = renderStateGraph(machine(), { live: 'talk', firing: 'idle->talk', selection: ['sleep'] });
-  assert.match(html, /class="graph-node[^"]*\blive\b[^"]*"[^>]*data-select-state="talk"/);
+  const html = stateMarkup(machine(), { live: 'talk', firing: 'idle->talk', selection: ['sleep'] });
+  assert.match(html, /class="[^"]*\blive\b[^"]*"[^>]*data-graph-node="talk"/);
   // `>` inside an attribute is escaped on the way out and unescaped by the
   // parser, so the DOM really does hold `idle->talk`; only a string match sees
   // the entity.
-  assert.match(html, /class="graph-link firing" d="[^"]+" marker-end="url\(#graph-arrow\)" data-graph-link-line="idle-&gt;talk"/);
-  assert.match(html, /class="graph-node selected"[^>]*data-select-state="sleep"/);
+  assert.match(html, /class="graph-link link-transition[^"]*\bfiring\b[^"]*" d="[^"]+" marker-end="url\(#graph-arrow\)" data-graph-link-line="idle-&gt;talk"/);
+  assert.match(html, /class="[^"]*\bselected\b[^"]*"[^>]*data-graph-node="sleep"/);
   // Grouping needs two: one selected state is a group of one.
   assert.match(html, /data-graph-group aria-label="Group the selected states" disabled/);
-  assert.match(renderStateGraph(machine(), { selection: ['idle', 'talk'] }), /data-graph-group aria-label="Group the selected states">/);
+  assert.match(stateMarkup(machine(), { selection: ['idle', 'talk'] }), /data-graph-group aria-label="Group the selected states">/);
   // Every state gets the handle a link is dragged from (V4-102).
   assert.equal([...html.matchAll(/data-graph-port="/g)].length, 3);
-  assert.match(renderStateGraph({ states: {} }, {}), /No states yet/);
+  assert.match(stateMarkup({ states: {} }, {}), /No states yet/);
 });
 
 test('a link label is drawn against the zoom, so it is readable at any of them', () => {
@@ -154,10 +166,10 @@ test('a link label is drawn against the zoom, so it is readable at any of them',
   // On the scene, not on each label: a pan or a zoom writes one style on one
   // element and never re-renders, so the number has to live where that write
   // already lands.
-  assert.match(renderStateGraph(machine(), { view: { x: 0, y: 0, scale: 1 } }), /data-graph-scene[^>]*--graph-counter:1"/);
-  assert.match(renderStateGraph(machine(), { view: { x: 0, y: 0, scale: .4 } }), /--graph-counter:2\.5"/);
-  assert.match(renderStateGraph(machine(), { view: { x: 0, y: 0, scale: 2 } }), /--graph-counter:0\.5"/);
-  assert.match(renderStateGraph(machine(), {}), /class="graph-link-label"[^>]*data-select-transition/);
+  assert.match(stateMarkup(machine(), { view: { x: 0, y: 0, scale: 1 } }), /data-graph-scene[^>]*--graph-counter:1"/);
+  assert.match(stateMarkup(machine(), { view: { x: 0, y: 0, scale: .4 } }), /--graph-counter:2\.5"/);
+  assert.match(stateMarkup(machine(), { view: { x: 0, y: 0, scale: 2 } }), /--graph-counter:0\.5"/);
+  assert.match(stateMarkup(machine(), {}), /class="graph-link-label link-transition"[^>]*data-select-transition/);
 });
 
 // ---------------------------------------------------------------------------

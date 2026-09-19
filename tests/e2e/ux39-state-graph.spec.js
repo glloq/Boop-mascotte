@@ -8,6 +8,12 @@ import { goToMode, openFreshEditor, startBasicFace } from './editor-helpers.js';
  * could not be moved — only watched being placed. Everything below is about the
  * consequence of fixing that: a position is authored data, so it is dragged,
  * undone, saved, and laid out again on request.
+ *
+ * It is drawn by the Behavior board since docs/BEHAVIOR_STUDIO.md — the same
+ * geometry and the same gestures, across the window instead of in the left
+ * column, with the triggers, the reactions and the automatic behaviours beside
+ * the states. Every rule below is about the states' half of it and holds
+ * unchanged; `behavior-studio.test.js` covers the rest.
  */
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const viewport = (page) => page.locator('[data-graph-viewport]');
@@ -16,10 +22,10 @@ const node = (page, name) => page.locator(`[data-graph-node="${name}"]`);
 /**
  * A box in viewport coordinates, which is what `page.mouse` speaks.
  *
- * The state editor sits at the bottom of a long column, so a node's own box can
- * be thousands of pixels down the page: pressing at that point presses on
- * nothing. Playwright's own actions scroll first; a raw pointer gesture has to
- * be told to.
+ * The diagram used to sit at the bottom of a long column, so a node's own box
+ * could be thousands of pixels down the page: pressing at that point presses on
+ * nothing. It has the window now, but Playwright's own actions scroll first and
+ * a raw pointer gesture still has to be told to, so this stays.
  */
 async function reach(locator) {
   await locator.scrollIntoViewIfNeeded();
@@ -39,7 +45,11 @@ async function openGraph(page) {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await goToMode(page, 'behavior.stateMachine');
-  await expect(page.locator('#state-editor [data-graph]')).toBeVisible();
+  // The diagram is the workspace's own surface now, in the column the mascot
+  // used to have (docs/BEHAVIOR_STUDIO.md). It was folded inside `#state-editor`
+  // -- a 300 px column behind a summary that said *advanced* -- which is the
+  // finding that redesign starts from.
+  await expect(page.locator('[data-behavior-board] [data-graph]')).toBeVisible();
 }
 
 /**
@@ -82,9 +92,13 @@ test('@critical a state is dragged where you put it, and it stays there', async 
   await dragFrom(page, grip, { x: grip.x + 90, y: grip.y + 60 });
 
   // One gesture, one history step, and every node written down at the place it
-  // was already being drawn — so adding a state later moves nothing.
+  // was already being drawn — so adding a state later moves nothing. Every node
+  // means every kind of node now (docs/BEHAVIOR_STUDIO.md): the template ships
+  // reactions and automatic behaviours, and they are on the same board.
   const layout = (await documentOf(page)).graphLayout;
-  expect(Object.keys(layout.nodes).sort()).toEqual(['idle', 'sleep', 'talk', 'wave']);
+  const keys = Object.keys(layout.nodes);
+  expect(keys.filter((key) => !/^(do|when|auto):/.test(key)).sort()).toEqual(['idle', 'sleep', 'talk', 'wave']);
+  expect(keys.some((key) => key.startsWith('do:')), 'a reaction is pinned at the place it was drawn too').toBe(true);
   const after = await target.boundingBox();
   expect(after.x).toBeGreaterThan(before.x + 40);
   expect(after.y).toBeGreaterThan(before.y + 20);
@@ -189,7 +203,8 @@ test('the diagram shows where the mascot is, and which transition is playing', a
   // The label is the target a person hits: it sits on the curve and is the one
   // thing there big enough to press without aiming.
   await page.locator('.graph-link-label[data-select-transition="talk->idle"]').click();
-  await page.locator('[data-action="test-transition"]').click();
+  // Play it lives in the tuning rail, beside the curve it plays.
+  await page.locator('#behavior-inspector [data-tune-test]').click();
   await expect(page.locator('[data-graph-link-line="talk->idle"]')).toHaveClass(/firing/);
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.previewSession().transitionEdge), { timeout: 4000 }).toBe(null);
 });
