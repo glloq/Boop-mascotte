@@ -331,6 +331,36 @@ neither one thing nor the other.
 Artwork and Face Setup only: in Preview the canvas is a test bench, and a
 delete there would be a trap.
 
+### It has to fit the window
+
+> *« il faut aussi reprendre le clic droit car une grande partie n'est pas
+> visible ! »*
+
+Measured on a 1440 × 900 window: the menu was **788 px** tall closed and 918 px
+with *Advanced* open, against a canvas 780 px high.
+
+`place()` clamped the top and nothing else — `canvas.height - menu.height` went
+negative, `Math.max(8, …)` pinned the menu to the top of the canvas, and
+everything from *Advanced* down was past the bottom of the window. Not scrolled
+away: gone, with `overflow: visible` and `max-height: none`.
+
+Two fixes, and they are different fixes:
+
+- **It is capped and it scrolls.** `place()` measures the canvas and sets
+  `max-height` from it, so the menu fits whatever room there is — the canvas is
+  resizable (docs/DESIGN_SCREENS.md), so the cap cannot be a constant. It is
+  reapplied on `toggle`, because opening *Advanced* is the one press that can
+  make the menu taller than it was when it was placed.
+- **Each action is one row.** A mark, the words, and the shortcut beside them,
+  with a hint spanning underneath where there is one. They were stacked — glyph,
+  then label, then `kbd`, then hint, each on its own line — which is what made
+  a dozen actions eight hundred pixels tall. One row each takes the same menu to
+  **560 px**, and the disclosure open to 694.
+
+Both are checked in the browser, because both are facts about pixels: the menu
+never starts above the canvas or ends below it, and where it had to be capped to
+manage that, it scrolls.
+
 ## The working area was invisible, and it cuts
 
 "Il y a des soucis avec la plage de travail: si j'utilise des cheveux plus

@@ -40,16 +40,25 @@ const elementRecord = (tag, attributes) => ({
 
 /**
  * The element records and the layer tree the canvas would build for this
- * markup. Anything under `<defs>` (clip paths) is not a layer, as on the canvas.
+ * markup.
+ *
+ * What is **not** a layer is what the canvas does not walk into: `<defs>`, and
+ * anything that paints nothing of its own. `getTree` reaches a node only
+ * through parents that are themselves layer tags, so a shape inside a
+ * `<clipPath>` or a `<mask>` is never one — it is the *cut*, not a piece of the
+ * mascot. This used to say `<defs>` alone, which was the same answer only
+ * because every clip path in the template happened to live there; a socket
+ * drawn beside the eye it cuts (docs/EYE_BUILDS.md) is one that does not.
  *
  * @param {string} svg
  * @returns {{ elements: Record<string, object>, layers: object[] }}
  */
+const NOT_ARTWORK = new Set(['defs', 'clipPath', 'mask', 'symbol', 'marker', 'pattern']);
 export function parseTemplateArtwork(svg = MASCOT_FACE_SVG) {
   const elements = {}, layers = [], open = [];
   let defs = 0;
   for (const [, closing, tag, attributes, selfClosing] of String(svg).matchAll(TAG)) {
-    if (tag === 'defs') { defs += closing ? -1 : selfClosing ? 0 : 1; continue; }
+    if (NOT_ARTWORK.has(tag)) { defs += closing ? -1 : selfClosing ? 0 : 1; continue; }
     if (defs > 0 || !LAYER_TAGS.has(tag)) continue;
     if (closing) { open.pop(); continue; }
     const id = attribute(attributes, 'id');

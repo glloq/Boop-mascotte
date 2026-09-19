@@ -19,20 +19,33 @@
  * are for. Three builds is the whole vocabulary: **is there a white, and is
  * there an iris.** Everything else an eye does, it does by moving.
  *
- * ## No socket, and why that matters
+ * ## The socket is the shape you can see
  *
- * Every eye in the editor was clipped to a hidden `<clipPath>`, with its lids
- * drawn open and **parked outside** that clip. The clip lived in `<defs>`, so
- * it appeared in neither the layer tree nor `document.elements`: an author
- * could not see it, move it, resize it or delete it. And because the parked
- * lids are real geometry, an eye whose white measured 114 × 107 screen pixels
- * had a **bounding box of 219 × 321** — so the selection handles sat a hundred
- * pixels away from the eye on every side, and resizing one meant dragging a box
- * three times too big whose contents were cropped by a mask that was not there.
+ * Every eye in the editor was cut by a hidden `<clipPath>` holding an
+ * anonymous ellipse, with its lids drawn open and **parked outside** that cut.
+ * The clip lived in `<defs>` under no name: it appeared in neither the layer
+ * tree nor `document.elements`, so an author could not see it, move it, resize
+ * it or delete it. And because the parked lids are real geometry, an eye whose
+ * white measured 114 × 107 screen pixels had a **bounding box of 219 × 321** —
+ * the selection handles sat a hundred pixels away from the eye on every side.
  *
- * A lid here is the **eye's own shape, scaled about the rim it sits on**. It is
- * drawn as a sliver along that rim — which is what an open eye shows — and
- * grows to cover the eye:
+ * Both halves of that are fixed, and they are different fixes.
+ *
+ * The **box** is fixed by where a lid is drawn. A lid is the eye's own shape
+ * squashed to a sliver on the rim it swings from and scaled about that rim, so
+ * it is inside the eye at rest and inside it shut — never parked outside, and
+ * never counted into a box three times too big.
+ *
+ * The **cut** is fixed by what does the cutting. There still is one, because a
+ * lid sweeping across an ellipse is wider than the ellipse everywhere except
+ * its middle: scaling only in `y` keeps the lid's full width, so at a quarter
+ * shut it hangs past the outline on both sides. What changed is that the shape
+ * doing the cut is now the **eye's own white** — `<clipPath><use href="#eyeWhite…"></clipPath>`
+ * — a drawing in the layer tree with a name, a selection box and handles. Move
+ * it and the cut moves; resize it and the cut resizes. What you see is what
+ * cuts, and there is nothing left that an author cannot find.
+ *
+ * A lid then grows from a sliver to the seam:
  *
  * ```text
  *   scaleY 1          scaleY cover/2      scaleY cover
@@ -43,10 +56,8 @@
  * ```
  *
  * Scaling an ellipse about its top point gives another ellipse sitting on that
- * edge, so the lid's leading edge is a curve at every opening and lands exactly
- * on the far rim at `cover`. Nothing is ever outside the eye, so nothing needs
- * clipping, and the eye's bounding box is the eye. That is the whole fix: one
- * pivot instead of one hidden mask.
+ * edge, so the lid's leading edge is a curve at every opening, and the socket
+ * trims it to the eye at the corners where it would otherwise hang out.
  *
  * ## A closed eye has styles, and they are controls
  *
@@ -125,11 +136,19 @@ export function eyeGeometry({ rx = 24, ry = 22.5, pupil = 10.5, iris = 0, build 
    * far edge is a curve at every opening and lands exactly on the eye's
    * opposite edge at `cover`.
    */
-  const lidRy = round(eyeRy * 0.12);
+  const lidRy = round(eyeRy * 0.05);
+  // A shade below the middle of the eye, which is where a lash line sits and
+  // where the two lids therefore have to meet.
+  const seam = round(eyeRy * 0.045);
   return Object.freeze({
     build, ...parts,
     rx: eyeRx, ry: eyeRy,
-    lidRy, cover: round(eyeRy / lidRy),
+    lidRy, seam, cover: round(eyeRy / lidRy),
+    // What each lid grows by to arrive on the seam. Drawn as a band `2 · lidRy`
+    // deep hanging off its rim, so the factor is the distance it has to cover
+    // over the distance it is drawn at.
+    meetUpper: round((eyeRy + seam) / (2 * lidRy)),
+    meetLower: round((eyeRy - seam) / (2 * lidRy)),
     pupil: dot ? pupil : Math.min(pupil, rx * 0.72),
     // An iris is the pupil's own circle, grown: wide enough to read as a
     // colour, never so wide that the white disappears behind it.
@@ -149,6 +168,86 @@ export function seamPath(cx, cy, rx, { curve = 0, reach = 0.82 } = {}) {
   return `M${round(cx - half)} ${round(cy - lift * 0.25)} Q${round(cx)} ${round(cy + lift)} ${round(cx + half)} ${round(cy - lift * 0.25)}`;
 }
 
+/** The circle-to-cubic constant: a cubic draws a quarter ellipse to a quarter unit. */
+const ARC = 0.5523;
+
+/**
+ * Where one lid's leading edge sits, drawn — and why its ends are not level
+ * with its middle.
+ *
+ * A shut eye has to be **shut**: no white left anywhere, including the two
+ * corners where the eye is at its widest. Two edges that bulge towards each
+ * other meet in the middle and leave a wedge at each end — no arrangement of
+ * bulges fixes it, because near the corner an ellipse's own edge is above its
+ * widest point. The corners close only when the two edges land on **one
+ * curve**, and they can do that only if each ends where the eye is widest.
+ *
+ * So the edge is authored by where it has to *arrive*: its ends on `(cx ± rx,
+ * cy)`, its middle on the seam. Divided by the factor that lid grows by, which
+ * is what gets drawn — a band a couple of units deep hanging off the rim,
+ * whose ends and middle are a tenth of a unit apart. One `scaleY` multiplies
+ * both, so the ends reach the corners and the middle the seam in the same move.
+ */
+export function eyeLidEdge(cy, geometry, way) {
+  const meet = way < 0 ? geometry.meetUpper : geometry.meetLower;
+  const rim = round(cy + way * geometry.ry);
+  return {
+    rim,
+    end: round(rim - way * (geometry.ry / meet)),
+    mid: round(rim - way * ((geometry.ry - way * geometry.seam) / meet))
+  };
+}
+
+/**
+ * One lid: along the rim, down the side, and back along the leading edge.
+ *
+ * The flat run and the two vertical sides lie outside the socket, so the cut
+ * takes them away and the only edge that ever shows is the one facing the
+ * pupil. They are what close the corners — a lid shaped like the eye cannot.
+ */
+export function eyeLidPath(cx, cy, geometry, way) {
+  const { rim, end, mid } = eyeLidEdge(cy, geometry, way);
+  const rx = geometry.rx, kx = round(rx * ARC);
+  const at = (x, y) => `${round(x)} ${round(y)}`;
+  return `M${at(cx - rx, rim)} L${at(cx + rx, rim)} L${at(cx + rx, end)}`
+    + ` C${at(cx + kx, end)} ${at(cx + kx, mid)} ${at(cx, mid)}`
+    + ` C${at(cx - kx, mid)} ${at(cx - kx, end)} ${at(cx - rx, end)} Z`;
+}
+
+/**
+ * The cut, and the drawing that makes it.
+ *
+ * `<use>` rather than a second ellipse, and that is the whole point: a copy
+ * could drift from the white, and an author who resized one would have moved a
+ * cut that no longer matched anything. A reference cannot drift — the shape in
+ * the layer tree *is* the shape that cuts, carrying its own transform, so
+ * moving or resizing the white moves and resizes the cut with it.
+ *
+ * Which is also what makes it findable. A piece cut by something says what is
+ * cutting it, by name, in the menu on the artwork and as an outline on the
+ * canvas when it is selected (docs/VECTOR_EDITING.md) — and the name it says is
+ * now a drawing an author can go and press.
+ */
+export const eyeSocketId = (side) => `eyeSocket${side}`;
+export const eyeSocketClip = (side) => `<clipPath id="${eyeSocketId(side)}"><use href="#eyeWhite${side}" /></clipPath>`;
+
+/**
+ * And the cut goes on a **wrapper**, not on the lids themselves.
+ *
+ * `clip-path` is resolved in the user space the element establishes, which is
+ * the space *after* its own `transform`. Put it on a lid and the lid's own
+ * `scaleY` scales the cut with it: at a blink the socket is stretched eight
+ * times over and stops cutting anything, which is a mask that does exactly
+ * nothing at the moment it is needed. Measured — it is why the first attempt
+ * drew an hourglass.
+ *
+ * So the lids hang in a group that nothing transforms, and the group carries
+ * the cut. It is a real grouping besides: *Left eyelids*, the pieces that
+ * sweep across that eye, which is how an author already thinks of them.
+ */
+export const eyeLidsGroup = (side, inner) =>
+  `<g id="lids${side}" data-name="${side} eyelids" clip-path="url(#${eyeSocketId(side)})">${inner}</g>`;
+
 /**
  * One eye, as markup.
  *
@@ -163,7 +262,12 @@ export function eyeMarkup(side, cx, geometry, palette, { seam = 0, lash = false,
   const out = side === 'Left' ? -1 : 1;
   const pieces = [];
 
-  if (g.white) pieces.push(`<ellipse id="${id('eyeWhite')}" data-name="${side} eye white" ${at()} rx="${g.rx}" ry="${g.ry}" fill="${palette.eyeWhite}" />`);
+  // The white is drawn first because everything else sits in it, and it is
+  // named as what it is: the socket, which is the shape that cuts.
+  if (g.white) {
+    pieces.push(`<ellipse id="${id('eyeWhite')}" data-name="${side} eye socket" ${at()} rx="${g.rx}" ry="${g.ry}" fill="${palette.eyeWhite}" />`);
+    pieces.push(eyeSocketClip(side));
+  }
   if (g.iris) pieces.push(`<circle id="${id('iris')}" data-name="${side} iris" ${at()} r="${round(g.irisR)}" fill="${palette.iris}" />`);
   pieces.push(`<circle id="${id('pupil')}" data-name="${side} pupil" ${at()} r="${round(g.pupil)}" fill="${palette.pupil}" />`);
   pieces.push(`<circle id="${id('glint')}" data-name="${side} eye glint" ${at(-g.pupil * 0.4, -g.pupil * 0.45)} r="${round(g.pupil * 0.32)}" fill="${palette.glint}" opacity="0.92" />`);
@@ -179,8 +283,24 @@ export function eyeMarkup(side, cx, geometry, palette, { seam = 0, lash = false,
    * exactly on the far edge.
    */
   if (g.lids) {
-    pieces.push(`<ellipse id="${id('lidUpper')}" data-name="${side} upper eyelid" ${at(0, -(g.ry - g.lidRy))} rx="${g.rx}" ry="${g.lidRy}" fill="${palette.skin}" />`);
-    pieces.push(`<ellipse id="${id('lidLower')}" data-name="${side} lower eyelid" ${at(0, g.ry - g.lidRy)} rx="${g.rx}" ry="${g.lidRy}" fill="${palette.skin}" />`);
+    /**
+     * The lids carry their own line, and the cut is what makes that possible.
+     *
+     * A closed shape stroked all the way round draws every edge it has, which
+     * is why this used to need a crease path of its own: the rim half of a
+     * lid shaped like the eye sits *inside* the eye at the corners, so each
+     * lid read as a lens-shaped ring lying across the white. This lid's other
+     * three edges are outside the socket — that is what closes the corners —
+     * so the cut takes them away and the only stroke that survives is the one
+     * facing the pupil. One shape, one line, and they cannot drift apart.
+     *
+     * `non-scaling-stroke` because the lid grows four times over: a two-unit
+     * line would arrive as an eight-unit band across a shut eye.
+     */
+    const line = `fill="${palette.skin}" stroke="${palette.outline}" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"`;
+    pieces.push(eyeLidsGroup(side,
+      `<path id="${id('lidUpper')}" data-name="${side} upper eyelid" d="${eyeLidPath(cx, cy, g, -1)}" ${line} />`
+      + `<path id="${id('lidLower')}" data-name="${side} lower eyelid" d="${eyeLidPath(cx, cy, g, 1)}" ${line} />`));
   }
   /**
    * The seam is the line a shut eye is, drawn over the lids and under the
@@ -214,16 +334,20 @@ export function eyeDrivers(geometry) {
   // From the sliver a lid is drawn as, to the whole eye. A binding writes
   // `amplitude · control + offset`, and `eyeOpen` rests at 1, so a lid that
   // must read `1` open and `cover` shut is `-(cover - 1) · eyeOpen + cover`.
-  const reach = round(geometry.cover - 1);
-  // A blink brings the lower lid up a little as well. A third, because a real
-  // blink is the upper lid: two lids meeting in the middle is what a *squint*
-  // looks like, and getting that asymmetry right is the difference between
-  // sleepy and suspicious.
-  const lower = round(reach * 0.3);
+  const upper = round(geometry.meetUpper - 1), lower = round(geometry.meetLower - 1);
   return Object.freeze({
-    /** The upper lid sweeps down from the rim it is drawn on. */
-    lidUpper: Object.freeze({ property: 'scaleY', amplitude: -reach, offset: round(1 + reach), pivot: 'top' }),
-    /** And the lower one up, from its own. */
+    /**
+     * The upper lid sweeps down from the rim it is drawn on, and the lower one
+     * up from its own — each to the seam, where the two edges become one curve
+     * and the eye is shut with nothing showing at the corners.
+     *
+     * Both travel the whole way. It is tempting to bring the lower one up only
+     * a third, because a real blink is mostly the upper lid, but a lower lid
+     * that stops short leaves the bottom half of the eye white: what reads as
+     * "mostly the upper lid" is the *seam sitting below the middle*, which is
+     * where the drawing already puts it.
+     */
+    lidUpper: Object.freeze({ property: 'scaleY', amplitude: -upper, offset: round(1 + upper), pivot: 'top' }),
     lidLower: Object.freeze({ property: 'scaleY', amplitude: -lower, offset: round(1 + lower), pivot: 'bottom' }),
     /** A dot has no lid, so the dot itself flattens onto the line it closes to. */
     dot: Object.freeze({ property: 'scaleY', amplitude: 0.92, offset: 0.08, pivot: 'centre' })

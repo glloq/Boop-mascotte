@@ -1,4 +1,4 @@
-# Eyes: three builds, no hidden socket
+# Eyes: three builds, and a socket you can see
 
 > *« les preset des yeux sont relativement similaire … on va limiter le choix
 > des yeux a 3 modes : simpliste avec juste un point sans blanc des yeux, un
@@ -89,44 +89,105 @@ who wants a cat's slit draws the pupil and gives it the `leftPupil` role in Face
 Setup, which is the path any hand-drawn part takes. The muzzle pilot's
 `pupils.vertical` row records that rather than pretending otherwise.
 
-## No socket, and why that was the same problem
+## The socket, and why that was two problems
 
-Every eye in the library was clipped to a `<clipPath>` living in `<defs>`, with
-its lids drawn open and **parked outside** that clip. Measured on screen:
+Every eye in the library was clipped to a `<clipPath>` holding an anonymous
+ellipse, living in `<defs>`, with its lids drawn open and **parked outside**
+that clip. Measured on screen:
 
 | | |
 | --- | --- |
 | The eye as drawn | 114 × 107 px |
 | The eye's **bounding box** | 219 × 321 px |
 
-The clip appeared in neither the layer tree nor `document.elements`, so an author
-could not see it, move it, resize it or delete it. And because the parked lids
-are real geometry, the selection handles sat a hundred pixels away from the eye
-on every side: resizing one meant dragging a box three times too big whose
-contents were cropped by a mask that was not there. That is complaint four,
-exactly.
+Two separate faults, and the first attempt at this treated them as one and
+deleted the clip. That was a misreading — of the artwork and of the ask:
 
-A lid here is the **eye's own ellipse, scaled about the rim it sits on**:
+> *« je t'avais demandé d'afficher le cercle qui faisait le cut autour de
+> l'œil mais tu l'as supprimé »*
+
+### The box: where a lid is drawn
+
+A lid is the eye's own shape squashed to a band on the rim it swings from, and
+scaled about that rim:
 
 ```text
-   scaleY 1          scaleY cover/2      scaleY cover
+   scaleY 1          scaleY meet/2       scaleY meet
    ╭─────╮           ╭─────╮            ╭─────╮
    │ ⬤   │           ├─────┤            │█████│
    ╰─────╯           ╰─────╯            ╰─────╯
     open             half                shut
 ```
 
-Scaling an ellipse about its top point gives another ellipse sitting on that
-edge, so the lid's leading edge is a curve at every opening and lands exactly on
-the far rim at `cover = ry / lidRy`. Nothing is ever outside the eye, so nothing
-needs clipping, and **the eye's bounding box is the eye**. One pivot instead of
-one hidden mask.
+Drawn there it is inside the eye at rest and inside it shut — never parked
+outside, never counted into a box three times too big. **The eye's bounding box
+is the eye**, so the selection handles land on it and a resize drags the eye.
+
+### The cut: what does the cutting
+
+The clip is still needed, and deleting it was wrong. Scaling a shape in `y`
+alone keeps its full width, and an ellipse is only that wide across its middle:
+at a quarter shut the lid hung past the outline on both sides, which is exactly
+what an author sees as *les paupières dépassent des yeux*.
+
+What changed is **what cuts**:
+
+```html
+<ellipse id="eyeWhiteLeft" data-name="Left eye socket" … />
+<clipPath id="eyeSocketLeft"><use href="#eyeWhiteLeft" /></clipPath>
+<g id="lidsLeft" data-name="Left eyelids" clip-path="url(#eyeSocketLeft)"> … </g>
+```
+
+A `<use>`, not a second ellipse — and that is the whole point. A copy could
+drift from the white, and an author who resized one would have moved a cut that
+no longer matched anything. A reference cannot drift: the shape in the layer
+tree **is** the shape that cuts, carrying its own transform, so moving or
+resizing the socket moves and resizes the cut with it. What you see is what
+cuts, and there is nothing left that an author cannot find. The menu on the
+artwork already names what is cutting a piece, and the name it gives is now a
+drawing you can go and press.
+
+The cut sits on a **wrapper group**, never on the lids themselves. `clip-path`
+is resolved in the user space an element establishes, which is the space *after*
+its own `transform`: put it on a lid and the lid's `scaleY` stretches its own
+socket eight times over and it stops cutting at exactly the moment it is needed.
+Measured — it is why the first attempt drew an hourglass.
+
+### And the corners, which is why a lid is not eye-shaped
+
+A shut eye has to be shut, including the two corners where the eye is widest.
+Two edges that bulge towards each other meet in the middle and leave a white
+wedge at each end, and no arrangement of bulges fixes it: near the corner an
+ellipse's own edge is *above* its widest point. The corners close only when the
+two edges land on **one curve**.
+
+So a lid is drawn by where its edge has to arrive:
+
+```text
+   end    the eye's widest point, (cx ± rx, cy) — both lids, so the two edges
+          meet there and the corner has no area left to show
+   mid    the seam, a shade below the middle — the upper lid reaching a little
+          further than the lower, which is what a blink looks like
+```
+
+divided by the factor that lid grows by. What gets drawn is a band a couple of
+units deep hanging off the rim whose ends and middle are a tenth of a unit
+apart; one `scaleY` multiplies both, so the ends arrive on the corners and the
+middle on the seam in the same move. The shape is a flat run along the rim, two
+vertical sides, and the edge — the first three outside the socket, cut away, so
+the only edge that ever shows is the one facing the pupil.
+
+That is also what lets a lid carry its **own line**. A closed shape stroked all
+the way round draws every edge it has, which is why this used to need a separate
+crease path; here the other three edges are cut away, so the only stroke that
+survives is the leading one. One shape, one line, and they cannot drift apart.
 
 The binding is the usual `amplitude · control + offset`, and `eyeOpen` rests at
-1, so a lid that must read 1 open and `cover` shut is `-(cover - 1) · eyeOpen +
-cover`. The lower lid comes up a third as far, because a real blink is the upper
-lid — two lids meeting in the middle is what a *squint* looks like, and getting
-that asymmetry right is the difference between sleepy and suspicious.
+1, so a lid that must read 1 open and `meet` shut is `-(meet - 1) · eyeOpen +
+meet`. Both lids travel nearly the whole way: a lower lid that stopped a third
+of the way up would leave the bottom half of the eye white. What reads as "a
+blink is mostly the upper lid" is the seam sitting below the middle, which is
+where the drawing already puts it.
 
 ### The pivot is part of the asset format now
 
@@ -205,9 +266,11 @@ the install calls it before re-enabling.
 
 ```text
 core/face/eye-build.js                geometry, markup and drivers, shared
+                                      eyeLidPath · eyeSocketClip · eyeLidsGroup
 core/face-library/builtin/eyes.js     the three cards
 core/sample/templates/
   face-artwork.js                     the template's lids, creases and seam
+  template-export.js                  a shape that only cuts is not a layer
   template-project.js                 the scale, the pivots, the rim's fade
 svg-editor/svg-canvas.js              inside(): a group is draggable by its children
 svg-editor/transform-gizmo.js         a body press is claimed on the first move
@@ -231,10 +294,10 @@ complaint described:
 | --- | --- | --- |
 | The eye as drawn | 100 × 94 px | 100 × 94 px |
 | The eye group's **box** | 191 × 281 px | **100 × 94 px** |
-| The clip, in `document.elements` | absent | *there is none* |
+| The shape that cuts, in the layer tree | absent | **Left eye socket** |
 | Press the middle of the box and drag | nothing moves | the eye moves |
 
-The lids are slivers on the rim, scaled about it, exactly as the cards' are —
+The lids are bands on the rim, scaled about it, exactly as the cards' are —
 but written as **paths**, because the template's lids carry the `eyeSquint` and
 `eyeCurve` shape keys the closed-eye styles are made of, and a shape key needs a
 path. Four cubics round a squashed ellipse; the half facing the pupil is the

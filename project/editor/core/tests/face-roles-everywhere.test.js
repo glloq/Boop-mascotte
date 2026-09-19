@@ -220,15 +220,21 @@ test('a card carries the drawing, with its own ids, so every preview is its own 
   assert.equal(iris.preview.markup.includes('preview-eyes-simple-'), false, 'and no card borrows another\u2019s ids');
   // The one that matters: an asset that clips with `<clipPath id="...">` and
   // references it by `url(#...)` would have every card on the shelf clipped to
-  // the first card's mask. The robot housings are what still do this -- the
-  // eyes stopped, because a lid that grows about the rim it sits on needs no
-  // mask at all, which is what made the old eye's box three times too tall.
+  // the first card's mask. So the prefix has to reach the reference as well as
+  // the id -- and now that the two lidded eyes carry a socket of their own
+  // (docs/EYE_BUILDS.md), it has to reach the `href` the socket is *made* of.
   const housing = cards.find((card) => card.id === 'eyes.robot-retro-led');
   assert.equal(housing.preview.markup.includes('url(#robotSocketLeft)'), false);
   assert.ok(housing.preview.markup.includes('url(#preview-eyes-robot-retro-led-robotSocketLeft)'));
-  for (const card of ['eyes.dot', 'eyes.simple', 'eyes.iris'].map((id) => cards.find((item) => item.id === id))) {
-    assert.equal(card.preview.markup.includes('<clipPath'), false, `${card.id} previews without a mask`);
+  for (const id of ['eyes.simple', 'eyes.iris']) {
+    const card = cards.find((item) => item.id === id), prefix = `preview-${id.replace('.', '-')}-`;
+    assert.ok(card.preview.markup.includes(`<clipPath id="${prefix}eyeSocketLeft">`), `${id} keeps its own socket`);
+    assert.ok(card.preview.markup.includes(`href="#${prefix}eyeWhiteLeft"`), `${id} cuts with its own white`);
+    assert.ok(card.preview.markup.includes(`clip-path="url(#${prefix}eyeSocketLeft)"`), `${id} cuts its own lids`);
+    assert.equal(card.preview.markup.includes('"#eyeWhiteLeft"'), false, `${id} borrows nobody's white`);
   }
+  // A dot has no white to be cut by, and no lid to cut.
+  assert.equal(cards.find((item) => item.id === 'eyes.dot').preview.markup.includes('<clipPath'), false);
 });
 
 test('the cards say which drawing the face is wearing', () => {

@@ -349,17 +349,23 @@ test('every lid rests where it is drawn: its own amplitude, its own offset, hint
     { lidUpperLeft: { amplitude: -8, atRest: 0, shut: 8 }, lidLowerLeft: { amplitude: -8, atRest: 0, shut: 8 } });
 
   // A hint that gives both keeps both, untouched. A shipped lid **grows**
-  // rather than slides (docs/EYE_BUILDS.md): it is drawn as a sliver on the rim
-  // it swings from, rests at `scaleY 1` as every drawing does, and reaches
-  // `cover` shut -- the factor that takes the sliver across the whole eye. The
-  // lower lid comes up a third as far, because a real blink is the upper lid.
+  // rather than slides (docs/EYE_BUILDS.md): it is drawn as a band on the rim
+  // it swings from, rests at `scaleY 1` as every drawing does, and reaches the
+  // seam shut. Both lids travel nearly the whole way, and the small difference
+  // between them is the seam sitting a shade below the eye's middle -- which is
+  // what makes a blink read as mostly the upper lid. A lower lid that stopped
+  // short would leave the bottom of the eye white.
   assert.deepEqual(lids(EYES_SIMPLE),
-    { lidUpperLeft: { amplitude: -7.33, atRest: 1, shut: 8.33 }, lidLowerLeft: { amplitude: -2.2, atRest: 1, shut: 3.2 } });
+    { lidUpperLeft: { amplitude: -9.4, atRest: 1, shut: 10.4 }, lidLowerLeft: { amplitude: -8.51, atRest: 1, shut: 9.51 } });
 
-  // Which is the whole point: a lid that grows about the rim needs no socket to
-  // hide it, so the eye's box is the eye and nothing is parked outside a mask.
+  // And the socket comes with the drawing, because it *is* part of the drawing:
+  // the white, referenced. What it is not is a second ellipse hidden in
+  // `<defs>` -- the shape that cuts is the shape in the layer tree, so an
+  // author can find it, move it and resize it (docs/EYE_BUILDS.md).
   const document = install(fixture(), 'eyes', EYES_SIMPLE).document;
-  assert.equal(/<clipPath/.test(document.svgMarkup.slice(document.svgMarkup.indexOf('eyes-simple'))), false, 'no socket comes with the drawing');
+  const drawn = document.svgMarkup.slice(document.svgMarkup.indexOf('eyes-simple'));
+  assert.match(drawn, /<clipPath id="eyeSocketLeft"><use href="#eyeWhiteLeft" \/><\/clipPath>/);
+  assert.equal(/<clipPath[^>]*><(?!use)/.test(drawn), false, 'and nothing cuts with a copy of the shape');
   assert.deepEqual(document.elements.lidUpperLeft.bindings.translateY, undefined, 'and the lid it replaced slides no more');
 });
 
@@ -409,14 +415,15 @@ test('a pair of eyes is three parts: the eyes, the pupils and the lids take thei
   // has room for, so a pupil never rides out over its own outline.
   assert.equal(document.elements.pupilLeft.bindings.translateX.amplitude, 9.5, 'the white has room for the radius, less the pupil and a margin');
   assert.equal(gaze.assetId, undefined, 'the eyes are the asset; the pupils are drawn by it');
-  // The lids: drawn as slivers on the rim, growing across the eye as it shuts,
-  // each side its own. The pivot is the rim, not the sliver's middle -- a lid
+  // The lids: drawn as bands on the rim, growing across the eye as it shuts,
+  // each side its own. The pivot is the rim, not the band's middle -- a lid
   // pivoted at its middle opens away from the eye in both directions at once.
   const lids = part(document, 'eyelids');
   assert.deepEqual(lids.roles, { leftUpper: 'lidUpperLeft', leftLower: 'lidLowerLeft', rightUpper: 'lidUpperRight', rightLower: 'lidLowerRight' });
   const upper = document.elements.lidUpperRight.bindings.scaleY, lower = document.elements.lidLowerRight.bindings.scaleY;
-  assert.deepEqual([upper.expression, upper.amplitude, upper.offset], ['eyeOpen + eyeOpenRight', -7.33, 8.33]);
-  assert.deepEqual([lower.expression, lower.amplitude, lower.offset], ['eyeOpen + eyeOpenRight', -2.2, 3.2], 'the lower lid comes up a third as far');
+  assert.deepEqual([upper.expression, upper.amplitude, upper.offset], ['eyeOpen + eyeOpenRight', -9.4, 10.4]);
+  assert.deepEqual([lower.expression, lower.amplitude, lower.offset], ['eyeOpen + eyeOpenRight', -8.51, 9.51],
+    'and the lower lid comes up to meet it, a shade less far because the seam sits below the middle');
   assert.equal(lids.controlDrivers.eyeOpen.property, 'scaleY');
   const box = (id) => [document.elements[id].baseTransform.pivotY, document.elements[id].baseTransform.pivotY];
   assert.ok(document.elements.lidUpperLeft.baseTransform.pivotY < document.elements.eyeLeft.baseTransform.pivotY, 'the upper lid swings from the top of the eye');

@@ -141,16 +141,38 @@ export function createCanvasMenu(host, {
     return true;
   }
 
-  /** Put it over the artwork it edits, and keep it inside the canvas. */
+  /**
+   * Put it over the artwork it edits, and keep **all of it** inside the canvas.
+   *
+   * Clamping the top was not enough. A dozen actions, a name field and a
+   * disclosure come to some eight hundred pixels, which is taller than the
+   * canvas on any laptop: `box.height - size.height` went negative, the clamp
+   * pinned the menu to the top, and everything past *Advanced* was off the
+   * bottom of the window with no way to reach it — not scrolled, just gone.
+   *
+   * So the height is capped to the room there is and the menu scrolls inside
+   * it. The cap is measured rather than guessed, because the canvas is
+   * resizable (docs/DESIGN_SCREENS.md), and it is reapplied when a disclosure
+   * opens — which is the one press that can make the menu taller than it was
+   * when it was placed.
+   */
+  let anchor = null;
   function place(point) {
+    if (point) anchor = point;
+    if (!anchor) return;
     const box = host.getBoundingClientRect();
     node.hidden = false;
+    node.style.maxHeight = `${Math.max(120, box.height - 16)}px`;
     const size = node.getBoundingClientRect();
-    const x = Math.max(8, Math.min(point.x - box.left, box.width - size.width - 8));
-    const y = Math.max(8, Math.min(point.y - box.top, box.height - size.height - 8));
+    const x = Math.max(8, Math.min(anchor.x - box.left, box.width - size.width - 8));
+    const y = Math.max(8, Math.min(anchor.y - box.top, box.height - size.height - 8));
     node.style.left = `${x}px`;
     node.style.top = `${y}px`;
   }
+  // Opening *Advanced* adds to the menu's height, which can push its own foot
+  // off the canvas. `toggle` fires after the box has changed, so re-placing
+  // here keeps the whole of it reachable.
+  node.addEventListener('toggle', () => { if (!node.hidden) place(null); }, true);
 
   function open(id, point) {
     if (!render(id)) return false;
@@ -169,6 +191,7 @@ export function createCanvasMenu(host, {
     const pending = pendingName(openId);
     if (pending !== null) onAction('rename', openId, pending);
     node.hidden = true;
+    anchor = null;
     openId = null;
     delete node.dataset.canvasMenuFor;
     onClose();

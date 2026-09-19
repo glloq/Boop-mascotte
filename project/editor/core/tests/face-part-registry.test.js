@@ -185,11 +185,21 @@ const lidReach = (asset, role) => {
   return { open: hint.amplitude + hint.offset, shut: hint.offset };
 };
 
-/** The `ry` one lid is drawn with: the sliver an open eye shows of it. */
+/**
+ * One lid's leading edge as drawn: where its ends sit, and where its middle
+ * does.
+ *
+ * The path is `M · L · L · C · C · Z` (`eyeLidPath`, docs/EYE_BUILDS.md): a
+ * flat run along the rim, a vertical side, and the edge back in two cubics.
+ * The rim is the point a blink scales the lid about, so what each number
+ * reaches when the eye shuts is `rim + (value - rim) * scale`.
+ */
 const lidDrawn = (asset, side, which) => {
   const id = `lid${which}${side[0].toUpperCase()}${side.slice(1)}`;
-  const found = new RegExp(`id="${id}"[^>]*ry="([\\d.]+)"`).exec(asset.artwork);
-  return found ? Number(found[1]) : NaN;
+  const found = new RegExp(`id="${id}"[^>]*d="([^"]+)"`).exec(asset.artwork);
+  if (!found) return null;
+  const v = found[1].match(/-?[\d.]+/g).map(Number);
+  return { rim: v[1], end: v[5], mid: v[11] };
 };
 
 /**
@@ -246,30 +256,39 @@ test('a shut eye shows no eye, and an open one shows the lids exactly as drawn',
     'and a shutter is a robot\'s, nobody else\'s');
 
   for (const asset of eyes) {
-    // The eye's own half-height, which is what an upper lid has to cross.
-    const ry = asset.referenceBox.height / 2;
+    // The eye's own half-height, and where its middle is.
+    const ry = asset.referenceBox.height / 2, cy = asset.referenceBox.y + ry;
     for (const side of ['left', 'right']) {
+      const landed = {};
       for (const which of ['Upper', 'Lower']) {
         const role = `${side}${which}`;
         const { open, shut } = lidReach(asset, role);
         const drawn = lidDrawn(asset, side, which);
-        assert.ok(Number.isFinite(drawn), `${asset.id} ${role}: drawn as an ellipse on the rim`);
+        assert.ok(drawn, `${asset.id} ${role}: drawn as a lid path on the rim`);
         assert.equal(open, 1, `${asset.id} ${role}: open, the lid is exactly as drawn`);
-        // Scaled about the rim, a lid of half-height `drawn` reaches
-        // `2 * drawn * k` into the eye. The upper crosses the whole of it and
-        // lands on the far rim; the lower comes up between a quarter and a half
-        // of the way, because a real blink is the upper lid -- two lids meeting
-        // in the middle is what a *squint* looks like, and getting that
-        // asymmetry right is the difference between sleepy and suspicious.
-        const reach = 2 * drawn * shut;
-        if (which === 'Upper') assert.ok(Math.abs(reach - ry * 2) <= 0.6, `${asset.id} ${role}: reaches ${reach.toFixed(2)} of the ${(ry * 2).toFixed(2)} that covers the eye`);
-        else assert.ok(reach > ry * 0.5 && reach < ry * 1, `${asset.id} ${role}: comes up ${reach.toFixed(2)}, which is not a quarter to a half of ${(ry * 2).toFixed(2)}`);
+        // Scaled about the rim it hangs from, so this is where each part of the
+        // edge lands when the eye is shut.
+        const grown = (value) => drawn.rim + (value - drawn.rim) * shut;
+        landed[which] = { end: grown(drawn.end), mid: grown(drawn.mid) };
+        // The ends land on the eye's own widest points. That is the whole
+        // reason the edge is drawn with its ends a shade short of its middle:
+        // two edges that bulge towards each other meet in the middle and leave
+        // a white wedge at each corner, which no amount of bulge ever closes.
+        assert.ok(Math.abs(landed[which].end - cy) <= 0.6,
+          `${asset.id} ${role}: its ends land at ${landed[which].end.toFixed(2)}, not on the eye's own middle line ${cy.toFixed(2)}`);
       }
-      // And the pair leaves nothing of the eye showing.
-      const covered = 2 * lidDrawn(asset, side, 'Upper') * lidReach(asset, `${side}Upper`).shut;
-      assert.ok(covered >= ry * 2 - 0.6, `${asset.id} ${side}: a shut eye still shows ${(ry * 2 - covered).toFixed(2)} units of eye`);
+      // And the two edges arrive on **one curve**, which is what a shut eye is:
+      // a seam, with no eye left showing anywhere along it.
+      assert.ok(Math.abs(landed.Upper.mid - landed.Lower.mid) <= 0.3,
+        `${asset.id} ${side}: the two lids meet at ${landed.Upper.mid.toFixed(2)} and ${landed.Lower.mid.toFixed(2)} instead of on one seam`);
+      assert.ok(landed.Upper.mid > cy && landed.Upper.mid < cy + ry * 0.2,
+        `${asset.id} ${side}: the seam sits at ${landed.Upper.mid.toFixed(2)}, which is not a shade below the eye's middle`);
     }
-    // No socket, and so nothing drawn outside the eye for one to crop.
-    assert.equal(/<clipPath/.test(asset.artwork), false, `${asset.id}: no hidden mask`);
+    // And the socket is the shape an author can see: one `<use>` of the white,
+    // never a second copy of it that could drift (docs/EYE_BUILDS.md).
+    for (const side of ['Left', 'Right']) {
+      assert.ok(asset.artwork.includes(`<clipPath id="eyeSocket${side}"><use href="#eyeWhite${side}" /></clipPath>`), `${asset.id}: ${side} socket is the white itself`);
+      assert.ok(asset.artwork.includes(`<g id="lids${side}" data-name="${side} eyelids" clip-path="url(#eyeSocket${side})">`), `${asset.id}: ${side} lids are cut by it`);
+    }
   }
 });

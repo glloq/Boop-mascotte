@@ -18,25 +18,21 @@
     <path id="tongue" data-name="Tongue" d="M133.9 177 Q120 179 106.1 177 Q120 179 133.9 177 Z" fill="#d9707f" />
     <path id="teeth" data-name="Teeth" d="M96.2 173.3 Q120 175.2 143.8 173.3 Q120 175.2 96.2 173.3 Z" fill="#fff8ec" />
     <g id="eyeLeft" data-name="Left eye">
-      <ellipse id="eyeWhiteLeft" data-name="Left eye white" cx="83" cy="113" rx="24" ry="22.5" fill="#ffffff" />
+      <ellipse id="eyeWhiteLeft" data-name="Left eye socket" cx="83" cy="113" rx="24" ry="22.5" fill="#ffffff" />
+      <clipPath id="eyeSocketLeft"><use href="#eyeWhiteLeft" /></clipPath>
       <circle id="pupilLeft" data-name="Left pupil" cx="83" cy="113" r="10.5" fill="#2f3a43" />
       <circle id="glintLeft" data-name="Left eye glint" cx="78.8" cy="108.4" r="3.6" fill="#ffffff" opacity="0.92" />
       <circle id="sparkLeft" data-name="Left eye catchlight" cx="87.4" cy="116.6" r="1.7" fill="#ffffff" opacity="0.66" />
-      <path id="lidUpperLeft" data-name="Left upper eyelid" d="M59 91.6 C59 91 69.7 90.5 83 90.5 C96.3 90.5 107 91 107 91.6 C107 92.2 96.3 92.7 83 92.7 C69.7 92.7 59 92.2 59 91.6 Z" fill="#f9d9b0" />
-      <path id="creaseUpperLeft" data-name="Left upper eyelid crease" d="M107 91.6 C107 92.2 96.3 92.7 83 92.7 C69.7 92.7 59 92.2 59 91.6" fill="none" stroke="#a4674a" stroke-width="3" stroke-linecap="round" vector-effect="non-scaling-stroke" />
-      <path id="lidLowerLeft" data-name="Left lower eyelid" d="M59 134.4 C59 135 69.7 135.5 83 135.5 C96.3 135.5 107 135 107 134.4 C107 133.8 96.3 133.3 83 133.3 C69.7 133.3 59 133.8 59 134.4 Z" fill="#f9d9b0" />
-      <path id="creaseLowerLeft" data-name="Left lower eyelid crease" d="M107 134.4 C107 133.8 96.3 133.3 83 133.3 C69.7 133.3 59 133.8 59 134.4" fill="none" stroke="#a4674a" stroke-width="2.4" stroke-linecap="round" vector-effect="non-scaling-stroke" />
+      <g id="lidsLeft" data-name="Left eyelids" clip-path="url(#eyeSocketLeft)"><path id="lidUpperLeft" data-name="Left upper eyelid" d="M59 90.5 L107 90.5 L107 92.6 C96.3 92.6 96.3 92.7 83 92.7 C69.7 92.7 69.7 92.6 59 92.6 Z" fill="#f9d9b0" /><path id="creaseUpperLeft" data-name="Left upper eyelid crease" d="M107 92.6 C96.3 92.6 96.3 92.7 83 92.7 C69.7 92.7 69.7 92.6 59 92.6" fill="none" stroke="#a4674a" stroke-width="3" stroke-linecap="round" vector-effect="non-scaling-stroke" /><path id="lidLowerLeft" data-name="Left lower eyelid" d="M59 135.5 L107 135.5 L107 133.2 C96.3 133.2 96.3 133.3 83 133.3 C69.7 133.3 69.7 133.2 59 133.2 Z" fill="#f9d9b0" /><path id="creaseLowerLeft" data-name="Left lower eyelid crease" d="M107 133.2 C96.3 133.2 96.3 133.3 83 133.3 C69.7 133.3 69.7 133.2 59 133.2" fill="none" stroke="#a4674a" stroke-width="2.4" stroke-linecap="round" vector-effect="non-scaling-stroke" /></g>
       <ellipse id="rimLeft" data-name="Left eye outline" cx="83" cy="113" rx="24" ry="22.5" fill="none" stroke="#a4674a" stroke-width="4" />
     </g>
     <g id="eyeRight" data-name="Right eye">
-      <ellipse id="eyeWhiteRight" data-name="Right eye white" cx="157" cy="113" rx="24" ry="22.5" fill="#ffffff" />
+      <ellipse id="eyeWhiteRight" data-name="Right eye socket" cx="157" cy="113" rx="24" ry="22.5" fill="#ffffff" />
+      <clipPath id="eyeSocketRight"><use href="#eyeWhiteRight" /></clipPath>
       <circle id="pupilRight" data-name="Right pupil" cx="157" cy="113" r="10.5" fill="#2f3a43" />
       <circle id="glintRight" data-name="Right eye glint" cx="152.8" cy="108.4" r="3.6" fill="#ffffff" opacity="0.92" />
       <circle id="sparkRight" data-name="Right eye catchlight" cx="161.4" cy="116.6" r="1.7" fill="#ffffff" opacity="0.66" />
-      <path id="lidUpperRight" data-name="Right upper eyelid" d="M133 91.6 C133 91 143.7 90.5 157 90.5 C170.3 90.5 181 91 181 91.6 C181 92.2 170.3 92.7 157 92.7 C143.7 92.7 133 92.2 133 91.6 Z" fill="#f9d9b0" />
-      <path id="creaseUpperRight" data-name="Right upper eyelid crease" d="M181 91.6 C181 92.2 170.3 92.7 157 92.7 C143.7 92.7 133 92.2 133 91.6" fill="none" stroke="#a4674a" stroke-width="3" stroke-linecap="round" vector-effect="non-scaling-stroke" />
-      <path id="lidLowerRight" data-name="Right lower eyelid" d="M133 134.4 C133 135 143.7 135.5 157 135.5 C170.3 135.5 181 135 181 134.4 C181 133.8 170.3 133.3 157 133.3 C143.7 133.3 133 133.8 133 134.4 Z" fill="#f9d9b0" />
-      <path id="creaseLowerRight" data-name="Right lower eyelid crease" d="M181 134.4 C181 133.8 170.3 133.3 157 133.3 C143.7 133.3 133 133.8 133 134.4" fill="none" stroke="#a4674a" stroke-width="2.4" stroke-linecap="round" vector-effect="non-scaling-stroke" />
+      <g id="lidsRight" data-name="Right eyelids" clip-path="url(#eyeSocketRight)"><path id="lidUpperRight" data-name="Right upper eyelid" d="M133 90.5 L181 90.5 L181 92.6 C170.3 92.6 170.3 92.7 157 92.7 C143.7 92.7 143.7 92.6 133 92.6 Z" fill="#f9d9b0" /><path id="creaseUpperRight" data-name="Right upper eyelid crease" d="M181 92.6 C170.3 92.6 170.3 92.7 157 92.7 C143.7 92.7 143.7 92.6 133 92.6" fill="none" stroke="#a4674a" stroke-width="3" stroke-linecap="round" vector-effect="non-scaling-stroke" /><path id="lidLowerRight" data-name="Right lower eyelid" d="M133 135.5 L181 135.5 L181 133.2 C170.3 133.2 170.3 133.3 157 133.3 C143.7 133.3 143.7 133.2 133 133.2 Z" fill="#f9d9b0" /><path id="creaseLowerRight" data-name="Right lower eyelid crease" d="M181 133.2 C170.3 133.2 170.3 133.3 157 133.3 C143.7 133.3 143.7 133.2 133 133.2" fill="none" stroke="#a4674a" stroke-width="2.4" stroke-linecap="round" vector-effect="non-scaling-stroke" /></g>
       <ellipse id="rimRight" data-name="Right eye outline" cx="157" cy="113" rx="24" ry="22.5" fill="none" stroke="#a4674a" stroke-width="4" />
     </g>
     <g id="eyebrows" data-name="Eyebrows" fill="#7c4529" stroke="#7c4529" stroke-width="1.4" stroke-linejoin="round">

@@ -189,3 +189,66 @@ test('hide, lock and Escape behave the way the Layers panel does', async ({ page
   await expect(menu(page)).toBeVisible();
   await expect(menu(page)).toHaveAttribute('data-canvas-menu-for', 'head');
 });
+
+/**
+ * All of it, on a laptop.
+ *
+ * ```text
+ * « il faut aussi reprendre le clic droit car une grande partie n'est pas
+ *   visible ! »
+ * ```
+ *
+ * A dozen actions, a name field and a disclosure came to **788 px** on a 900 px
+ * window. `place()` clamped the top and nothing else: `canvas.height -
+ * menu.height` went negative, so the menu was pinned to the top of the canvas
+ * and everything from *Advanced* down was off the bottom of the window. Not
+ * scrolled away — gone, with no way to reach it.
+ *
+ * Two fixes, and the test checks both: the menu is capped to the room it has
+ * and scrolls inside it, and each action is one row rather than three stacked
+ * lines, which is what made it that tall to begin with.
+ */
+test('@critical the menu on the artwork fits the window, open or closed', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await openFreshEditor(page, { e2e: true });
+  await startBasicFace(page);
+  await goToMode(page, 'design.artwork');
+  await settle(page);
+  await rightClick(page, '#canvas #head');
+
+  const fits = async (when) => {
+    const box = await menu(page).evaluate((node) => {
+      const r = node.getBoundingClientRect(), host = node.offsetParent.getBoundingClientRect();
+      return { top: r.top, bottom: r.bottom, height: r.height, scrollHeight: node.scrollHeight,
+        hostTop: host.top, hostBottom: host.bottom, scrolls: getComputedStyle(node).overflowY };
+    });
+    expect(box.top, `${when}: the menu starts above the canvas`).toBeGreaterThanOrEqual(box.hostTop - 1);
+    expect(box.bottom, `${when}: the menu runs ${(box.bottom - box.hostBottom).toFixed(0)}px past the bottom of the canvas`)
+      .toBeLessThanOrEqual(box.hostBottom + 1);
+    // And where it had to be capped to get there, it scrolls — so the actions
+    // past the fold are reachable rather than merely off-screen.
+    if (box.scrollHeight > box.height + 1) expect(box.scrolls, `${when}: taller than its box and not scrollable`).toBe('auto');
+    return box;
+  };
+  const closed = await fits('closed');
+
+  // Every action is one row: a mark, the words, and the shortcut beside them.
+  // Stacked, twelve of those are twice as tall, which is the whole bug.
+  const rows = await menu(page).locator('.canvas-menu-actions button').evaluateAll((nodes) => nodes.map((node) => {
+    const label = node.querySelector('[data-canvas-menu-label]'), keys = node.querySelector('kbd');
+    return { label: label.getBoundingClientRect(), keys: keys ? keys.getBoundingClientRect() : null };
+  }));
+  expect(rows.length).toBeGreaterThan(6);
+  for (const row of rows) {
+    if (!row.keys) continue;
+    expect(row.keys.top, 'the shortcut sits beside its action, not under it').toBeLessThan(row.label.bottom);
+  }
+
+  // Opening Advanced is the one press that can make the menu taller than it was
+  // when it was placed, so it is placed again.
+  await menu(page).locator('[data-canvas-menu-advanced] summary').click();
+  await expect(menu(page).locator('[data-canvas-menu-advanced][open]')).toHaveCount(1);
+  const open = await fits('with Advanced open');
+  expect(open.scrollHeight, 'opening Advanced showed nothing new').toBeGreaterThan(closed.scrollHeight);
+  await expect(menu(page).locator('[data-canvas-menu-action]').last()).toBeVisible();
+});
