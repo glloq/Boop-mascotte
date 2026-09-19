@@ -182,12 +182,73 @@ export const BAND = Object.freeze({
    */
   tuck: 0.2,
   /**
+   * How far the teeth hang **clear of the lip they grow from**, in units,
+   * at full show.
+   *
+   * `tuck` keeps the band's middle off the stroke; its *ends* were still on
+   * the lip, so the row of teeth was drawn over the top of the upper lip and
+   * the lip went missing behind it. The lip's outline is 3.8 units wide and
+   * centred on the path, so anything nearer than 1.9 is painting on it: this
+   * clears that and leaves a thread of cavity showing, which is what says the
+   * teeth are *inside* the mouth.
+   *
+   * Multiplied by `show` and nothing else, so the shape is still exactly empty
+   * at `show 0` and the one shape key still interpolates it linearly.
+   */
+  clear: 3.4,
+  /**
    * The tongue's own two: how far it floats off the lower lip -- the dark line
    * under it is what makes it a tongue in a mouth rather than the floor of one
    * -- and how far its underside flattens towards the chord, which is what
    * makes the shape a dome instead of a symmetric lens.
    */
   tongueLift: 0.1, tongueBase: 0.22
+});
+
+/**
+ * The tongue, which is its own shape rather than a band.
+ *
+ * As a band it was a small hump on the floor of the mouth: it never came out,
+ * and it never read as a tongue. A cartoon tongue is a **rounded slab that
+ * fills the lower half of the mouth and hangs over the lip** — the *blep* —
+ * with a groove down its back and a soft notch at its tip.
+ *
+ * ```text
+ *         ╭────────╮         up     the back, one arch into the cavity
+ *   ──────┤        ├──────   the lower lip, where it is anchored
+ *          ╲______╱          out    the tip, lapping over the lip
+ * ```
+ *
+ * **Two arches and nothing else.** Drawn with a node in the middle of each --
+ * a groove down the back, a point at the tip -- a cubic's controls pulled the
+ * curve up on either side of it and the tongue came out as two lobes with a V
+ * between them: a butterfly. One arch per half has one peak, which is what a
+ * tongue is. A cubic reaches three quarters of its controls' offset, so the
+ * controls sit at four thirds of where the peak has to land.
+ *
+ * Every offset is a multiple of `show`, so at `show 0` every point of it lies
+ * on the lip and the half that comes back retraces the half that went out: the
+ * shape encloses nothing and paints nothing, which is what lets a shut mouth
+ * hide it by construction rather than by arithmetic.
+ */
+export const TONGUE = Object.freeze({
+  /** Where it is anchored along the lower lip. Wide, because a tongue that
+   *  spans the middle third reads as a lozenge in a hole -- but short of the
+   *  corners, or it is the floor of the mouth and the lip vanishes under it. */
+  from: 0.26, to: 0.74,
+  /**
+   * How far it reaches into the cavity, and how far past the lip, as fractions
+   * of the cavity a fully open mouth has.
+   *
+   * Both were half again as large first, and the tongue swallowed the mouth: as
+   * tall as the whole aperture, over the lower lip on both sides and onto the
+   * chin. It fills the lower half and laps over the lip, which is what reads as
+   * a tongue coming out; more than that reads as a pink shape where a mouth was.
+   */
+  up: 0.44, out: 0.19,
+  /** Where each arch's controls sit along its span: what makes it round
+   *  rather than square. */
+  shoulder: 0.25
 });
 
 /**
@@ -229,17 +290,29 @@ const band = (lip, from, to, offset, tuck, lift = 0) => {
 export function teethPath({ open = 0, smile = 0, arc = 0, show = 0, round: pucker = 0 } = {}) {
   const g = mouthGeometry({ open, smile, arc, round: pucker });
   const drop = BAND_REACH * BAND.teeth * show * 2;
-  return band((t) => quad(g.left, g.top, g.right, t), BAND.teethFrom, BAND.teethTo, drop, drop * BAND.tuck);
+  // Hung clear of the lip, ends and all, so the upper lip is still drawn where
+  // the teeth are. `clear` scales with `show` alone, which keeps the shape
+  // empty at rest and the shape key linear.
+  return band((t) => quad(g.left, g.top, g.right, t), BAND.teethFrom, BAND.teethTo, drop, drop * BAND.tuck, BAND.clear * show);
 }
 
 export function tonguePath({ open = 0, smile = 0, arc = 0, show = 0, round: pucker = 0 } = {}) {
   const g = mouthGeometry({ open, smile, arc, round: pucker });
-  const rise = -BAND_REACH * BAND.tongue * show * 2;
-  // The lower lip, walked right to left, so the tongue is wound the same way
-  // round as the teeth and the two shapes stay comparable. It rests *above* the
-  // lip rather than on it: a tongue whose edge is the lip is the floor of the
-  // mouth, and the dark line under it is what makes it a tongue in a mouth.
-  return band((t) => quad(g.right, g.bottom, g.left, t), BAND.tongueFrom, BAND.tongueTo, rise * (1 - BAND.tongueLift), rise * BAND.tongueBase, rise * BAND.tongueLift);
+  // The lower lip, left to right, which is where it is anchored.
+  const lip = (t) => quad(g.left, g.bottom, g.right, t);
+  const at = (t, dy) => { const p = lip(t); return point({ x: p.x, y: p.y + dy * show }); };
+  const span = TONGUE.to - TONGUE.from;
+  const t1 = TONGUE.from + span * TONGUE.shoulder, t2 = TONGUE.to - span * TONGUE.shoulder;
+  // Four thirds, because a cubic whose ends are level reaches three quarters
+  // of its controls' offset at the middle.
+  const up = -BAND_REACH * TONGUE.up / 0.75, out = BAND_REACH * TONGUE.out / 0.75;
+  return `M${at(TONGUE.from, 0)}`
+    // One arch over the back, into the cavity.
+    + ` C${at(t1, up)} ${at(t2, up)} ${at(TONGUE.to, 0)}`
+    // And one back under the tip, past the lip. Its controls are the other
+    // arch's in reverse, so at `show 0` this half retraces that one exactly
+    // and the tongue encloses nothing.
+    + ` C${at(t2, out)} ${at(t1, out)} ${at(TONGUE.from, 0)} Z`;
 }
 
 export const MOUTH_REST = mouthPath();

@@ -288,7 +288,11 @@ test('a shut eye shows no eye, and an open one shows the lids exactly as drawn',
     // never a second copy of it that could drift (docs/EYE_BUILDS.md).
     for (const side of ['Left', 'Right']) {
       assert.ok(asset.artwork.includes(`<clipPath id="eyeSocket${side}"><use href="#eyeWhite${side}" /></clipPath>`), `${asset.id}: ${side} socket is the white itself`);
-      assert.ok(asset.artwork.includes(`<g id="lids${side}" data-name="${side} eyelids" clip-path="url(#eyeSocket${side})">`), `${asset.id}: ${side} lids are cut by it`);
+      assert.ok(asset.artwork.includes(`<g id="eyeInner${side}" data-name="${side} eye, inside" clip-path="url(#eyeSocket${side})">`), `${asset.id}: ${side} inside is cut by it`);
+      // The pupil is in the cut too. A gaze carries it across the white and
+      // nothing else stops it at the rim -- on the iris build the iris is
+      // wider still, and left the eye outright.
+      assert.match(asset.artwork, new RegExp(`<g id="eyeInner${side}"[^>]*>(?:(?!</g>)[\\s\\S])*id="pupil${side}"`), `${asset.id}: ${side} pupil is cut by it`);
     }
   }
 });

@@ -103,18 +103,26 @@ on both sides of every point and there is no way to write a corner into one of
 these shapes by accident. V1's hair was hand-written cubics, and every join
 where two segments met without their control points lining up was a notch.
 
-## The eye is a group, and nothing is clipped
+## The eye is a group, and the shape that cuts it is one you can see
 
-`eyeLeft` and `eyeRight` are not the whites — they are the whole eye, a group
-holding the white, the pupil, the two catchlights, the two eyelids, the two
-creases that draw their edges, and the outline.
+`eyeLeft` and `eyeRight` are not the whites — they are the whole eye: the
+socket, then a group of everything the socket cuts (the pupil, the two
+catchlights, the two eyelids and the two creases that draw their edges), then
+the outline over the top.
 
-It **was** a clipped group, and the clip was the problem an author reported: a
-`<clipPath>` in `<defs>` appears in neither the layer tree nor
-`document.elements`, so it could not be seen, moved, resized or deleted — and
-the lids it cropped were drawn open and parked *outside* it, which made the
-group's box 191 × 281 screen pixels around an eye of 100 × 94. The selection
-handles sat ninety pixels off the eye on every side.
+The **group** used to carry the clip, and the clip was the problem an author
+reported: a `<clipPath>` in `<defs>` holding an anonymous ellipse appears in
+neither the layer tree nor `document.elements`, so it could not be seen, moved,
+resized or deleted — and the lids it cropped were drawn open and parked
+*outside* it, which made the group's box 191 × 281 screen pixels around an eye
+of 100 × 94. The selection handles sat ninety pixels off the eye on every side.
+
+Deleting the clip was the wrong half of the fix, and the next thing an author
+saw. The lids come back inside the eye by being drawn on its rim, which is what
+fixes the box; the cut stays, because a shape scaled in `y` alone keeps its full
+width and hangs out of an ellipse everywhere but its middle. What changed is
+that the shape doing the cutting is the eye's own white, referenced
+(docs/EYE_BUILDS.md).
 
 A lid is the eye's own ellipse now, squashed to a hairline on the rim it swings
 from and **scaled about that rim** until its leading edge lands on the seam
@@ -167,20 +175,22 @@ purpose*. Whatever the turn or `hairSway` does to it, it can neither leave the
 silhouette nor slide off the hairline: it used to do both, sticking out past
 the outline on one side and uncovering the forehead on the other.
 
-**The cut goes on the lids, and it is made of the white.** A `clip-path` is
+**The cut goes inside the eye, and it is made of the white.** A `clip-path` is
 resolved in the user space an element establishes — the space *after* its own
 `transform` — so it follows the element it is on. Three consequences, and each
 was learnt by getting it wrong:
 
 - **Not on the eye group.** A turn scales and moves the group, which would drag
   the cut with it and crop the white and the pupil it is supposed to contain.
-- **Not on a lid.** A lid's own `scaleY` is the blink: put the cut there and the
-  socket stretches ten times over at exactly the moment it is needed, and cuts
-  nothing. Measured — it drew an hourglass.
-- **On a wrapper that nothing transforms.** `lidsLeft` holds the two lids and
-  their two creases, and carries `clip-path="url(#eyeSocketLeft)"`. The eye
-  group turns as one assembly, the lids sweep inside it, and the rim is outside
-  the cut so it keeps its full stroke.
+- **Not on a lid, nor on the pupil.** A lid's own `scaleY` is the blink and the
+  pupil's translate is the gaze: put the cut on either and it moves with them,
+  and stops cutting at exactly the moment it is needed. Measured — on a lid it
+  drew an hourglass.
+- **On a wrapper that nothing transforms.** `eyeInnerLeft` holds everything the
+  socket cuts — the pupil, the catchlights, the two lids and their creases — and
+  carries `clip-path="url(#eyeSocketLeft)"`. The eye group turns as one
+  assembly, the lids sweep inside it, the gaze cannot carry the pupil past the
+  rim, and the outline is outside the cut so it keeps its full stroke.
 
 The socket itself is `<clipPath id="eyeSocketLeft"><use href="#eyeWhiteLeft" /></clipPath>`
 — a **reference**, not a copy. So the shape that cuts is the shape in the layer

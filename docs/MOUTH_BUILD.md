@@ -57,8 +57,8 @@ and the lower lip's, moved by four numbers:
 | `smile` | a **shape key** — the corners lift *and* the lip line deepens |
 | `mouthWidth` | `scaleX` |
 | `mouthRound` | a **shape key** per lip, from the card's own `posePath` |
-| `teeth` | a **shape key**, `mouthOpen * teeth` |
-| `tongue` | a **shape key**, `mouthOpen * tongue` |
+| `teeth` | a **shape key**, `mouthOpen * teeth` — a band hung clear of the upper lip |
+| `tongue` | a **shape key**, `mouthOpen * tongue` — a slab that laps over the lower one |
 
 Five of the six are **shaped**, and the one that is not is the one a transform
 says honestly: a wider mouth really is this mouth, wider. That is not how it was
@@ -84,6 +84,43 @@ it to hide, by construction rather than by arithmetic — which is what lets eac
 be one band drawn from the lip it sits behind rather than a second mouth with its
 own cavity, and why they taper into nothing before the corners the way a row of
 upper teeth does.
+
+### Under the lip, and out of the mouth
+
+Two things the bands got wrong, and they were opposite mistakes.
+
+The **teeth** hung from the upper lip with their ends *on* it. The lip's outline
+is 3.8 units wide and centred on the path, so a row of teeth drawn from it
+painted over the inner half of the stroke and the upper lip went missing where
+they were. They hang `clear` of it now — ends and all — which is a multiple of
+`show` and nothing else, so the shape is still exactly empty at rest and the one
+shape key still interpolates it linearly. That also means the clearance is
+*proportional to the opening*: a barely-open mouth shows barely any teeth, just
+under the lip, and only a mouth that is really open clears the whole stroke.
+One shape key interpolates the whole band, so a constant offset would arrive
+scaled anyway.
+
+The **tongue** was the same kind of band, and that was the wrong shape for it: a
+small hump on the floor of the mouth that never came out of it. A cartoon tongue
+is a rounded slab that fills the lower half of the mouth and laps over the lip —
+the *blep* — so it is its own shape now:
+
+```text
+        ╭────────╮         up     the back, one arch into the cavity
+  ──────┤        ├──────   the lower lip, where it is anchored
+         ╲______╱          out    the tip, lapping over the lip
+```
+
+**Two arches and nothing else.** Drawn with a node in the middle of each — a
+groove down the back, a point at the tip — a cubic's controls pulled the curve
+up on either side of that node and the tongue came out as two lobes with a V
+between them: a butterfly. One arch per half has one peak, which is what a
+tongue is. A cubic reaches three quarters of its controls' offset, so the
+controls sit at four thirds of where the peak has to land.
+
+It stays empty at `show 0` the same way the teeth do, and for a stricter reason:
+the half that comes back uses the outward half's controls **in reverse**, so at
+rest it retraces that half exactly whatever the lip is doing underneath.
 
 Being empty is also why they **grow** rather than fade. An opacity movement is
 right for a card that draws a finished row of teeth and hides it; a shape that

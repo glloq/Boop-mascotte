@@ -108,8 +108,8 @@ deleted the clip. That was a misreading — of the artwork and of the ask:
 
 ### The box: where a lid is drawn
 
-A lid is the eye's own shape squashed to a band on the rim it swings from, and
-scaled about that rim:
+A lid is the eye's own shape squashed to a **hairline** on the rim it swings
+from, and scaled about that rim:
 
 ```text
    scaleY 1          scaleY meet/2       scaleY meet
@@ -123,6 +123,16 @@ Drawn there it is inside the eye at rest and inside it shut — never parked
 outside, never counted into a box three times too big. **The eye's bounding box
 is the eye**, so the selection handles land on it and a resize drags the eye.
 
+A hairline, and that matters for a second reason: a lid is grown from what is
+drawn, so **whatever is drawn is what an open eye shows of it**. At a twentieth
+of the eye that was a band of skin and a crease inside the outline at rest — an
+eye that never quite opened. At a seven-thousandth it is a third of a screen
+pixel, tucked under the outline's own stroke, and the factor it grows by takes
+up the difference. That factor is around seventy, which is why the lid's stroke
+is `non-scaling-stroke` and why `eyeCurve` is authored **on the seam** and
+divided back out: written on the sliver, thinning the lid would have multiplied
+the arc sevenfold.
+
 ### The cut: what does the cutting
 
 The clip is still needed, and deleting it was wrong. Scaling a shape in `y`
@@ -135,8 +145,17 @@ What changed is **what cuts**:
 ```html
 <ellipse id="eyeWhiteLeft" data-name="Left eye socket" … />
 <clipPath id="eyeSocketLeft"><use href="#eyeWhiteLeft" /></clipPath>
-<g id="lidsLeft" data-name="Left eyelids" clip-path="url(#eyeSocketLeft)"> … </g>
+<g id="eyeInnerLeft" data-name="Left eye, inside" clip-path="url(#eyeSocketLeft)"> … </g>
 ```
+
+Everything inside the eye is in that group — the lids and their creases, the
+catchlights, and the **pupil**. The pupil is in it because a gaze carries it
+across the white and nothing else stops it at the rim: at a full diagonal look
+it sat on the outline, and on the iris build the iris is nearly twice the
+pupil's width, so the eye's own `travel` — measured against the pupil — let it
+leave the eye outright. The cut ends the whole class of that: a look, a
+`pupilScale`, a pupil an author drags. (`travel` is measured against the iris
+now as well, so the cut is a floor rather than the everyday answer.)
 
 A `<use>`, not a second ellipse — and that is the whole point. A copy could
 drift from the white, and an author who resized one would have moved a cut that

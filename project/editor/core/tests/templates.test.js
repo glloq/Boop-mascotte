@@ -96,7 +96,7 @@ test('the pupil sits behind the eyelid instead of fading out', () => {
   // layer tree -- move it or resize it and the cut goes with it
   // (docs/EYE_BUILDS.md).
   assert.match(state.svgMarkup, /<clipPath id="eyeSocketLeft"><use href="#eyeWhiteLeft" \/><\/clipPath>/);
-  assert.match(state.svgMarkup, /<g id="lidsLeft" data-name="Left eyelids" clip-path="url\(#eyeSocketLeft\)">/);
+  assert.match(state.svgMarkup, /<g id="eyeInnerLeft" data-name="Left eye, inside" clip-path="url\(#eyeSocketLeft\)">/);
   assert.equal(/<clipPath id="eyeSocketLeft"><ellipse/.test(state.svgMarkup), false, 'and never a second copy of it');
 
   const open = compileRigFrame(state.elements, { eyeOpen: 1 }), shut = compileRigFrame(state.elements, { eyeOpen: 0 });

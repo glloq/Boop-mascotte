@@ -223,13 +223,29 @@ test('an open mouth stays inside the face it opens', () => {
   const lips = box(open.mouth.path), chin = box(open.head.path);
   assert.ok(lips.bottom < chin.bottom - 10, `the lower lip is ${chin.bottom - lips.bottom} above the chin`);
   assert.ok(chin.bottom > box(HEAD_REST).bottom + 10, 'and the jaw came down to make the room');
-  // Teeth and tongue live inside the lips at every opening, by construction.
+  // The teeth live inside the lips at every opening, by construction -- and
+  // **below** the upper one, clear of the 3.8-unit stroke that draws it. Drawn
+  // on the lip, a row of teeth painted over the top of it and the upper lip
+  // went missing where they were (docs/MOUTH_BUILD.md).
   for (const at of [.2, .5, 1]) {
     const frame = pose({ mouthOpen: at, teeth: 1, tongue: 1 });
     const mouth = box(frame.mouth.path), teeth = box(frame.teeth.path), tongue = box(frame.tongue.path);
-    assert.ok(teeth.top >= mouth.top - .1 && teeth.bottom <= mouth.bottom + .1, `teeth inside the mouth at ${at}`);
-    assert.ok(tongue.top >= mouth.top - .1 && tongue.bottom <= mouth.bottom + .1, `tongue inside the mouth at ${at}`);
+    // Below the lip's own line at every opening, and clear of the 3.8-unit
+    // stroke that draws it once the mouth is really open. The clearance can
+    // only be proportional to the opening -- one shape key interpolates the
+    // whole band linearly, so a constant offset would arrive scaled anyway --
+    // and a barely-open mouth shows barely any teeth, just under the lip.
+    assert.ok(teeth.top > mouth.top, `teeth under the upper lip at ${at}`);
+    assert.ok(teeth.bottom <= mouth.bottom + .1, `teeth inside the mouth at ${at}`);
+    if (at === 1) assert.ok(teeth.top >= mouth.top + 1.9, 'and clear of the stroke that draws it');
     assert.ok(teeth.left > mouth.left && teeth.right < mouth.right, 'and inset from its corners');
+    // The tongue **laps over** the lower lip, which is the one thing it has to
+    // do and never did: a tongue that stops at the lip is the floor of the
+    // mouth. It comes out of the middle of it, so it never reaches the corners
+    // and the lip is drawn on both sides of it.
+    assert.ok(tongue.top >= mouth.top - .1, `tongue below the upper lip at ${at}`);
+    assert.ok(tongue.bottom > mouth.bottom, `tongue laps over the lower lip at ${at}`);
+    assert.ok(tongue.left > mouth.left + 4 && tongue.right < mouth.right - 4, 'and well inside its corners');
   }
   // Barely open, and there is nothing behind the lips worth seeing: the band
   // is a product of the opening and the control, so a closed mouth has none.
