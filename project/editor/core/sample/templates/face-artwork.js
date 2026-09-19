@@ -1028,15 +1028,39 @@ export const withFaceHeadroom = withHeadroom;
  * go without any of this being restructured; everything else is geometry, and
  * geometry lives in the constants above.
  *
+ * ## The head is the shape that cuts, and it is referenced rather than copied
+ *
+ * The fringe and the face shading are both cut to `headShape`, which used to be
+ * a `<clipPath>` holding its own copy of the head's outline. A copy is a shape
+ * nothing can reach: in no layer, in no `elements` record, so an author could
+ * not see it, select it or reshape it -- which is the complaint.
+ *
+ * It was also **frozen**. The head carries the jaw's own shape key (`head-jaw`,
+ * driven by `mouthOpen + jawOpen`), so an open jaw lengthens the outline by
+ * forty screen pixels -- and the copy stayed where it was, leaving the shading
+ * cut to a chin the face no longer had.
+ *
+ * A `<use>` of `#head` cannot drift: what cuts the fringe is the head an author
+ * can see, by name, in the layer tree (docs/VECTOR_EDITING.md). It follows the
+ * head all the way, hiding included -- hide the head and the cut keeps nothing,
+ * so the fringe goes with it, which is why the row says so.
+ *
+ * It is written **inside `faceRoot`** rather than in a `<defs>` block, because
+ * that is what puts it in the artwork the editor reads rather than in a block
+ * nothing walks -- and at the **end** of the group, which is where the canvas's
+ * importer moves a `<clipPath>` anyway (the eye sockets have shown this since
+ * they were written the same way). Declaring it anywhere else means every
+ * element after it is re-inserted on load, which leaves the whitespace between
+ * them trailing at the end and `mascot.svg` with the whole face on one line.
+ * A `<clipPath>` paints nothing, so its place among its siblings is a matter of
+ * reading and of a fixture's diff, never of the drawing.
+ *
  * @param {{ palette?: object, box?: object, before?: string }} [options]
  * @returns {string}
  */
 export function buildMascotFaceSvg({ palette = FACE_PALETTE, box = FACE_ARTBOARD, before = '' } = {}) {
   const c = { ...FACE_PALETTE, ...palette };
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${box.x} ${box.y} ${box.width} ${box.height}" role="img" aria-label="Cartoon mascot face">
-  <defs>
-    <clipPath id="headShape"><path d="${HEAD_REST}" /></clipPath>
-  </defs>
   ${before}
   <g id="faceRoot" data-name="Face">
     <path id="hairBack" data-name="Hair back" d="${hairBackPath()}" fill="${c.hairShadow}" />
@@ -1061,6 +1085,7 @@ export function buildMascotFaceSvg({ palette = FACE_PALETTE, box = FACE_ARTBOARD
     <path id="nose" data-name="Nose" d="${NOSE_REST}" fill="none" stroke="${c.outlineSecondary}" stroke-width="${FACE_STYLE.noseOutline}" stroke-linecap="round" stroke-linejoin="round" />
     <path id="hairTop" data-name="Hair top" d="${hairTopPath()}" fill="${c.hairHighlight}" />
     <g id="hairFront" data-name="Hair front" clip-path="url(#headShape)"><path id="hair" data-name="Fringe" d="${hairFrontPath()}" fill="${c.hairBase}" /></g>
+    <clipPath id="headShape"><use href="#head" /></clipPath>
   </g>
 </svg>`;
 }

@@ -390,6 +390,9 @@ Both are now visible and both can be changed:
   box: cropping a drawing is a decision, not a repair.
 - The canvas menu on a clipped piece names the clip and offers **Stop cutting
   it**, which removes the `clip-path` in one undo step.
+- The Layers panel marks both ends of every cut, and the name of the shape
+  doing it is a button that goes there ("A cut is a relationship between two
+  drawings", below).
 
 `core/artwork/artboard.js` is the model — read, write, grow, and report the
 overflow per edge. The measuring belongs to the canvas, because only the DOM
@@ -484,17 +487,23 @@ Two moves, and they are each other's inverse:
 | | Where | What happens |
 | --- | --- | --- |
 | Cut | Select two or more pieces → **Cut to top** in the bar above the canvas | The piece in front stops being drawn and becomes the shape that cuts the others |
-| Release | Select a cut piece → **Stop cutting** in the same bar, or right-click it → **Stop cutting it** | The shape comes back into the drawing, where it can be reshaped and used to cut again |
+| Release | Select a cut piece → **Stop cutting** in the same bar, or right-click it → **Stop cutting it** | The cut comes off, and the shape that was doing it is in the drawing — put back there if the cut owned a copy of it, left where it was if the cut pointed at it |
 
-Selecting a cut piece says so in the bar — *Cut to `headShape`* — beside the
-button that takes it off. It used to say so only in the right-click menu, so
-the orange outline on the canvas was a thing an author could see, could not
-name, and could only act on by guessing to right-click it.
+Selecting a cut piece says so in the bar — *Cut · to Head shape · on Hair
+front* — beside the button that takes it off. It used to say so only in the
+right-click menu, so the orange outline on the canvas was a thing an author
+could see, could not name, and could only act on by guessing to right-click it.
+(And when it did say so it said *to headShape · on hairFront*, which names two
+things nobody has ever seen written down.)
 
 Releasing gives the shape *back* rather than leaving it in `<defs>`: a shape
 nothing can reach is how the cut became unchangeable in the first place. That
 is also what makes "change the cut" a sentence an author can act on — release
-it, redraw it with the Node tool, cut again.
+it, redraw it with the Node tool, cut again. A cut written the other way round
+— pointing at a drawing rather than owning a copy — has nothing to give back,
+and releasing it says so by leaving the drawing exactly where it is. The
+restore path did not know that, and would have dropped a second head into the
+artwork.
 
 A clip is read in the user space of the piece that carries it, **after** that
 piece's own transform — and after every transform above it. That last part was
@@ -506,6 +515,81 @@ outline that draws it composes the cutting shape's own transform with that
 chain rather than writing over it, and both multiply the chain out of the
 elements' own transforms rather than reading a nested `<svg>`'s CTM — the one
 measurement this canvas never trusts (`artworkMatrix`).
+
+## A cut is a relationship between two drawings
+
+> *« j'ai un soucis avec la fringe du model de base, il y a une decoupe avec un
+> autre element mais ca n'apparait nul part. on devrais pouvoir gerer le cut et
+> la gemotrie de coupe de facon simple mais ca n'apparait nul part (ni dans les
+> layers) »*
+
+The fringe arrived cut, and the thing cutting it was this:
+
+```svg
+<defs>
+  <clipPath id="headShape"><path d="M120 22 C162 22 …" /></clipPath>   <!-- a copy of the head -->
+</defs>
+```
+
+A copy, with no id, no name and no row. It is in no layer, in no `elements`
+record and in no menu, so there was nothing anywhere that said the fringe was
+cut, nothing that named what cut it, and nothing to press. And because it was a
+*copy*, it did not move: the head carries the `head-jaw` shape key, so an open
+jaw lengthens the head's outline by some forty units while the shape cutting
+the fringe stays exactly where it was drawn.
+
+The cut names the drawing instead:
+
+```svg
+<path id="head" data-name="Head shape" d="…" />
+<clipPath id="headShape"><use href="#head" /></clipPath>
+```
+
+Now the cut **is** the head — its shape, its transform, its shape keys and every
+edit an author makes to it — and, being a drawing, it has a row, a name and a
+place on the canvas. "Where is the geometry of this cut" has an answer that is
+one press away rather than a hunt through `<defs>`. The template's four cuts are
+all written this way: the fringe and the face shading to the head, and each
+eye's inside to its own socket (docs/EYE_BUILDS.md).
+
+`core/artwork/cuts.js` is the one reader, and it reads **markup** rather than a
+DOM because the Layers panel and the canvas menu need the same answer and only
+one of them has a DOM. It answers both directions, because both rows have
+something to say:
+
+```text
+Hair front    ✂   cut to Head shape          ← press it: the head is selected
+Head shape    ✂2  cuts Face shading, Hair front
+```
+
+| Where | What it shows |
+| --- | --- |
+| Layers, every row | a small ✂ — orange for *this is cut*, blue with a count for *this cuts*, grey for a cut that owns its shape, red for a cutter that is hidden — with the sentence in its tooltip |
+| Layers, the open row | the sentence in words, the cutting shape's name a button that goes to it |
+| Right-click a cut piece | *Cut to the shape of **Head shape** — the cut is on Hair front*, the name pressable |
+| The bar above the canvas | *Cut · to Head shape · on Hair front*, beside **Stop cutting**. It read *to headShape · on hairFront* |
+
+The mark is a mark rather than a sentence because the tree is a column of names
+two hundred and seventy pixels wide, and a badge reading *✂ Head shape* ate the
+name it was standing beside. The row that is open has room, and is where an
+author already is when they act.
+
+Following the drawing means following it when it is **replaced**, too. Wearing
+a head from the library takes the template's head out and puts a skull in, and
+a reference to an id that is no longer there keeps nothing — so the fringe and
+the shading would have gone out with it. `followHeadClips` moves the reference
+to whatever replaced the head, and gives it the space *above* that drawing (a
+`<use>` already draws the drawing's own transform, so the whole chain would
+apply it twice). A cut an author made with **Cut to top** still owns a copy, and
+is still followed by its outline: both shapes, one pass.
+
+**The price of a cut that follows its drawing is that it follows it all the
+way.** A `<use>` of a hidden element renders nothing, so the clip keeps nothing
+and the cut piece disappears whole — measured in a browser, on `display:none`
+and on `visibility:hidden` alike. Hide the head and the fringe goes with it.
+That is not something an author can be expected to deduce from an empty canvas,
+so the fringe's badge turns red and says it: *Head shape is hidden — so none of
+Hair front shows*.
 
 ## Colour is a dialog, and it starts with the mascot's own
 

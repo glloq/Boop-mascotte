@@ -351,8 +351,10 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
   const { category, definition } = plan;
   const previous = { hadMouthRig: hasMouthRig(candidate), hadBrowRig: hasBrowRig(candidate), hadTurn: (candidate.keyforms || []).some(isHeadPoseKeyform) };
   // What the head was drawing, before its drawing can go: a clip cut from it is
-  // recognised by it (`followHeadClips`).
-  const wasDrawing = pathDataOf(candidate.svgMarkup, headOutline(candidate));
+  // recognised by it, by its outline if it owns a copy and by its id if it
+  // points at it (`followHeadClips`).
+  const wasId = headOutline(candidate);
+  const wasDrawing = pathDataOf(candidate.svgMarkup, wasId);
   // The old artwork goes first, references and all, and only then does the
   // new arrive: a new mouth is usually called `mouth` like the one it
   // replaces, and a scrub after the fact would take the new one with it.
@@ -481,14 +483,22 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
     else if (detached.includes(id)) Object.assign(base, { pivotX: candidate.elements[rootId].baseTransform.pivotX, pivotY: candidate.elements[rootId].baseTransform.pivotY });
     Object.assign(base, placed);
   }
-  // And the head's own outline, wherever it is copied: the shading and the
-  // fringe are cut to a copy of it, and a copy nobody writes to is the head
-  // that has gone (`followHeadClips`). Read the same way before and after, so
-  // a replacement that leaves the outline alone rewrites nothing.
-  const outline = headOutline(candidate);
-  if (outline && wasDrawing) {
+  // And the head's own outline, wherever a cut names it: the shading and the
+  // fringe are cut to it, and a cut nobody writes to still names the head that
+  // has gone -- a stale copy of its drawing, or a reference to an id that is no
+  // longer there, which keeps nothing at all (`followHeadClips`).
+  //
+  // Only when the head itself is what was replaced. Every other install leaves
+  // the outline where it was, and `rootId` is then some other part's root -- so
+  // the space this would work out is not the one the cut is read in.
+  const outline = category.id === 'head' ? headOutline(candidate) : null;
+  if (outline && (wasDrawing || wasId)) {
     candidate.svgMarkup = followHeadClips(candidate.svgMarkup, {
-      from: wasDrawing, to: pathDataOf(candidate.svgMarkup, outline), transform: transformInto(candidate, outline, rootId)
+      from: wasDrawing, to: pathDataOf(candidate.svgMarkup, outline), transform: transformInto(candidate, outline, rootId),
+      // A cut that *points* at the head follows it by id, and needs only the
+      // space above the new outline: `<use>` already draws the drawing's own
+      // transform, so the whole chain would apply it twice.
+      fromId: wasId, toId: outline, over: transformOver(candidate, outline, rootId)
     });
   }
 
@@ -724,6 +734,30 @@ function transformInto(candidate, id, rootId) {
 }
 
 /**
+ * The space *above* a piece, for a cut that points at it rather than copying it.
+ *
+ * `<use href="#skull">` draws the skull with the skull's own transform already
+ * on it, so what a cut in a sibling's space is missing is only what the fit did
+ * to the group the skull arrived in. Writing the whole chain would apply the
+ * skull's own transform twice.
+ */
+function transformOver(candidate, id, rootId) {
+  if (!id || id === rootId) return null;
+  const map = layerMap(candidate.layers);
+  const chain = [];
+  for (let at = map.get(id)?.parent; at; at = map.get(at)?.parent) { chain.push(at); if (at === rootId) break; }
+  // Not inside the root the fit placed: nothing above it moved.
+  if (chain[chain.length - 1] !== rootId) return null;
+  let matrix = IDENTITY_MATRIX;
+  for (const at of chain) {
+    const base = candidate.elements[at]?.baseTransform;
+    if (base) matrix = multiplyMatrix(transformToMatrix(base), matrix);
+  }
+  return matrix.every((value, index) => Math.abs(value - IDENTITY_MATRIX[index]) < 1e-9)
+    ? null : `matrix(${matrix.map((value) => round(value)).join(' ')})`;
+}
+
+/**
  * A clip drawn from the head follows the head.
  *
  * The template keeps a copy of its own outline in the definitions and cuts the
@@ -738,21 +772,48 @@ function transformInto(candidate, id, rootId) {
  * still follows, two clips cut from the same head both follow, and a clip cut
  * from anything else is somebody's own decision and is left alone.
  *
+ * A cut written the other way round -- `<clipPath><use href="#head" /></clipPath>`,
+ * which is how the template's own cuts are written since the fringe's cut had
+ * nowhere to appear (docs/VECTOR_EDITING.md) -- is followed by **id**: the
+ * reference moves to the drawing that replaced it. Left alone it would point at
+ * an element that no longer exists, and a reference to nothing keeps nothing,
+ * so the fringe and the shading would have disappeared outright.
+ *
  * @param {string} markup the document's markup, the definitions included
- * @param {{ from: string, to: string, transform: string|null }} outline the `d` that was the head's, the one that is, and where the new one sits
+ * @param {object} outline what the head was and is
+ * @param {string} outline.from the `d` that was the head's
+ * @param {string} outline.to the `d` that is
+ * @param {string|null} [outline.transform] where the new outline sits, for a cut that owns a copy
+ * @param {string} [outline.fromId] the id that was the head's
+ * @param {string} [outline.toId] the id that is
+ * @param {string|null} [outline.over] the space above the new outline, for a cut that points at it
  */
-export function followHeadClips(markup, { from, to, transform = null } = {}) {
+export function followHeadClips(markup, { from, to, transform = null, fromId = null, toId = null, over = null } = {}) {
   const text = String(markup || '');
-  if (!from || !to) return text;
-  const attribute = transform ? ` transform="${transform}"` : '';
-  return text.replace(/<clipPath\b[^>]*>[\s\S]*?<\/clipPath>/g, (clip) => clip.replace(/<path\b[^>]*?(?:\/>|><\/path>)/g, (path) => {
-    const drawn = /\sd\s*=\s*(?:"([^"]*)"|'([^']*)')/.exec(path);
-    if ((drawn?.[1] ?? drawn?.[2]) !== from) return path;
-    // Everything else the clip's path says is the author's and stays; the
-    // outline and where it sits are what this owns.
-    const kept = path.replace(/\s(?:d|transform)\s*=\s*(?:"[^"]*"|'[^']*')/g, '').replace(/\s*\/?>(?:<\/path>)?$/, '');
-    return `${kept} d="${to}"${attribute} />`;
-  }));
+  // A reference is followed even when the id is unchanged, because a new head
+  // arrives inside a group the fit has placed: the id can be the same and the
+  // space above it different, and the cut is read in the space of the piece it
+  // cuts rather than in the one the drawing is in.
+  const copies = Boolean(from && to), references = Boolean(fromId && toId);
+  if (!copies && !references) return text;
+  const at = transform ? ` transform="${transform}"` : '', above = over ? ` transform="${over}"` : '';
+  return text.replace(/<clipPath\b[^>]*>[\s\S]*?<\/clipPath>/g, (clip) => {
+    const followed = !copies ? clip : clip.replace(/<path\b[^>]*?(?:\/>|><\/path>)/g, (path) => {
+      const drawn = /\sd\s*=\s*(?:"([^"]*)"|'([^']*)')/.exec(path);
+      if ((drawn?.[1] ?? drawn?.[2]) !== from) return path;
+      // Everything else the clip's path says is the author's and stays; the
+      // outline and where it sits are what this owns.
+      const kept = path.replace(/\s(?:d|transform)\s*=\s*(?:"[^"]*"|'[^']*')/g, '').replace(/\s*\/?>(?:<\/path>)?$/, '');
+      return `${kept} d="${to}"${at} />`;
+    });
+    if (!references) return followed;
+    return followed.replace(/<use\b[^>]*?(?:\/>|><\/use>)/g, (use) => {
+      const href = /\s(?:xlink:)?href\s*=\s*(?:"#([^"]*)"|'#([^']*)')/.exec(use);
+      if ((href?.[1] ?? href?.[2]) !== fromId) return use;
+      const kept = use.replace(/\s(?:xlink:href|href|transform)\s*=\s*(?:"[^"]*"|'[^']*')/g, '').replace(/\s*\/?>(?:<\/use>)?$/, '');
+      return `${kept} href="#${toId}"${above} />`;
+    });
+  });
 }
 
 /**

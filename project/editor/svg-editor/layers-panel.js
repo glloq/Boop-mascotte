@@ -1,5 +1,6 @@
 import { selectOnly, toggleSelected } from '../core/state/selection.js';
 import { esc } from '../ui/escape-html.js';
+import { describeCut, readCuts } from '../core/artwork/cuts.js';
 
 /**
  * A shape mark instead of the old `[G]` / `[C]` prefix: the letter codes were
@@ -25,6 +26,18 @@ export function createLayersPanel(leftSidebarEl, store, history, canvas) {
   if (!host) throw new Error('Missing required UI element: #layers-panel');
   let filter = '', focusedId = null;
   const collapsed = new Set();
+  /**
+   * The cuts in the artwork, read once per render rather than once per row.
+   *
+   * Derived from the markup, which is where a clip lives: a `<clipPath>` is in
+   * neither `layers` nor `elements`, so there is nothing else to ask.
+   */
+  let cutsFor = { markup: null, value: { byPiece: {}, byCutter: {} } };
+  const cuts = () => {
+    const markup = store.getState().svgMarkup || '';
+    if (cutsFor.markup !== markup) cutsFor = { markup, value: readCuts(markup) };
+    return cutsFor.value;
+  };
 
   // Shift, Ctrl or Cmd adds a row to the selection, or takes it back out.
   const select = (id, extend = false) => store.mutateSession(['selectedId', 'selectedIds'], state => { Object.assign(state, extend ? toggleSelected(state, id) : selectOnly(id)); });
@@ -35,6 +48,10 @@ export function createLayersPanel(leftSidebarEl, store, history, canvas) {
     const { action, id } = event.target.closest('[data-action]')?.dataset || {};
     if (!id) return;
     if (action === 'select') { focusedId = id; select(id, Boolean(event.shiftKey || event.ctrlKey || event.metaKey)); render(); return; }
+    // The shape a piece is cut to is a drawing like any other, so the badge
+    // that names it goes to it: that is the whole of "where is the cut"
+    // (docs/VECTOR_EDITING.md).
+    if (action === 'cutter') { focusedId = id; select(id); render(); return; }
     if (action === 'toggle') { collapsed.has(id) ? collapsed.delete(id) : collapsed.add(id); render(id); return; }
     // "Forward" and "backward" are paint order, the same words and the same
     // direction as the canvas menu: painted later is painted in front, which is
@@ -86,8 +103,45 @@ export function createLayersPanel(leftSidebarEl, store, history, canvas) {
   function row(item, depth) {
     if (!matches(item)) return '';
     const state=store.getState(), metadata=state.layerMetadata[item.id] || {}, part=Object.values(state.semanticParts||{}).find(candidate=>Object.values(candidate.roles||{}).includes(item.id));
+    /**
+     * What is cutting this piece, and what this piece cuts.
+     *
+     * A clip was the one thing in the artwork with nowhere to appear: an
+     * attribute pointing at a `<clipPath>`, which is in no layer and no
+     * `elements` record. So the fringe arrived cut to the head and the tree
+     * said nothing about it. The badge says it, and goes to the shape.
+     */
+    const cut = describeCut(cuts(), item.id, (id) => findLayer(state.layers, id)?.name);
+    // A mark rather than a sentence: the tree is a column of names two hundred
+    // and seventy pixels wide, and a badge reading "✂ Head shape" ate the name
+    // it was standing next to. The mark says *there is a cut here*, its colour
+    // says which end of it this row is, and the row that is open says the rest
+    // in words -- which is where an author is already looking when they act.
+    const cutHint = cut.cutBy
+      ? (cut.cutBy.named
+        ? `${item.name} is cut to the shape of ${cut.cutBy.shapeName}${cut.cutBy.hidden ? `, and ${cut.cutBy.shapeName} is hidden — so none of ${item.name} shows` : ''}.`
+        : `${item.name} is cut to a shape with no name of its own, so there is nothing to go to.`)
+      : cut.cutting ? `${item.name} cuts ${cut.cutting.join(', ')}. Hide it and they go with it.` : '';
+    const cutBadge = cut.cutBy
+      ? (cut.cutBy.named
+        ? `<button class="cut-badge${cut.cutBy.hidden ? ' cut-badge-lost' : ''}" tabindex="-1" data-action="cutter" data-id="${esc(cut.cutBy.shapeId)}" aria-label="${esc(cutHint)} Press to go to it." title="${esc(cutHint)} Press to go to it.">✂</button>`
+        // Muted, not red: a cut whose shape lives inside it is what **Cut to
+        // top** makes, and it is a decision rather than a fault. Red is kept
+        // for the one state that really is broken on screen.
+        : `<span class="cut-badge cut-badge-anon" role="img" aria-label="${esc(cutHint)}" title="${esc(cutHint)} “Stop cutting it” brings the shape back into the drawing.">✂</span>`)
+      : cut.cutting
+        ? `<span class="cut-badge cut-badge-cutter" role="img" aria-label="${esc(cutHint)}" title="${esc(cutHint)}">✂ ${cut.cutting.length}</span>`
+        : '';
+    /** The same thing in words, in the open row, where there is room for them. */
+    const cutLine = cut.cutBy
+      ? (cut.cutBy.named
+        ? `<p class="small layer-cut">✂ Cut to the shape of <button class="layer-cut-go" data-action="cutter" data-id="${esc(cut.cutBy.shapeId)}">${esc(cut.cutBy.shapeName)}</button>${cut.cutBy.hidden ? ', which is hidden — so none of this shows' : ''}.</p>`
+        : '<p class="small layer-cut">✂ Cut to a shape with no name of its own. <i>Stop cutting it</i> brings the shape back into the drawing, where it can be redrawn and used to cut again.</p>')
+      : cut.cutting
+        ? `<p class="small layer-cut">✂ This shape cuts ${esc(cut.cutting.join(', '))}. Hide it and they go with it.</p>`
+        : '';
     const expanded = Boolean(filter) || !collapsed.has(item.id), selected=state.selectedId === item.id, inSelection = selected || (state.selectedIds || []).includes(item.id);
-    return `<div role="treeitem" aria-level="${depth + 1}" aria-selected="${inSelection}" ${item.children.length?`aria-expanded="${expanded}"`:''} tabindex="${focusedId === item.id || (!focusedId && selected) ? '0' : '-1'}" data-layer-id="${esc(item.id)}" class="layer-item ${selected?'active':''} ${inSelection && !selected ? 'in-selection' : ''}" style="${depth ? 'margin-left:11px' : ''}"><div class="layer-row">${item.children.length?`<button class="layer-icon" tabindex="-1" data-action="toggle" data-id="${esc(item.id)}" aria-label="${expanded?'Collapse':'Expand'} ${esc(item.name)}">${expanded?'▼':'▶'}</button>`:'<span class="layer-spacer"></span>'}<button class="layer-label" tabindex="-1" data-action="select" data-id="${esc(item.id)}" title="${esc(item.name)} — ${esc(typeLabel(item.type))}${part?` · ${esc(part.name)}`:''}"><span class="layer-type" aria-hidden="true">${TYPE_GLYPH[item.type]||'◆'}</span><span class="layer-name">${esc(item.name)}</span>${part?`<span class="semantic-badge">${esc(part.name)}</span>`:''}</button><button class="layer-icon" tabindex="-1" data-action="visibility" data-id="${esc(item.id)}" title="Visibility">${item.visible?'◉':'○'}</button><button class="layer-icon" tabindex="-1" data-action="lock" data-id="${esc(item.id)}" title="Lock">${metadata.locked?'🔒':'🔓'}</button></div>${selected?`<input data-action="rename" data-id="${esc(item.id)}" aria-label="Layer display name" value="${esc(item.name)}"><div class="layer-actions"><button data-action="forward" data-id="${esc(item.id)}" aria-label="Bring ${esc(item.name)} forward" title="Paint it in front of the next piece">Bring forward</button><button data-action="backward" data-id="${esc(item.id)}" aria-label="Send ${esc(item.name)} backward" title="Paint it behind the previous piece">Send backward</button><button data-action="front" data-id="${esc(item.id)}" aria-label="Bring ${esc(item.name)} to the front">To front</button><button data-action="back" data-id="${esc(item.id)}" aria-label="Send ${esc(item.name)} to the back">To back</button><button data-action="duplicate" data-id="${esc(item.id)}">Duplicate</button><button data-action="${item.type==='g'?'ungroup':'group'}" data-id="${esc(item.id)}">${item.type==='g'?'Ungroup':'Group'}</button><button class="danger" data-action="delete" data-id="${esc(item.id)}">Delete</button></div><details class="layer-id"><summary>Identifier</summary><code>${esc(item.id)}</code></details>`:''}${expanded?item.children.map(child=>row(child,depth+1)).join(''):''}</div>`;
+    return `<div role="treeitem" aria-level="${depth + 1}" aria-selected="${inSelection}" ${item.children.length?`aria-expanded="${expanded}"`:''} tabindex="${focusedId === item.id || (!focusedId && selected) ? '0' : '-1'}" data-layer-id="${esc(item.id)}" class="layer-item ${selected?'active':''} ${inSelection && !selected ? 'in-selection' : ''}" style="${depth ? 'margin-left:11px' : ''}"><div class="layer-row">${item.children.length?`<button class="layer-icon" tabindex="-1" data-action="toggle" data-id="${esc(item.id)}" aria-label="${expanded?'Collapse':'Expand'} ${esc(item.name)}">${expanded?'▼':'▶'}</button>`:'<span class="layer-spacer"></span>'}<button class="layer-label" tabindex="-1" data-action="select" data-id="${esc(item.id)}" title="${esc(item.name)} — ${esc(typeLabel(item.type))}${part?` · ${esc(part.name)}`:''}"><span class="layer-type" aria-hidden="true">${TYPE_GLYPH[item.type]||'◆'}</span><span class="layer-name">${esc(item.name)}</span>${part?`<span class="semantic-badge">${esc(part.name)}</span>`:''}</button>${cutBadge}<button class="layer-icon" tabindex="-1" data-action="visibility" data-id="${esc(item.id)}" title="Visibility">${item.visible?'◉':'○'}</button><button class="layer-icon" tabindex="-1" data-action="lock" data-id="${esc(item.id)}" title="Lock">${metadata.locked?'🔒':'🔓'}</button></div>${selected?`<input data-action="rename" data-id="${esc(item.id)}" aria-label="Layer display name" value="${esc(item.name)}">${cutLine}<div class="layer-actions"><button data-action="forward" data-id="${esc(item.id)}" aria-label="Bring ${esc(item.name)} forward" title="Paint it in front of the next piece">Bring forward</button><button data-action="backward" data-id="${esc(item.id)}" aria-label="Send ${esc(item.name)} backward" title="Paint it behind the previous piece">Send backward</button><button data-action="front" data-id="${esc(item.id)}" aria-label="Bring ${esc(item.name)} to the front">To front</button><button data-action="back" data-id="${esc(item.id)}" aria-label="Send ${esc(item.name)} to the back">To back</button><button data-action="duplicate" data-id="${esc(item.id)}">Duplicate</button><button data-action="${item.type==='g'?'ungroup':'group'}" data-id="${esc(item.id)}">${item.type==='g'?'Ungroup':'Group'}</button><button class="danger" data-action="delete" data-id="${esc(item.id)}">Delete</button></div><details class="layer-id"><summary>Identifier</summary><code>${esc(item.id)}</code></details>`:''}${expanded?item.children.map(child=>row(child,depth+1)).join(''):''}</div>`;
   }
   function render(focusAfter) {
     const tree=store.getState().layers, count=flatten(tree).length;

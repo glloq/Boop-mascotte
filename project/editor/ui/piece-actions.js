@@ -81,7 +81,10 @@ export const PIECE_ACTIONS = Object.freeze([
   Object.freeze({ id: 'points', label: 'Edit points', level: 'advanced', needs: 'path', hint: 'Node tool, in Artwork' }),
   Object.freeze({ id: 'pin', label: 'Add a pin here', level: 'advanced', needs: 'path', hint: 'Rig ▸ Deform' }),
   Object.freeze({ id: 'to-path', label: 'Convert to a path', level: 'advanced', needs: 'shape', hint: 'For points, pins and shape keys' }),
-  Object.freeze({ id: 'release-clip', label: 'Stop cutting it', level: 'advanced', needs: 'clip', hint: 'The shape comes back to the drawing' })
+  // "comes back" was the only outcome when every cut owned a frozen copy of its
+  // shape. A cut written `<use href="#head">` cuts to a drawing that is in the
+  // artwork the whole time, so what it *stays* is the true half of both.
+  Object.freeze({ id: 'release-clip', label: 'Stop cutting it', level: 'advanced', needs: 'clip', hint: 'The shape that cuts it stays in the drawing' })
 ]);
 
 export const PIECE_ACTION_IDS = Object.freeze(PIECE_ACTIONS.map((action) => action.id));

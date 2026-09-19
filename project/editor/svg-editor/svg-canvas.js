@@ -10,6 +10,7 @@ import { SvgDocument } from '../core/svg-document/svg-document.js';
 import { lifecycleDiagnostics as diagnostics } from '../core/diagnostics/lifecycle-diagnostics.js';
 import { createArtworkCommands } from '../core/commands/artwork-commands.js';
 import { artboardAround, artboardOverflow, readArtboard } from '../core/artwork/artboard.js';
+import { readCuts } from '../core/artwork/cuts.js';
 import { faceGuides, ghostHead, landingBox } from '../core/face-library/face-guides.js';
 import { createFaceLayoutContext } from '../core/face-library/face-layout.js';
 import { createTransformGizmo } from './transform-gizmo.js';
@@ -4058,11 +4059,24 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
     // The whole chrome, not just the edge: a new working area is a new
     // artwork matrix, and everything drawn over the mascot is placed by it.
     setArtboard(box) { commands.setArtboard(box); placeChrome(); return readArtboard(store.getDocument().svgMarkup || ''); },
-    /** Which element is clipping this one, and to what. Null when nothing is. */
+    /**
+     * Which element is clipping this one, and **which drawing** does the
+     * cutting. Null when nothing is.
+     *
+     * The clip's own id (`headShape`) is a name for the relationship, not for
+     * anything an author can press. What they can press is the shape: the
+     * drawing a `<clipPath>` references, or the named shape it holds. Read
+     * from the markup so the Layers panel and this give the same answer
+     * (`core/artwork/cuts.js`).
+     */
     describeClip(id) {
       const clip = clipOwnerOf(id);
       if (!clip) return null;
-      return { ownerId: clip.ownerId, clipId: clip.clipId, self: clip.ownerId === id };
+      const cut = readCuts(store.getDocument().svgMarkup || '').byPiece[clip.ownerId] || null;
+      return {
+        ownerId: clip.ownerId, clipId: clip.clipId, self: clip.ownerId === id,
+        shapeId: cut?.shapeId || null, shapeName: cut?.shapeName || null, named: Boolean(cut?.named)
+      };
     },
     /**
      * Cut pieces to the shape of another (docs/VECTOR_EDITING.md).
@@ -4159,8 +4173,15 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
         const definition = host?.querySelector?.(`#${CSS.escape(reference)}`);
         const stillUsed = CUT_ATTRIBUTES.some((attribute) => [...(host?.querySelectorAll(`[${attribute}]`) || [])]
           .some((node) => (node.getAttribute(attribute) || '').includes(`#${reference}`)));
-        if (definition && !stillUsed && definition.firstElementChild) {
-          const shape = definition.firstElementChild;
+        const child = definition?.firstElementChild || null;
+        // A cut that points at a drawing has nothing to give back: the shape is
+        // in the artwork already, named and selectable, which is the whole
+        // reason the template's cuts are written `<use href="#head">` rather
+        // than with a frozen copy. Restoring the `<use>` itself would drop a
+        // second head into the drawing.
+        if (definition && !stillUsed && child?.localName === 'use') definition.remove();
+        else if (definition && !stillUsed && child) {
+          const shape = child;
           // It was drawn in the owner's user space; put it back beside the
           // owner, where that is what the parent's space is.
           // The shape comes back beside the owner, so it needs the owner's own
