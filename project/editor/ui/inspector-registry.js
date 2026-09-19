@@ -53,7 +53,13 @@ export const INSPECTOR_ADAPTERS = Object.freeze([
   Object.freeze({ id: 'semantic', subjects: ['face-setup'], except: [], kinds: ['none', 'semantic-part', 'semantic-control'] }),
   Object.freeze({ id: 'expression', subjects: ['expressions'], except: [], kinds: ['none', 'expression'] }),
   Object.freeze({ id: 'motion', subjects: ['animate'], except: [], kinds: ['clip', 'timeline-track', 'timeline-key'] }),
-  Object.freeze({ id: 'reaction', subjects: ['reactions'], except: [], kinds: ['none', 'reaction'] })
+  Object.freeze({ id: 'reaction', subjects: ['reactions'], except: [], kinds: ['none', 'reaction'] }),
+  // The Behavior board's own picks (docs/BEHAVIOR_STUDIO.md). It answers *after*
+  // `reaction` so a reaction keeps its sentence editor, and for the three kinds
+  // that had no editor in this column at all: a state was answered with a line
+  // saying where its editor was, and a transition and an automatic behaviour
+  // were not selections the column had ever heard of.
+  Object.freeze({ id: 'behavior', subjects: ['reactions'], except: [], kinds: ['state', 'transition', 'automatic', 'trigger'] })
 ]);
 
 /** Columns with no inspector at all: Preview is the mascot, not a panel over it. */

@@ -30,15 +30,22 @@ test('the registry answers exactly as the conditions it replaces did', () => {
   // wrong: this is what the editor did before UIR-03 turned it into data. It
   // was six conditions; the Character Builder's was the sixth, and the `except`
   // on Artwork existed only to stand down for it (V5-07).
+  //
+  // `behavior` is the one clause that was never in that chain: the Behavior
+  // workspace had no adapter at all, which is why picking a state used to be
+  // answered with a sentence about where its editor was
+  // (docs/BEHAVIOR_STUDIO.md). It is written here in the same shape as the
+  // five, so the table and this still have to agree.
   const before = (subject, kind) => ({
     artwork: kind === 'artwork',
     semantic: subject === 'face-setup' && (kind === 'none' || kind.startsWith('semantic-')),
     expression: subject === 'expressions' && (kind === 'none' || kind === 'expression'),
     motion: subject === 'animate' && ['clip', 'timeline-track', 'timeline-key'].includes(kind),
-    reaction: subject === 'reactions' && (kind === 'none' || kind === 'reaction')
+    reaction: subject === 'reactions' && (kind === 'none' || kind === 'reaction'),
+    behavior: subject === 'reactions' && ['state', 'transition', 'automatic', 'trigger'].includes(kind)
   });
   const subjects = ['artwork', 'hands', 'face-setup', 'expressions', 'animate', 'reactions', 'preview'];
-  const kinds = ['none', 'artwork', 'semantic-part', 'semantic-control', 'expression', 'reaction', 'clip', 'timeline-track', 'timeline-key', 'state', 'diagnostic'];
+  const kinds = ['none', 'artwork', 'semantic-part', 'semantic-control', 'expression', 'reaction', 'clip', 'timeline-track', 'timeline-key', 'state', 'transition', 'automatic', 'trigger', 'diagnostic'];
   for (const subject of subjects) {
     for (const kind of kinds) {
       const { on } = resolveInspectorAdapters(subject, kind);

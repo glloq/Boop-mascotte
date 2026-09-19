@@ -1,0 +1,203 @@
+/* ── The Behavior studio (docs/BEHAVIOR_STUDIO.md) ──────────────────────────
+ *
+ * The layout inversion this file exists for: on Behavior the mascot is not the
+ * subject — *when* it moves is — so the board takes the column and the mascot
+ * becomes a stage docked in its corner. `#canvas` is unchanged; it is simply
+ * positioned, which is why the preview controller never finds out.
+ *
+ * Everything here is scoped to `#app[data-workspace=reactions]`, so not one
+ * rule can reach another screen.
+ */
+
+.behavior-studio { display: none; }
+
+/* One grid for the whole column, so the table runs the full width under both
+ * the board and the stage:
+ *
+ *   ┌──────────────────────────────┬────────┐
+ *   │ canvas tools                          │
+ *   ├──────────────────────────────┼────────┤
+ *   │ the board                    │ stage  │
+ *   ├──────────────────────────────┴────────┤
+ *   │ the transitions                       │
+ *   └───────────────────────────────────────┘
+ *
+ * `display: contents` on the wrapper is what lets the board and the table be
+ * cells of the column's own grid while staying one element to switch off on
+ * every other workspace. `#canvas` is a grid item of `.canvas-column` on every
+ * screen; here it is simply given a different cell, which is why nothing about
+ * the preview controller changes. */
+#app[data-workspace=reactions] .canvas-column {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  background: #0b1120;
+}
+#app[data-workspace=reactions] .canvas-tools { grid-area: 1 / 1 / 2 / -1; }
+#app[data-workspace=reactions] .behavior-studio { display: contents; }
+#app[data-workspace=reactions] .behavior-board-host { grid-area: 2 / 1 / 3 / 2; padding: 8px 0 0 10px; }
+#app[data-workspace=reactions] .behavior-table-host { grid-area: 3 / 1 / 4 / -1; padding: 8px 10px 10px; }
+
+/* ── The mascot, as a stage ────────────────────────────────────────────────
+ * Docked over the board's bottom-left corner rather than beside it: what is
+ * being tuned belongs next to the control that tunes it, and the board is what
+ * it is tuned on. Off / Small / Large is the author's, remembered per session.
+ */
+#app[data-workspace=reactions] #canvas {
+  grid-area: 2 / 2 / 3 / 3;
+  align-self: start; justify-self: end;
+  width: 180px; height: 180px;
+  margin: 8px 10px 0 10px;
+  border: 1px solid #33455f; border-radius: 14px;
+  pointer-events: none;
+}
+#app[data-workspace=reactions][data-board-stage=large] #canvas { width: 300px; height: 300px; }
+#app[data-workspace=reactions][data-board-stage=off] #canvas { display: none; }
+#app[data-workspace=reactions] #canvas::after {
+  content: 'Live'; position: absolute; left: 9px; top: 7px;
+  font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: #8da4c5;
+}
+
+/* ── The board ─────────────────────────────────────────────────────────── */
+.behavior-board-host { min-width: 0; min-height: 0; display: grid; }
+.behavior-board { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 6px; min-height: 260px; }
+.behavior-board .graph-viewport { height: auto; min-height: 0; }
+.behavior-board .board-help { margin: 0; line-height: 1.5; }
+
+.board-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.board-lenses { display: flex; gap: 2px; padding: 2px; background: #111c2f; border: 1px solid #2b3a55; border-radius: 9px; }
+.board-lens {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; font-size: 12px; font-weight: 600;
+  color: #9db1cd; background: transparent; border: 1px solid transparent; border-radius: 7px;
+}
+.board-lens small { padding: 0 5px; font-size: 10px; font-weight: 500; color: #8da4c5; background: #1d2b46; border-radius: 20px; }
+.board-lens:hover { color: #e3ecf9; background: #1a2540; }
+.board-lens.active { color: #fff; background: #285fce; border-color: #5c8df2; }
+.board-lens.active small { color: #dbe7ff; background: #1a459d; }
+
+.board-stage-switch { display: inline-flex; gap: 2px; margin-left: 6px; padding-left: 8px; border-left: 1px solid #2b3550; }
+.board-stage-switch button { padding: 3px 7px; font-size: 11px; background: #1d293e; border-color: #34445f; }
+.board-stage-switch button.active { background: #285fce; border-color: #5c8df2; }
+
+/* ── Nodes: one look per kind, so a board reads without a legend ────────── */
+.board-node { grid-template-rows: auto auto auto; gap: 0; padding: 5px 10px; }
+.board-node em {
+  font-size: 8.5px; font-style: normal; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: #7f95b5;
+}
+.board-node b { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; }
+.board-node small { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.board-node[data-board-kind=trigger] { background: #14263a; border-color: #2f5a7d; border-left: 3px solid #4d9fd0; }
+.board-node[data-board-kind=trigger] em { color: #6fb6dd; }
+.board-node[data-board-kind=reaction] { background: #1d1f3d; border-color: #453f7a; border-left: 3px solid #8b7be0; }
+.board-node[data-board-kind=reaction] em { color: #a798f0; }
+.board-node[data-board-kind=state] { background: #192b48; border-color: #3b4c68; }
+.board-node[data-board-kind=automatic] { background: #16301f; border-color: #2f5f40; border-left: 3px solid #4fae74; }
+.board-node[data-board-kind=automatic] em { color: #6fce95; }
+.board-node.off { opacity: .55; }
+.board-node.off b { text-decoration: line-through; }
+
+/* A focused selection: what it touches stays lit, the rest recedes. Without
+ * it, every edge of a twelve-state machine looks equally relevant. */
+.board-node.dim, .graph-link.dim, .graph-link-label.dim { opacity: .45; }
+.board-node.dim { filter: saturate(.55); }
+
+/* ── Edges: a transition is solid, a guard is dashed and quieter ────────── */
+.graph-link.link-fires { stroke: #6f8fd8; }
+.graph-link.link-guard { stroke: #8b7bb8; stroke-width: 1.5; stroke-dasharray: 5 4; }
+.graph-links marker#board-arrow-soft path { fill: #8b7bb8; }
+.graph-link-label.link-guard { color: #c3b6e6; border-color: #5b4d85; background: #1c1730; }
+.graph-link.selected { stroke: #ffd166; stroke-width: 3.5; }
+
+/* ── The transitions table ─────────────────────────────────────────────── */
+.behavior-table-host { min-width: 0; }
+.transition-table { margin: 0; max-height: 30vh; overflow: auto; background: #0c1526; border-color: #2b3a55; }
+.transition-table > summary { display: flex; gap: 8px; align-items: baseline; font-size: 13px; }
+.transition-table > summary .setup-summary { font-size: 11px; font-weight: 400; color: #8da4c5; }
+.table-tools { display: flex; align-items: flex-end; gap: 10px; margin: 6px 0; }
+.table-filter { flex: 0 0 240px; margin: 0; }
+.table-filter input { margin: 2px 0 0; }
+.table-bulk {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin: 6px 0; padding: 7px 10px;
+  background: #16233a; border-left: 3px solid #ffd166; border-radius: 6px; font-size: 12px;
+}
+.table-bulk label { display: inline-flex; align-items: center; gap: 5px; margin: 0; }
+.table-bulk input[type=number] { width: 78px; margin: 0; }
+.table-bulk select { width: auto; margin: 0; }
+.transition-table table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.transition-table th, .transition-table td { padding: 2px 6px; text-align: left; border-bottom: 1px solid #1f2c44; }
+.transition-table thead th { font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: #8da4c5; font-weight: 600; }
+.transition-table tbody tr.selected { background: #1b2b47; outline: 1px solid #ffd166; }
+.transition-table tbody th { font-weight: 600; }
+.transition-table td input[type=number] { width: 84px; margin: 0; }
+.transition-table td select { width: auto; min-width: 110px; margin: 0; }
+.transition-table td button { padding: 2px 8px; }
+.transition-table .check { justify-content: center; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* ── The tuning rail ───────────────────────────────────────────────────── */
+.tuning-rail .tune-panel { display: grid; gap: 10px; padding: 0; background: none; border: 0; }
+.tune-head h3 { margin: 0; font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: #8da4c5; }
+.tune-subject { margin: 2px 0 0; font-size: 14px; line-height: 1.35; }
+.tune-subject small { display: block; font-size: 11px; color: #9db1cd; }
+.tune-mixed { margin: 0; color: var(--ux-warn, #ffc266); }
+.tune-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.tune-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; }
+.tune-field { margin: 4px 0 0; }
+.tune-list { margin: 0; padding-left: 16px; font-size: 12px; }
+
+/* The easing, as a curve with a playhead that runs it. Four words in a
+ * <select> asked an author to choose between two things they cannot picture. */
+.easing-picker { display: grid; gap: 8px; }
+.easing-curve { margin: 0; }
+.easing-curve svg { display: block; width: 100%; max-height: 150px; height: auto; padding: 8px; background: #0d1728; border: 1px solid #2b3a55; border-radius: 10px; }
+.easing-line { fill: none; stroke: #79adff; stroke-width: 2.5; stroke-linecap: round; }
+.easing-grid { stroke: #24344f; stroke-width: 1; }
+.easing-head { fill: #ffd166; }
+.easing-curve figcaption { margin-top: 5px; font-size: 11px; color: #9db1cd; }
+.easing-thumbs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+.easing-thumb { display: grid; gap: 2px; padding: 5px 3px; background: #131f33; border: 1px solid #2b3a55; border-radius: 8px; }
+.easing-thumb svg { width: 100%; height: 26px; }
+.easing-thumb path { fill: none; stroke: #8ba3c6; stroke-width: 2.5; }
+.easing-thumb span { font-size: 9.5px; color: #9db1cd; }
+.easing-thumb:hover { background: #1a2540; }
+.easing-thumb.active { background: #1d3157; border-color: #5c8df2; }
+.easing-thumb.active path { stroke: #9dc4ff; }
+.easing-thumb.active span { color: #e3ecf9; }
+
+/* Duration over named stops: "300" is not a feeling and "Normal" is. */
+.duration-dial { display: grid; gap: 2px; }
+.duration-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0; }
+.duration-head output { font-size: 12px; color: #e5e7eb; font-variant-numeric: tabular-nums; }
+.duration-dial input[type=range] { margin: 2px 0; }
+.duration-exact { display: flex; align-items: center; gap: 5px; }
+.duration-exact input { width: 92px; margin: 0; }
+
+/* A behaviour, as the movement it will actually make. */
+.wave-card { margin: 0; }
+.wave-card svg { display: block; width: 100%; height: auto; padding: 6px; background: #0d1728; border: 1px solid #2b3a55; border-radius: 10px; }
+.wave-line { fill: none; stroke: #6fce95; stroke-width: 2; stroke-linejoin: round; }
+.wave-rest { stroke: #2f4360; stroke-width: 1; stroke-dasharray: 3 3; }
+.wave-card figcaption { margin-top: 5px; font-size: 11px; color: #9db1cd; }
+
+/* ── Narrow windows ────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  #app[data-workspace=reactions] #canvas { width: 140px; height: 140px; }
+  #app[data-workspace=reactions][data-board-stage=large] #canvas { width: 200px; height: 200px; }
+  .tune-fields { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  /* A node graph is a pointer surface. On a phone the column is the editor,
+     as it was before this redesign, and the studio stands down. */
+  #app[data-workspace=reactions] .behavior-studio { display: none; }
+  #app[data-workspace=reactions] .canvas-column { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  #app[data-workspace=reactions] #canvas { grid-area: 2 / 1 / 3 / 2; width: auto; height: auto; margin: 0; border: 0; }
+}
+
+/* The column's own list switch: two chips, not two stacked buttons. `.author-nav`
+ * was a grid when it was the second navigation of a 300 px column. */
+#app[data-workspace=reactions] .author-nav { display: flex; align-items: center; gap: 5px; }
+#app[data-workspace=reactions] .author-nav b { flex: 0 0 auto; font-size: 10px; letter-spacing: .09em; }
+#app[data-workspace=reactions] .author-nav button { padding: 4px 10px; font-size: 12px; background: #1d293e; border-color: #34445f; }
+#app[data-workspace=reactions] .author-nav button.active { background: #285fce; border-color: #5c8df2; }

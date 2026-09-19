@@ -30,11 +30,11 @@ import { installStubDom } from './helpers/stub-dom.js';
  * handful of properties the panels touch.
  */
 
-/** The shell's inspector section: a heading, an empty line and five adapters. */
+/** The shell's inspector section: a heading, an empty line and six adapters. */
 function inspectorRoot() {
   const heading = { textContent: '' };
   const empty = { textContent: '', hidden: false };
-  const adapters = ['semantic', 'artwork', 'expression', 'motion', 'reaction'].map((kind) => ({ dataset: { inspectorAdapter: kind }, hidden: false }));
+  const adapters = ['semantic', 'artwork', 'expression', 'motion', 'reaction', 'behavior'].map((kind) => ({ dataset: { inspectorAdapter: kind }, hidden: false }));
   return {
     innerHTML: 'the shell markup this section is made of',
     hidden: false, dataset: {}, heading, empty,
@@ -129,13 +129,33 @@ const SELECTIONS = [
     heading: 'Motion Inspector', adapters: ['motion'], empty: ''
   },
   {
-    // The gap this change closes: a heading with nothing under it.
+    // The gap this change closes: a heading with nothing under it. It is the
+    // Timeline's now rather than the state machine's -- on Behavior a state is
+    // answered by the tuning rail (docs/BEHAVIOR_STUDIO.md), and this is the
+    // one screen left where a state can be picked without one.
     what: 'a state',
-    where: 'state-machine-panel.js writes activeStateId',
+    where: 'the Timeline keys a clip against a pose, and writes activeStateId',
     task: 'animate', session: { activeStateId: 'idle' },
     context: { kind: 'state', id: 'idle' }, id: 'idle',
     heading: 'State Inspector', adapters: [],
-    empty: 'State “idle” is edited in the State machine, in the left column.'
+    empty: 'State “idle” is edited on the Behavior board, under States.'
+  },
+  {
+    // The Behavior board's own picks, which had no adapter in this column at
+    // all: a transition and an automatic behaviour were selections it had
+    // never heard of (docs/BEHAVIOR_STUDIO.md).
+    what: 'a transition',
+    where: 'the Behavior board writes activeTransitionKeys',
+    task: 'reactions', session: { activeTransitionKeys: ['idle->talk'] },
+    context: { kind: 'transition', id: 'idle->talk', keys: ['idle->talk'] }, id: 'idle->talk',
+    heading: 'Transition', adapters: ['behavior'], empty: ''
+  },
+  {
+    what: 'an automatic behaviour',
+    where: 'the Behavior board writes activeBehaviorId',
+    task: 'reactions', session: { activeBehaviorId: 'auto-blink' },
+    context: { kind: 'automatic', id: 'auto-blink' }, id: 'auto-blink',
+    heading: 'Automatic behaviour', adapters: ['behavior'], empty: ''
   }
 ];
 
@@ -159,7 +179,7 @@ test('a selection with no adapter of its own is still named, never left under an
   for (const task of ['artwork', 'face-setup', 'expressions', 'animate', 'reactions']) {
     for (const kind of kinds) {
       const view = resolveInspectorPresentation(task, { kind, id: 'thing', parameter: 'thing' });
-      const adapted = view.artwork || view.semantic || view.expression || view.motion || view.reaction;
+      const adapted = view.artwork || view.semantic || view.expression || view.motion || view.reaction || view.behavior;
       assert.ok(adapted || view.emptyCopy, `${kind} in ${task} either has an adapter or says why not`);
       assert.notEqual(view.heading, 'Inspector', `${kind} is announced as itself, whatever task is open`);
     }

@@ -13,6 +13,8 @@ The visual editor is organized as four workspaces, each answering one question, 
 | **Animate** | What can its face do? | Expressions · Motions · Timeline |
 | **Behavior** | When does it do it? | Reactions · Automatic · States |
 
+**Behavior** is one board rather than three screens ([Behavior studio](docs/BEHAVIOR_STUDIO.md)): the triggers, the reactions, the states, the transitions and the automatic behaviours are all nodes on one diagram, the mascot shrinks to a live stage in its corner, and whatever is picked on it is tuned in the Inspector — a transition as the curve it is, several at once, a behaviour as the waveform it will actually make.
+
 **Face** is the simple surface — the parts of the face picked from a list or on the mascot, then moved, resized and recoloured ([Character Builder](docs/CHARACTER_BUILDER.md)) — **Hands** is the library of drawings each hand can show ([hand styles](docs/HAND_STYLES.md)), **Artwork** starts from a face template or imported SVG and edits layers, colours and shapes, **Assign** names each part of the face by clicking the canvas, **Controls** turns movements on and calibrates them, and **Motions** holds the presets with the key-by-key Timeline behind them. **Preview** sits beside the four workspaces rather than after them: clean, non-destructive testing from wherever you are. Save and Export stay available throughout; implementation-level settings live under **••• → Advanced**.
 
 ## Live Editor
@@ -31,7 +33,7 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
 - Expressions (named faces applied at any intensity) exported for `mascot.setExpression`
 - Seven motion presets (Nod, Shake, Bounce, Tilt, Look Around, Eye Dart, Head Pop) compiled to editable animation clips, with a key-by-key Timeline
 - Reactions (click, hover, timer or custom event → expression + motion → return) tested in Preview and exported for `mascot.bindEvents()` / `mascot.trigger()`
-- States, guarded transitions, blink and idle oscillator behaviors
+- States, guarded transitions, blink and idle oscillator behaviors, authored on one [node board](docs/BEHAVIOR_STUDIO.md) with the timing drawn rather than typed
 - Non-destructive preview, validation, undo/redo and local autosave
 - Project JSON save/open and `mascot.svg`, `rig.json`, `runtime.js` export
 
@@ -195,6 +197,7 @@ Install browsers once with `npx playwright install --with-deps`. E2E tests start
 - [Panel layout](docs/PANEL_LAYOUT.md): per-screen column widths, the two draggable boundaries, and a canvas that keeps looking at the same thing
 - [Rig format](docs/RIG_MODEL.md)
 - [Behaviors](docs/BEHAVIORS.md)
+- [Behavior studio](docs/BEHAVIOR_STUDIO.md)
 - [Known limitations](docs/KNOWN_LIMITATIONS.md)
 - [UX program roadmap and delivery log](docs/UX_UI_IMPLEMENTATION_ROADMAP.md)
 - [VNext roadmap](docs/VNEXT_ROADMAP.md), its [baseline](docs/VNEXT_BASELINE.md) and the [panel lifecycle](docs/VNEXT_COMPONENTS.md)

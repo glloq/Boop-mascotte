@@ -88,7 +88,7 @@ export const sideNavMarkup = (openSections) => `      <aside class="panel" id="l
         <section class="rig-tools"><h2 data-column-heading="rig">Assign</h2><div id="deform-bench" class="deform-bench-host" hidden></div>${rigGatesMarkup()}${setupSectionsMarkup(openSections)}</section>
         <section class="expressions-tools"><h2>Expressions</h2><div id="expressions-panel"></div></section>
         <section class="animate-tools"><h2 data-column-heading="animate">Motions</h2><div id="motion-panel"></div>${gateMarkup('timeline', 'mobile')}</section>
-        <section class="reactions-tools"><h2 data-column-heading="reactions">Reactions</h2><div id="reactions-panel"></div><div id="automatic-panel"></div><details class="author-advanced" data-author-editor><summary><span class="setup-title">States &amp; behaviors</span><span class="setup-summary">advanced</span></summary>${gateMarkup('state-machine', 'mobile')}<div id="state-editor"></div></details></section>
+        <section class="reactions-tools"><h2 data-column-heading="reactions">Reactions</h2><div id="reactions-panel"></div><div id="automatic-panel"></div><details class="author-advanced" data-author-editor><summary><span class="setup-title">States &amp; behaviors</span><span class="setup-summary">what the board draws</span></summary>${gateMarkup('state-machine', 'mobile')}<div id="state-editor"></div></details></section>
         <section class="structure-tools"><h2>Structure</h2><p class="small">Every piece of the mascot. Pick one here to work on it, anywhere in Design or Rig.</p><div id="layers-panel"></div></section>
       </aside>`;
 

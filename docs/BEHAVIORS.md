@@ -1,5 +1,13 @@
 # Behaviors
 
+> Where they are authored: the **Behavior board**
+> ([docs/BEHAVIOR_STUDIO.md](BEHAVIOR_STUDIO.md)). Each behaviour is a node on
+> it, and picking one draws **the movement it will actually make** — sampled
+> through `createBehaviorController`, the same scheduler the exported mascot
+> runs — above the numbers that shape it. The advanced panel that edited the
+> same array with raw fields and no picture is gone; the column lists and adds,
+> the Inspector tunes.
+
 A **Behavior** adds automatic, procedural motion over the current State and Animation result. The catalog exposes every runtime-supported type:
 
 - **Automatic Blink** temporarily overrides its target with the closed value, then restores the underlying animated pose.

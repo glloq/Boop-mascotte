@@ -1,67 +1,148 @@
+/**
+ * The Behavior column: what this workspace *has*, listed (docs/BEHAVIOR_STUDIO.md).
+ *
+ * This panel used to be the whole screen — the list, the pose sliders, the
+ * diagram, the transition list, the transition inspector, the problems and the
+ * parameters, stacked in a 300 px column behind a disclosure marked *advanced*
+ * — and it rebuilt every one of them, diagram included, inside an `input`
+ * handler.
+ *
+ * It is a **library** now. The board draws the machine, the tuning rail edits
+ * whatever is picked on it, and what is left here is the one thing a diagram is
+ * bad at: an alphabet of everything that exists, with the presses that make
+ * more of it. Picking anything in it picks it on the board, so there is one
+ * selection and one editor for it.
+ */
 import { renderBehaviorsPanel } from '../behaviors/behaviors-panel.js';
 import { createBehaviorCommands } from '../behaviors/behavior-commands.js';
-import { renderStateInspector, renderTransitionInspector } from './state-inspector.js';
 import { renderStateList } from './state-list.js';
 import { stateProblems, transitionImpact } from './state-operations.js';
 import { createStateMachineCommands } from './state-machine-commands.js';
 import { renderTransitionList } from './transition-graph.js';
-import { createGraphView } from './graph-view.js';
-import { rememberOpen, setPanelHtml } from '../../ui/panel-render.js';
+import { boardSelectionPatch } from '../../ui/selection-context.js';
+import { setPanelHtml } from '../../ui/panel-render.js';
 import { esc } from '../../ui/escape-html.js';
 
-export function createStateMachinePanel(leftSidebarEl,store,history,preview=null,editorContext=null,onStatus=()=>{}){
- const host=leftSidebarEl.querySelector('#state-editor');let selectedState=editorContext?.get().activeStateId||null,selectedEdge=null,selectedBehavior=0,catalog=false,error='';
- const sections=rememberOpen(host);
- const stateCommands=createStateMachineCommands(store,history),behaviorCommands=createBehaviorCommands(store,history);
- /**
-  * The diagram (Phase 10). It owns its own pointer work and its own view --
-  * where somebody has scrolled is session state, never the project -- and asks
-  * this panel to re-render when it has changed something.
-  */
- const graph=createGraphView({store,history,preview,onStatus,
-  requestRender:()=>render(),
-  onSelectState(name){if(!name||name===selectedState)return;selectedState=name;selectedEdge=null;editorContext?.update({activeStateId:name,selectedTrackParameter:null,selectedKey:null});preview?.previewState(name);},
-  // Drawing a link is adding a transition: the same command, the same refusal,
-  // the same one history step as the dialog.
-  addTransition(from,to){if(command(()=>stateCommands.addTransition(from,to))!==undefined)selectedEdge=`${from}->${to}`;render();}});
- graph.attach(host);
- const command=fn=>{try{const result=fn();error='';return result;}catch(e){error=e.message;render();return undefined;}};
- const dialog=(title,body,confirm,action)=>{let d=host.querySelector('dialog');if(!d){d=document.createElement('dialog');host.append(d);}d.innerHTML=`<form method="dialog"><h2>${title}</h2>${body}<div class="dialog-actions"><button value="cancel">Cancel</button><button value="confirm" class="primary">${confirm}</button></div></form>`;d.addEventListener('close',()=>{if(d.returnValue==='confirm')action(d);},{once:true});d.showModal();};
- host.addEventListener('focusin',e=>{if(e.target.matches('input[type=range],input[type=number]'))history.beginTransaction?.();});
- host.addEventListener('focusout',e=>{if(e.target.matches('input[type=range],input[type=number]'))history.commitTransaction?.();});
- host.addEventListener('change',()=>history.commitTransaction?.());
- host.addEventListener('click',e=>{const a=e.target.closest('[data-action],[data-author-mode],[data-select-state],[data-select-transition],[data-select-behavior],[data-add-behavior]');if(!a)return;
-  if(a.dataset.authorMode){editorContext?.update({authorMode:a.dataset.authorMode});render();return;}
-  if(a.dataset.selectState){selectedState=a.dataset.selectState;selectedEdge=null;graph.select([selectedState]);editorContext?.update({activeStateId:selectedState,selectedTrackParameter:null,selectedKey:null});preview?.previewState(selectedState);render();return;}
-  if(a.dataset.selectTransition){selectedEdge=a.dataset.selectTransition;render();return;}if(a.dataset.selectBehavior!==undefined){selectedBehavior=Number(a.dataset.selectBehavior);catalog=false;render();return;}
-  if(a.dataset.addBehavior){if(command(()=>behaviorCommands.add(a.dataset.addBehavior)))selectedBehavior=store.getDocument().behaviors.length-1;catalog=false;render();return;}
-  const s=store.getDocument(),state=selectedState&&s.states[selectedState]?selectedState:s.activeState||Object.keys(s.states)[0];
-  if(a.dataset.action==='new-state')dialog('New State',`<label>Name<input name="name" required value="NewState"></label><label>Start from<select name="source"><option value="current">Current pose (recommended)</option><option value="defaults">Default pose</option>${Object.keys(s.states).map(n=>`<option value="${esc(n)}">Existing · ${esc(n)}</option>`).join('')}</select></label><p class="field-error"></p>`,'Create',d=>{const name=d.querySelector('[name=name]').value.trim();if(command(()=>stateCommands.create(name,d.querySelector('[name=source]').value))!==undefined){selectedState=name;editorContext?.update({activeStateId:name});render();}});
-  if(a.dataset.action==='rename-state')dialog('Rename State',`<label>Name<input name="name" required value="${esc(state)}"></label>`,'Rename',d=>{const n=d.querySelector('input').value.trim();if(command(()=>stateCommands.rename(state,n))!==undefined){selectedState=n;editorContext?.update({activeStateId:n});render();}});
-  if(a.dataset.action==='duplicate-state'){const copy=command(()=>stateCommands.duplicate(state));if(copy){selectedState=copy;editorContext?.update({activeStateId:copy});render();}}
-  if(a.dataset.action==='delete-state'){const x=transitionImpact(s,state);dialog(`Delete “${esc(state)}”?`,`<p>${x.outgoing} outgoing transitions<br>${x.incoming} incoming transitions</p><p>These links will also be removed.</p>`,'Delete',()=>{if(command(()=>stateCommands.delete(state))!==undefined){selectedState=Object.keys(store.getDocument().states)[0]||null;editorContext?.update({activeStateId:selectedState});render();}});}
-  if(a.dataset.action==='reset-state')dialog('Reset State?',`<p>Reset “${esc(state)}” to parameter defaults?</p>`,'Reset',()=>{command(()=>stateCommands.reset(state));render();});
-  if(a.dataset.action==='add-transition')dialog('Add Transition',`<p>From <b>${esc(state)}</b></p><label>To<select name="to">${Object.keys(s.states).filter(n=>n!==state).map(n=>`<option>${esc(n)}</option>`).join('')}</select></label>`,'Add',d=>{const to=d.querySelector('select').value;if(command(()=>stateCommands.addTransition(state,to))!==undefined){selectedEdge=`${state}->${to}`;render();}});
-  if(a.dataset.action==='delete-transition'&&selectedEdge){const [f,t]=selectedEdge.split('->');command(()=>stateCommands.deleteTransition(f,t));selectedEdge=null;render();}
-  if(a.dataset.action==='test-transition'&&selectedEdge){const [from,to]=selectedEdge.split('->'),settings=s.transitionSettings?.[selectedEdge]||{};preview?.testTransition({from,to,duration:settings.duration,easing:settings.easing});}
-  if(a.dataset.action==='show-behavior-catalog'){catalog=true;render();}if(a.dataset.action==='duplicate-behavior'){if(command(()=>behaviorCommands.duplicate(selectedBehavior)))selectedBehavior++;render();}if(a.dataset.action==='delete-behavior'){if(command(()=>behaviorCommands.delete(selectedBehavior))!==undefined)selectedBehavior=Math.min(Math.max(0,selectedBehavior-1),store.getDocument().behaviors.length-1);render();}
-  if(a.dataset.action==='test-behavior'){preview?.testBehavior(s.behaviors?.[selectedBehavior]?.id);}
- });
- host.addEventListener('input',e=>{const s=store.getDocument();if(e.target.dataset.stateParam){const state=selectedState||s.activeState;command(()=>stateCommands.setParameter(state,e.target.dataset.stateParam,e.target.value));preview?.previewState(state);return;}if(e.target.dataset.transitionField&&selectedEdge){const [from,to]=selectedEdge.split('->');command(()=>stateCommands.updateTransition(from,to,e.target.dataset.transitionField,e.target.value));}if(e.target.dataset.behaviorField)command(()=>behaviorCommands.updateField(selectedBehavior,e.target.dataset.behaviorField,e.target.value));});
- host.addEventListener('change',e=>{if(e.target.dataset.behaviorEnabled!==undefined)command(()=>behaviorCommands.setEnabled(Number(e.target.dataset.behaviorEnabled),e.target.checked));if(e.target.dataset.initialState!==undefined)command(()=>stateCommands.setInitial(e.target.value));});
- function advanced(s){return `<details class="advanced-parameters" data-keep-open="parameters"${sections.attr('parameters')}><summary>Advanced · Parameters</summary>${Object.entries(s.params).map(([n,p])=>`<article><b>${esc(n)}</b><small>Range ${p.min} → ${p.max} · Default ${p.default}</small></article>`).join('')}</details>`;}
- // The editor sits folded inside the Motions column. A mode set by a deep link
- // (Problems, the Advanced hub, "Behaviors (advanced)") unfolds it, so the
- // route never ends on a panel that is out of sight; the author's own clicks
- // on the AUTHOR nav happen inside it and change nothing about that.
- let lastMode=editorContext?.get().authorMode||'states';
- const unfold=()=>{const details=host.closest('details');if(details&&!details.open)details.open=true;};
- function render(){const s=store.getDocument(),mode=editorContext?.get().authorMode||'states';if(mode!==lastMode){lastMode=mode;unfold();}selectedState=s.states?.[selectedState]?selectedState:s.activeState||Object.keys(s.states||{})[0]||null;if(selectedEdge&&!s.transitionSettings?.[selectedEdge])selectedEdge=null;const nav=`<nav class="author-nav" aria-label="Author"><b>AUTHOR</b><button data-author-mode="states" class="${mode==='states'?'active':''}">States</button><button data-author-mode="behaviors" class="${mode==='behaviors'?'active':''}">Behaviors</button></nav>`;let body='<div class="author-intro"><b>MOTION</b> is movement over time. Add a preset above, or edit any motion key by key in the Timeline below.</div>';if(mode==='states'){const problems=stateProblems(s);body=`<div class="author-intro"><b>STATE</b> is a persistent pose. <b>TRANSITION</b> is an allowed directed movement.</div>${renderStateList(s,selectedState)}<label>Initial State<select data-initial-state>${Object.keys(s.states).map(n=>`<option ${n===s.activeState?'selected':''}>${esc(n)}</option>`).join('')}</select></label>${renderStateInspector(s,selectedState)}${graph.markup(s,{selectedEdge})}${renderTransitionList(s,selectedState,selectedEdge)}${renderTransitionInspector(s,selectedEdge)}${problems.length?`<div class="notice error">${problems.map(esc).join('<br>')}</div>`:''}${advanced(s)}`;}else if(mode==='behaviors')body=renderBehaviorsPanel(s,selectedBehavior,catalog);setPanelHtml(host,`${nav}${error?`<div class="notice error">${esc(error)}</div>`:''}<div class="author-surface">${body}</div>`);}
- return {render,
-  // The live highlight (V4-103), driven by the editor's own frame callback so
-  // it costs nothing while the preview is asleep.
-  syncLive:()=>graph.syncLive(),
-  graph:()=>graph.snapshot(),
-  destroy(){graph.detach();},
-  reset(){selectedState=selectedEdge=null;selectedBehavior=0;catalog=false;graph.select([]);render();}};
+/**
+ * The one sentence each list opens with. `behaviors` says its own, in
+ * `behaviors-panel.js`, because that panel is rendered whole.
+ */
+const STATES_INTRO = '<b>STATE</b> is a persistent pose. <b>TRANSITION</b> is an allowed directed movement. Pick one here or on the board; the Inspector tunes it.';
+
+export function createStateMachinePanel(leftSidebarEl, store, history, preview = null, editorContext = null, onStatus = () => {}, options = {}) {
+  const host = leftSidebarEl.querySelector('#state-editor');
+  const { onSelect = () => {}, onLens = () => {} } = options;
+  const stateCommands = createStateMachineCommands(store, history);
+  const behaviorCommands = createBehaviorCommands(store, history);
+  let catalog = false, error = '';
+
+  const doc = () => store.getDocument();
+  const session = () => editorContext?.get() || {};
+  const selectedState = () => { const state = doc(); const name = session().activeStateId; return state.states?.[name] ? name : state.activeState || Object.keys(state.states || {})[0] || null; };
+  const selectedEdge = () => session().activeTransitionKeys?.[0] || null;
+  const selectedBehavior = () => session().activeBehaviorId || null;
+
+  const command = (fn) => { try { const result = fn(); error = ''; return result; } catch (failure) { error = failure.message; render(); return undefined; } };
+
+  const dialog = (title, body, confirm, action) => {
+    let box = host.querySelector('dialog');
+    if (!box) { box = globalThis.document.createElement('dialog'); host.append(box); }
+    box.innerHTML = `<form method="dialog"><h2>${title}</h2>${body}<div class="dialog-actions"><button value="cancel">Cancel</button><button value="confirm" class="primary">${confirm}</button></div></form>`;
+    box.addEventListener('close', () => { if (box.returnValue === 'confirm') action(box); }, { once: true });
+    box.showModal();
+  };
+
+  /**
+   * One pick, written once. The column writes the session and then tells the
+   * studio to follow: the board, the table and the tuning rail all read the
+   * same three keys, so a second writer here is a selection model disagreeing
+   * with itself.
+   */
+  const pick = (picked) => { editorContext?.update(boardSelectionPatch(picked)); onSelect(picked); render(); };
+  const pickState = (name) => { pick({ state: name }); preview?.previewState(name); };
+  const pickEdge = (key) => pick({ transitions: [key] });
+  const pickBehavior = (id) => pick({ behavior: id });
+
+  host.addEventListener('click', (event) => {
+    const target = event.target.closest('[data-action],[data-author-mode],[data-select-state],[data-select-transition],[data-select-behavior],[data-add-behavior]');
+    if (!target) return;
+    const data = target.dataset;
+    if (data.authorMode) { editorContext?.update({ authorMode: data.authorMode }); onLens(data.authorMode === 'behaviors' ? 'automatic' : 'states'); render(); return; }
+    if (data.selectState) { pickState(data.selectState); return; }
+    if (data.selectTransition) { pickEdge(data.selectTransition); return; }
+    if (data.selectBehavior) { catalog = false; pickBehavior(data.selectBehavior); return; }
+    if (data.addBehavior) {
+      const added = command(() => behaviorCommands.add(data.addBehavior));
+      catalog = false;
+      if (added) pickBehavior(added.id); else render();
+      return;
+    }
+    const state = doc(), name = selectedState();
+    if (data.action === 'new-state') {
+      dialog('New State',
+        `<label>Name<input name="name" required value="NewState"></label><label>Start from<select name="source"><option value="current">Current pose (recommended)</option><option value="defaults">Default pose</option>${Object.keys(state.states).map((item) => `<option value="${esc(item)}">Existing · ${esc(item)}</option>`).join('')}</select></label><p class="field-error"></p>`,
+        'Create', (box) => {
+          const next = box.querySelector('[name=name]').value.trim();
+          if (command(() => stateCommands.create(next, box.querySelector('[name=source]').value)) !== undefined) pickState(next);
+        });
+    }
+    if (data.action === 'delete-state') {
+      const impact = transitionImpact(state, name);
+      dialog(`Delete “${esc(name)}”?`, `<p>${impact.outgoing} outgoing transitions<br>${impact.incoming} incoming transitions</p><p>These links will also be removed.</p>`, 'Delete', () => {
+        if (command(() => stateCommands.delete(name)) !== undefined) pickState(Object.keys(doc().states)[0] || null);
+      });
+    }
+    if (data.action === 'add-transition') {
+      dialog('Add Transition', `<p>From <b>${esc(name)}</b></p><label>To<select name="to">${Object.keys(state.states).filter((item) => item !== name).map((item) => `<option>${esc(item)}</option>`).join('')}</select></label>`, 'Add', (box) => {
+        const to = box.querySelector('select').value;
+        if (command(() => stateCommands.addTransition(name, to)) !== undefined) pickEdge(`${name}->${to}`);
+      });
+    }
+    if (data.action === 'show-behavior-catalog') { catalog = true; render(); }
+  });
+
+  host.addEventListener('change', (event) => {
+    const data = event.target.dataset;
+    if (data.behaviorEnabled) {
+      const index = (doc().behaviors || []).findIndex((item) => item.id === data.behaviorEnabled);
+      command(() => behaviorCommands.setEnabled(index, event.target.checked));
+      render();
+      return;
+    }
+    if (data.initialState !== undefined) { command(() => stateCommands.setInitial(event.target.value)); render(); }
+  });
+
+  /**
+   * A mode set by a deep link (Problems, the Advanced hub, "Behaviors
+   * (advanced)") unfolds the column's disclosure, so the route never ends on a
+   * panel that is out of sight.
+   */
+  let lastMode = session().authorMode || 'states';
+  const unfold = () => { const details = host.closest('details'); if (details && !details.open) details.open = true; };
+
+  function render() {
+    const state = doc(), mode = session().authorMode === 'behaviors' ? 'behaviors' : 'states';
+    if (mode !== lastMode) { lastMode = mode; unfold(); }
+    const nav = `<nav class="author-nav" aria-label="What this column lists"><b>LISTS</b>
+      <button data-author-mode="states" class="${mode === 'states' ? 'active' : ''}" aria-pressed="${mode === 'states'}">States</button>
+      <button data-author-mode="behaviors" class="${mode === 'behaviors' ? 'active' : ''}" aria-pressed="${mode === 'behaviors'}">By itself</button></nav>`;
+    let body;
+    if (mode === 'behaviors') {
+      body = renderBehaviorsPanel(state, selectedBehavior(), catalog);
+    } else {
+      const name = selectedState(), problems = stateProblems(state);
+      body = `<div class="author-intro">${STATES_INTRO}</div>
+        ${renderStateList(state, name)}
+        <label>Initial State<select data-initial-state>${Object.keys(state.states || {}).map((item) => `<option ${item === state.activeState ? 'selected' : ''}>${esc(item)}</option>`).join('')}</select></label>
+        ${renderTransitionList(state, name, selectedEdge())}
+        ${problems.length ? `<div class="notice error">${problems.map(esc).join('<br>')}</div>` : ''}
+        <details class="advanced-parameters" data-keep-open="parameters"><summary>Advanced · Parameters</summary>${Object.entries(state.params || {}).map(([item, param]) => `<article><b>${esc(item)}</b><small>Range ${param.min} → ${param.max} · Default ${param.default}</small></article>`).join('')}</details>`;
+    }
+    setPanelHtml(host, `${nav}${error ? `<div class="notice error">${esc(error)}</div>` : ''}<div class="author-surface">${body}</div>`);
+  }
+
+  return {
+    render,
+    reset() { catalog = false; error = ''; render(); }
+  };
 }

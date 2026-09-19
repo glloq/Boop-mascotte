@@ -24,7 +24,7 @@
  * move them somewhere less visible.
  */
 export const RENDER_TARGETS = Object.freeze([
-  'artboardPanel', 'artboardSync', 'automaticPanel', 'canvasMenu', 'canvasSelection', 'canvasState',
+  'artboardPanel', 'artboardSync', 'automaticPanel', 'behaviorBoard', 'canvasMenu', 'canvasSelection', 'canvasState',
   'exporter', 'faceLibrary', 'faceMovements', 'faceSetup', 'faceStates', 'gazePanel', 'handSetup', 'handStates', 'handleBoard', 'headPose', 'holdingPanel', 'inspector',
   'layerOrder', 'layers', 'motionStudio', 'previewPanel', 'projectShell', 'puppetHandles', 'puppetHandlesRefresh',
   'previewFrame', 'reactionStudio', 'rigPanel', 'selectionActions', 'expressionStudio', 'states', 'timeline', 'toolOptions', 'warpPanel'
@@ -46,10 +46,13 @@ export const DOCUMENT_RENDER_PLAN = Object.freeze({
   // The entry exists now so the domain is wired rather than silently absent.
   assets: Object.freeze([]),
   rig: Object.freeze(['inspector', 'timeline', 'rigPanel', 'faceMovements', 'faceStates', 'gazePanel', 'headPose', 'handSetup', 'warpPanel', 'expressionStudio', 'motionStudio', 'automaticPanel', 'handleBoard', 'puppetHandles', 'previewFrame']),
-  stateMachine: Object.freeze(['states', 'automaticPanel', 'previewPanel']),
+  // The board draws the states, the transitions, the reactions *and* the
+  // behaviours (docs/BEHAVIOR_STUDIO.md), so it is in every plan that writes
+  // one of them rather than only in the state machine's.
+  stateMachine: Object.freeze(['states', 'automaticPanel', 'behaviorBoard', 'previewPanel']),
   semanticRig: Object.freeze(['rigPanel', 'faceSetup', 'faceMovements', 'faceStates', 'faceLibrary', 'handleBoard', 'projectShell']),
   rigHandles: Object.freeze(['handleBoard', 'puppetHandles']),
-  animation: Object.freeze(['timeline', 'motionStudio', 'reactionStudio', 'projectShell']),
+  animation: Object.freeze(['timeline', 'motionStudio', 'reactionStudio', 'behaviorBoard', 'projectShell']),
   // Only the timeline shows an arrangement; moving a clip in time changes
   // nothing about the clip itself (VNX-29).
   arrangement: Object.freeze(['timeline']),
@@ -75,7 +78,7 @@ export const DOCUMENT_RENDER_PLAN = Object.freeze({
   // `faceStates` because a viseme **is** an expression record
   // (docs/VISEME_SYSTEM.md): installing the speech shapes writes this domain.
   expressions: Object.freeze(['expressionStudio', 'reactionStudio', 'faceStates', 'previewPanel']),
-  reactions: Object.freeze(['reactionStudio', 'previewPanel'])
+  reactions: Object.freeze(['reactionStudio', 'behaviorBoard', 'previewPanel'])
 });
 
 /**

@@ -18,7 +18,8 @@ test('workspace preferences are UI-only, persisted and safely normalized', () =>
   // somebody who has opened Artwork once is somebody who wants it, and asking
   // again on every visit would be a worse tax than the clutter the fold removes
   // (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §7.2).
-  assert.deepEqual(readUiPreferences(storage), { mode: 'rig.assign', workspace: 'rig', leftCollapsed: true, rightCollapsed: false, timelineCollapsed: true, hintsDismissed: { rig: true }, puppetHidden: false, openSections: {}, expertNav: {}, simpleMode: false });
+  assert.deepEqual(readUiPreferences(storage), { mode: 'rig.assign', workspace: 'rig', leftCollapsed: true, rightCollapsed: false, timelineCollapsed: true, hintsDismissed: { rig: true }, puppetHidden: false, openSections: {}, expertNav: {},
+    boardStage: 'small', simpleMode: false });
   writeUiPreferences({ mode: 'rig.head2d' }, storage);
   assert.deepEqual([readUiPreferences(storage).mode, readUiPreferences(storage).workspace], ['rig.head2d', 'rig'],
     'and a screen an author left in is the one they come back to');

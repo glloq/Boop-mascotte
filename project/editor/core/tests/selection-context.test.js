@@ -16,7 +16,7 @@ test('selection context is deterministic for every supported editor selection', 
 });
 
 test('inspector presentation supports task-level Face Setup onboarding', () => {
-  assert.deepEqual(resolveInspectorPresentation('artwork',{kind:'none'}),{hidden:false,heading:'Inspector',emptyCopy:'Select an element on the canvas to edit it.',artwork:false,semantic:false,expression:false,motion:false,reaction:false});
+  assert.deepEqual(resolveInspectorPresentation('artwork',{kind:'none'}),{hidden:false,heading:'Inspector',emptyCopy:'Select an element on the canvas to edit it.',artwork:false,semantic:false,expression:false,motion:false,reaction:false,behavior:false});
   // A piece of artwork picked anywhere is edited the same way. It was not,
   // while Design ▸ Face had an adapter that answered for its whole column and
   // stood Artwork's down (V5-07).
@@ -28,6 +28,12 @@ test('inspector presentation supports task-level Face Setup onboarding', () => {
   assert.equal(resolveInspectorPresentation('reactions',{kind:'reaction',id:'surprise'}).heading,'Reaction Inspector');
   assert.equal(resolveInspectorPresentation('reactions',{kind:'none'}).reaction,true);
   assert.deepEqual(resolveSelectionContext({activeReactionId:'surprise',activeExpressionId:'happy'},'reactions'),{kind:'reaction',id:'surprise'});
+  // The Behavior board's own picks (docs/BEHAVIOR_STUDIO.md): one at a time,
+  // because picking one clears the other three, and transitions by the set.
+  assert.deepEqual(resolveSelectionContext({activeTransitionKeys:['idle->talk','idle->sleep']},'reactions'),{kind:'transition',id:'idle->talk',keys:['idle->talk','idle->sleep']});
+  assert.deepEqual(resolveSelectionContext({activeBehaviorId:'auto-blink'},'reactions'),{kind:'automatic',id:'auto-blink'});
+  assert.deepEqual(resolveSelectionContext({activeTriggerId:'click'},'reactions'),{kind:'trigger',id:'click'});
+  assert.deepEqual(resolveSelectionContext({activeStateId:'idle'},'reactions'),{kind:'state',id:'idle'});
   assert.equal(resolveInspectorPresentation('expressions',{kind:'none'}).expression,true);
   assert.equal(resolveInspectorPresentation('expressions',{kind:'expression',id:'happy'}).heading,'Expression Inspector');
   assert.deepEqual(resolveSelectionContext({activeExpressionId:'happy'},'expressions'),{kind:'expression',id:'happy'});

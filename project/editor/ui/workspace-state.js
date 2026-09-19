@@ -29,13 +29,18 @@ export function readUiPreferences(storage = globalThis.localStorage) {
       // has opened Artwork once is somebody who wants it, and asking again on
       // every visit would be a worse tax than the clutter the fold removes.
       expertNav: saved.expertNav && typeof saved.expertNav === 'object' ? saved.expertNav : {},
+      // How much of the Behavior column the mascot keeps (docs/BEHAVIOR_STUDIO.md).
+      // Small by default: on that workspace the subject is *when* the mascot
+      // moves, so the mascot is a stage beside the board rather than the
+      // column the board has to fit inside.
+      boardStage: ['off', 'small', 'large'].includes(saved.boardStage) ? saved.boardStage : 'small',
       // Whether the three rigging workspaces are folded away (audit §7.3).
       // Off by default: folding three questions for everybody who already has
       // a project is a product decision, not a tidy-up, so it is a choice
       // somebody makes rather than one made for them.
       simpleMode: Boolean(saved.simpleMode)
     };
-  } catch { return { mode: DEFAULT_MODE, workspace: modeToSurface(DEFAULT_MODE), leftCollapsed: false, rightCollapsed: false, timelineCollapsed: true, hintsDismissed: {}, puppetHidden: false, openSections: {}, expertNav: {}, simpleMode: false }; }
+  } catch { return { mode: DEFAULT_MODE, workspace: modeToSurface(DEFAULT_MODE), leftCollapsed: false, rightCollapsed: false, timelineCollapsed: true, hintsDismissed: {}, puppetHidden: false, openSections: {}, expertNav: {}, boardStage: 'small', simpleMode: false }; }
 }
 
 export function writeUiPreferences(preferences, storage = globalThis.localStorage) {

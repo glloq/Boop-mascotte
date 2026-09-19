@@ -98,18 +98,30 @@ export const MODES = Object.freeze({
   'animate.timeline': { id: 'animate.timeline', label: 'Timeline', workspace: 'animate', surface: 'animate', navigable: true, advanced: true, dock: 'timeline' },
 
   /* ── Behavior: when does it do it? ───────────────────────────────────────── */
-  'behavior.reactions': { id: 'behavior.reactions', label: 'Reactions', workspace: 'behavior', surface: 'reactions', navigable: true },
+  //
+  // Three screens over one **board** (docs/BEHAVIOR_STUDIO.md): each one points
+  // the same diagram at a different part of the workspace and fills the column
+  // with the list of what that part holds. So all three want the same shape —
+  // a library narrow enough to be a library, and a rail wide enough to draw an
+  // easing curve and a waveform in, because on this workspace the right-hand
+  // column *is* the tuning surface rather than a strip of fields.
+  'behavior.reactions': { id: 'behavior.reactions', label: 'Reactions', workspace: 'behavior', surface: 'reactions', navigable: true, layout: { left: 300, right: 340 } },
   // Automatic had no route at all: it was reached by scrolling past Reactions
   // in the same column, which is why nobody found it.
-  'behavior.automatic': { id: 'behavior.automatic', label: 'Automatic', workspace: 'behavior', surface: 'reactions', navigable: true },
+  'behavior.automatic': { id: 'behavior.automatic', label: 'Automatic', workspace: 'behavior', surface: 'reactions', navigable: true, layout: { left: 300, right: 340 } },
   // And the state machine was filed under *Motions*, inside an accordion in the
   // step above the one whose subject it is (§10). `panel` is what a screen
-  // reveals on arrival: the editor it is the screen *for* is a disclosure in
-  // its column, and a screen whose subject is folded shut answers nothing.
-  // Named in full for a screen reader: the editor it opens has its own
+  // reveals on arrival: the list it is the screen *for* is a disclosure in its
+  // column, and a screen whose subject is folded shut answers nothing.
+  //
+  // It stopped being `advanced` with the Behavior studio. It was marked so
+  // when the state machine was a diagram folded into a 300 px column behind a
+  // summary that said *advanced*; it is the board the whole workspace is drawn
+  // on now, and an author who has opened Behavior has already arrived at it.
+  // Named in full for a screen reader: the column it opens has its own
   // "States" button inside it, and two controls with one accessible name is a
   // control nobody can ask for.
-  'behavior.stateMachine': { id: 'behavior.stateMachine', label: 'States', aria: 'State machine', workspace: 'behavior', surface: 'reactions', navigable: true, advanced: true, panel: 'state-editor' },
+  'behavior.stateMachine': { id: 'behavior.stateMachine', label: 'States', aria: 'State machine', workspace: 'behavior', surface: 'reactions', navigable: true, panel: 'state-editor', layout: { left: 300, right: 340 } },
 
   /* ── Global: reachable from every workspace ──────────────────────────────── */
   // Preview is not a step of the project (§11). It keeps a route because the

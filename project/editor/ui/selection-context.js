@@ -28,7 +28,17 @@ export function resolveSelectionContext(session = {}, task = session.workspace) 
     return { kind: 'none', task: currentTask };
   }
   if (currentTask === 'expressions') return session.activeExpressionId ? { kind: 'expression', id: session.activeExpressionId } : { kind: 'none', task: currentTask };
-  if (currentTask === 'reactions') return session.activeReactionId ? { kind: 'reaction', id: session.activeReactionId } : { kind: 'none', task: currentTask };
+  if (currentTask === 'reactions') {
+    // The Behavior board picks one of four things, and picking one clears the
+    // other three, so the order here is only a tie-break for a session written
+    // before the board existed (docs/BEHAVIOR_STUDIO.md).
+    if (session.activeTransitionKeys?.length) return { kind: 'transition', id: session.activeTransitionKeys[0], keys: [...session.activeTransitionKeys] };
+    if (session.activeBehaviorId) return { kind: 'automatic', id: session.activeBehaviorId };
+    if (session.activeTriggerId) return { kind: 'trigger', id: session.activeTriggerId };
+    if (session.activeReactionId) return { kind: 'reaction', id: session.activeReactionId };
+    if (session.activeStateId) return { kind: 'state', id: session.activeStateId };
+    return { kind: 'none', task: currentTask };
+  }
   if (currentTask === 'animate') {
     if (session.selectedKey) return { kind: 'timeline-key', ...session.selectedKey };
     if (session.selectedTrackParameter) return { kind: 'timeline-track', parameter: session.selectedTrackParameter };
@@ -38,6 +48,28 @@ export function resolveSelectionContext(session = {}, task = session.workspace) 
   return { kind: 'none', task: currentTask };
 }
 
+/**
+ * One session write for a Behavior board pick (docs/BEHAVIOR_STUDIO.md).
+ *
+ * Picking one thing clears the other three, so the inspector always answers
+ * for one subject — and it clears the Timeline's selection too, because a
+ * track chosen on another screen outranked the state an author had just
+ * pressed, which is the one thing a selection-driven inspector must not do.
+ *
+ * Exported as a patch rather than an action because three callers write it:
+ * the library column, the board and the table. Three copies of this object is
+ * how a selection model starts disagreeing with itself.
+ */
+export const boardSelectionPatch = ({ state = null, transitions = [], behavior = null, trigger = null, reaction } = {}) => ({
+  activeStateId: state || null,
+  activeTransitionKeys: [...transitions],
+  activeBehaviorId: behavior || null,
+  activeTriggerId: trigger || null,
+  selectedTrackParameter: null,
+  selectedKey: null,
+  ...(reaction === undefined ? {} : { activeReactionId: reaction || null })
+});
+
 export function createSelectionController(editorContext) {
   const update = patch => editorContext.update(patch);
   return {
@@ -46,11 +78,13 @@ export function createSelectionController(editorContext) {
     selectSemanticControl: (part, control) => update({ activeSemanticPartId: part || null, activeControl: control || null }),
     selectClip: id => update({ animationEditor: { ...editorContext.get().animationEditor, activeClipId: id || null } }),
     selectState: id => update({ activeStateId: id || null }),
+    /** One board pick clears the others: an inspector answers for one subject. */
+    selectBoard: (picked) => update(boardSelectionPatch(picked)),
     selectExpression: id => update({ activeExpressionId: id || null }),
     selectReaction: id => update({ activeReactionId: id || null }),
     selectTimelineTrack: parameter => update({ selectedTrackParameter: parameter || null, selectedKey: null }),
     selectTimelineKey: key => update({ selectedKey: key || null }),
-    clearSelection: () => update({ selectedId: null, activeSemanticPartId: null, activeControl: null, selectedTrackParameter: null, selectedKey: null, activeStateId: null, activeExpressionId: null, activeReactionId: null })
+    clearSelection: () => update({ selectedId: null, activeSemanticPartId: null, activeControl: null, selectedTrackParameter: null, selectedKey: null, activeStateId: null, activeExpressionId: null, activeReactionId: null, activeTransitionKeys: [], activeBehaviorId: null, activeTriggerId: null })
   };
 }
 
@@ -62,7 +96,7 @@ export function selectionPatchForTarget(target) {
   if (target.kind === 'animation-clip') return { animationEditor: { activeClipId: target.id || null } };
   if (target.kind === 'timeline-track') return { selectedTrackParameter: target.parameter || null, selectedKey: null };
   if (target.kind === 'timeline-key') return { selectedKey: { parameter: target.parameter, time: target.time } };
-  if (target.kind === 'state') return { activeStateId: target.id || null };
+  if (target.kind === 'state') return { activeStateId: target.id || null, activeTransitionKeys: [], activeBehaviorId: null, activeTriggerId: null };
   if (target.kind === 'expression') return { activeExpressionId: target.id || null };
   if (target.kind === 'reaction') return { activeReactionId: target.id || null };
   return {};

@@ -46,6 +46,9 @@ const CONTEXT_HEADINGS = {
   'timeline-key': 'Motion Inspector',
   'timeline-track': 'Motion Inspector',
   state: 'State Inspector',
+  transition: 'Transition',
+  automatic: 'Automatic behaviour',
+  trigger: 'Trigger',
   none: 'Inspector'
 };
 
@@ -59,7 +62,10 @@ const KIND_NOUNS = {
   clip: 'motion',
   'timeline-track': 'track',
   'timeline-key': 'keyframe',
-  state: 'state'
+  state: 'state',
+  transition: 'transition',
+  automatic: 'automatic behaviour',
+  trigger: 'trigger'
 };
 
 /**
@@ -72,10 +78,10 @@ const KIND_NOUNS = {
  * because the task is not what was just clicked.
  */
 const UNADAPTED_COPY = {
-  // The state machine is Advanced and draws itself into the left column, so
-  // this is a signpost rather than an apology: there is an editor for a state,
-  // it is simply not in this panel.
-  state: (context) => `State “${context.id}” is edited in the State machine, in the left column.`
+  // A state picked on Behavior is answered by the tuning rail now
+  // (docs/BEHAVIOR_STUDIO.md). This is the one place a state can still be
+  // picked without one: the Timeline, where a clip is keyed against a pose.
+  state: (context) => `State “${context.id}” is edited on the Behavior board, under States.`
 };
 
 /** Name the selection even when only its id is known. */
