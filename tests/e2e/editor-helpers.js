@@ -325,6 +325,9 @@ export async function showAllMovements(page) {
   const button = panel.locator('[data-movement-show-all="on"]');
   if (await button.count()) await button.click();
   await expect(panel).toHaveAttribute('data-face-movements-scope', 'all');
+  // All of them, folds included: `Show all controls` is the end of what the
+  // panel holds back, not the first of two presses.
+  await expect(panel.locator('[data-movement-more]')).toHaveCount(0);
 }
 
 export async function openTimeline(page) { const app=page.locator('#app'); if (await app.evaluate(el=>el.classList.contains('timeline-collapsed'))) await page.locator('#collapse-timeline').click(); }

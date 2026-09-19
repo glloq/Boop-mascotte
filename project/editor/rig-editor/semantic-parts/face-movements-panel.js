@@ -173,6 +173,11 @@ export function createFaceMovementsPanel(host, store, history, editorContext, { 
      * between folding and hiding.
      */
     const groupRows = (group, items) => {
+      // `Show all controls` means all of them. Leaving eight movements folded
+      // behind a second press would make the escape hatch a smaller cage:
+      // whatever the panel is holding back, that button has to be the end of
+      // it (§34 of the brief).
+      if (view.scope === 'all') return `<ul class="movement-list">${rows(group, items)}</ul>`;
       const { quick, more } = byTier(items);
       // A group whose movements are *all* folded would open on nothing, so it
       // shows them: the tier is a ranking within a part, and a part with no

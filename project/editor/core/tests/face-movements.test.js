@@ -254,3 +254,18 @@ test('a face with nothing assigned offers families that say so rather than famil
   assert.ok(families.length, 'the families are still listed');
   for (const family of families) assert.equal(family.available, 0, `${family.band} has nothing to turn on yet`);
 });
+
+test('Show all controls is the end of what the panel holds back, not the first of two presses', () => {
+  // The band filter and the tier fold are two different things holding rows
+  // back, and an escape hatch that only lifts one of them is a smaller cage:
+  // `eyeSquint` and `eyeCurve` are both `more`, so a spec -- or an author --
+  // asking for everything and getting eighteen of twenty-six has been misled.
+  const checklist = deriveMovementChecklist(createTemplateProjectState());
+  const all = contextualMovements(checklist, { band: 'Mouth', showAll: true });
+  assert.equal(all.scope, 'all');
+  const shown = [...all.bands.values()].flatMap((parts) => [...parts.values()].flat());
+  assert.equal(shown.length, BASIC_MOVEMENTS.length, 'every movement is in scope');
+  // And the panel renders them flat in that scope rather than behind a fold:
+  // `byTier` still splits them, which is why the *scope* has to decide.
+  assert.ok(shown.some((item) => movementTier(item) === 'more'), 'the folded ones among them');
+});
