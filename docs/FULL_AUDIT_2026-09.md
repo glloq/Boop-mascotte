@@ -1,5 +1,12 @@
 # Full audit — 5 September 2026
 
+> **HISTORICAL.** This audit describes the editor as it was when it was
+> written. The navigation, the panels and several of the surfaces it
+> discusses have been rebuilt since. It is kept for the reasoning it
+> records, not as a description of the product. For what the editor does
+> now, read `docs/CURRENT_STATE.md`.
+
+
 **Question asked.** Is every part of the project working, from the editor down
 to a system a web site can actually integrate — and does the standalone demo
 show the default face?

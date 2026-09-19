@@ -43,6 +43,7 @@ export const ACTION_LEVELS = Object.freeze(['simple', 'more', 'advanced']);
  * shape     a primitive that could become one
  * clip      something is cutting it
  * group     a <g>
+ * library   its face part is one the library has drawings for
  * ```
  *
  * No `needs` means any unlocked piece.
@@ -50,9 +51,21 @@ export const ACTION_LEVELS = Object.freeze(['simple', 'more', 'advanced']);
  * Two entries left with the Character Builder (V5-07): *Replace…*, which
  * offered the library's other drawings for a part, and *Reset position*, which
  * put a library drawing back where its fit had placed it. Both opened the
- * builder, and neither has anything to act on without it -- a piece of a V5
- * mascot is a file somebody made, and the editor has no other drawing of it to
+ * builder, and neither had anything to act on without it -- a piece of a V5
+ * mascot is a file somebody made, and the editor had no other drawing of it to
  * offer.
+ *
+ * **Replace is back** (UX-50 PR 7), because that stopped being true: the face
+ * parts library on Design ▸ Assemble is exactly a surface that offers other
+ * drawings for a part, and it follows the selection now. So the action needs
+ * no builder -- it takes the author to the drawings for the part they have in
+ * hand. It is `needs: 'library'`, so a piece the library has nothing for does
+ * not offer it, which is the difference between this and the entry that left.
+ *
+ * It matters that it is *here* rather than only in the library panel: §6 of
+ * the brief asks for one catalogue of piece actions reachable identically from
+ * the canvas, the menu, the floating bar and the keyboard, and an action that
+ * exists in one panel only is an action most authors never find.
  *
  * `bar` marks the five that ride on the canvas next to the selection. It was
  * six while *Replace* was among them, and the count is a decision rather than
@@ -66,6 +79,11 @@ export const PIECE_ACTIONS = Object.freeze([
   Object.freeze({ id: 'backward', label: 'Send backward', glyph: '↓', keys: '[', level: 'simple', bar: 4, hint: 'Paint it behind the previous piece' }),
   Object.freeze({ id: 'delete', label: 'Delete', glyph: '🗑', keys: 'Delete', level: 'simple', danger: true, bar: 5 }),
 
+  // Not on the bar: another button is one more thing to read every time
+  // anything is selected, and the menu is one keystroke away. `more` rather
+  // than `simple` for the same reason -- replacing a part is a deliberate act,
+  // not a neighbour of Delete.
+  Object.freeze({ id: 'replace', label: 'Replace…', glyph: '↺', level: 'more', needs: 'library', hint: 'Other drawings for this part, in Design ▸ Assemble' }),
   Object.freeze({ id: 'flip-y', label: 'Flip vertically', glyph: '⇵', level: 'more' }),
   Object.freeze({ id: 'front', label: 'Bring to front', keys: 'Ctrl/Cmd + Shift + ]', level: 'more' }),
   Object.freeze({ id: 'back', label: 'Send to back', keys: 'Ctrl/Cmd + Shift + [', level: 'more' }),
@@ -139,6 +157,7 @@ export const LEVEL_RANK = Object.freeze({ simple: 0, more: 1, advanced: 2 });
  * @param {boolean} [piece.shape]     it is a primitive that could become one
  * @param {boolean} [piece.clip]      something is cutting it
  * @param {boolean} [piece.part]      a face part already owns it
+ * @param {boolean} [piece.library]   the library has other drawings for that part
  * @param {'simple'|'more'|'advanced'} [depth]  how much of the catalogue to offer
  * @returns {{id, label, glyph?, keys?, level, danger?, hint?}[]}
  */
@@ -151,6 +170,7 @@ export function pieceActionsFor(piece = {}, depth = 'advanced') {
     if (action.needs === 'shape') return Boolean(piece.shape);
     if (action.needs === 'clip') return Boolean(piece.clip);
     if (action.needs === 'group') return Boolean(piece.group);
+    if (action.needs === 'library') return Boolean(piece.library);
     return true;
   }).map((action) => {
     // Three actions are toggles, so their label is the state they lead to.

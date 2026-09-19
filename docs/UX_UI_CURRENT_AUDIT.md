@@ -1,5 +1,12 @@
 # UX/UI current-state audit (UX-00)
 
+> **HISTORICAL.** This audit describes the editor as it was when it was
+> written. The navigation, the panels and several of the surfaces it
+> discusses have been rebuilt since. It is kept for the reasoning it
+> records, not as a description of the product. For what the editor does
+> now, read `docs/CURRENT_STATE.md`.
+
+
 **Audit date:** 2026-09-02
 **Live code baseline:** `main` at `f9c417659918bc800702fc2a3d50e98161d274f3` (the checked-out `work` branch had the same commit before this documentation-only change).
 

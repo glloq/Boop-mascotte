@@ -12,6 +12,7 @@
  */
 import { createFacePartCommands } from '../../core/face-library/face-part-commands.js';
 import { createFaceLibraryPanel } from '../../rig-editor/semantic-parts/face-library-panel.js';
+import { selectionSubject } from '../../core/selectors/selection-subject.js';
 import { FACE_PART_LIBRARY } from '../../core/face-library/face-part-registry.js';
 import { createHandStatesPanel } from '../../ui/hands/hand-states.js';
 import { HAND_LOOKS, handElementId } from '../../core/hands/hand-style-art.js';
@@ -145,7 +146,11 @@ export function createDesignWorkspace({
     // is the one thing the picture on the card cannot say (docs/FACE_GUIDES.md).
     // The asset rather than its id: the canvas wants a reference box and a
     // mount point, and the library is where those are looked up.
-    onPreview: (id) => canvas.previewFacePart?.(id ? FACE_PART_LIBRARY.get(id) : null)
+    onPreview: (id) => canvas.previewFacePart?.(id ? FACE_PART_LIBRARY.get(id) : null),
+    // Which part of the face the author has in hand, so the cards are that
+    // part's (UX-50 PR 7). The one derivation every contextual panel reads:
+    // the library does not get its own idea of what is selected.
+    subject: () => selectionSubject(store.getDocument(), store.getSession())?.category || null
   });
 
   /**

@@ -1,5 +1,12 @@
 # System audit — September 2026
 
+> **HISTORICAL.** This audit describes the editor as it was when it was
+> written. The navigation, the panels and several of the surfaces it
+> discusses have been rebuilt since. It is kept for the reasoning it
+> records, not as a description of the product. For what the editor does
+> now, read `docs/CURRENT_STATE.md`.
+
+
 **Scope.** The whole editor as shipped on `main` (PR #85): every workspace at
 1440 × 900, 820 × 1100 and 390 × 844, every popover, the button inventory of
 each view, the code behind every action, and the three questions the author

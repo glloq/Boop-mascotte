@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createEditorStore } from '../state/editor-store.js';
 import { createHistory } from '../undo/history.js';
 import { createSemanticRigCommands } from '../../rig-editor/semantic-parts/semantic-rig-commands.js';
-import { BASIC_MOVEMENTS, calibrationPoses, deriveMovementChecklist, poseInstruction } from '../../rig-editor/semantic-parts/face-movements.js';
+import { BASIC_MOVEMENTS, MOVEMENT_TIERS, byTier, calibrationPoses, contextualMovements, deriveMovementChecklist, movementFamilies, movementTier, poseInstruction } from '../../rig-editor/semantic-parts/face-movements.js';
 import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-registry.js';
 import { disableSemanticControl } from '../../rig-editor/semantic-parts/part-model.js';
 import { createTemplateProjectState } from '../sample/templates/template-export.js';
@@ -162,4 +162,95 @@ test('a head movement counts as moving once the head pose grid is posed', () => 
   const after = deriveMovementChecklist(store.getDocument()).items.find((item) => item.id === 'headX');
   assert.equal(after.movingBy, 'headPose');
   assert.equal(after.moving, true);
+});
+
+/* ── UX-50 PR 2: the panel stops being an inventory ───────────────────────── */
+
+test('every movement is ranked, so none of them is shown by accident', () => {
+  // An untagged movement defaults to `more` — it folds rather than shouting —
+  // but a table where that default is doing the work is a table nobody tiered.
+  for (const entry of BASIC_MOVEMENTS) {
+    assert.ok(MOVEMENT_TIERS.includes(entry.tier), `${entry.id} names a real tier`);
+    assert.equal(movementTier(entry), entry.tier);
+  }
+  assert.equal(movementTier({ id: 'nothing' }), 'more', 'and anything untagged folds');
+  assert.equal(movementTier(null), 'more');
+});
+
+test('the four movements somebody means by "make the mouth move" are the quick ones', () => {
+  // The example in the brief, held to literally: Open/close, Smile, Width and
+  // Round in front; Teeth and Tongue folded behind them.
+  const mouth = BASIC_MOVEMENTS.filter((entry) => entry.group === 'Mouth');
+  const { quick, more } = byTier(mouth);
+  assert.deepEqual(quick.map((item) => item.id), ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound']);
+  assert.deepEqual(more.map((item) => item.id), ['teeth', 'tongue']);
+});
+
+test('a part in hand narrows the panel to its band, and says how much it is holding back', () => {
+  const state = createTemplateProjectState();
+  const checklist = deriveMovementChecklist(state);
+  // Nothing in hand: the families, not the inventory (§10).
+  const none = contextualMovements(checklist, {});
+  assert.equal(none.scope, 'families');
+  assert.equal(none.shown, 0, 'no rows at all');
+  assert.equal(none.hidden, checklist.items.length);
+  assert.ok(none.families.length, 'and the way in is the families');
+
+  const all = contextualMovements(checklist, { showAll: true });
+  assert.equal(all.scope, 'all');
+  assert.equal(all.hidden, 0, 'the whole inventory hides nothing');
+  assert.equal(all.shown, checklist.items.length);
+
+  const mouth = contextualMovements(checklist, { band: 'Mouth' });
+  assert.equal(mouth.scope, 'band');
+  assert.equal(mouth.band, 'Mouth');
+  assert.deepEqual([...mouth.bands.keys()], ['Mouth']);
+  assert.ok(mouth.shown < checklist.items.length, 'it is narrower than everything');
+  assert.equal(mouth.shown + mouth.hidden, checklist.items.length, 'and it can account for every row it is not showing');
+});
+
+test('Show all controls puts the inventory back, whatever is selected', () => {
+  // The escape hatch progressive disclosure owes the author (§34): narrowing
+  // must never be the only state the panel can be in.
+  const checklist = deriveMovementChecklist(createTemplateProjectState());
+  const restored = contextualMovements(checklist, { band: 'Mouth', showAll: true });
+  assert.equal(restored.scope, 'all');
+  assert.equal(restored.band, null);
+  assert.equal(restored.shown, checklist.items.length);
+  assert.equal(restored.hidden, 0);
+});
+
+test('a band this project has nothing in cannot narrow the panel to nothing', () => {
+  // A face with no brows assigned still has Brows rows in the checklist, so the
+  // band exists. A band the checklist dropped entirely must not produce a
+  // screen of rows for a part that is not there — it falls back to the
+  // families, which is what an unrecognised subject deserves.
+  const checklist = deriveMovementChecklist(createTemplateProjectState());
+  const missing = contextualMovements(checklist, { band: 'Nonexistent' });
+  assert.equal(missing.scope, 'families');
+  assert.equal(missing.shown, 0);
+  assert.ok(missing.families.length, 'and every family is still a way in');
+  // And asking for everything still works from there.
+  assert.equal(contextualMovements(checklist, { band: 'Nonexistent', showAll: true }).shown, checklist.items.length);
+});
+
+test('with nothing in hand the panel offers families and their readiness, not rows', () => {
+  const state = createTemplateProjectState();
+  const families = movementFamilies(deriveMovementChecklist(state));
+  assert.deepEqual(families.map((family) => family.band), ['Head', 'Eyes', 'Brows', 'Mouth', 'Extra']);
+  for (const family of families) {
+    assert.ok(family.total > 0, `${family.band} has movements`);
+    assert.ok(family.enabled <= family.available, `${family.band} cannot have more on than it has`);
+    assert.ok(family.available <= family.total);
+  }
+  // Every movement is accounted for by exactly one family: a row filed under no
+  // family is a row no empty state leads to.
+  assert.equal(families.reduce((sum, family) => sum + family.total, 0), BASIC_MOVEMENTS.length);
+});
+
+test('a face with nothing assigned offers families that say so rather than families that lie', () => {
+  const state = faceProject();
+  const families = movementFamilies(deriveMovementChecklist(state));
+  assert.ok(families.length, 'the families are still listed');
+  for (const family of families) assert.equal(family.available, 0, `${family.band} has nothing to turn on yet`);
 });

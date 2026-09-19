@@ -62,13 +62,28 @@ test('one target that throws does not stop the rest', () => {
 });
 
 test('the session plan is separate, because selection never makes a project dirty', () => {
-  assert.deepEqual(Object.keys(SESSION_RENDER_PLAN), ['selectedId', 'selectedIds']);
+  assert.deepEqual(Object.keys(SESSION_RENDER_PLAN), ['selectedId', 'selectedIds', 'activeSemanticPartId', 'activeControl']);
   const ran = [];
   const plan = createRenderPlan(Object.fromEntries(RENDER_TARGETS.map((name) => [name, () => ran.push(name)])));
   // `selectionActions` is last in both: the bar is placed from the selection's
   // box on screen, so it has to run after the canvas has moved the selection.
-  assert.deepEqual(plan.run('selectedId', SESSION_RENDER_PLAN), ['canvasSelection', 'layers', 'inspector', 'rigPanel', 'headPose', 'toolOptions', 'holdingPanel', 'selectionActions']);
+  assert.deepEqual(plan.run('selectedId', SESSION_RENDER_PLAN), ['canvasSelection', 'layers', 'inspector', 'rigPanel', 'faceMovements', 'faceLibrary', 'headPose', 'toolOptions', 'holdingPanel', 'selectionActions']);
   assert.deepEqual(plan.run('selectedIds', SESSION_RENDER_PLAN), ['canvasSelection', 'layers', 'inspector', 'toolOptions', 'selectionActions']);
+});
+
+test('the semantic half of the selection redraws the panels that are contextual on it (UX-50)', () => {
+  const ran = [];
+  const plan = createRenderPlan(Object.fromEntries(RENDER_TARGETS.map((name) => [name, () => ran.push(name)])));
+  // The movements list and the parts library are the two surfaces the UX-50
+  // audit found showing everything regardless of the selection. Both are in
+  // both selection plans now, because both halves of the selection can name
+  // the part they are meant to be about.
+  for (const key of ['selectedId', 'activeSemanticPartId']) {
+    const targets = plan.targetsFor(key, SESSION_RENDER_PLAN);
+    assert.ok(targets.includes('faceMovements'), `${key} redraws the movements list`);
+    assert.ok(targets.includes('faceLibrary'), `${key} redraws the parts library`);
+  }
+  assert.deepEqual(plan.run('activeControl', SESSION_RENDER_PLAN), ['rigPanel', 'inspector', 'faceMovements']);
 });
 
 test('the fan-out is now measurable, which is the point of writing it down', () => {

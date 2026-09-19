@@ -28,47 +28,72 @@ import { findFacePartByType } from './face-roles.js';
  */
 export const MOVEMENT_BANDS = Object.freeze(['Head', 'Eyes', 'Brows', 'Mouth', 'Extra']);
 
+/**
+ * How near the front a movement belongs (UX-50 PR 2, docs/UX50_ROADMAP.md).
+ *
+ * ```text
+ * quick   what somebody means when they say "make the mouth move"
+ * more    real, wanted less often, and folded until it is asked for
+ * ```
+ *
+ * The panel used to show all twenty-six of these at once, whatever was
+ * selected, which made *Tongue curl* exactly as prominent as *Open / close* and
+ * left an author scrolling a column to find the one movement they came for.
+ *
+ * It is a rank **within a part**, not across the face: `tongueOut` is quick
+ * because it is the first thing anybody does to a tongue, and it is nobody's
+ * idea of a headline movement of the face. That is the band's job, not this one.
+ *
+ * Deliberately a field on the one movement table rather than a second table
+ * beside it: two lists of twenty-six ids drift, and the one that drifts is
+ * always the one nobody is looking at.
+ */
+export const MOVEMENT_TIERS = Object.freeze(['quick', 'more']);
+
+/** A movement's rank, defaulting to `more` so an untagged one folds rather than shouts. */
+export const movementTier = (entry) => (MOVEMENT_TIERS.includes(entry?.tier) ? entry.tier : 'more');
+
 export const BASIC_MOVEMENTS = Object.freeze([
-  Object.freeze({ id: 'headX', band: 'Head', part: 'head', label: 'Move left / right', group: 'Head', axis: 'x', pair: 'headY' }),
-  Object.freeze({ id: 'headY', band: 'Head', part: 'head', label: 'Move up / down', group: 'Head', axis: 'y', pair: 'headX' }),
-  Object.freeze({ id: 'headTilt', band: 'Head', part: 'head', label: 'Tilt', group: 'Head', axis: 'x' }),
+  Object.freeze({ id: 'headX', tier: 'quick', band: 'Head', part: 'head', label: 'Move left / right', group: 'Head', axis: 'x', pair: 'headY' }),
+  Object.freeze({ id: 'headY', tier: 'quick', band: 'Head', part: 'head', label: 'Move up / down', group: 'Head', axis: 'y', pair: 'headX' }),
+  Object.freeze({ id: 'headTilt', tier: 'quick', band: 'Head', part: 'head', label: 'Tilt', group: 'Head', axis: 'x' }),
   // The lids are what actually shuts an eye, and they are a part of their own
   // carrying the same `eyeOpen`. One row covers both (`also`), or switching
   // the movement off would leave the face blinking with its own control gone.
-  Object.freeze({ id: 'eyeOpen', band: 'Eyes', part: 'eyes', also: Object.freeze(['eyelids']), label: 'Open / close', group: 'Eyes', axis: 'y' }),
+  Object.freeze({ id: 'eyeOpen', tier: 'quick', band: 'Eyes', part: 'eyes', also: Object.freeze(['eyelids']), label: 'Open / close', group: 'Eyes', axis: 'y' }),
   // The two axes an eyelid has that `eyeOpen` cannot carry
   // (docs/FACE_SVG_STATES.md). A narrowed eye is not a half-shut one, and a
   // shut eye that arcs upwards is not the shut eye that lies flat. They are
   // the *lids'* -- the lid is what draws the eye's line -- and they are filed
   // under Eyes because that is the part of the face an author is posing.
-  Object.freeze({ id: 'eyeSquint', band: 'Eyes', part: 'eyelids', label: 'Narrow', group: 'Eyes', axis: 'y' }),
-  Object.freeze({ id: 'eyeCurve', band: 'Eyes', part: 'eyelids', label: 'Lid curve', group: 'Eyes', axis: 'y' }),
-  Object.freeze({ id: 'lookX', band: 'Eyes', part: 'gaze', label: 'Look left / right', group: 'Gaze', axis: 'x', pair: 'lookY' }),
-  Object.freeze({ id: 'lookY', band: 'Eyes', part: 'gaze', label: 'Look up / down', group: 'Gaze', axis: 'y', pair: 'lookX' }),
+  Object.freeze({ id: 'eyeSquint', tier: 'more', band: 'Eyes', part: 'eyelids', label: 'Narrow', group: 'Eyes', axis: 'y' }),
+  Object.freeze({ id: 'eyeCurve', tier: 'more', band: 'Eyes', part: 'eyelids', label: 'Lid curve', group: 'Eyes', axis: 'y' }),
+  Object.freeze({ id: 'lookX', tier: 'quick', band: 'Eyes', part: 'gaze', label: 'Look left / right', group: 'Gaze', axis: 'x', pair: 'lookY' }),
+  Object.freeze({ id: 'lookY', tier: 'quick', band: 'Eyes', part: 'gaze', label: 'Look up / down', group: 'Gaze', axis: 'y', pair: 'lookX' }),
   // The pupils dilate. It is one movement writing two scale axes, which is why
   // the registry lets a binding name a pair (docs/FACE_CONTROL_RIG.md).
-  Object.freeze({ id: 'pupilScale', band: 'Eyes', part: 'gaze', label: 'Pupil size', group: 'Gaze', axis: 'y' }),
-  Object.freeze({ id: 'browRaise', band: 'Brows', part: 'eyebrows', label: 'Raise', group: 'Eyebrows', axis: 'y' }),
-  Object.freeze({ id: 'browTilt', band: 'Brows', part: 'eyebrows', label: 'Tilt', group: 'Eyebrows', axis: 'x' }),
-  Object.freeze({ id: 'noseScrunch', band: 'Extra', part: 'nose', label: 'Scrunch', group: 'Nose', axis: 'y' }),
-  Object.freeze({ id: 'mouthOpen', band: 'Mouth', part: 'mouth', label: 'Open / close', group: 'Mouth', axis: 'y' }),
-  Object.freeze({ id: 'smile', band: 'Mouth', part: 'mouth', label: 'Smile', group: 'Mouth', axis: 'y' }),
-  Object.freeze({ id: 'mouthWidth', band: 'Mouth', part: 'mouth', label: 'Width', group: 'Mouth', axis: 'x' }),
+  Object.freeze({ id: 'pupilScale', tier: 'more', band: 'Eyes', part: 'gaze', label: 'Pupil size', group: 'Gaze', axis: 'y' }),
+  Object.freeze({ id: 'browRaise', tier: 'quick', band: 'Brows', part: 'eyebrows', label: 'Raise', group: 'Eyebrows', axis: 'y' }),
+  Object.freeze({ id: 'browTilt', tier: 'quick', band: 'Brows', part: 'eyebrows', label: 'Tilt', group: 'Eyebrows', axis: 'x' }),
+  Object.freeze({ id: 'noseScrunch', tier: 'quick', band: 'Extra', part: 'nose', label: 'Scrunch', group: 'Nose', axis: 'y' }),
+  Object.freeze({ id: 'mouthOpen', tier: 'quick', band: 'Mouth', part: 'mouth', label: 'Open / close', group: 'Mouth', axis: 'y' }),
+  Object.freeze({ id: 'smile', tier: 'quick', band: 'Mouth', part: 'mouth', label: 'Smile', group: 'Mouth', axis: 'y' }),
+  Object.freeze({ id: 'mouthWidth', tier: 'quick', band: 'Mouth', part: 'mouth', label: 'Width', group: 'Mouth', axis: 'x' }),
   // How far the lips pucker, which is the difference between AE and OO and is
   // not how wide or how open the mouth is (docs/VISEME_SYSTEM.md).
-  Object.freeze({ id: 'mouthRound', band: 'Mouth', part: 'mouth', label: 'Round', group: 'Mouth', axis: 'x' }),
-  Object.freeze({ id: 'teeth', band: 'Mouth', part: 'mouth', label: 'Teeth', group: 'Mouth', axis: 'y' }),
-  Object.freeze({ id: 'tongue', band: 'Mouth', part: 'mouth', label: 'Tongue', group: 'Mouth', axis: 'y' }),
+  Object.freeze({ id: 'mouthRound', tier: 'quick', band: 'Mouth', part: 'mouth', label: 'Round', group: 'Mouth', axis: 'x' }),
+  Object.freeze({ id: 'teeth', tier: 'more', band: 'Mouth', part: 'mouth', label: 'Teeth', group: 'Mouth', axis: 'y' }),
+  Object.freeze({ id: 'tongue', tier: 'more', band: 'Mouth', part: 'mouth', label: 'Tongue', group: 'Mouth', axis: 'y' }),
   // A beard is carried by the jaw that opens under it, on the same control.
-  Object.freeze({ id: 'jawOpen', band: 'Extra', part: 'jaw', also: Object.freeze(['facialHair']), label: 'Drop', group: 'Jaw', axis: 'y' }),
+  Object.freeze({ id: 'jawOpen', tier: 'quick', band: 'Extra', part: 'jaw', also: Object.freeze(['facialHair']), label: 'Drop', group: 'Jaw', axis: 'y' }),
   // Where the tongue is, as opposed to whether it shows (docs/FACE_CONTROL_RIG.md).
-  Object.freeze({ id: 'tongueX', band: 'Extra', part: 'tongue', label: 'Left / right', group: 'Tongue', axis: 'x', pair: 'tongueY' }),
-  Object.freeze({ id: 'tongueY', band: 'Extra', part: 'tongue', label: 'Up / down', group: 'Tongue', axis: 'y', pair: 'tongueX' }),
-  Object.freeze({ id: 'tongueOut', band: 'Extra', part: 'tongue', label: 'Stick out', group: 'Tongue', axis: 'y' }),
-  Object.freeze({ id: 'tongueCurl', band: 'Extra', part: 'tongue', label: 'Curl', group: 'Tongue', axis: 'x' }),
-  Object.freeze({ id: 'hairSway', band: 'Extra', part: 'hair', label: 'Sway', group: 'Hair', axis: 'x' }),
-  Object.freeze({ id: 'hairLift', band: 'Extra', part: 'hair', label: 'Lift', group: 'Hair', axis: 'y' }),
-  Object.freeze({ id: 'earWiggle', band: 'Extra', part: 'ears', label: 'Wiggle', group: 'Ears', axis: 'x' })
+  Object.freeze({ id: 'tongueX', tier: 'more', band: 'Extra', part: 'tongue', label: 'Left / right', group: 'Tongue', axis: 'x', pair: 'tongueY' }),
+  Object.freeze({ id: 'tongueY', tier: 'more', band: 'Extra', part: 'tongue', label: 'Up / down', group: 'Tongue', axis: 'y', pair: 'tongueX' }),
+  Object.freeze({ id: 'tongueOut', tier: 'quick', band: 'Extra', part: 'tongue', label: 'Stick out', group: 'Tongue', axis: 'y' }),
+  Object.freeze({ id: 'tongueCurl', tier: 'more', band: 'Extra', part: 'tongue', label: 'Curl', group: 'Tongue', axis: 'x' }),
+  Object.freeze({ id: 'hairSway', tier: 'quick', band: 'Extra', part: 'hair', label: 'Sway', group: 'Hair', axis: 'x' }),
+  Object.freeze({ id: 'hairLift', tier: 'quick', band: 'Extra', part: 'hair', label: 'Lift', group: 'Hair', axis: 'y' }),
+  Object.freeze({ id: 'earWiggle', tier: 'quick', band: 'Extra', part: 'ears', label: 'Wiggle', group: 'Ears', axis: 'x' })
 ]);
 
 export const movementEntry = (id) => BASIC_MOVEMENTS.find((entry) => entry.id === id) || null;
@@ -98,6 +123,16 @@ export function calibrationPoses(partType, control, driver) {
  */
 const SUBJECTS = Object.freeze({ head: 'the head', eyes: 'the eyes', eyelids: 'the eyelids', gaze: 'the pupils', eyebrows: 'the eyebrows', nose: 'the nose', mouth: 'the mouth', jaw: 'the jaw', tongue: 'the tongue', hair: 'the hair', ears: 'the ears', facialHair: 'the facial hair' });
 export const movementSubject = (part) => SUBJECTS[part] || 'the artwork';
+
+/**
+ * A band, in the words a sentence can be written about it (UX-50 PR 2).
+ *
+ * "Showing the extra" is not a sentence anybody wrote on purpose. The bands are
+ * named for the column heading they sit under, which is the right word there
+ * and the wrong word in prose, so prose gets its own.
+ */
+const BAND_SUBJECTS = Object.freeze({ Head: 'the head', Eyes: 'the eyes', Brows: 'the eyebrows', Mouth: 'the mouth', Extra: 'the rest of the face' });
+export const bandSubject = (band) => BAND_SUBJECTS[band] || 'this part of the face';
 
 /**
  * The captures one movement asks for, in the order an author is asked for them.
@@ -224,3 +259,68 @@ export function deriveMovementChecklist(document) {
     total: items.length
   };
 }
+
+/** How far along one set of movement rows is, in the three numbers a heading needs. */
+const tally = (items) => ({
+  total: items.length,
+  available: items.filter((item) => item.status !== 'unassigned' && item.status !== 'incomplete').length,
+  enabled: items.filter((item) => item.enabled).length,
+  calibrated: items.filter((item) => item.status === 'calibrated').length
+});
+
+/**
+ * The five families of movement, with how ready each one is (UX-50 PR 2).
+ *
+ * What the panel shows when **nothing** is selected. The alternative — showing
+ * every movement because none has been ruled out — is the inventory this slice
+ * is removing, and it is worst precisely when the author has not yet said what
+ * they are working on.
+ *
+ * A family with no movement in this project at all is left out rather than
+ * shown empty: a heading that can never have anything under it is a heading
+ * that wasted a line.
+ */
+export function movementFamilies(checklist) {
+  return MOVEMENT_BANDS
+    .map((band) => ({ band, ...tally((checklist?.items || []).filter((item) => item.band === band)) }))
+    .filter((family) => family.total);
+}
+
+/**
+ * The movements this screen should show, given what is in hand (UX-50 PR 2).
+ *
+ * `band` narrows to one family — the one the selection belongs to — and
+ * `showAll` puts the whole inventory back. Nothing is *removed* by narrowing:
+ * `hidden` is how many rows the filter is holding back, which is what the
+ * `Show all controls` button has to say for itself. Progressive disclosure that
+ * cannot tell you what it disclosed is just hiding.
+ *
+ * Pure, and shaped exactly like `deriveMovementChecklist().bands`, so the panel
+ * renders one thing either way.
+ */
+export function contextualMovements(checklist, { band = null, showAll = false } = {}) {
+  const all = checklist?.bands || new Map();
+  const focused = !showAll && band && MOVEMENT_BANDS.includes(band) && all.has(band) ? band : null;
+  // Three states, and the third is the one §10 asks for by name: with nothing
+  // selected the panel offers the **families** and their readiness rather than
+  // every movement the project has. An inventory shown because nothing has
+  // been ruled out is the inventory this slice removes, and it is worst
+  // exactly when the author has not yet said what they are working on.
+  const scope = focused ? 'band' : showAll ? 'all' : 'families';
+  const bands = scope === 'families' ? new Map() : focused ? new Map([[focused, all.get(focused)]]) : new Map(all);
+  const shown = [...bands.values()].reduce((sum, parts) => sum + [...parts.values()].reduce((count, items) => count + items.length, 0), 0);
+  return {
+    scope,
+    band: focused,
+    bands,
+    shown,
+    hidden: Math.max(0, (checklist?.items || []).length - shown),
+    families: movementFamilies(checklist)
+  };
+}
+
+/** One group's rows, split by how near the front they belong. */
+export const byTier = (items = []) => ({
+  quick: items.filter((item) => movementTier(item) === 'quick'),
+  more: items.filter((item) => movementTier(item) !== 'quick')
+});
