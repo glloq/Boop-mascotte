@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToMode, openFreshEditor, openSetupSection, startBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, openSetupSection, showAllMovements, startBasicFace } from './editor-helpers.js';
 
 /**
  * The rig's relationships panel (docs/FACE_CONTROL_RIG.md, §9 … §11).
@@ -277,6 +277,7 @@ test('a movement moves one side at a time when asked, and says it moves already'
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await openSetupSection(page, 'movements');
+  await showAllMovements(page);
   // The template's movements move the face already; the rows say so.
   await expect(page.locator('[data-movement="eyeOpen"]')).toContainText('ready · default range');
   await expect(page.locator('[data-movement="headX"]')).toContainText('from the head pose');

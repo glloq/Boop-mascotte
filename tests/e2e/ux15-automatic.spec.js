@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToMode, importArtworkFixture, openFreshEditor, openTask, startBasicFace } from './editor-helpers.js';
+import { goToMode, importArtworkFixture, openFreshEditor, openTask, showAllMovements, startBasicFace } from './editor-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const mutations = (page) => page.evaluate(() => window.__BOOP_E2E__.diagnostics().store.documentMutations);
@@ -98,6 +98,9 @@ test('presets wait for movements and guide to the rig', async ({ page }) => {
   await goToMode(page, 'rig.assign');
   await page.getByRole('button', { name: 'Accept 8 suggestions' }).click();
   await goToMode(page, 'rig.controls');
+  // Scoped to what is on screen, and the screen shows the part in hand: the
+  // presets below need every movement, so every movement is asked for.
+  await showAllMovements(page);
   await page.getByRole('button', { name: /Turn on all \d+ available movements/ }).click();
   await openAnimate(page);
   // The face movements now exist, so the face presets are available; the one

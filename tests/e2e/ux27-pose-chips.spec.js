@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToMode, openFreshEditor, openRigBench, openSetupSection, startBasicFace, startBuiltFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, openRigBench, openSetupSection, showAllMovements, startBasicFace, startBuiltFace } from './editor-helpers.js';
 
 /**
  * Pose chips (docs/DIRECT_CONTROLS.md): one press per named place on a part's
@@ -17,6 +17,9 @@ async function expressiveFace(page) {
 test('@critical one press poses a part, in Face Setup and in Preview', async ({ page }) => {
   await expressiveFace(page);
   await openSetupSection(page, 'movements');
+  // Every group's chips, which is what this is about: the panel shows the part
+  // in hand now, so the inventory is asked for (UX-50 PR 2).
+  await showAllMovements(page);
   const chips = page.locator('#face-movements [data-pose-chip]');
   await expect(chips.first()).toBeVisible();
   // A row per group of movements, named after places worth having a name.
@@ -52,6 +55,9 @@ test('a chip is only offered for movements the project has', async ({ page }) =>
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await openSetupSection(page, 'movements');
+  // Every group's chips, which is what this is about: the panel shows the part
+  // in hand now, so the inventory is asked for (UX-50 PR 2).
+  await showAllMovements(page);
   // The template draws every part, so every group is offered its poses --
   // every part of the face, not only the ones a beginner starts with.
   // The eyes, the gaze and the mouth gained the poses a rig with pupils that
