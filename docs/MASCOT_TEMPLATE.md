@@ -167,29 +167,40 @@ purpose*. Whatever the turn or `hairSway` does to it, it can neither leave the
 silhouette nor slide off the hairline: it used to do both, sticking out past
 the outline on one side and uncovering the forehead on the other.
 
-**The clip has to travel with the eye.** A `clip-path` is applied to an
-element's content in its own space and then transformed with it, so the clip
-follows the element it is *on* and not the elements *inside* it. With the clip
-on a wrapper, a turn moved the white and the pupil out from under a socket
-pinned to the face, and the eye came apart. On the group, socket, white, pupil,
-lids and rim turn as one assembly — which is also why the rim is inside the
-clip (drawn at double stroke width, since a clip cuts a boundary stroke in
-half) and why the `eyeOpen` squash is gentle: it scales everything in the
-group, and a hard squash would pull the lids out of the socket.
+**The cut goes on the lids, and it is made of the white.** A `clip-path` is
+resolved in the user space an element establishes — the space *after* its own
+`transform` — so it follows the element it is on. Three consequences, and each
+was learnt by getting it wrong:
+
+- **Not on the eye group.** A turn scales and moves the group, which would drag
+  the cut with it and crop the white and the pupil it is supposed to contain.
+- **Not on a lid.** A lid's own `scaleY` is the blink: put the cut there and the
+  socket stretches ten times over at exactly the moment it is needed, and cuts
+  nothing. Measured — it drew an hourglass.
+- **On a wrapper that nothing transforms.** `lidsLeft` holds the two lids and
+  their two creases, and carries `clip-path="url(#eyeSocketLeft)"`. The eye
+  group turns as one assembly, the lids sweep inside it, and the rim is outside
+  the cut so it keeps its full stroke.
+
+The socket itself is `<clipPath id="eyeSocketLeft"><use href="#eyeWhiteLeft" /></clipPath>`
+— a **reference**, not a copy. So the shape that cuts is the shape in the layer
+tree: it has a name (*Left eye socket*), a selection box and handles, and moving
+or resizing it moves and resizes the cut. That is the whole of
+docs/EYE_BUILDS.md's answer to *afficher le cercle qui faisait le cut*.
 
 `clipPath` survives the whole pipeline, which was verified before the artwork
 was drawn on that assumption: the sanitizer keeps it (internal `#` references
-are allowed), the DOM keeps `clip-path="url(#…)"`, `defs` children with no id
-are excluded from `elements` and from the layer tree, and it round-trips
-through save and export unchanged.
+are allowed, `href` included), the DOM keeps `clip-path="url(#…)"`, a shape that
+only cuts is excluded from `elements` and from the layer tree wherever it is
+written, and it round-trips through save and export unchanged.
 
 ### One fade that is legitimate
 
 `rimLeft` / `rimRight` *do* fade with `eyeOpen` (amplitude 3, offset −0.15, so
-they are gone only at the very end of the close). The rim is the socket
+they are gone only at the very end of the close). The rim is the socket's own
 outline: a closed cartoon eye is a crease, not a circle with a line through it.
 The rim really does stop existing; the pupil does not. That is the difference
-between the two, and it is why one is a fade and the other is a clip.
+between the two, and it is why one is a fade and the other is covered by skin.
 
 The fade reads `eyeOpen + eyeOpenLeft|Right`, and so does the lower lid's own
 binding. Both were written against the shared `eyeOpen` alone, which is fine

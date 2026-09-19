@@ -119,6 +119,27 @@ test('@critical legacy empty state and demo bar are removed; Home, Artwork and P
 // to `core/face/mouth-build.js` so a card and the template are the same mouth
 // (docs/MOUTH_BUILD.md) left every byte of the template's own mouth alone,
 // which is the check that says it was a move and not a rewrite.
+//
+// Then the socket came back, on purpose (docs/EYE_BUILDS.md). Deleting it was
+// a misreading of the ask -- *afficher* the circle that cuts, not remove it --
+// and of the artwork: a lid scaled in `y` alone keeps its full width, so at a
+// quarter shut it hung past the outline on both sides. In `rig.json`:
+//
+//   + lidsLeft, lidsRight        the group the cut goes on. It has to be a
+//                                group: `clip-path` is resolved after an
+//                                element's own transform, so a lid carrying it
+//                                would scale its own socket out of the way
+//   ~ lidUpper/Lower Left/Right  a flat run along the rim, two vertical sides
+//   ~ creaseUpper/Lower * (8)    and the leading edge, whose ends now land on
+//                                the eye's widest points -- which is what
+//                                closes the corners a shut eye used to leave
+//                                white
+//   ~ their sixteen shape keys   the same two poses over the new rests
+//
+// In `mascot.svg`, the same, plus the socket itself: one `<clipPath>` per eye
+// holding a `<use>` of that eye's own white, so the shape that cuts is the
+// shape in the layer tree. The white is renamed *eye socket* to say so. Again
+// no parameter, state, reaction or element outside the eyes moved.
 test('@critical Basic Face export artifacts are identical to the pre-removal fixtures', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);

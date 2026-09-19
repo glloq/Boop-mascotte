@@ -70,6 +70,22 @@ const lid = (state, values, role = 'lidUpperLeft') => pose(state, values)[role];
  * scale, because a lid grows rather than slides now: a point's height is its
  * distance from the rim, multiplied.
  */
+/**
+ * A lid's leading edge, read off the drawing and grown by the blink.
+ *
+ * The path is `M · L · L · C · C · Z` (docs/EYE_BUILDS.md): a flat run along
+ * the rim, a vertical side, and the leading edge back in two cubics. Only the
+ * leading edge ever shows — the rest is outside the socket and cut away — so
+ * these are the three numbers that describe what a viewer sees.
+ *
+ * ```text
+ *   v0  v1   M   the far corner, on the rim
+ *   v2  v3   L   across the rim
+ *   v4  v5   L   down the side, to the edge's end
+ *   v6…v11  C   in to the middle of the edge
+ *   v12…v17 C   and back out to its other end
+ * ```
+ */
 const lidEdge = (state, values, role = 'lidUpperLeft') => {
   const frame = lid(state, values, role);
   const parsed = parsePath(frame.path);
@@ -77,11 +93,12 @@ const lidEdge = (state, values, role = 'lidUpperLeft') => {
   const grown = (y) => Number((at.y + (y - at.y) * k + Number(frame.transform.y || 0)).toFixed(2));
   return {
     // The middle of the leading edge: what the viewer reads as the eyelid.
-    edge: grown(parsed.values[19]),
-    // Its own control points, which is what a bend moves.
-    control: grown((parsed.values[15] + parsed.values[17]) / 2),
-    // And the two ends, on the rim, which nothing but the blink moves.
-    ends: [grown(parsed.values[1]), grown(parsed.values[13])]
+    edge: grown(parsed.values[11]),
+    // The control points that carry the bend, which is what an arc moves.
+    control: grown((parsed.values[9] + parsed.values[13]) / 2),
+    // And the edge's two ends, which land on the eye's own widest points when
+    // the blink is complete -- that is what closes the corners.
+    ends: [grown(parsed.values[5]), grown(parsed.values[17])]
   };
 };
 /** How far a lid has grown: the one number a blink now moves. */

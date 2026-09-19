@@ -20,12 +20,15 @@ import { validateRig } from '../validation/rig-validator.js';
 
 test('the template artwork parses into the records the canvas would build', () => {
   const { elements, layers } = parseTemplateArtwork(MASCOT_FACE_SVG);
-  // A hundred and thirty-four: four more than before, which is the two eyelid
-  // creases each eye grew when the lids stopped carrying an outline of their own
-  // (docs/EYE_BUILDS.md).
-  assert.equal(Object.keys(elements).length, 134, 'every layer the artwork draws — the face and the pair of hands — and nothing under <defs>');
-  assert.equal(elements.eyeSocketLeft, undefined, 'and the eye sockets are gone: a lid that grows about its rim needs no mask');
+  // A hundred and thirty-six: four eyelid creases, and a group per eye holding
+  // the pieces the socket cuts (docs/EYE_BUILDS.md).
+  assert.equal(Object.keys(elements).length, 136, 'every layer the artwork draws — the face and the pair of hands — and nothing that only cuts');
+  for (const id of ['lidsLeft', 'lidsRight']) assert.equal(elements[id].meta.nodeType, 'g', `${id} is the group the cut goes on`);
+  // A shape that only cuts is not a layer, wherever it is written: a clip path
+  // in `<defs>`, and the `<use>` inside the eye's own socket.
   assert.equal(elements.headShape, undefined, 'a clip path is not a layer');
+  assert.equal(elements.eyeSocketLeft, undefined);
+  assert.equal(Object.values(elements).filter((item) => item.meta.nodeType === 'use').length, 0, 'nor what it references');
   for (const id of ['creaseUpperLeft', 'creaseLowerLeft', 'creaseUpperRight', 'creaseLowerRight']) {
     assert.equal(elements[id].meta.nodeType, 'path', `${id} is a path, so a shape key can bend it`);
   }
@@ -57,9 +60,17 @@ test('the template artwork parses into the records the canvas would build', () =
   assert.deepEqual(layers[0].children[0].children.map((layer) => layer.children.length), [0, 0, 0, 0, 0]);
   const face = layers[2];
   assert.equal(face.name, 'Face');
-  assert.deepEqual(face.children.find((layer) => layer.id === 'eyeLeft').children.map((layer) => layer.id),
-    ['eyeWhiteLeft', 'pupilLeft', 'glintLeft', 'sparkLeft', 'lidUpperLeft', 'creaseUpperLeft', 'lidLowerLeft', 'creaseLowerLeft', 'rimLeft'],
-    'the eye keeps its nesting, which the head turn reads, and each lid is followed by the crease that draws its edge');
+  const eyeLeft = face.children.find((layer) => layer.id === 'eyeLeft');
+  assert.deepEqual(eyeLeft.children.map((layer) => layer.id),
+    ['eyeWhiteLeft', 'pupilLeft', 'glintLeft', 'sparkLeft', 'lidsLeft', 'rimLeft'],
+    'the eye keeps its nesting, which the head turn reads');
+  // The four pieces that sweep across the eye hang in a group of their own,
+  // because that group is what carries the cut: `clip-path` is resolved after
+  // an element's own transform, so a lid that carried it would scale its own
+  // socket out of the way at exactly the moment it needs cutting
+  // (docs/EYE_BUILDS.md). Each lid is followed by the crease that draws its edge.
+  assert.deepEqual(eyeLeft.children.find((layer) => layer.id === 'lidsLeft').children.map((layer) => layer.id),
+    ['lidUpperLeft', 'creaseUpperLeft', 'lidLowerLeft', 'creaseLowerLeft']);
   assert.equal(face.children.find((layer) => layer.id === 'earLeft').name, 'Left ear');
   // The shading is a folder of its own, clipped to the head: three soft shapes
   // an author can turn off together, rather than three loose ones between the
@@ -73,7 +84,7 @@ test('the template export is the rig the editor writes for the untouched face', 
   const { svg, rig } = createTemplateExport();
   assert.equal(svg, MASCOT_FACE_SVG);
   assert.equal(rig.schemaVersion, RIG_SCHEMA_VERSION);
-  assert.equal(Object.keys(rig.elements).length, 134);
+  assert.equal(Object.keys(rig.elements).length, 136);
   for (const id of Object.keys(rig.elements)) assert.match(svg, new RegExp(`id="${id}"`), `${id} is drawn`);
   assert.deepEqual(Object.keys(rig.states), ['idle', 'happy', 'surprised']);
   assert.equal(rig.activeState, 'idle');

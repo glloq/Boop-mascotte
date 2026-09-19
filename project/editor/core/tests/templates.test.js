@@ -89,12 +89,15 @@ test('the pupil sits behind the eyelid instead of fading out', () => {
   applyTemplateProject(state);
   // The old rig faded the pupil away with `opacity <- eyeOpen`, which is why it
   // vanished rather than being covered. Nothing drives pupil opacity now: the
-  // lids close over it, opaquely, and there is nothing to crop -- a lid is a
-  // sliver on the rim it swings from, grown to the seam, so it is never outside
-  // the eye in the first place (docs/EYE_BUILDS.md).
+  // lids close over it, opaquely.
   for (const id of ['pupilLeft', 'pupilRight']) assert.equal(state.elements[id].bindings.opacity, undefined);
-  assert.equal(/clipPath id="eyeSocket/.test(state.svgMarkup), false, 'and no socket an author cannot see');
-  assert.equal(/clip-path="url\(#eyeSocket/.test(state.svgMarkup), false);
+  // And the socket an author could not see is a socket an author can: the cut
+  // is `<use href="#eyeWhiteLeft">`, so the shape that cuts is the shape in the
+  // layer tree -- move it or resize it and the cut goes with it
+  // (docs/EYE_BUILDS.md).
+  assert.match(state.svgMarkup, /<clipPath id="eyeSocketLeft"><use href="#eyeWhiteLeft" \/><\/clipPath>/);
+  assert.match(state.svgMarkup, /<g id="lidsLeft" data-name="Left eyelids" clip-path="url\(#eyeSocketLeft\)">/);
+  assert.equal(/<clipPath id="eyeSocketLeft"><ellipse/.test(state.svgMarkup), false, 'and never a second copy of it');
 
   const open = compileRigFrame(state.elements, { eyeOpen: 1 }), shut = compileRigFrame(state.elements, { eyeOpen: 0 });
   assert.equal(open.pupilLeft.opacity, 1);
@@ -120,16 +123,16 @@ test('the pupil sits behind the eyelid instead of fading out', () => {
   assert.ok(shut.eyeLeft.transform.scaleY > 0.5, 'gently: the lids inside it have to keep meeting on the seam');
 });
 
-test('the whole eye turns as one assembly, and there is no socket to keep up', () => {
+test('the whole eye turns as one assembly, and the socket turns with it', () => {
   const state = loaded();
   applyTemplateProject(state);
-  // The clip used to be on the eye group itself so that it travelled with it:
-  // pinned to the face instead, the white and the pupil slid out from under it
-  // and a turned head came apart. The right answer to the wrong problem -- the
-  // lids only needed cropping because they were drawn outside the eye. There is
-  // no clip left to put anywhere (docs/EYE_BUILDS.md).
+  // The clip used to be on the eye group itself, so a turn carried it: pinned
+  // to the face instead, the white and the pupil slid out from under it and a
+  // turned head came apart. It is on the *lids* now and made of the white, so
+  // it cannot come adrift from either -- the white travels with the eye, and
+  // the cut is the white (docs/EYE_BUILDS.md).
   assert.match(state.svgMarkup, /<g id="eyeLeft" data-name="Left eye">/);
-  assert.equal(state.svgMarkup.includes('eyeSocket'), false);
+  assert.equal(/<g id="eyeLeft"[^>]*clip-path/.test(state.svgMarkup), false, 'the eye itself is not cut');
   // Every parameter the rig has, then the one being posed: the pupils scale
   // now, and a scale left out of the bag reads as 0 rather than as "unchanged".
   const turned = compileRigFrame(state.elements, { ...state.params, headX: 1 }, {}, {}, { keyforms: state.keyforms });

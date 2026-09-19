@@ -39,13 +39,14 @@ test('nothing taken, nothing renamed; a rename rule replaces the suffix rule', (
 
 test('the document\'s ids are every id its markup carries, clips and defs included', () => {
   const ids = documentIds(createTemplateProjectState().svgMarkup);
-  // `headShape` is the one clip left: the fringe, the shading and the highlight
-  // are cut to the head's own outline. The two eye sockets are gone -- a lid that
-  // grows about its rim needs no mask (docs/EYE_BUILDS.md) -- and their absence
-  // is the point of this list: an id inside `<defs>` is an id an install must
-  // not collide with, seen or unseen.
-  for (const id of ['faceRoot', 'mouth', 'headShape', 'handLeft']) assert.ok(ids.has(id), `${id} is taken`);
-  assert.equal(ids.has('eyeSocketLeft'), false, 'and there is no socket left to collide with');
+  // Three clips: the head's own outline, which the fringe, the shading and the
+  // highlight are cut to, and one socket per eye. The sockets are the point of
+  // this list -- an id an install must not collide with is an id in the markup
+  // whether or not it is a layer, and a `<clipPath>` drawn beside the eye it
+  // cuts (docs/EYE_BUILDS.md) is one that never appears in the layer tree.
+  for (const id of ['faceRoot', 'mouth', 'headShape', 'handLeft', 'eyeSocketLeft', 'eyeSocketRight']) {
+    assert.ok(ids.has(id), `${id} is taken`);
+  }
   assert.equal(ids.has('mouth-full'), false);
 });
 

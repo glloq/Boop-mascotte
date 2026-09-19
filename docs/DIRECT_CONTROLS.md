@@ -385,10 +385,12 @@ the teeth's shows teeth. Which drawing comes from the *role* of the artwork the
 control sits on, so nothing recognizes a control by its id
 (`core/puppet/handle-glyph.js`).
 
-**A handle sits on what is seen, not on what was drawn.** An eye is a
+**A handle sits on what is seen, not on what was drawn.** An eye was a
 group clipped to its socket, with eyelids drawn far wider than the eye — so its
 measured box was 375px tall and the eye's handle floated up onto the forehead,
-on top of the head's own. Placement intersects the measured box with every clip
-on the way up, asking the browser where each clipping shape landed rather than
-re-deriving any geometry, which also keeps the fringe's handle on the fringe
+on top of the head's own. The eyes are drawn inside themselves now
+(docs/EYE_BUILDS.md), but the fringe and the shading are still cut to the head
+and the lids to their socket. Placement intersects the measured box with every
+clip on the way up, asking the browser where each clipping shape landed rather
+than re-deriving any geometry, which also keeps the fringe's handle on the fringe
 instead of out beside the head.

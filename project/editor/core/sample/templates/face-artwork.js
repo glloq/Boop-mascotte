@@ -421,42 +421,72 @@ const ARC = 0.5523;
  * drawing is the neutral pose, and closing the eye is what the rig does to it:
  * the binding rests at `scaleY 1` and reaches `cover` at `eyeOpen 0`.
  *
- * Four cubics, absolute throughout: a relative `h`/`q` is a path the editor's
- * own node tools decline to edit, and an author reshaping an eyelid is exactly
- * the kind of thing this template is meant to be taken apart for. The **leading
- * edge** — the half of the ellipse facing the pupil — is where the two poses
- * act: `squint` deepens it and `curve` bends its middle, so a narrowed eye and a
- * happy squeeze are the same four points read differently.
+ * Absolute throughout: a relative `h`/`q` is a path the editor's own node tools
+ * decline to edit, and an author reshaping an eyelid is exactly the kind of
+ * thing this template is meant to be taken apart for. The **leading edge** —
+ * the half facing the pupil — is where the two poses act: `squint` deepens it
+ * and `curve` bends its middle, so a narrowed eye and a happy squeeze are the
+ * same points read differently.
  *
  * @param {number} cx        the middle of the eye
  * @param {1|-1} way         1 for the lower lid, -1 for the upper
  */
-const lid = (cx, way, { squint = 0, curve: bend = 0 } = {}) => {
-  const ry = LID_SLICE, rx = EYE.rx;
-  // The sliver sits on its own rim, so its centre is one sliver inside the eye.
-  const cy = EYE.cy + way * (EYE.ry - ry);
+const lid = (cx, way, pose = {}) => {
+  const { rim, end } = lidEdge(way, pose);
+  const rx = EYE.rx;
+  const at = (x, y) => `${round(x)} ${round(y)}`;
+  // Along the rim, straight down the side, and back along the leading edge.
+  // The flat run and the two vertical sides are what close the corners: they
+  // lie outside the socket, the cut takes them away, and the only edge that
+  // ever shows is the one facing the pupil.
+  return `M${at(cx - rx, rim)} L${at(cx + rx, rim)} L${at(cx + rx, end)}`
+    + ` ${leadingEdge(cx, way, pose, { open: false })} Z`;
+};
+
+/**
+ * Where one lid's leading edge sits, drawn — and why its ends are not level
+ * with its middle.
+ *
+ * A shut eye has to be **shut**: no white left anywhere, including the two
+ * corners where the eye is at its widest. Two edges that bulge towards each
+ * other meet in the middle and leave a wedge at each end, which is what the
+ * first version of this drew — a closed eye with a white sliver at each
+ * corner, and no arrangement of bulges fixes it. The corners close only when
+ * the two edges land on **one curve**, and they can only do that if each ends
+ * where the eye's own widest point is.
+ *
+ * So the edge is authored by where it has to *arrive*:
+ *
+ * ```text
+ *   end    the eye's widest point, (cx ± rx, cy) — both lids, so the two
+ *          edges meet there and the corner has no area left to show
+ *   mid    the seam, a shade below the middle — the upper lid reaching a
+ *          little further than the lower, which is what a blink looks like
+ * ```
+ *
+ * Divided by the factor that lid grows by, which is what the drawing is: a
+ * band a couple of units deep hanging off the rim, whose ends and middle are a
+ * tenth of a unit apart. `scaleY` multiplies both, so the ends arrive on the
+ * corners and the middle on the seam in the same move.
+ */
+function lidEdge(way, { squint = 0, curve: bend = 0 } = {}) {
+  const meet = way < 0 ? LID_MEET.upper : LID_MEET.lower;
+  const rim = round(EYE.cy + way * EYE.ry);
   // A narrowed eye is the two lids coming *towards each other* while the eye
   // stays open: the upper one down a little, the lower one up more.
   const narrow = squint * (way < 0 ? LID.squintUpper : LID.squintLower);
-  // And the arc is the *edge* of the lid bending while its ends stay put. The
-  // **same** sign for both lids, which is the thing that is easy to get wrong:
-  // what the viewer reads as the arc is the two edges together, so both have to
-  // rise in the middle. Mirroring it the way the rim is mirrored draws the two
-  // edges apart instead, which is a shut eye with a lens of white in it.
-  const arc = -bend * LID.arc;
-  // The rim half and the leading half. The rim is the eye's own edge -- the top
-  // of the eye for the upper lid, the bottom for the lower -- and the leading
-  // edge is the one facing the pupil, a sliver away, plus whatever the poses add.
-  const rim = round(cy + way * ry);
-  const kx = round(rx * ARC), back = round((rim - cy) * ARC);
-  const at = (x, y) => `${round(x)} ${round(y)}`;
-  return `M${at(cx - rx, cy)}`
-    // up over the rim, in two cubics
-    + ` C${at(cx - rx, cy + back)} ${at(cx - kx, rim)} ${at(cx, rim)}`
-    + ` C${at(cx + kx, rim)} ${at(cx + rx, cy + back)} ${at(cx + rx, cy)}`
-    // and back along the leading edge, which is where the poses act
-    + ` ${leadingEdge(cx, way, { squint, curve: bend }, { open: false })} Z`;
-};
+  // And the arc is the *edge* bending while its ends stay put. The **same**
+  // sign for both lids, which is the thing that is easy to get wrong: what the
+  // viewer reads as the arc is the two edges together, so both have to rise in
+  // the middle. The lower lid's is divided by how much less far it grows, or
+  // the two arrive at different arcs and a shut eye is two lines apart.
+  const arc = -bend * LID.arc * (way < 0 ? 1 : LID_MEET.upper / LID_MEET.lower);
+  return {
+    rim,
+    end: round(rim - way * (EYE.ry / meet + narrow)),
+    mid: round(rim - way * ((EYE.ry - way * LID.seam) / meet + narrow) + arc)
+  };
+}
 
 /**
  * The leading half of a lid, from the far corner back to the near one.
@@ -469,23 +499,14 @@ const lid = (cx, way, { squint = 0, curve: bend = 0 } = {}) => {
  * `open: true` starts with a `M`, which is what makes it a line rather than the
  * continuation of a shape.
  */
-function leadingEdge(cx, way, { squint = 0, curve: bend = 0 } = {}, { open = true } = {}) {
-  const ry = LID_SLICE, rx = EYE.rx;
-  const cy = EYE.cy + way * (EYE.ry - ry);
-  const narrow = squint * (way < 0 ? LID.squintUpper : LID.squintLower);
-  // The arc is authored on the upper lid's own scale and divided back out for the
-  // lower one, which grows a little less far (the seam is below the middle of the
-  // eye). Without that the two edges arrive at different arcs and a shut eye is
-  // two lines a unit apart instead of the one it is.
-  const arc = -bend * LID.arc * (way < 0 ? 1 : LID_MEET.upper / LID_MEET.lower);
-  const reach = round(cy - way * (ry + narrow) + arc);
-  const kx = round(rx * ARC), lead = round((reach - cy) * ARC);
+function leadingEdge(cx, way, pose = {}, { open = true } = {}) {
+  const { end, mid } = lidEdge(way, pose);
+  const rx = EYE.rx, kx = round(rx * ARC);
   const at = (x, y) => `${round(x)} ${round(y)}`;
-  // The crease is drawn from the far corner inwards for the same reason the lid
-  // is: the two share every number, so the crease is the closed shape's own
-  // second half with a `M` in front of it.
-  return `${open ? `M${at(cx + rx, cy)} ` : ''}C${at(cx + rx, cy + lead)} ${at(cx + kx, reach)} ${at(cx, reach)}`
-    + ` C${at(cx - kx, reach)} ${at(cx - rx, cy + lead)} ${at(cx - rx, cy)}`;
+  // Flat at the centre and flat at the ends: the curve is all in between, so
+  // the seam reads as one line and the corners arrive level with the eye.
+  return `${open ? `M${at(cx + rx, end)} ` : ''}C${at(cx + kx, end)} ${at(cx + kx, mid)} ${at(cx, mid)}`
+    + ` C${at(cx - kx, mid)} ${at(cx - kx, end)} ${at(cx - rx, end)}`;
 }
 
 /**
@@ -538,6 +559,9 @@ export function lidPath(role, pose = {}) {
 export const LID_ROLES = Object.freeze(['lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight']);
 export const LID_RESTS = Object.freeze(Object.fromEntries(LID_ROLES.map((role) => [role, lidPath(role)])));
 
+// The socket the lids are cut to, shared with the library's three eye builds.
+import { eyeLidsGroup, eyeSocketClip } from '../../face/eye-build.js';
+
 /**
  * Left and right are the viewer's, which is how an author points at them.
  *
@@ -567,15 +591,23 @@ export const LID_RESTS = Object.freeze(Object.fromEntries(LID_ROLES.map((role) =
  */
 const eye = (side, cx) => {
   const { cy, rx, ry } = EYE;
+  // Everything that sweeps across the eye is cut by the eye's own socket, and
+  // the socket is the white: a drawing in the layer tree, with a name and a
+  // selection box (`eyeSocketClip`, docs/EYE_BUILDS.md). Without it a lid a
+  // quarter shut hangs past the outline on both sides, because scaling an
+  // ellipse in `y` alone keeps its full width and the eye is narrower than
+  // that everywhere but its middle.
+  const lids = `<path id="lidUpper${side}" data-name="${side} upper eyelid" d="${lid(cx, -1)}" fill="${FACE_PALETTE.skin}" />`
+      + `<path id="creaseUpper${side}" data-name="${side} upper eyelid crease" d="${creasePath(`creaseUpper${side}`)}" fill="none" stroke="${FACE_PALETTE.outlinePrimary}" stroke-width="${FACE_STYLE.creaseUpper}" stroke-linecap="round" vector-effect="non-scaling-stroke" />`
+      + `<path id="lidLower${side}" data-name="${side} lower eyelid" d="${lid(cx, 1)}" fill="${FACE_PALETTE.skin}" />`
+      + `<path id="creaseLower${side}" data-name="${side} lower eyelid crease" d="${creasePath(`creaseLower${side}`)}" fill="none" stroke="${FACE_PALETTE.outlinePrimary}" stroke-width="${FACE_STYLE.creaseLower}" stroke-linecap="round" vector-effect="non-scaling-stroke" />`;
   return `<g id="eye${side}" data-name="${side} eye">
-      <ellipse id="eyeWhite${side}" data-name="${side} eye white" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${FACE_PALETTE.eyeWhite}" />
+      <ellipse id="eyeWhite${side}" data-name="${side} eye socket" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${FACE_PALETTE.eyeWhite}" />
+      ${eyeSocketClip(side)}
       <circle id="pupil${side}" data-name="${side} pupil" cx="${cx}" cy="${cy}" r="${PUPIL.r}" fill="${FACE_PALETTE.pupil}" />
       <circle id="glint${side}" data-name="${side} eye glint" cx="${round(cx - 4.2)}" cy="${round(cy - 4.6)}" r="3.6" fill="${FACE_PALETTE.glint}" opacity="${FACE_STYLE.glintOpacity}" />
       <circle id="spark${side}" data-name="${side} eye catchlight" cx="${round(cx + 4.4)}" cy="${round(cy + 3.6)}" r="1.7" fill="${FACE_PALETTE.glint}" opacity="${FACE_STYLE.sparkOpacity}" />
-      <path id="lidUpper${side}" data-name="${side} upper eyelid" d="${lid(cx, -1)}" fill="${FACE_PALETTE.skin}" />
-      <path id="creaseUpper${side}" data-name="${side} upper eyelid crease" d="${creasePath(`creaseUpper${side}`)}" fill="none" stroke="${FACE_PALETTE.outlinePrimary}" stroke-width="${FACE_STYLE.creaseUpper}" stroke-linecap="round" vector-effect="non-scaling-stroke" />
-      <path id="lidLower${side}" data-name="${side} lower eyelid" d="${lid(cx, 1)}" fill="${FACE_PALETTE.skin}" />
-      <path id="creaseLower${side}" data-name="${side} lower eyelid crease" d="${creasePath(`creaseLower${side}`)}" fill="none" stroke="${FACE_PALETTE.outlinePrimary}" stroke-width="${FACE_STYLE.creaseLower}" stroke-linecap="round" vector-effect="non-scaling-stroke" />
+      ${eyeLidsGroup(side, lids)}
       <ellipse id="rim${side}" data-name="${side} eye outline" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="none" stroke="${FACE_PALETTE.outlinePrimary}" stroke-width="${FACE_STYLE.eyeOutline}" />
     </g>`;
 };

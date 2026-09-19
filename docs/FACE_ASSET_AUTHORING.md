@@ -249,9 +249,12 @@ With `--measure`, a browser measures each fragment's real bounding box:
 Both are questions, not rules. A box wider than the ink is often right — a pair
 of whiskers whose box is the span they need places better than one hugging four
 hairlines. And a **clipped** fragment is never asked the overflow question:
-`getBBox` measures geometry and knows nothing of a clip, so a pair of eyes whose
-lids are parked outside the socket measures as the lids and would read as
-overflowing a box that is exactly right.
+`getBBox` measures geometry and knows nothing of a clip, so anything drawn past
+its own cut measures as the part that never paints, and would read as
+overflowing a box that is exactly right. The eyes used to be the example — lids
+parked outside a socket, a box three times the eye — and are no longer, because
+a lid is drawn on the rim it swings from (docs/EYE_BUILDS.md); the rule stays,
+for the fragments that still do it.
 
 ### Not the same tool as `face:snapshots`
 
