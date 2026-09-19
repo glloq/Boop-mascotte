@@ -76,19 +76,32 @@ test('the full surface offers the rigging entries, but only where they apply', (
   assert.ok(!onARect.includes('points'), 'but it has no points yet');
 });
 
-test('the two library gestures are gone, and nothing is left asking about a row', () => {
-  // *Replace…* offered the library's other drawings for a part and *Reset
-  // position* put one back where its fit had placed it. Both opened the
-  // Character Builder, and a piece of a V5 mascot is a file somebody made --
-  // the editor has no other drawing of it to offer (V5-07).
-  for (const piece of [{ row: true, library: false }, { row: true, library: true }, {}]) {
-    const ids = pieceActionsFor(piece, 'advanced').map((action) => action.id);
-    assert.ok(!ids.includes('replace'));
-    assert.ok(!ids.includes('reset-position'));
-    assert.ok(ids.includes('delete'), 'every unlocked piece is still a piece, and still deletable');
+test('Replace is offered again, and only for a piece the library has drawings for (UX-50)', () => {
+  // It left with the Character Builder (V5-07) because it opened the builder
+  // and a piece of a V5 mascot is a file somebody made — the editor had no
+  // other drawing of it to offer. The face parts library is that offer now, so
+  // the action has something to act on and comes back, gated on whether the
+  // library actually ships drawings for this part.
+  const offers = (piece) => pieceActionsFor(piece, 'advanced').map((action) => action.id);
+  assert.ok(offers({ library: true }).includes('replace'), 'a part the library dresses offers it');
+  assert.ok(!offers({ library: false }).includes('replace'), 'a piece it has nothing for does not');
+  assert.ok(!offers({}).includes('replace'), 'and neither does a piece that never said');
+  // Still gone, and for the reason it went: nothing outside the builder knows
+  // where a library drawing's fit had put it.
+  for (const piece of [{ library: true }, { library: false }, {}]) {
+    assert.ok(!offers(piece).includes('reset-position'));
+    assert.ok(offers(piece).includes('delete'), 'every unlocked piece is still a piece, and still deletable');
   }
-  // And the catalogue no longer asks a piece anything only the library knew.
-  for (const action of PIECE_ACTIONS) assert.ok(!['row', 'library'].includes(action.needs), `${action.id} still needs ${action.needs}`);
+  // `row` was the other thing only the builder knew, and it stays gone.
+  for (const action of PIECE_ACTIONS) assert.ok(action.needs !== 'row', `${action.id} still needs ${action.needs}`);
+});
+
+test('Replace is a deliberate act, so it is not beside Delete on the bar', () => {
+  const replace = PIECE_ACTIONS.find((action) => action.id === 'replace');
+  assert.equal(replace.level, 'more', 'folded, not in the first five');
+  assert.equal(replace.bar, undefined, 'and not on the canvas bar, which stays at five');
+  assert.equal(pieceActionsFor({ library: true }, 'simple').some((action) => action.id === 'replace'), false,
+    'a surface that shows only the simple half does not offer it');
 });
 
 test('a locked piece offers exactly one thing: unlocking it', () => {

@@ -90,10 +90,28 @@ export const DOCUMENT_RENDER_PLAN = Object.freeze({
  * than no offer at all.
  */
 export const SESSION_RENDER_PLAN = Object.freeze({
-  selectedId: Object.freeze(['canvasSelection', 'layers', 'inspector', 'rigPanel', 'headPose', 'toolOptions', 'holdingPanel', 'selectionActions']),
+  // `faceMovements` and `faceLibrary` since UX-50: both are contextual now —
+  // the movements list shows the band of whatever is in hand, the library
+  // opens on the part that is selected — and a contextual panel that is not
+  // redrawn when the selection changes is a panel showing the last selection.
+  // They were the two surfaces §1 of the brief is about, and the reason they
+  // showed everything is partly that they were never told anything had changed.
+  selectedId: Object.freeze(['canvasSelection', 'layers', 'inspector', 'rigPanel', 'faceMovements', 'faceLibrary', 'headPose', 'toolOptions', 'holdingPanel', 'selectionActions']),
   // Several pieces at once: the canvas frames the set, the Layers show it, the
   // Inspector counts it, and the options bar offers Align and Group.
-  selectedIds: Object.freeze(['canvasSelection', 'layers', 'inspector', 'toolOptions', 'selectionActions'])
+  selectedIds: Object.freeze(['canvasSelection', 'layers', 'inspector', 'toolOptions', 'selectionActions']),
+  /**
+   * The semantic half of the selection (UX-50 PR 1).
+   *
+   * It had no plan at all, so choosing a part of the face from a panel redrew
+   * whatever that panel happened to call by hand. `rigPanel` is deliberately
+   * in it even though it is also what *writes* this key: it only writes on a
+   * change, so the extra pass settles immediately, and leaving it out would
+   * mean the Inspector kept showing the part somebody had just navigated away
+   * from.
+   */
+  activeSemanticPartId: Object.freeze(['rigPanel', 'inspector', 'faceMovements', 'faceLibrary', 'faceStates', 'handleBoard']),
+  activeControl: Object.freeze(['rigPanel', 'inspector', 'faceMovements'])
 });
 
 /**

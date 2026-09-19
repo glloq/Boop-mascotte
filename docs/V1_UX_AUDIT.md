@@ -1,5 +1,12 @@
 # V1 UX audit
 
+> **HISTORICAL.** This audit describes the editor as it was when it was
+> written. The navigation, the panels and several of the surfaces it
+> discusses have been rebuilt since. It is kept for the reasoning it
+> records, not as a description of the product. For what the editor does
+> now, read `docs/CURRENT_STATE.md`.
+
+
 Audited against `f83f5e22332c36723c2f708ad70284be1e26f4d9` on 2026-09-01. The audit followed only visible controls from a fresh load.
 
 | Journey step | Before | Consolidation result |

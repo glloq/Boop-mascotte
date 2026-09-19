@@ -1,5 +1,12 @@
 # V4 audit — what changed, what it costs, what is still owed
 
+> **HISTORICAL.** This audit describes the editor as it was when it was
+> written. The navigation, the panels and several of the surfaces it
+> discusses have been rebuilt since. It is kept for the reasoning it
+> records, not as a description of the product. For what the editor does
+> now, read `docs/CURRENT_STATE.md`.
+
+
 *A review of the whole V4 programme, written after it shipped and after
 re-reading the diff rather than the plan. `docs/V4_ROADMAP.md` is what was
 intended; this is what is there.*

@@ -1,5 +1,12 @@
 # V3 UX audit — is the work reachable?
 
+> **HISTORICAL.** This audit describes the editor as it was when it was
+> written. The navigation, the panels and several of the surfaces it
+> discusses have been rebuilt since. It is kept for the reasoning it
+> records, not as a description of the product. For what the editor does
+> now, read `docs/CURRENT_STATE.md`.
+
+
 The question this programme closes on (V3-15): are **SVG editing**, **rigging**
 and **animation authoring** each reachable, and reachable the way someone would
 guess? Audited against the editor as V3 leaves it, not as the roadmap describes

@@ -28,7 +28,20 @@ test('@critical user turns on gaze, tests it, and calibrates it by posing the pu
   // (docs/FACE_SVG_STATES.md).
   await expect(panel).toHaveAttribute('data-face-movements-available', '15');
   await expect(panel).toHaveAttribute('data-face-movements-enabled', '0');
-  await expect(panel.locator('[data-movement]')).toHaveCount(26);
+  // The panel shows the part that is selected and says so, rather than all
+  // twenty-six at once (UX-50 PR 2). Accepting the suggestions left the head
+  // in hand, so the head's three movements are what is on screen.
+  await expect(panel).toHaveAttribute('data-face-movements-scope', 'band');
+  await expect(panel).toHaveAttribute('data-face-movements-band', 'Head');
+  await expect(panel).toHaveAttribute('data-face-movements-hidden', '23');
+  await expect(panel.locator('[data-movement]')).toHaveCount(3);
+  await expect(panel.getByText('because that is what you have selected')).toBeVisible();
+
+  // Working on the eyes is one press, and it moves the *selection* -- the
+  // canvas and the Inspector follow, because there is only one selection.
+  await panel.locator('[data-movement-family="Eyes"]').click();
+  await expect(panel).toHaveAttribute('data-face-movements-band', 'Eyes');
+  await expect(page.locator('[data-movement="headX"]')).toHaveCount(0);
   const before = await checkpoint(page);
 
   await page.getByLabel('Enable Look left / right (Gaze)').check();
@@ -104,6 +117,13 @@ test('@critical templates expose their movements, batch enabling and turning off
   // Every movement, because the template draws every part that carries one.
   await expect(panel).toHaveAttribute('data-face-movements-available', '26');
   await expect(panel).toHaveAttribute('data-face-movements-enabled', '26');
+  // `Show all controls` is the way back to the whole inventory, and it is what
+  // keeps the contextual filter an aid rather than a cage (UX-50 PR 2): every
+  // movement stays reachable, including from a screen narrowed to one part.
+  const showAll = page.getByRole('button', { name: /Show all controls/ });
+  if (await showAll.count()) await showAll.click();
+  await expect(panel).toHaveAttribute('data-face-movements-scope', 'all');
+  await expect(panel).toHaveAttribute('data-face-movements-hidden', '0');
   await expect(page.locator('[data-movement="browRaise"]')).not.toHaveAttribute('data-movement-status', 'unassigned');
   await expect(page.getByLabel('Enable Raise (Eyebrows)')).toBeEnabled();
   const before = await checkpoint(page);

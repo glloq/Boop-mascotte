@@ -43,6 +43,18 @@ export function createCanvasMenu(host, {
   getState = () => ({}), getPart = () => null, getClip = () => null, select = () => {}, onAction = () => {}, onClose = () => {},
   /** The actions this piece offers, from `pieceActionsFor`. */
   getActions = () => [],
+  /**
+   * Everything drawn under the point the menu opened on, deepest first
+   * (UX-50 PR 1, §4 of the brief).
+   *
+   * A click picks the piece and a double-click steps inside it; neither can
+   * say "that one, the third one down" -- and on a face there are commonly
+   * four drawings stacked on the same twenty pixels. So the menu lists them
+   * and the author points at the one they mean.
+   */
+  getStack = () => [],
+  /** Select one layer under the cursor, stepping inside whatever holds it. */
+  selectInside = null,
   // How deep this surface's menu reads before it folds (`ui/piece-actions.js`).
   depth = () => 'advanced'
 } = {}) {
@@ -64,6 +76,8 @@ export function createCanvasMenu(host, {
     // answer to "where is the geometry of this cut" (core/artwork/cuts.js).
     const cutter = event.target.closest('[data-canvas-menu-cutter]');
     if (cutter) { const goTo = cutter.dataset.canvasMenuCutter; close(); select(goTo); return; }
+    const inside = event.target.closest('[data-canvas-menu-inside]');
+    if (inside) { const goTo = inside.dataset.canvasMenuInside; close(); if (selectInside) selectInside(goTo); else select(goTo); return; }
     const button = event.target.closest('button[data-canvas-menu-action]');
     if (!button || !openId) return;
     const action = button.dataset.canvasMenuAction;
@@ -134,6 +148,9 @@ export function createCanvasMenu(host, {
     // surface, Artwork included, because that is what keeps *Duplicate* the
     // first thing read rather than *Convert to a path*.
     const ceiling = Math.min(LEVEL_RANK[depth()] ?? LEVEL_RANK.advanced, LEVEL_RANK.more);
+    // Only the drawings this document still has: the stack was read when the
+    // menu opened, and a refresh can come after a delete.
+    const inside = (getStack() || []).filter((item) => document_.elements?.[item.id]);
     const everyday = offered.filter((item) => (LEVEL_RANK[item.level] ?? 9) <= ceiling);
     const expert = offered.filter((item) => (LEVEL_RANK[item.level] ?? 9) > ceiling);
     node.setAttribute('aria-label', `Edit ${name}`);
@@ -148,6 +165,7 @@ export function createCanvasMenu(host, {
         ${visible ? '' : '<p class="small" data-canvas-menu-hidden>Hidden on the mascot.</p>'}
       </div>
       <div class="canvas-menu-actions">${everyday.map(button).join('')}</div>
+      ${inside.length > 1 ? `<details class="canvas-menu-advanced" data-canvas-menu-stack><summary>Select inside… <small>${inside.length} here</small></summary><div class="canvas-menu-actions">${inside.map((item) => `<button type="button" data-canvas-menu-inside="${esc(item.id)}"${item.id === id ? ' aria-current="true"' : ''}><span data-canvas-menu-label>${esc(item.name)}</span>${item.id === id ? '<small>selected</small>' : ''}</button>`).join('')}</div></details>` : ''}
       ${expert.length ? `<details class="canvas-menu-advanced" data-canvas-menu-advanced><summary>Advanced</summary><div class="canvas-menu-actions">${expert.map(button).join('')}</div></details>` : ''}`;
     return true;
   }

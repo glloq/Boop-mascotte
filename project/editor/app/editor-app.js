@@ -62,6 +62,8 @@ import { createSemanticRigCommands } from '../rig-editor/semantic-parts/semantic
 import { createSelectionActions } from '../ui/selection-actions.js';
 import { describeStage } from '../ui/preview-stage.js';
 import { findSemanticPartByRole } from '../rig-editor/semantic-parts/part-model.js';
+import { partCategory, selectionSubject } from '../core/selectors/selection-subject.js';
+import { FACE_PART_LIBRARY } from '../core/face-library/face-part-registry.js';
 import { selectionPatchForTarget } from '../ui/selection-context.js';
 import { createAutosaveService } from './services/autosave-service.js';
 import { installE2EHooks } from './e2e-hooks.js';
@@ -276,6 +278,8 @@ export function createEditorApp({ root = document.getElementById('app'), recover
     // action a surface does not lead with is one press further down, never
     // gone (audit §5, and UIR-00).
     getActions: (id) => { const piece = pieceContext(id); return piece && gestureDepth(shell.getWorkspace()) ? pieceActionsFor(piece, 'advanced') : []; },
+    getStack: () => menuStack,
+    selectInside: (id) => { canvas.selectInside?.(id); shell.setStatus(`${store.getDocument().layerMetadata?.[id]?.name || id} selected. Escape comes back out.`); },
     depth: () => gestureDepth(shell.getWorkspace()) || 'advanced',
     // Every entry runs through the one runner below, which is also what the
     // keyboard and the on-canvas bar call: three doors, one implementation.
@@ -307,6 +311,8 @@ export function createEditorApp({ root = document.getElementById('app'), recover
   // a trap: `takesGestures('preview')` is false.
   const pinCommands = createPinCommands(store, history);
   let menuPoint = null;
+  /** What was stacked under the point the canvas menu opened on (UX-50 PR 1). */
+  let menuStack = [];
   shell.canvasEl.addEventListener('contextmenu', (event) => {
     if (!takesGestures(shell.getWorkspace())) return;
     if (!store.getDocument().svgMarkup || event.target.closest('button,input,select,label,[data-canvas-menu],[data-selection-actions]')) return;
@@ -314,6 +320,9 @@ export function createEditorApp({ root = document.getElementById('app'), recover
     if (!id) return;
     event.preventDefault();
     menuPoint = { x: event.clientX, y: event.clientY };
+    // What is stacked here, read now: the menu is placed over the point and
+    // cannot ask again once the pointer has moved on (UX-50 PR 1).
+    menuStack = canvas.stackAt?.(event.clientX, event.clientY) || [];
     canvasMenu.open(id, { x: event.clientX, y: event.clientY });
   });
   // One dialog for every colour in the editor: the artwork's own palette first
@@ -407,6 +416,21 @@ export function createEditorApp({ root = document.getElementById('app'), recover
    * answered the first half, out of the face library (V5-07); the question is
    * asked of every mascot, and the library was never where the answer was.
    */
+  /**
+   * The library category that dresses the part a piece belongs to, and only
+   * when the library actually ships drawings for it.
+   *
+   * `selectionSubject` answers for a *selection*, so it is asked as though this
+   * piece were the one in hand -- which is exactly the question a right-click
+   * is asking. A category with no cards answers `null`: offering *Replace…*
+   * and then landing on an empty row would waste the press.
+   */
+  function libraryCategoryOf(document_, id) {
+    const subject = selectionSubject(document_, { selectedId: id });
+    const category = subject?.category || partCategory(subject?.partType);
+    return category && FACE_PART_LIBRARY.cards(category).length ? category : null;
+  }
+
   function pieceContext(id) {
     const document_ = store.getDocument();
     if (!id || !document_.elements?.[id]) return null;
@@ -418,6 +442,11 @@ export function createEditorApp({ root = document.getElementById('app'), recover
       visible: layerVisible(document_.layers, id) !== false,
       isolated: canvas.getEditScope?.() === id,
       part: findSemanticPartByRole(document_, id),
+      // Whether the library has other drawings for the part this piece belongs
+      // to, which is what decides `Replace…` (UX-50 PR 7). Asked of the
+      // *containing* part rather than the exact role: an author right-clicking
+      // one eye means the eyes.
+      library: Boolean(libraryCategoryOf(document_, id)),
       path: kind === 'path',
       shape: ['rect', 'circle', 'ellipse', 'line', 'polygon', 'polyline'].includes(kind),
       clip: canvas.describeClip?.(id) || null,
@@ -515,6 +544,15 @@ export function createEditorApp({ root = document.getElementById('app'), recover
       const on = canvas.getEditScope?.() === id;
       canvas.setEditScope?.(on ? null : id);
       shell.setStatus(on ? 'Everything is showing again.' : `Working on ${name()} alone. The rest of the mascot is dimmed; press Isolate again to bring it back.`);
+      return true;
+    }
+    if (action === 'replace') {
+      // The library follows the selection, so arriving *is* the whole action:
+      // no dialog, no second choice to make, and the piece stays in hand.
+      const category = libraryCategoryOf(document_, id);
+      if (!category) { shell.setStatus('The library has no other drawings for this piece.', 'warn'); return false; }
+      taskRouter.navigate({ mode: 'design.assemble', focus: 'face-library', target: { kind: 'artwork-element', id } });
+      shell.setStatus(`Other drawings for the ${category}. Choosing one keeps where you moved it and the movements it can carry.`);
       return true;
     }
     if (action === 'points') { taskRouter.navigate('artwork'); setDesignTool('node'); return true; }
@@ -1221,6 +1259,18 @@ export function createEditorApp({ root = document.getElementById('app'), recover
       // focused path node owns Delete.
       if (!meta && canvas.isDrawing?.() && canvas.handleDrawKey?.(event)) return;
       if ((event.key === 'Delete' || event.key === 'Backspace') && canvas.focusedNode?.()) { event.preventDefault(); canvas.deleteFocusedNode(); return; }
+      // Enter steps into the selection, which is what a double-click does with
+      // a pointer and what nothing did without one (§4 of the brief: Escape
+      // already comes back up, in `closeTopSurface`). After the pen run and the
+      // focused node above, both of which own Enter while they exist.
+      if (!meta && event.key === 'Enter' && id) {
+        const child = canvas.enterSelection?.();
+        if (child) {
+          event.preventDefault();
+          shell.setStatus(`Inside ${store.getDocument().layerMetadata?.[id]?.name || id}: ${store.getDocument().layerMetadata?.[child]?.name || child} selected. Escape comes back out.`);
+          return;
+        }
+      }
       const piece = matchPieceKey(event);
       if (piece && id) { event.preventDefault(); runPieceAction(piece, id, { from: 'key' }); return; }
       // The drawing tools are the vector editor's alone: `V N P L R O S T H`

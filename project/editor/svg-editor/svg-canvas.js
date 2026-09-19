@@ -188,6 +188,19 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
     return out;
   };
 
+  /** The drawings directly inside one, by the layer tree rather than the DOM. */
+  const childrenOf = (layers, id) => {
+    const walk = (items) => {
+      for (const item of items || []) {
+        if (item.id === id) return (item.children || []).map((child) => child.id);
+        const nested = walk(item.children);
+        if (nested) return nested;
+      }
+      return null;
+    };
+    return walk(layers) || [];
+  };
+
   /** The next piece down from the one in hand, wrapping at the bottom. */
   const behind = (event) => {
     const stack = piecesUnder(event);
@@ -3923,6 +3936,64 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
     insidePiece: () => insidePiece,
     /** Step back out; `true` if there was anywhere to come out of. */
     leavePiece() { if (!insidePiece) return false; insidePiece = null; return true; },
+    /**
+     * Every drawing under a point, deepest first (UX-50 PR 1).
+     *
+     * The *layers*, not the pieces: `piecesUnder` answers "which pieces are
+     * here", which is what Alt+click cycles, and this answers "what is actually
+     * stacked here" -- which is the question *Select inside…* is for. A menu
+     * that could only offer the pieces would be a second Alt+click.
+     *
+     * Front to back, because that is the order they are on screen and the order
+     * an author reads them in.
+     */
+    stackAt(clientX, clientY) {
+      const elements = store.getDocument().elements || {};
+      const names = store.getDocument().layerMetadata || {};
+      const seen = new Set(), out = [];
+      for (const hit of document.elementsFromPoint?.(clientX, clientY) || []) {
+        if (!container.contains(hit)) continue;
+        for (let node = hit; node && node !== container; node = node.parentNode) {
+          const id = node.getAttribute?.('id');
+          if (!id || !elements[id] || seen.has(id)) continue;
+          seen.add(id);
+          out.push({ id, name: names[id]?.name || id, piece: clickTargetOf(id) === id });
+        }
+      }
+      return out;
+    },
+    /**
+     * Select one drawing by name, stepping inside whatever piece holds it.
+     *
+     * Without the step inside, the next plain click would resolve straight back
+     * up to the piece and undo the choice -- which is the whole point of having
+     * chosen a layer under the cursor.
+     */
+    selectInside(id) {
+      if (!documentModel.getNode(id)) return false;
+      const root = pieces?.resolve?.(id) || null;
+      insidePiece = root && root !== id ? root : insidePiece;
+      store.mutateSession(['selectedId', 'selectedIds'], (state) => { Object.assign(state, selectOnly(id)); });
+      return true;
+    },
+    /**
+     * Down one level, from the keyboard (§4 of the brief: Enter enters).
+     *
+     * Double-click has always done this with a pointer; the gesture had no
+     * keyboard equivalent at all, which made the hierarchy unreachable without
+     * a mouse. The first child, because there is no cursor to say which.
+     */
+    enterSelection() {
+      const id = store.getSession().selectedId;
+      if (!id) return null;
+      const child = childrenOf(store.getDocument().layers, id)[0] || null;
+      if (!child || !documentModel.getNode(child)) return null;
+      const root = pieces?.resolve?.(child) || null;
+      if (root && root !== child) insidePiece = root;
+      else if (pieces?.contains) insidePiece = id;
+      store.mutateSession(['selectedId', 'selectedIds'], (state) => { Object.assign(state, selectOnly(child)); });
+      return child;
+    },
     setWorkspace(next) {
       workspace=next;
       // Stepping inside a piece is where the pointer is, not a preference: a
