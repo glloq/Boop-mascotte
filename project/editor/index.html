@@ -680,6 +680,13 @@ button.link:hover{color:#a9c9ff}
 .preview-groups{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 6px}
 .assemble-more{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:10px 0 6px;padding-top:8px;border-top:1px solid #263148}
 .assemble-more-name{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9fb0c9;margin-right:2px}
+/* UX-60 PR 8 -- Design ▸ Hands before there are any: a look is a picture, so
+   the choice is the pictures rather than a dropdown of two words. */
+.hand-look-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(230px,100%),1fr));gap:8px;margin:8px 0}
+.hand-look-card{display:grid;gap:5px;padding:8px;border:1px solid var(--ux-border);border-radius:10px;background:#111a2c;text-align:center}
+.hand-look-card b{font-size:13px}
+.hand-look-current{border-color:#79adff}
+.hand-look-preview{display:block;width:100%;height:60px;border-radius:7px;background:#1b2740}
 .holding-topics{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0 6px}
 /* UX-60 PR 8 -- the two capabilities §12 names for Deform that had no surface. */
 .shape-key-row,.depth-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:3px 8px;padding:6px 7px;border:1px solid var(--ux-border);border-radius:8px;background:#111a2c}
