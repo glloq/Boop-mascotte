@@ -294,44 +294,54 @@ screen at once.
 
 | Screen | hidden, before | hidden, now | visible, before | visible, now |
 |---|---:|---:|---:|---:|
-| Design ▸ Assemble | 345 | 345 | 20 | 20 |
+| Design ▸ Assemble | 345 | **0** | 20 | 22 |
 | Design ▸ Draw | 0 | 0 | 31 | 31 |
 | Design ▸ Hands | 0 | 0 | 8 | 8 |
 | Rig ▸ Assign | 294 | 294 | 41 | 41 |
-| Rig ▸ Controls | 5936 | 0 | 4 | 46 |
-| Rig ▸ Head 2.5D | 695 | 429 | 26 | 26 |
-| Rig ▸ Deform | 1085 | 421 | 21 | 25 |
-| Animate ▸ Expressions | 1961 | 478 | 12 | 32 |
-| Animate ▸ Motions | 1921 | 505 | 25 | 41 |
-| Animate ▸ Timeline | 2348 | 1269 | 21 | 27 |
-| Behavior ▸ Reactions | 1968 | 1356 | 11 | 20 |
-| Behavior ▸ Automatic | 98 | 0 | 21 | 22 |
-| Behavior ▸ States | 2279 *(Inspector)* | 0 | 26 | 31 |
-| Preview | 2845 *(Inspector)* | 1084 | 24 | 25 |
+| Rig ▸ Controls | 5936 | **0** | 4 | **46** |
+| Rig ▸ Head 2.5D | 695 | **429** | 26 | 26 |
+| Rig ▸ Deform | 1085 | **421** | 21 | 25 |
+| Animate ▸ Expressions | 1961 | **478** | 12 | **32** |
+| Animate ▸ Motions | 1921 | **505** | 25 | **41** |
+| Animate ▸ Timeline | 2348 | **390** | 21 | **44** |
+| Behavior ▸ Reactions | 1968 | **347** | 11 | **22** |
+| Behavior ▸ Automatic | 98 | **0** | 21 | 22 |
+| Behavior ▸ States | 2279 *(Inspector)* | **0** | 26 | **31** |
+| Preview | 2845 *(Inspector)* | **548** | 24 | 27 |
+
+Nothing hides more than half a screen any more, and most screens hide nothing.
 
 The stage is 30 % on the browse screens and 35 % on the control screens, at
 1280 and at 1920 alike, and the automatic zoom no longer enlarges past 1:1 on
 them. Project open, which the stacked disclosures had taken from 1.7 s to
 6.5 s, is 1.59 s.
 
-One shape did most of it, applied at five levels of the same screen: **a strip
-of what there is, and one of them showing.** The capability bar over a screen's
-panels, the bands over the Control Deck, the groups over a preset catalogue,
-the movement groups over a state's pose, and the sections over Preview. It is
-the same gesture every time, which is the part that matters: an author learns
-it once.
+One shape did most of it, applied at six levels of the same interface: **a
+strip of what there is, and one of them showing.** The capability bar over a
+screen's panels, the bands over the Control Deck, the groups over a preset
+catalogue, the movement groups over a state's pose, the sections over Preview
+and the groups inside them, the four subjects of Deform's holding panel, the
+whens that govern Behavior ▸ Reactions top to bottom, and the three ways into
+Assemble that are not the library. It is the same gesture every time, which is
+the part that matters: an author learns it once. `ui/chip-strip.js` is the
+shared version, for strips the shell writes rather than a panel renders.
 
 ### What is still owed
 
-* **Behavior ▸ Reactions, 1356 px.** The column holds a catalogue of twenty-one
-  presets *and* the whole inventory of what runs, in 396 px, beside a 690 px
-  board with three nodes on it. That is a layout question, not a density one.
-* **Animate ▸ Timeline, 1269 px.** It shows the Motions panel in a 403 px
-  column where Motions gives it 588, and the dock takes the height the list
-  would otherwise have.
-* **Preview, 1084 px.** The stage block and the publish tools share the column
-  with whichever section is showing.
-* **Design ▸ Assemble, 345 px**, and the imports, *Add a part* and *Start over*
-  that sit under the library rather than beside it.
-* Deform's own capabilities are Pins/Rules/Points/Holds today; **Shape Keys and
-  Depth** are named in §12 and do not exist yet.
+* **Shape Keys and Depth.** §12 lists Deform's capabilities as *Pins · Holds ·
+  Warp · Shape Keys · Depth*; the panel has Pins, Rules, Points, Holds and
+  Warp. Shape keys exist in the document and are authored from Head 2.5D and
+  Face states; they have no surface of their own on Deform, and Depth has none
+  anywhere.
+* **The empty Inspector.** On Rig ▸ Assign and Rig ▸ Head 2.5D it is a heading,
+  four tabs and a line of status in 260–420 px. The brief's mapping calls for a
+  *compact* detail on control screens and an in-deck one on Rig ▸ Controls; the
+  cap is the first half of that and the second half is not done.
+* **Design ▸ Hands** offers eight controls on a 620 px column because the
+  template ships no hands: it is an empty state, not a density problem, but it
+  is a screenful of nothing.
+* **Rig ▸ Assign, 294 px**, and **Animate ▸ Motions / Expressions, ~500 px**:
+  the last of the ordinary overflow, all of it the authored list itself.
+* The **board on Behavior ▸ Reactions** is 690 px with three nodes on it while
+  the column beside it does the work. `graph` is the right layout for States;
+  it may not be for the other two.
