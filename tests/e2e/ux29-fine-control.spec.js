@@ -60,7 +60,8 @@ test('the deformation systems a project carries are listed instead of invisible'
   const detail = panel.locator('[data-advanced-detail="deformation"]');
   await expect(detail).toBeVisible();
   await expect(detail.locator('[data-deformation-row]')).toHaveCount(6);
-  await expect(detail.locator('[data-deformation-row="shapeKeys"]')).toContainText('No editor yet');
+  await expect(detail.locator('[data-deformation-row="deformers"]')).toContainText('No editor yet');
+  await expect(detail.locator('[data-deformation-row="shapeKeys"]'), 'shape keys got a surface with UX-60 PR 8').toContainText('Rig ▸ Deform → Shape keys');
   // The listing names the screen that edits each system, in the words the
   // navigation uses (UIR-10): keyforms are captured on Rig ▸ Head 2.5D.
   await expect(detail.locator('[data-deformation-row="keyforms"]')).toContainText('Rig ▸ Head 2.5D');

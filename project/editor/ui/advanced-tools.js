@@ -82,9 +82,9 @@ export function describeDeformation(document = {}) {
     { id: 'pins', label: 'Pins & holds', count: count(document.rigPins), doc: 'docs/FACE_CONTROL_RIG.md', names: (document.rigPins || []).map((item) => item?.id).filter(Boolean), editor: 'Rig ▸ Deform → Pins & holding', route: 'rig.deform', panel: 'holding-panel' },
     { id: 'warps', label: 'Warp grids', count: count(document.warps), doc: 'docs/WARP_GRID.md', names: (document.warps || []).map((item) => item?.target).filter(Boolean), editor: 'Rig ▸ Deform → Warp', route: 'rig.deform', panel: 'warp-panel' },
     { id: 'keyforms', label: 'Keyforms', count: count(document.keyforms), doc: 'docs/KEYFORM_ENGINE.md', names: (document.keyforms || []).map((item) => item?.targetId).filter(Boolean), editor: 'Rig ▸ Head 2.5D', route: 'rig.head2d', panel: 'head-pose' },
-    { id: 'shapeKeys', label: 'Shape keys', count: count(document.shapeKeys), doc: 'docs/SHAPE_KEYS.md', names: (document.shapeKeys || []).map((item) => item?.name || item?.id).filter(Boolean) },
+    { id: 'shapeKeys', label: 'Shape keys', count: count(document.shapeKeys), doc: 'docs/SHAPE_KEYS.md', names: (document.shapeKeys || []).map((item) => item?.name || item?.id).filter(Boolean), editor: 'Rig ▸ Deform → Shape keys', route: 'rig.deform', panel: 'holding-panel' },
     { id: 'deformers', label: 'Deformers', count: count(document.deformers), doc: 'docs/DEFORMER_MODEL.md', names: (document.deformers || []).map((item) => item?.name || item?.id).filter(Boolean) },
-    { id: 'parallax', label: 'Depth / parallax', count: document.parallax ? 1 : 0, doc: 'docs/DEPTH_PARALLAX.md', names: [] }
+    { id: 'parallax', label: 'Depth / parallax', count: document.parallax ? 1 : 0, doc: 'docs/DEPTH_PARALLAX.md', names: [], editor: 'Rig ▸ Deform → Depth', route: 'rig.deform', panel: 'holding-panel' }
   ];
 }
 
@@ -92,10 +92,11 @@ export function describeDeformation(document = {}) {
  * The expert bench, as markup: the six systems, what this project carries in
  * each, and the screen that edits it (UIR-10).
  *
- * Read-only on purpose. Three of the six have an authoring surface and it is
- * one press away; the other three are played by the runtime and authored
- * nowhere yet, and a bench that pretended otherwise would be worse than one
- * that says so.
+ * Read-only on purpose. Five of the six have an authoring surface and it is
+ * one press away; shape keys and the depth parallax got theirs with UX-60 PR 8,
+ * which is what this row said "no editor yet" about for as long as the runtime
+ * had been reading them. Deformers are still played and authored nowhere, and
+ * a bench that pretended otherwise would be worse than one that says so.
  */
 export function deformBenchMarkup(rows) {
   const carried = rows.filter((row) => row.count);

@@ -678,6 +678,20 @@ button.link:hover{color:#a9c9ff}
 .assemble-more{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:10px 0 6px;padding-top:8px;border-top:1px solid #263148}
 .assemble-more-name{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9fb0c9;margin-right:2px}
 .holding-topics{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0 6px}
+/* UX-60 PR 8 -- the two capabilities §12 names for Deform that had no surface. */
+.shape-key-row,.depth-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:3px 8px;padding:6px 7px;border:1px solid var(--ux-border);border-radius:8px;background:#111a2c}
+.shape-key-row>small,.shape-key-row>label,.depth-row>small,.depth-row>label{grid-column:1/-1}
+.shape-key-row>button,.depth-row>button{grid-row:1;grid-column:2}
+.shape-key-name{width:100%;font-weight:600}
+.shape-key-row[data-shape-key-broken=true]{border-color:var(--ux-warn)}
+.shape-key-row [data-shape-key-warning]{color:var(--ux-warn-text)}
+.depth-row[data-depth-selected=true]{outline:2px solid var(--ux-focus);outline-offset:1px}
+.depth-row>label{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px}
+.depth-row output{font-size:11px;color:var(--ux-muted);font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
+.depth-row [data-depth-band=front]{color:#8fd0ff}
+.depth-row [data-depth-band=behind]{color:#c2a5ff}
+.depth-settings{display:grid;gap:5px;margin:8px 0;padding:8px;border:1px solid var(--ux-border-strong);border-radius:9px}
+.depth-settings label.small{display:grid;grid-template-columns:minmax(0,1fr) 78px;align-items:center;gap:6px}
 .runs-when-strip{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0}
 /* UX-60 PR 7 -- the Timeline's column is the clips, not the catalogue.
    Animate ▸ Timeline draws the Motions panel in a 403 px column where Motions

@@ -37,13 +37,17 @@ test('advanced tools declare availability with reasons and route to existing sur
 });
 
 test('the deformation listing reports what a project carries and where it can be edited', () => {
-  // The runtime plays all six; only three have an editor. Before this listing a
-  // user could not tell that an imported rig carried any of them. The order is
-  // the bench's (UIR-10): what can be authored first, what cannot last.
+  // The runtime plays all six. Before this listing a user could not tell that
+  // an imported rig carried any of them. The order is the bench's (UIR-10):
+  // what can be authored first, what cannot last.
   const empty = describeDeformation({});
   assert.deepEqual(empty.map((row) => row.id), ['pins', 'warps', 'keyforms', 'shapeKeys', 'deformers', 'parallax']);
   assert.deepEqual(empty.map((row) => row.count), [0, 0, 0, 0, 0, 0]);
-  assert.deepEqual(empty.filter((row) => row.editor).map((row) => row.id), ['pins', 'warps', 'keyforms'], 'the rest say so rather than pretending');
+  // Five have an editor since UX-60 PR 8, which gave shape keys and the depth
+  // parallax the surface §12 names for them. Deformers are still played and
+  // authored nowhere, and this says so rather than pretending.
+  assert.deepEqual(empty.filter((row) => row.editor).map((row) => row.id), ['pins', 'warps', 'keyforms', 'shapeKeys', 'parallax']);
+  assert.deepEqual(empty.filter((row) => !row.editor).map((row) => row.id), ['deformers']);
   // Every editor names a screen the router knows, so the bench can open it.
   for (const row of empty.filter((item) => item.editor)) {
     assert.ok(MODES[row.route]?.navigable, `${row.id} points at ${row.route}, which is not a screen`);
@@ -51,12 +55,16 @@ test('the deformation listing reports what a project carries and where it can be
   }
 
   const imported = describeDeformation({ shapeKeys: [{ id: 'smile', name: 'Smile' }, { id: 'open' }], keyforms: [{ targetId: 'head' }], parallax: { strength: .2 }, warps: [], deformers: [] });
-  assert.deepEqual(imported.find((row) => row.id === 'shapeKeys'), { id: 'shapeKeys', label: 'Shape keys', count: 2, doc: 'docs/SHAPE_KEYS.md', names: ['Smile', 'open'] });
+  assert.deepEqual(imported.find((row) => row.id === 'shapeKeys'), { id: 'shapeKeys', label: 'Shape keys', count: 2, doc: 'docs/SHAPE_KEYS.md', names: ['Smile', 'open'], editor: 'Rig ▸ Deform → Shape keys', route: 'rig.deform', panel: 'holding-panel' });
   assert.equal(imported.find((row) => row.id === 'parallax').count, 1, 'parallax is a block, not a list');
   assert.equal(imported.find((row) => row.id === 'keyforms').count, 1);
   // The bench says what is here and where it is edited, and admits what is not.
   const bench = deformBenchMarkup(imported);
   assert.match(bench, /data-deform-row="shapeKeys" data-deform-count="2"/);
   assert.match(bench, /data-deform-open="head-pose"/);
-  assert.match(bench, /No editor yet/);
+  // Deformers are the one the runtime plays and nothing authors, and the bench
+  // says so rather than pretending: shape keys and the depth parallax got their
+  // surface with UX-60 PR 8.
+  assert.match(bench, /data-deform-row="deformers"[^>]*><td>Deformers<\/td><td>—<\/td><td><small class="preset-missing">No editor yet/);
+  assert.doesNotMatch(bench.split('data-deform-row="deformers"')[0], /No editor yet/);
 });
