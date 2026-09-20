@@ -342,9 +342,13 @@ const HOOKS_BEFORE_VOCABULARY = Object.freeze([
  * this build cannot run, and the idle wait the Inspector asks for.
  */
 const HOOKS_ADDED = Object.freeze([
-  // The catalogue's groups became a strip rather than a stack of `<details>`
-  // (UX-60 PR 5): the chip that picks one is the hook the panes answer to.
-  'data-preset-group-pick',
+  // The whens of "what runs, and when" became a strip rather than five buckets
+  // drawn at once (UX-60 PR 7). Every bucket is still named, with its count --
+  // which is the property that mattered -- and one bucket's rows show. The same
+  // strip governs the ready-made reactions above, which are grouped by the same
+  // five whens, so this panel renders no `data-preset-group-pick` of its own:
+  // two strips a page apart reading the same words is worse than one.
+  'data-runs-when-pick',
   'data-reaction-sentence', 'data-reaction-clause', 'data-automatic-when',
   'data-runs-when', 'data-runs-when-group', 'data-runs-when-count', 'data-runs-when-automatic',
   'data-runs-when-motions', 'data-runs-when-unsupported', 'data-reaction-when',

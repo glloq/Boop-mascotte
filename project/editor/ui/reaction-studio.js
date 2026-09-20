@@ -4,7 +4,7 @@ import { CONDITION_OPERATORS, describeCondition } from '../../runtime/reaction-c
 import { availableControlGroups, controlMeta } from './control-catalog.js';
 import { handStates } from '../core/hands/hand-state-model.js';
 import { instantiateReactionPreset, reactionPresetAvailabilityGroups, reactionPresetSummary } from '../core/reactions/reaction-presets.js';
-import { RUNS_WHEN, deriveRunsWhen, runsWhenOf, triggerForRunsWhen } from '../core/reactions/runs-when.js';
+import { RUNS_WHEN, deriveRunsWhen, runsWhenById, runsWhenOf, triggerForRunsWhen } from '../core/reactions/runs-when.js';
 import { createStarterKitCommands } from '../core/starter/starter-kit.js';
 import { createPresetGroups, starterKitMarkup, starterKitNotice } from './preset-catalogue.js';
 import { rememberOpen, setPanelHtml } from './panel-render.js';
@@ -312,6 +312,24 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
       });
       listen(listHost, 'click', (event) => {
         const button = event.target.closest('button'); if (!button || !listHost.contains(button)) return;
+        if (button.dataset.runsWhenPick) {
+          whenPick = button.dataset.runsWhenPick;
+          // In place: the rows are rendered, and a rebuild would drop the
+          // focus of whoever pressed the chip.
+          for (const chip of listHost.querySelectorAll('[data-runs-when-pick]')) {
+            const on = chip === button;
+            chip.classList.toggle('chip-active', on);
+            chip.setAttribute('aria-pressed', String(on));
+          }
+          for (const pane of listHost.querySelectorAll('[data-runs-when-group]')) pane.hidden = pane.dataset.runsWhenGroup !== whenPick;
+          // Both halves: the ready-made reactions are grouped by the same five
+          // whens, under the same strip.
+          const label = runsWhenById(whenPick)?.label || null;
+          for (const pane of listHost.querySelectorAll('[data-preset-catalogue="reactions"] [data-preset-group]')) pane.hidden = pane.dataset.presetGroup !== label;
+          const heading = listHost.querySelector('[data-preset-catalogue="reactions"] > h3');
+          if (heading && label) heading.textContent = `Ready-made · ${label.toLowerCase()}`;
+          return;
+        }
         if (button.dataset.reactionSelect) { select(button.dataset.reactionSelect === activeId() ? null : button.dataset.reactionSelect); return; }
         if (button.dataset.reactionPresetAdd) { addPreset(button.dataset.reactionPresetAdd); return; }
         if (button.dataset.starterKitAdd !== undefined) { addStarterKit(); return; }
@@ -411,9 +429,10 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
         ? `<button type="button" data-reaction-preset-add="${preset.id}" aria-label="Add ${esc(preset.name)} reaction">Add</button>`
         : `<button type="button" class="secondary" data-reaction-preset-fix="${preset.id}" aria-label="Make what ${esc(preset.name)} needs">Make it</button>`}
     </article>`;
-    const presetSection = `${starterKitMarkup(view.plan)}<section class="preset-catalogue" data-preset-catalogue="reactions"><h3>Ready-made reactions</h3>${presetGroups(view.groups, card, { className: 'reaction-presets' })}</section>`;
+    const active = activeWhen(model), whenLabel = runsWhenById(active)?.label || null;
+    const presetSection = `${starterKitMarkup(view.plan)}<section class="preset-catalogue" data-preset-catalogue="reactions"><h3>Ready-made${whenLabel ? ` · ${esc(whenLabel.toLowerCase())}` : ''}</h3>${presetGroups(view.groups, card, { className: 'reaction-presets', strip: false, only: whenLabel })}</section>`;
     const noticeLine = model.noticeText ? `<p class="face-pick-notice" data-tone="${model.noticeTone}"><span>${esc(model.noticeText)}</span></p>` : '';
-    setPanelHtml(listHost, `<div role="status" aria-live="polite">${noticeLine}</div>${gate}${presetSection}<form class="expression-form" data-reaction-form><label>New reaction<input data-reaction-name aria-label="New reaction name" placeholder="Surprise, Wave hello…" value="${esc(model.draftName)}" ${model.hasTargets ? '' : 'disabled'}></label><button type="submit" ${model.hasTargets ? '' : 'disabled'}>Create</button></form>${runsWhenSection(model)}`);
+    setPanelHtml(listHost, `<div role="status" aria-live="polite">${noticeLine}</div>${gate}${whenStrip(active)}${presetSection}<form class="expression-form" data-reaction-form><label>New reaction<input data-reaction-name aria-label="New reaction name" placeholder="Surprise, Wave hello…" value="${esc(model.draftName)}" ${model.hasTargets ? '' : 'disabled'}></label><button type="submit" ${model.hasTargets ? '' : 'disabled'}>Create</button></form>${runsWhenSection(model)}`);
   }
 
   /**
@@ -432,6 +451,39 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
    * through the Inspector — which was the one thing the preset catalogue,
    * bucketed by when since UX-13, could never do to a reaction that existed.
    */
+  /** Which when the screen is showing, and the selection it last followed. Session. */
+  let whenPick = null, lastHolding = null;
+
+  /**
+   * Which *when* this screen is about, top to bottom.
+   *
+   * Behavior ▸ Reactions is organised by trigger twice over -- the ready-made
+   * reactions are grouped by it and so is "what runs" -- and both were drawn in
+   * full: 2 066 px of buckets in a 396 px column, the worst in the editor. One
+   * strip governs both halves now, so "When clicked" means *the six you could
+   * add and the six that already run*, which is the question anybody actually
+   * has on this screen.
+   *
+   * The default follows the selection, like every other contextual panel (§4 of
+   * the first brief): the reaction in hand decides which when is open, and a
+   * press overrides it until the selection moves somewhere else.
+   */
+  function activeWhen(model) {
+    const groups = view.runsWhen.groups;
+    const holding = groups.find((entry) => entry.reactions.some((item) => item.id === model.activeId))?.id || null;
+    if (holding && holding !== lastHolding) whenPick = holding;
+    lastHolding = holding;
+    const filled = groups.find((entry) => entry.reactions.length);
+    return groups.some((entry) => entry.id === whenPick) ? whenPick : (holding || filled?.id || groups[0]?.id || null);
+  }
+
+  /** The one strip, above both halves. */
+  function whenStrip(active) {
+    const groups = view.runsWhen.groups;
+    if (groups.length < 2) return '';
+    return `<div class="runs-when-strip" role="group" aria-label="Which when">${groups.map((entry) => `<button type="button" class="preset-chip${entry.id === active ? ' chip-active' : ''}" data-runs-when-pick="${esc(entry.id)}" aria-pressed="${entry.id === active}" title="${esc(entry.hint)}"><b>${esc(entry.label)}</b><small>${entry.count || ''}</small></button>`).join('')}</div>`;
+  }
+
   function runsWhenSection(model) {
     const derived = view.runsWhen;
     const row = (item) => {
@@ -454,7 +506,9 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
      * where it is the answer: on a group with nothing in it, and on the
      * heading's `title` otherwise.
      */
-    const group = (entry) => `<section class="runs-when-group" data-runs-when-group="${entry.id}" data-runs-when-count="${entry.count}"><h4 title="${esc(entry.hint)}">${esc(entry.label)}<small>${entry.count || 'nothing yet'}</small></h4>${entry.reactions.length ? `<ol class="expression-list" aria-label="${esc(entry.label)}">${entry.reactions.map(row).join('')}</ol>` : `<p class="small">${esc(entry.hint)}</p>`}${automatic(entry)}</section>`;
+    // The heading is the strip's job where there is a strip: "What runs when
+    // clicked" followed by "When clicked · 6" is the same words twice.
+    const group = (entry, shown, named) => `<section class="runs-when-group" data-runs-when-group="${entry.id}" data-runs-when-count="${entry.count}"${shown ? '' : ' hidden'}>${named ? `<h4 title="${esc(entry.hint)}">${esc(entry.label)}<small>${entry.count || 'nothing yet'}</small></h4>` : ''}${entry.reactions.length ? `<ol class="expression-list" aria-label="${esc(entry.label)}">${entry.reactions.map(row).join('')}</ol>` : `<p class="small">${esc(entry.hint)}</p>`}${automatic(entry)}</section>`;
     // A motion that nothing runs never reaches the exported mascot, however
     // finished it is: an arrangement is editor-only, so a reaction is the only
     // way out of Animate. Choosing a when and pressing Run is that way.
@@ -473,7 +527,8 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
     const unsupported = derived.unsupported.length
       ? `<p class="face-pick-notice" data-tone="warn" data-runs-when-unsupported="${derived.unsupported.length}"><span>${derived.unsupported.map((item) => `“${esc(item.name)}” waits for ${esc(item.needs)}, which this editor cannot run.`).join(' ')}</span></p>`
       : '';
-    return `<section class="runs-when" data-runs-when="${derived.running}"><h3>What runs, and when</h3>${model.reactionCount || derived.groups.some((entry) => entry.automatic.length) ? '' : '<p class="expression-empty">Nothing runs yet. A reaction is one sentence: <b>when</b> clicked, <b>do</b> Surprised with a Head Pop, <b>then</b> return to idle.</p>'}${unsupported}${derived.groups.map(group).join('')}${motions}</section>`;
+    const active = activeWhen(model);
+    return `<section class="runs-when" data-runs-when="${derived.running}"><h3>What runs${active ? ` ${esc(runsWhenById(active)?.label?.toLowerCase() || '')}` : ''}${active ? `<small> · ${derived.groups.find((entry) => entry.id === active)?.count || 'nothing yet'}</small>` : ''}</h3>${model.reactionCount || derived.groups.some((entry) => entry.automatic.length) ? '' : '<p class="expression-empty">Nothing runs yet. A reaction is one sentence: <b>when</b> clicked, <b>do</b> Surprised with a Head Pop, <b>then</b> return to idle.</p>'}${unsupported}${derived.groups.map((entry) => group(entry, entry.id === active || derived.groups.length < 2, derived.groups.length < 2)).join('')}${motions}</section>`;
   }
 
   /**

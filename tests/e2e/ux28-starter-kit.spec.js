@@ -94,5 +94,8 @@ test('the catalogues are grouped, and a group opens to reveal the rest', async (
   // Five whens since V3-09: following the pointer joined the four.
   const triggers = page.locator('[data-preset-catalogue="reactions"] .preset-group');
   await expect(triggers).toHaveCount(5);
-  await expect(page.locator('[data-preset-catalogue="reactions"] [data-preset-group-pick]').first()).toContainText('When clicked');
+  // Reactions has no strip of its own: the one above both halves is the
+  // screen's single axis (UX-60 PR 7).
+  await expect(page.locator('[data-preset-catalogue="reactions"] [data-preset-group-pick]')).toHaveCount(0);
+  await expect(page.locator('[data-runs-when-pick]').first()).toContainText('When clicked');
 });

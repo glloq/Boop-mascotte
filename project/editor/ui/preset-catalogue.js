@@ -36,23 +36,27 @@ import { esc } from './escape-html.js';
  *        which group starts open (default: the first), or a predicate when the
  *        caller remembers which one the author picked
  */
-export function presetGroupsMarkup(groups, card, { className, open = 0, isOpen = null } = {}) {
+export function presetGroupsMarkup(groups, card, { className, open = 0, isOpen = null, strip: withStrip = true, only = null } = {}) {
   const list = (groups || []).filter((entry) => entry?.presets?.length);
   if (!list.length) return '';
-  const picked = list.findIndex((entry, index) => (isOpen ? isOpen(entry.group, index) : index === open));
+  // `only` is a caller that has a strip of its own: Behavior ▸ Reactions is
+  // organised by *when* from top to bottom, and two strips a page apart
+  // reading the same five words is worse than one (UX-60 PR 7).
+  const forced = only === null ? -1 : list.findIndex((entry) => entry.group === only);
+  const picked = forced >= 0 ? forced : list.findIndex((entry, index) => (isOpen ? isOpen(entry.group, index) : index === open));
   const active = picked >= 0 ? picked : Math.min(open, list.length - 1);
   const count = (entry) => entry.presets.filter((preset) => preset.usable).length;
-  const chips = list.map((entry, index) => {
+  const chips = withStrip ? list.map((entry, index) => {
     const usable = count(entry), on = index === active;
     return `<button type="button" class="preset-chip${on ? ' chip-active' : ''}" data-preset-group-pick="${esc(entry.group)}" aria-pressed="${on}" title="${esc(entry.group)}: ${usable === entry.presets.length ? `${entry.presets.length} ready` : `${usable} of ${entry.presets.length} ready to use`}"><b>${esc(entry.group)}</b><small>${usable === entry.presets.length ? entry.presets.length : `${usable}/${entry.presets.length}`}</small></button>`;
-  }).join('');
+  }).join('') : '';
   // Every group's cards stay in the markup, and the ones not chosen are
   // `hidden`: a spec, a deep link or a search that reaches into a card it can
   // still find it, exactly as it could inside a shut `<details>`.
-  const panes = list.map((entry, index) => `<div class="${className} preset-group" data-preset-group="${esc(entry.group)}" data-preset-group-usable="${count(entry)}"${index === active ? '' : ' hidden'}>
+  const panes = list.map((entry, index) => `<div class="${className} preset-group" data-preset-group="${esc(entry.group)}" data-preset-group-usable="${count(entry)}"${index === active || list.length === 1 ? '' : ' hidden'}>
       <div class="preset-cards">${entry.presets.map(card).join('')}</div>
     </div>`).join('');
-  return `<div class="preset-groups" role="group" aria-label="Preset groups">${chips}</div>${panes}`;
+  return `${chips ? `<div class="preset-groups" role="group" aria-label="Preset groups">${chips}</div>` : ''}${panes}`;
 }
 
 /**
