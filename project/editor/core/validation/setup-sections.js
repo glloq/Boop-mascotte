@@ -26,7 +26,10 @@ export const SETUP_SECTIONS = Object.freeze([
   Object.freeze({ id: 'head-pose', panel: 'head-pose', label: 'Head pose', open: false }),
   Object.freeze({ id: 'hands', panel: 'hand-setup', label: 'Hands', open: false }),
   Object.freeze({ id: 'handles', panel: 'handle-board', label: 'Controls', open: false }),
-  Object.freeze({ id: 'holding', panel: 'holding-panel', label: 'Pins & holding', open: false, advanced: true }),
+  // Six things now, not two: pins, the rules that shape them, the named points,
+  // the holds between them, every shape key in the project and the depth each
+  // piece sits at (UX-60 PR 8, §12 of the redesign brief).
+  Object.freeze({ id: 'holding', panel: 'holding-panel', label: 'Pins & shapes', open: false, advanced: true }),
   Object.freeze({ id: 'warp', panel: 'warp-panel', label: 'Warp', open: false, advanced: true }),
   Object.freeze({ id: 'all-parts', panel: 'rig-parts', label: 'All parts', open: false })
 ]);

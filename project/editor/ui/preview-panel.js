@@ -216,6 +216,37 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
     if (button.dataset.previewExpression) { const id = button.dataset.previewExpression, weights = preview.getExpressionWeights(); if (weights[id]) preview.clearExpression(id); else preview.setExpression(id, Number(host.querySelector('[data-preview-intensity]')?.value ?? 1)); render(); return; }
     if (button.dataset.previewExpressionClear !== undefined) { preview.clearExpressions(); render(); }
   });
+  host.addEventListener('click', (event) => {
+    const group = event.target.closest?.('[data-preview-group-pick]');
+    if (group) {
+      const [kind, name] = group.dataset.previewGroupPick.split(':');
+      groupPick.set(kind, name);
+      const strip = group.parentElement;
+      for (const button of strip.querySelectorAll('[data-preview-group-pick]')) {
+        const on = button === group;
+        button.classList.toggle('chip-active', on);
+        button.setAttribute('aria-pressed', String(on));
+      }
+      for (const pane of strip.parentElement.querySelectorAll(':scope > [data-preview-group]')) {
+        pane.hidden = pane.dataset.previewGroup !== `${kind}:${name}`;
+      }
+      return;
+    }
+    const chip = event.target.closest?.('[data-preview-pick]');
+    if (!chip) return;
+    openSection = chip.dataset.previewPick;
+    // In place: everything is rendered, so showing another section is a
+    // `hidden` flag -- and a re-render would take the focus of whoever pressed
+    // the chip with it.
+    for (const button of host.querySelectorAll('[data-preview-pick]')) {
+      const on = button === chip;
+      button.classList.toggle('chip-active', on);
+      button.setAttribute('aria-pressed', String(on));
+    }
+    for (const pane of host.querySelectorAll('[data-preview-section]')) {
+      if (pane.parentElement === host) pane.hidden = pane.dataset.previewSection !== openSection;
+    }
+  });
   host.addEventListener('input', (event) => { if (event.target.dataset.previewIntensity === undefined) return; const value = Number(event.target.value); for (const id of Object.keys(preview.getExpressionWeights())) preview.setExpression(id, value); const output = host.querySelector('[data-preview-intensity-output]'); if (output) output.value = `${Math.round(value * 100)}%`; });
   // Everything here is open until the author folds it, which is the opposite of
   // `rememberOpen`'s default-closed bookkeeping: what is remembered is the
@@ -246,13 +277,62 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
   const section = (id, title, body, { count = null } = {}) => body
     ? `<details class="preview-section" data-preview-section="${esc(id)}" data-preview-group="section:${esc(id)}"${openAttr(`section:${id}`)}><summary><h3>${esc(title)}</h3>${count === null ? '' : `<small>${count}</small>`}</summary>${body}</details>`
     : '';
-  // One disclosure per group, open unless the author folded it away. Fewer than
-  // two groups is not a grouping: a project with only its own faces gets the
-  // plain row it had before.
+
+  /**
+   * A top-level section of the panel, as a thing rather than as markup.
+   *
+   * The five of them were five open `<details>` stacked, and everything the
+   * mascot can do was one column: measured at 1440x900, Preview's Inspector
+   * hid **2 845 px** below its own bottom, next to a stage taking 78 % of the
+   * window. So they are a strip and one of them shows -- the same shape as the
+   * capability bar, the Control Deck's bands, the preset catalogues and the
+   * state inspector (UX-60 PR 6).
+   *
+   * Which one is showing has to be decided after all five are built, because
+   * the strip only holds the ones this mascot has anything in. Hence a record
+   * rather than a string.
+   */
+  const part = (id, title, body, { count = null } = {}) => (body ? { id, title, body, count } : null);
+
+  /** Which section of Preview is showing. Session, per tab; never the document. */
+  let openSection = null;
+
+  const sectionStrip = (parts) => {
+    const list = parts.filter(Boolean);
+    if (!list.length) return '';
+    const active = list.some((entry) => entry.id === openSection) ? openSection : list[0].id;
+    // Buttons in a group rather than a `tablist`, like every other strip in the
+    // editor: a `tablist` promises arrow-key navigation and a roving tabindex,
+    // and one that does not keep that promise is worse for a screen reader than
+    // the plain toggles these actually are. The capability bar over a *screen*
+    // is a real tablist and does keep it (`ui/capability-bar.js`).
+    const strip = list.length > 1
+      ? `<div class="preview-sections" role="group" aria-label="What to try">${list.map((entry) => {
+        const on = entry.id === active;
+        return `<button type="button" class="preset-chip${on ? ' chip-active' : ''}" data-preview-pick="${esc(entry.id)}" aria-pressed="${on}" aria-controls="preview-pane-${esc(entry.id)}"><b>${esc(entry.title)}</b>${entry.count === null ? '' : `<small>${entry.count}</small>`}</button>`;
+      }).join('')}</div>`
+      : '';
+    return strip + list.map((entry) => `<section class="preview-section" id="preview-pane-${esc(entry.id)}" data-preview-section="${esc(entry.id)}" aria-label="${esc(entry.title)}"${strip && entry.id !== active ? ' hidden' : ''}>${entry.body}</section>`).join('');
+  };
+  /** Which group of a Preview section is showing, per section. Session. */
+  const groupPick = new Map();
+
+  /**
+   * The groups inside a section, as a strip.
+   *
+   * These were five open disclosures inside one open disclosure: Expressions
+   * alone measured 844 px of a section inside a 1 920 px column. Fewer than two
+   * groups is not a grouping, and a project with only its own faces gets the
+   * plain row it had before.
+   */
   const groupBlocks = (kind, names, items, groupOf, body) => {
     const buckets = names.map((name) => ({ name, items: items.filter((item) => groupOf(item) === name) })).filter((bucket) => bucket.items.length);
     if (buckets.length < 2) return buckets.length ? body(buckets[0].items, buckets[0].name) : '';
-    return buckets.map((bucket) => `<details class="preview-group" data-preview-group="${esc(kind)}:${esc(bucket.name)}"${openAttr(`${kind}:${bucket.name}`)}><summary>${esc(bucket.name)}<small>${bucket.items.length}</small></summary>${body(bucket.items, bucket.name)}</details>`).join('');
+    const picked = groupPick.get(kind);
+    const active = buckets.some((bucket) => bucket.name === picked) ? picked : buckets[0].name;
+    const chips = buckets.map((bucket) => `<button type="button" class="preset-chip${bucket.name === active ? ' chip-active' : ''}" data-preview-group-pick="${esc(kind)}:${esc(bucket.name)}" aria-pressed="${bucket.name === active}"><b>${esc(bucket.name)}</b><small>${bucket.items.length}</small></button>`).join('');
+    const panes = buckets.map((bucket) => `<div class="preview-group" data-preview-group="${esc(kind)}:${esc(bucket.name)}"${bucket.name === active ? '' : ' hidden'}>${body(bucket.items, bucket.name)}</div>`).join('');
+    return `<div class="preview-groups" role="group" aria-label="${esc(kind)} groups">${chips}</div>${panes}`;
   };
 
   function syncPads() { for (const pad of host.querySelectorAll('[data-preview-xy]')) { const [x, y] = pad.dataset.previewXy.split(':'); pad.style.setProperty('--x', `${(toUnit(x, padValue(x)) + 1) * 50}%`); pad.style.setProperty('--y', `${(toUnit(y, padValue(y)) + 1) * 50}%`); } }
@@ -290,7 +370,7 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
     // showing, whichever group it came from.
     const faceChip = (item) => `<button type="button" class="chip${weights[item.id] ? ' chip-active' : ''}" data-preview-expression="${esc(item.id)}" aria-pressed="${Boolean(weights[item.id])}">${esc(item.name)}</button>`;
     const faceGroups = groupBlocks('expressions', GROUP_NAMES.expressions, state.expressions || [], expressionGroupOf, (items) => `<div class="chip-row">${items.map(faceChip).join('')}</div>`);
-    const expressions = section('expressions', 'Expressions', (state.expressions || []).length
+    const expressions = part('expressions', 'Expressions', (state.expressions || []).length
       ? `<div class="chip-row"><button type="button" class="chip${Object.keys(weights).length ? '' : ' chip-active'}" data-preview-expression-clear aria-pressed="${!Object.keys(weights).length}">None</button></div>${faceGroups}<label>Intensity <output data-preview-intensity-output>${Math.round(intensity * 100)}%</output><input type="range" data-preview-intensity aria-label="Expression intensity" min="0" max="1" step=".05" value="${intensity}"></label>`
       : '', { count: (state.expressions || []).length });
     const activeReaction = preview.getActiveReaction?.()?.id || null, log = preview.getEventLog?.() || [];
@@ -311,19 +391,19 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
       const shadowed = items.filter((item) => item.enabled !== false && !answersFor(item)).length;
       return `${shadowed ? `<p class="small">${shadowed} of these never run on their own — the highest priority wins the event. Press one here to see it, or change its priority in Reactions.</p>` : ''}<div class="chip-row">${items.map(reactionChip).join('')}</div>`;
     });
-    const reactions = section('reactions', 'Reactions',
+    const reactions = part('reactions', 'Reactions',
       `${(state.reactions || []).length ? `<p class="small">Click the mascot to trigger its click reactions, or fire one here.</p>${reactionGroups}` : '<p class="small">No reactions yet. <button type="button" class="secondary" data-preview-go="reactions">Create one</button></p>'}${simulator}`,
       { count: (state.reactions || []).length || null });
     const stateNames = Object.keys(state.states || {}), activeState = preview.getSession().previewState || state.activeState;
     const poses = stateNames.length > 1
-      ? section('poses', 'Poses', `<div class="chip-row">${stateNames.map((name) => `<button type="button" class="chip${name === activeState ? ' chip-active' : ''}" data-preview-state="${esc(name)}" aria-pressed="${name === activeState}">${esc(name)}</button>`).join('')}</div>`, { count: stateNames.length })
-      : '';
+      ? part('poses', 'Poses', `<div class="chip-row">${stateNames.map((name) => `<button type="button" class="chip${name === activeState ? ' chip-active' : ''}" data-preview-state="${esc(name)}" aria-pressed="${name === activeState}">${esc(name)}</button>`).join('')}</div>`, { count: stateNames.length })
+      : null;
     const clips = state.animationClips || [], playing = preview.isPlaying() ? preview.getActiveClipId() : null;
     // Two to a row, so thirty-five of them are a block rather than a scroll:
     // the name carries a title, because a long one is clipped at that width.
     const clipButton = (clip) => `<button type="button" data-preview-clip="${esc(clip.id)}" aria-pressed="${playing === clip.id}" title="${esc(clip.name)}" class="${playing === clip.id ? 'chip-active' : ''}">${playing === clip.id ? '■' : '▶'} ${esc(clip.name)}</button>`;
     const clipGroups = groupBlocks('animations', GROUP_NAMES.animations, clips, clipGroupOf, (items) => `<div class="preview-example-list">${items.map(clipButton).join('')}</div>`);
-    const animations = section('animations', 'Animations', clips.length ? clipGroups : '', { count: clips.length });
+    const animations = part('animations', 'Animations', clips.length ? clipGroups : '', { count: clips.length });
     const behaviors = normalizeBehaviors(state), overrides = preview.getBehaviorOverrides();
     const automatic = section('automatic', 'Automatic', behaviors.length
       ? `${behaviors.map((behavior, index) => { const key = behaviorKey(behavior, index), on = key in overrides ? overrides[key] : behavior.enabled !== false; return `<label class="check"><input type="checkbox" data-preview-behavior="${esc(key)}" ${on ? 'checked' : ''}> ${esc(behavior.name || behavior.type)}${key in overrides ? ' <small>(preview only)</small>' : ''}</label>`; }).join('')}<p class="small">Changes here are preview-only. Edit them in Behavior ▸ Automatic.</p>`
@@ -405,8 +485,8 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
      * is pressed and looked at, exactly like an expression, an animation or a
      * reaction. It sits with them.
      */
-    const advanced = `<details class="preview-section preview-advanced" data-preview-section="advanced" data-preview-group="section:advanced"${openAttr('section:advanced')}><summary><h3>Test the rig</h3><small>controls, events and the hands</small></summary>${liveControls}${hands}${automatic}</details>`;
-    host.innerHTML = `${stageBlock}${expressions}${poses}${animations}${reactions}${advanced}`;
+    const advanced = part('advanced', 'Test the rig', `${liveControls}${hands}${automatic}`);
+    host.innerHTML = `${stageBlock}${sectionStrip([expressions, poses, animations, reactions, advanced])}`;
   }
 
   return { render, syncPads };

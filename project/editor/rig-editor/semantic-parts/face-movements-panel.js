@@ -31,7 +31,7 @@ const ICONS = { calibrated: '✓', on: '✓', off: '○', incomplete: '●', una
  * one derivation every contextual panel reads. Nothing here keeps a second
  * idea of what is selected.
  */
-export function createFaceMovementsPanel(host, store, history, editorContext, { openMovement = () => {}, applyPose = () => {}, liveValues = () => ({}) } = {}) {
+export function createFaceMovementsPanel(host, store, history, editorContext, { openMovement = () => {}, applyPose = () => {}, liveValues = () => ({}), setLive = null } = {}) {
   const commands = createSemanticRigCommands(store, history);
   let notice = null;
   // Session-only, and deliberately not in the document: which controls somebody
@@ -55,7 +55,27 @@ export function createFaceMovementsPanel(host, store, history, editorContext, { 
     render();
   }, true);
 
+  /**
+   * The slider on a card is the movement, tried.
+   *
+   * Dragging writes a live parameter and nothing else; letting go goes through
+   * `applyPose`, which is the same channel the pose chips and the Movement
+   * Inspector use -- so a drag keys with Auto Key on and lands in an
+   * expression while one is being shaped, without this knowing (UIR-08). What
+   * it must not be is a second way to drive a parameter.
+   */
+  host.addEventListener('input', (event) => {
+    const id = event.target.dataset.movementLive;
+    if (!id) return;
+    const value = Number(event.target.value);
+    (setLive || ((name, next) => applyPose({ [name]: next })))(id, value);
+    const readout = host.querySelector(`[data-movement-value="${CSS.escape(id)}"]`);
+    if (readout) readout.textContent = value.toFixed(2);
+  });
+
   host.addEventListener('change', (event) => {
+    const live = event.target.dataset.movementLive;
+    if (live) { applyPose({ [live]: Number(event.target.value) }); return; }
     const id = event.target.dataset.movementToggle;
     if (!id) return;
     const item = itemFor(id);
@@ -161,9 +181,37 @@ export function createFaceMovementsPanel(host, store, history, editorContext, { 
     // Filed under what they make the face do, and inside that under the part
     // that carries them -- the pose chips and the live sliders are per part
     // and always were (UIR-08).
+    /**
+     * One movement, as a card you can try (UX-60 PR 4, the brief's §12).
+     *
+     * It was a row: a checkbox, a name, a status, and the slider that actually
+     * moves the face two panels away in the Inspector. So *trying* a movement
+     * -- the thing an author does after turning one on, every time -- was a
+     * click, a look to the right, a drag, and a look back. Twenty-six of those
+     * rows stacked one per line in a column that the window had made wider,
+     * which is the shape §12 names as the main example of what to stop doing.
+     *
+     * The card carries its own slider. The grid is `auto-fill`, so a wider
+     * column shows two or three cards abreast instead of a longer list -- the
+     * horizontal room the redesign is about, used by the thing that needed it.
+     * The name still opens the Inspector, which stays the one place a movement
+     * is *set up*: the card is where it is tried, not a copy of the editor
+     * (§5 of the brief).
+     */
     const rows = (group, items) => items.map((item) => {
       const available = item.status !== 'unassigned' && item.status !== 'incomplete';
-      return `<li class="movement-row${item.id === active ? ' active' : ''}" data-movement="${item.id}" data-movement-status="${item.status}" data-movement-tier="${esc(item.tier || 'more')}"><input type="checkbox" data-movement-toggle="${item.id}" aria-label="Enable ${esc(item.label)} (${esc(group)})" ${item.enabled ? 'checked' : ''} ${available ? '' : 'disabled'}><button type="button" class="movement-label" data-movement-open="${item.id}" ${available ? '' : 'disabled'}><span>${esc(item.label)}</span><small>${esc(detail(item))}</small></button></li>`;
+      // A slider for a movement that is on and has somewhere to go. One that is
+      // off, unassigned or has no parameter yet gets the space back rather than
+      // a dead control that says nothing about why it does nothing.
+      const param = state.params?.[item.id];
+      const tryable = available && item.enabled && param;
+      const value = Number(live[item.id] ?? param?.default ?? 0);
+      const slider = tryable
+        ? `<label class="control-card-try"><span class="visually-hidden">Try ${esc(item.label)}</span><input type="range" data-movement-live="${item.id}" min="${param.min ?? -1}" max="${param.max ?? 1}" step=".01" value="${value}" aria-label="Try ${esc(item.label)} (${esc(group)})"><output data-movement-value="${item.id}">${value.toFixed(2)}</output></label>`
+        : '';
+      return `<li class="control-card${item.id === active ? ' active' : ''}" data-movement="${item.id}" data-movement-status="${item.status}" data-movement-tier="${esc(item.tier || 'more')}">
+        <div class="control-card-head"><input type="checkbox" data-movement-toggle="${item.id}" aria-label="Enable ${esc(item.label)} (${esc(group)})" ${item.enabled ? 'checked' : ''} ${available ? '' : 'disabled'}><button type="button" class="movement-label" data-movement-open="${item.id}" ${available ? '' : 'disabled'}><span>${esc(item.label)}</span><small>${esc(detail(item))}</small></button></div>${slider}
+      </li>`;
     }).join('');
     /**
      * One part's rows: the quick ones, then the rest behind a press.
@@ -177,18 +225,18 @@ export function createFaceMovementsPanel(host, store, history, editorContext, { 
       // behind a second press would make the escape hatch a smaller cage:
       // whatever the panel is holding back, that button has to be the end of
       // it (§34 of the brief).
-      if (view.scope === 'all') return `<ul class="movement-list">${rows(group, items)}</ul>`;
+      if (view.scope === 'all') return `<ul class="movement-list control-deck">${rows(group, items)}</ul>`;
       const { quick, more } = byTier(items);
       // A group whose movements are *all* folded would open on nothing, so it
       // shows them: the tier is a ranking within a part, and a part with no
       // headline movement still has to be workable.
       const front = quick.length ? quick : more, rest = quick.length ? more : [];
       const open = openedMore.has(group);
-      return `<ul class="movement-list">${rows(group, front)}</ul>${rest.length ? `<button type="button" class="movement-more" data-movement-more="${esc(group)}" aria-expanded="${open}">${open ? '▾ Fewer' : `▸ More (${rest.length})`}</button>${open ? `<ul class="movement-list" data-movement-more-list="${esc(group)}">${rows(group, rest)}</ul>` : ''}` : ''}`;
+      return `<ul class="movement-list control-deck">${rows(group, front)}</ul>${rest.length ? `<button type="button" class="movement-more" data-movement-more="${esc(group)}" aria-expanded="${open}">${open ? '▾ Fewer' : `▸ More (${rest.length})`}</button>${open ? `<ul class="movement-list control-deck" data-movement-more-list="${esc(group)}">${rows(group, rest)}</ul>` : ''}` : ''}`;
     };
     const groups = [...view.bands].map(([band, parts]) => `<li class="movement-band" data-movement-band="${esc(band)}"><b class="movement-band-name">${esc(band)}</b>${[...parts].map(([group, items]) => `<div class="movement-group" data-movement-group="${esc(group)}">${parts.size > 1 || group !== band ? `<small class="movement-group-name">${esc(group)}</small>` : ''}${posesFor(items, live)}${groupRows(group, items)}${view.scope === 'band' ? advancedFor(items) : ''}</div>`).join('')}</li>`).join('');
     const offCount = itemsIn(view).filter((item) => item.status === 'off').length;
-    host.innerHTML = `<h3 id="face-movements-heading" class="visually-hidden">Movements</h3><div role="status" aria-live="polite">${notice ? `<p class="face-pick-notice" data-tone="${notice.tone}">${esc(notice.text)}</p>` : ''}</div>${intro(checklist, view)}${view.bands.size ? `<ul class="movement-groups" aria-labelledby="face-movements-heading">${groups}</ul>` : ''}${offCount ? `<button type="button" class="face-next secondary" data-movement-enable-all>Turn on ${offCount === 1 ? 'the remaining movement' : `all ${offCount} available movement${offCount === 1 ? '' : 's'}${view.scope === 'band' ? ` for the ${view.band.toLowerCase()}` : ''}`}</button>` : ''}${scopeSwitch(view)}`;
+    host.innerHTML = `<h3 id="face-movements-heading" class="visually-hidden">Movements</h3><div role="status" aria-live="polite">${notice ? `<p class="face-pick-notice" data-tone="${notice.tone}">${esc(notice.text)}</p>` : ''}</div>${bandStrip(view)}${intro(checklist, view)}${view.bands.size ? `<ul class="movement-groups" aria-labelledby="face-movements-heading">${groups}</ul>` : ''}${offCount ? `<button type="button" class="face-next secondary" data-movement-enable-all>Turn on ${offCount === 1 ? 'the remaining movement' : `all ${offCount} available movement${offCount === 1 ? '' : 's'}${view.scope === 'band' ? ` for the ${view.band.toLowerCase()}` : ''}`}</button>` : ''}`;
     if (focused) host.querySelector(`[data-movement-toggle="${CSS.escape(focused)}"],[data-movement-open="${CSS.escape(focused)}"]`)?.focus({ preventScroll: true });
   }
 
@@ -228,27 +276,29 @@ export function createFaceMovementsPanel(host, store, history, editorContext, { 
   }
 
   /**
-   * The families, when nothing is selected, and the way back to them.
+   * Which part of the face the deck is about — a strip, above the deck, always
+   * (UX-60 PR 4, the brief's §12).
    *
-   * `Show all controls` is the escape hatch progressive disclosure owes the
-   * author: it names how many rows it would add rather than offering a vague
-   * "more", so pressing it is an informed choice.
+   * These were at the *bottom*, and only when nothing was selected: with a part
+   * in hand the way to another part was a second strip under twenty-six cards,
+   * and with `Show all` on there was no strip at all. So the answer to "how do
+   * I get to the mouth" was "scroll". Measured at 1440x900, showing everything
+   * made this column 2 562 px tall in an 836 px viewport.
+   *
+   * Above the deck it is the screen's own second axis, in the shape §12's
+   * wireframe draws: the bands across the top, the movements of one band
+   * below. The deck under it is then one band tall.
+   *
+   * `Show all controls` stays beside it — the escape hatch progressive
+   * disclosure owes the author, naming how many cards it would add rather than
+   * offering a vague "more", so pressing it is an informed choice (§34).
    */
-  function scopeSwitch(view) {
-    const family = (item, compact) => `<li><button type="button" class="movement-family${compact ? ' chip' : ''}${item.band === view.band ? ' chip-active' : ''}" data-movement-family="${esc(item.band)}" aria-pressed="${item.band === view.band}" ${item.available ? '' : 'disabled'}><b>${esc(item.band)}</b><small>${item.available ? `${item.enabled} of ${item.available} on` : 'Not assigned yet'}</small></button></li>`;
-    // Narrowed: the other families stay one press away, as a strip. Without
-    // them the only way to another part of the face would be to put the whole
-    // inventory back, which is a filter that punishes you for using it.
-    if (view.scope === 'band') {
-      return `<div class="movement-families" data-movement-families="compact"><small class="movement-families-name">Another part of the face</small><ul>${view.families.map((item) => family(item, true)).join('')}</ul></div>
-        <button type="button" class="movement-scope secondary" data-movement-show-all="on">Show all controls${view.hidden ? ` (${view.hidden} more)` : ''}</button>`;
-    }
-    // `Show all controls` from the families too: the inventory is never more
-    // than one press away, whichever state the panel is in.
+  function bandStrip(view) {
+    const family = (item) => `<li><button type="button" class="movement-family chip${item.band === view.band ? ' chip-active' : ''}" data-movement-family="${esc(item.band)}" aria-pressed="${item.band === view.band}" ${item.available ? '' : 'disabled'} title="${item.available ? `${item.enabled} of ${item.available} on` : 'Not assigned yet'}"><b>${esc(item.band)}</b><small>${item.available ? `${item.enabled}/${item.available}` : '—'}</small></button></li>`;
     const toggle = view.scope === 'all'
       ? '<button type="button" class="movement-scope secondary" data-movement-show-all="off">Show only what I select</button>'
       : `<button type="button" class="movement-scope secondary" data-movement-show-all="on">Show all controls${view.hidden ? ` (${view.hidden})` : ''}</button>`;
-    return `<div class="movement-families" data-movement-families="full"><small class="movement-families-name">${view.scope === 'all' ? 'Or pick a part of the face to work on' : 'Which part of the face?'}</small><ul>${view.families.map((item) => family(item, false)).join('')}</ul></div>${toggle}`;
+    return `<div class="movement-families" data-movement-families="${view.scope}"><ul aria-label="Which part of the face">${view.families.map(family).join('')}</ul>${toggle}</div>`;
   }
 
   /**

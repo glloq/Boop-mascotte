@@ -61,23 +61,32 @@ test('the catalogues are grouped, and a group opens to reveal the rest', async (
 
   const groups = page.locator('[data-preset-catalogue="expressions"] .preset-group');
   await expect(groups).toHaveCount(5);
-  await expect(groups.first()).toHaveAttribute('open', '');
-  // A card in a closed group is present but out of the way until it is opened.
+  // The groups are a strip and one group's cards show (UX-60 PR 5): the first
+  // is the one showing, and every group is named on the strip whether or not
+  // its cards are.
+  await expect(groups.first()).toBeVisible();
+  await expect(page.locator('[data-preset-catalogue="expressions"] [data-preset-group-pick]')).toHaveCount(5);
+  // A card in a group that is not showing is present but out of the way.
   const laughing = page.locator('[data-expression-preset-card="laughing"]');
   await expect(laughing).toHaveCount(1);
   await expect(laughing).not.toBeVisible();
-  await page.locator('[data-preset-group="Playful"] > summary').click();
+  await page.locator('[data-preset-group-pick="Playful"]').click();
   await expect(laughing).toBeVisible();
   const add = laughing.getByRole('button', { name: 'Add Laughing preset' });
   await add.scrollIntoViewIfNeeded();
+  // Scrolled deliberately rather than by reaching for the card: the catalogue
+  // is a grid of a single group now (UX-60 PR 5) and fits without scrolling,
+  // which is the point -- but a column that *is* scrolled still has to stay
+  // where it was, and that is what this pins.
+  await page.locator('#left').evaluate((node) => { node.scrollTop = Math.max(0, node.scrollHeight - node.clientHeight); });
   const scrolled = await page.locator('#left').evaluate((node) => node.scrollTop);
-  expect(scrolled).toBeGreaterThan(0);
+  expect(scrolled, 'the column has somewhere to be scrolled to').toBeGreaterThan(0);
   await add.click();
   expect((await documentOf(page)).expressions.map((item) => item.id)).toEqual(['laughing']);
   // The panel rebuilds itself on every edit, and used to take the open group
   // and the scroll position with it: one press sent you back to the top of a
   // list with the first group open, hunting for where you were.
-  await expect(page.locator('[data-preset-group="Playful"]')).toHaveAttribute('open', '');
+  await expect(page.locator('[data-preset-group="Playful"]'), 'the group the author picked survives the rebuild').toBeVisible();
   await expect(laughing).toBeVisible();
   expect(await page.locator('#left').evaluate((node) => node.scrollTop)).toBe(scrolled);
 
@@ -85,5 +94,8 @@ test('the catalogues are grouped, and a group opens to reveal the rest', async (
   // Five whens since V3-09: following the pointer joined the four.
   const triggers = page.locator('[data-preset-catalogue="reactions"] .preset-group');
   await expect(triggers).toHaveCount(5);
-  await expect(triggers.first()).toContainText('When clicked');
+  // Reactions has no strip of its own: the one above both halves is the
+  // screen's single axis (UX-60 PR 7).
+  await expect(page.locator('[data-preset-catalogue="reactions"] [data-preset-group-pick]')).toHaveCount(0);
+  await expect(page.locator('[data-runs-when-pick]').first()).toContainText('When clicked');
 });

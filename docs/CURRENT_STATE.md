@@ -190,40 +190,48 @@ npm run check:conflicts      clean
 tests/e2e/                   69 spec files
 ```
 
-After the first slice (PR 0, 1, 2 and the contextual half of 7):
+After the whole programme (UX-60 PR 0 … PR 8):
 
 ```text
-npm test                     2335 pass, 0 fail
+npm test                     2359 pass, 0 fail
 npm run build                clean
-tests/e2e/ (chromium)        303 pass, 4 fail  — the four below, all of which
+npm run check:conflicts      clean
+tests/e2e/ (chromium)        307 pass, 7 fail  — the seven below, all of which
                              fail identically on f5b4945
-tests/e2e/                   70 spec files (ux50-contextual-selection.spec.js)
+tests/e2e/                   72 spec files
 ```
 
-Four E2E specs fail locally **and fail identically on `f5b4945`**, so they are
-this repository's state rather than this slice's doing. They were measured by
-building `origin/main` in a second worktree and running the same specs against
-it:
+Seven E2E specs fail locally **and fail identically on `f5b4945`**, so they are
+this repository's state rather than this programme's doing. They were measured
+by building `origin/main` in a second worktree and running the same specs
+against it:
 
 ```text
 @pages                        asks a deployed GitHub Pages build for its assets
-ux14-event-simulator:74       hover reaction does not clear within 4 s
+ux14-event-simulator:75       hover reaction does not clear within 4 s
+ux22-visual ×2                the `home` baselines were taken on 2026-09-11,
+                              before the navigation this editor now has
+ux22-stress:18                the click reaction never fires
 ux33-artboard:113             the clip paragraph does not name `headShape`
 ux38-publish:41               Home is still open, so the project never loaded
-ux22-stress:18                the click reaction never fires (line 52)
 ```
 
-`ux22-stress` is the newest of them and the one to watch: it passed earlier in
-the same session and now fails 3 runs out of 3 on `origin/main` **and** on the
-branch, at the same line and on an otherwise idle machine. Whatever it is, it
-is not a regression from either; a test that can pass and then consistently
-fail on unchanged code is a test with a real timing dependency in it, and the
-reaction that never fires is worth its own look.
+A note on measuring: the suite is timing-sensitive under load. A run taken
+while a second Playwright process was working reported fourteen failures, of
+which seven were `poll` timeouts that pass on their own. Take the number from a
+run that has the machine to itself.
 
-The last three are unexplained and worth a look of their own; none of them
-touches a surface this programme has changed.
+## 7. What the programme changed, in numbers
 
-Invariants, none of which any slice below may touch: old projects open, import
-works, `.boop` round-trips, Save/Open, undo/redo, `rig.json`, `mascot.svg`,
-`runtime.js`, the public runtime API, GitHub Pages, browser-only operation, the
-sanitizer, and schema migration. No UI preference may enter `ProjectDocument`.
+`docs/SHELL_V2_AUDIT.md` §13 carries the per-screen table. The short version,
+at 1440×900 on a built face:
+
+```text
+task column hidden below the fold   up to 5936 px  ->  0-548 px
+controls on screen, Rig Controls             4     ->  46
+project open                              1.7 s    ->  1.59 s
+                        (6.5 s at the worst, mid-programme)
+stage on configuration screens        52-58 %      ->  30-35 %, at 1280 and 1920
+initial zoom on those screens         up to 246 %  ->  never above 1:1
+`<details>` used for navigation       12 shut      ->  0
+```

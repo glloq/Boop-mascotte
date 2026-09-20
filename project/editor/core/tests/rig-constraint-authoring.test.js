@@ -137,7 +137,7 @@ test('a relationship that is faded by a movement gets the movement, resting full
 test('the setup heading counts the rules, so an advanced section says what is in it', () => {
   const state = project();
   const before = deriveSetupSections(state).find((section) => section.id === 'holding');
-  assert.deepEqual([before.label, before.summary, before.state], ['Pins & holding', 'advanced', 'empty']);
+  assert.deepEqual([before.label, before.summary, before.state], ['Pins & shapes', 'advanced', 'empty']);
   const { store, run } = commands(state);
   run.create('hand', 'parent', 'head');
   const after = deriveSetupSections(store.getDocument()).find((section) => section.id === 'holding');

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { dragWithin, enterFaceBuilder, goToAnimate, goToMode, goToPreview, openAdvanced, openExport, openFreshEditor, openGazeControl, openProblems, openProjectMenu, openSetupSection, readSvgTranslation, selectSemanticPartById, setRangeControl, showAllMovements, startBasicFace, startTemplate } from './editor-helpers.js';
+import { dragWithin, enterFaceBuilder, goToAnimate, goToMode, goToPreview, openAdvanced, openExport, openFreshEditor, openGazeControl, openPreviewSection, openProblems, openProjectMenu, openSetupSection, readSvgTranslation, selectSemanticPartById, setRangeControl, showAllMovements, startBasicFace, startTemplate } from './editor-helpers.js';
 
 function monitor(page) {
   const errors=[];
@@ -204,7 +204,7 @@ test('a paused clip freezes its pose, and nothing else moves over it',async({pag
 });
 
 test('state transition renders an intermediate and final visual pose',async({page})=>{
-  await load(page,'basic');await goToPreview(page);const mouth=page.locator('#mouth'),initial=await mouth.getAttribute('d');await page.locator('[data-preview-state="happy"]').click();await expect.poll(()=>mouth.getAttribute('d')).not.toBe(initial);const intermediate=await mouth.getAttribute('d');await expect.poll(()=>page.evaluate(()=>window.__BOOP_E2E__.effectiveParams().smile),{timeout:1000}).toBe(1);expect(await mouth.getAttribute('d')).not.toBe(intermediate);
+  await load(page,'basic');await goToPreview(page);await openPreviewSection(page,'poses');const mouth=page.locator('#mouth'),initial=await mouth.getAttribute('d');await page.locator('[data-preview-state="happy"]').click();await expect.poll(()=>mouth.getAttribute('d')).not.toBe(initial);const intermediate=await mouth.getAttribute('d');await expect.poll(()=>page.evaluate(()=>window.__BOOP_E2E__.effectiveParams().smile),{timeout:1000}).toBe(1);expect(await mouth.getAttribute('d')).not.toBe(intermediate);
 });
 
 test('numeric key time uses collision replacement and one undo restores both keys',async({page})=>{await newLookClip(page);await addKey(page,.5,-1);await addKey(page,1,1);await page.locator('[data-key="lookX|1"]').click();await page.locator('[data-key-edit="time"]').fill('.5');await page.locator('[data-key-edit="time"]').dispatchEvent('change');let frames=(await state(page)).animationClips.find(c=>c.name==='Gaze Test').tracks.lookX;expect(frames.filter(k=>k.time===.5)).toHaveLength(1);await page.locator('#undo').click();frames=(await state(page)).animationClips.find(c=>c.name==='Gaze Test').tracks.lookX;expect(frames.map(k=>k.time)).toEqual([.5,1]);});

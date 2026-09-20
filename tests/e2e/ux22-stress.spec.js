@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToMode, openFreshEditor, openTask, startBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, openPreviewSection, openTask, startBasicFace } from './editor-helpers.js';
 
 const diagnostics = (page) => page.evaluate(() => window.__BOOP_E2E__.diagnostics());
 const TASKS = ['artwork', 'face-setup', 'expressions', 'animate', 'reactions', 'preview'];
@@ -48,6 +48,7 @@ test('@stability a long project (60 expressions, 75 motions, 40 reactions, 23 st
 
   // Preview: one loop, reactions return, nothing keeps the loop alive afterwards.
   await goToMode(page, 'preview');
+  await openPreviewSection(page, 'reactions');
   await page.locator('[data-preview-section="reactions"] [data-preview-event="click"]').click();
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.activeReaction()?.id)).toMatch(/^react-/);
   expect((await diagnostics(page)).preview.activeRaf).toBeLessThanOrEqual(1);

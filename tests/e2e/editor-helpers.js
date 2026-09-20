@@ -97,12 +97,26 @@ export const SETUP_SECTION_MODES = {
   'face-parts': 'rig.assign', movements: 'rig.controls', 'face-states': 'rig.controls', gaze: 'rig.controls', handles: 'rig.controls',
   hands: 'rig.controls', 'head-pose': 'rig.head2d', holding: 'rig.deform', warp: 'rig.deform', 'all-parts': 'rig.deform'
 };
+/**
+ * Open one capability of a Rig screen.
+ *
+ * It used to open a `<details>`, because the capabilities were a stack of them.
+ * They are a tab strip now (UX-60 PR 3, `ui/capability-bar.js`), so this presses
+ * the tab -- which is what an author does, and what makes the panel visible
+ * rather than merely `open`.
+ *
+ * The disclosure fallback stays for the screens that have only one capability
+ * and therefore no bar to press.
+ */
 export async function openSetupSection(page, id) {
   await goToMode(page, SETUP_SECTION_MODES[id] || 'rig.assign');
   const section = page.locator(`[data-setup-section="${id}"]`);
   await expect(section).toHaveCount(1);
-  if (!(await section.evaluate((element) => element.hasAttribute('open')))) await section.locator(':scope > summary').click();
+  const tab = page.locator(`[data-capability-bar] [data-capability="${id}"]`);
+  if (await tab.count()) await tab.click();
+  else if (!(await section.evaluate((element) => element.hasAttribute('open')))) await section.locator(':scope > summary').click();
   await expect(section).toHaveAttribute('open', '');
+  await expect(section).toBeVisible();
 }
 export async function goToAnimate(page) { await goToMode(page, 'animate.motions'); await openTimeline(page); }
 export const goToPreview = page => goToMode(page, 'preview');
@@ -117,10 +131,65 @@ export const goToPreview = page => goToMode(page, 'preview');
  * of them opens the disclosure first.
  */
 export async function openRigBench(page) {
-  const bench = page.locator('[data-preview-section="advanced"]');
-  await expect(bench).toBeVisible();
-  if (!(await bench.evaluate((node) => node.open))) await bench.locator('> summary').click();
-  await expect(bench.locator('[data-preview-section="live"]')).toBeVisible();
+  await openPreviewSection(page, 'advanced');
+  await expect(page.locator('[data-preview-section="advanced"] [data-preview-section="live"]')).toBeVisible();
+}
+
+/**
+ * Show *Add a part* on Assemble.
+ *
+ * The three ways in that are not the library share a strip under it (UX-60
+ * PR 7): the library owns the top of the column, and each of the others is one
+ * press.
+ */
+export async function openAddParts(page) {
+  await goToAssemble(page);
+  await page.locator('[data-strip-pick="assemble:part"]').click();
+  await expect(page.locator('[data-strip-pane="assemble:part"]')).toBeVisible();
+}
+
+/**
+ * Bring one thing in Preview into view, wherever it is filed.
+ *
+ * Preview is a strip of sections and, inside a section, a strip of groups
+ * (UX-60 PR 6-7) — so a clip is behind its section's chip and then its group's.
+ * This presses whichever of those the thing is actually behind, which is what
+ * an author does with two glances and a press.
+ */
+export async function revealPreviewItem(page, section, selector) {
+  await openPreviewSection(page, section);
+  const target = page.locator(selector);
+  if (await target.isVisible()) return;
+  const group = await page.evaluate((sel) => document.querySelector(sel)?.closest('[data-preview-group]')?.dataset.previewGroup || null, selector);
+  if (group) await page.locator(`[data-preview-group-pick="${group}"]`).click();
+  await expect(target).toBeVisible();
+}
+
+/**
+ * Show one of the four things Rig ▸ Deform's holding panel is about.
+ *
+ * Pins, rules, points and holds were one 1 073 px stack; they are a strip and
+ * one shows (UX-60 PR 6), so reaching into one is a press on its chip.
+ */
+export async function openHoldingTopic(page, id) {
+  const chip = page.locator(`[data-holding-topic="${id}"]`);
+  if (await chip.count()) await chip.click();
+  await expect(page.locator(`[data-holding-topic-panel="${id}"]`)).toBeVisible();
+}
+
+/**
+ * Show one of Preview's sections.
+ *
+ * They were five open `<details>` stacked, and everything the mascot can do
+ * was one 2 845 px column. They are a strip and one of them shows (UX-60
+ * PR 6), so reaching into Poses, Animations, Reactions or the rig bench is a
+ * press on its chip -- which is what an author does.
+ */
+export async function openPreviewSection(page, id) {
+  const chip = page.locator(`[data-preview-pick="${id}"]`);
+  // A panel with one section has no strip, and the section is already showing.
+  if (await chip.count()) await chip.click();
+  await expect(page.locator(`#preview-panel > [data-preview-section="${id}"]`)).toBeVisible();
 }
 /** Behavior's three screens: reactions, the automatic behaviours, the states. */
 export const goToReactions = page => goToMode(page, 'behavior.reactions');
@@ -278,14 +347,14 @@ const isOpen = details => details.evaluate(element => element.hasAttribute('open
  *
  * It was *Add / Create artwork* in Artwork, and held the ways to start next to
  * the parts that go on whole. Since UIR-18 the parts are in the open on
- * Assemble and this disclosure holds only the three destructive cards — which
- * is why it is folded and last (docs/DESIGN_SCREENS.md).
+ * Assemble and this holds only the three destructive cards — which is why it
+ * is the last chip on the strip rather than anything at the top of the column
+ * (docs/DESIGN_SCREENS.md, UX-60 PR 7).
  */
 export async function openAddArtwork(page) {
   await goToAssemble(page);
-  const create=page.locator('details[data-keep-open="start-over"]');
-  if (!(await isOpen(create))) await create.locator(':scope > summary').click();
-  await expect(create).toHaveAttribute('open', '');
+  await page.locator('[data-strip-pick="assemble:over"]').click();
+  await expect(page.locator('[data-strip-pane="assemble:over"]')).toBeVisible();
 }
 export async function openProjectMenu(page) {
   const menu=page.locator('details.file-menu');

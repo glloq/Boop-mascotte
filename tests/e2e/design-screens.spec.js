@@ -21,8 +21,12 @@ const shown = (page) => page.evaluate(() => {
     mode: document.querySelector('#app').dataset.mode,
     heading: document.querySelector('.create-tools [data-column-heading]')?.textContent?.trim(),
     library: visible('#face-library'), imports: visible('.artwork-imports'), addPart: visible('.feature-list'),
-    startOver: visible('details[data-keep-open="start-over"]'),
-    vectorTools: visible('.design-toolbar'), workingArea: visible('#artboard-panel'), layers: visible('#layers-panel')
+    startOver: visible('[data-strip-pane="assemble:over"]'),
+    vectorTools: visible('.design-toolbar'), workingArea: visible('#artboard-panel'), layers: visible('#layers-panel'),
+    // The three ways in that are not the library share a strip under it
+    // (UX-60 PR 7), so what matters is that each is *offered*, not that all
+    // three are drawn at once.
+    offered: [...document.querySelectorAll('.assemble-more [data-strip-pick]')].map((chip) => chip.dataset.stripPick)
   };
 });
 
@@ -38,8 +42,9 @@ test('@critical the editor opens on Assemble, and Assemble is the library', asyn
   // What Assemble has: the drawings first, a picture of your own, and the
   // parts the library ships none of.
   expect(assemble.library, 'the drawings the editor ships').toBe(true);
-  expect(assemble.imports, 'and a picture of your own').toBe(true);
-  expect(assemble.addPart).toBe(true);
+  expect(assemble.imports, 'and a picture of your own, which the strip opens on').toBe(true);
+  expect(assemble.offered, 'and the other two ways in are named beside it')
+    .toEqual(['assemble:picture', 'assemble:part', 'assemble:over']);
   // Cards, with the drawing on them, above the fold rather than inside a
   // disclosure at the bottom of the column.
   // The panel opens on the eyes, which is three builds and the packs' own
@@ -58,13 +63,14 @@ test('@critical the editor opens on Assemble, and Assemble is the library', asyn
   expect(assemble.workingArea).toBe(false);
   expect(assemble.layers, 'a hundred and thirty layers is the opposite of the point').toBe(false);
 
-  // Replacing the artwork you have is folded, and says so: a destructive act
-  // does not belong at the top of a column.
-  const startOver = page.locator('details[data-keep-open="start-over"]');
+  // Replacing the artwork you have is behind a press, and says so: a
+  // destructive act does not belong at the top of a column.
+  const startOver = page.locator('[data-strip-pane="assemble:over"]');
+  await expect(startOver).toBeHidden();
+  const chip = page.locator('[data-strip-pick="assemble:over"]');
+  await expect(chip).toContainText('Start over');
+  await chip.click();
   await expect(startOver).toBeVisible();
-  await expect(startOver).not.toHaveAttribute('open', '');
-  await expect(startOver.locator('> summary')).toContainText('Start over');
-  await startOver.locator('> summary').click();
   await expect(startOver.getByRole('button', { name: /Mascot Face/ })).toBeVisible();
 });
 

@@ -32,6 +32,9 @@ import { ATTACHMENT_SPACES, parsePath } from '../../../runtime/runtime.js';
 import { pinOverlay } from '../../core/rig/pin-model.js';
 import { rigConstraintModel } from '../../core/rig/constraint-model.js';
 import { createConstraintCommands } from '../../core/rig/constraint-commands.js';
+import { createShapeKeyCommands } from '../../core/shape-keys/shape-key-commands.js';
+import { createDepthCommands } from '../../core/rig/depth-commands.js';
+import { DEPTH_BANDS, depthBand } from '../../../runtime/runtime.js';
 import { constraintChange, constraintSection } from './constraint-section.js';
 import { esc } from '../../ui/escape-html.js';
 
@@ -109,10 +112,51 @@ export function createHoldingPanel(host, store, history, {
   // fraction of a measured box, and only the canvas can measure one.
   const holding = createHoldingCommands(store, history, { measure });
   const constraints = createConstraintCommands(store, history);
+  const shapes = createShapeKeyCommands(store, history);
+  const depths = createDepthCommands(store, history);
   const doc = () => store.getDocument();
   const constraintById = (id) => rigConstraintModel(doc()).find((item) => item.id === id) || null;
 
+  /**
+   * A depth slider writes on the way past, not on every frame.
+   *
+   * The same bargain a pin's drag makes: `input` shows the number, `change`
+   * is the undo step, so dragging from 0 to 0.8 is one thing to undo rather
+   * than sixteen.
+   */
+  host.addEventListener('input', (event) => {
+    const id = event.target.dataset.depthField;
+    if (!id) return;
+    const output = host.querySelector(`[data-depth-output="${CSS.escape(id)}"]`);
+    if (output) output.textContent = Number(event.target.value).toFixed(2);
+  });
+
   host.addEventListener('change', (event) => {
+    const data = event.target.dataset;
+    if (data.depthField) {
+      const result = depths.setElementDepth(data.depthField, event.target.value);
+      if (!result.ok) onStatus(result.message, 'error');
+      render();
+      return;
+    }
+    if (data.depthParallax) {
+      const value = event.target.type === 'checkbox' ? event.target.checked : Number(event.target.value);
+      depths.setParallax({ [data.depthParallax]: value });
+      render();
+      return;
+    }
+    if (data.shapeKeyDriver) {
+      const result = shapes.setDriver(data.shapeKeyDriver, event.target.value);
+      if (!result.ok) onStatus(result.message, 'error');
+      render();
+      return;
+    }
+    if (data.shapeKeyName) {
+      const result = shapes.rename(data.shapeKeyName, event.target.value);
+      if (!result.ok) onStatus(result.message, 'error');
+      render();
+      return;
+    }
     const field = event.target.dataset.pinField, id = event.target.dataset.pinId;
     if (field === 'angle' && id) {
       // An angle is a direction, not a number the pin keeps as it is.
@@ -161,10 +205,26 @@ export function createHoldingPanel(host, store, history, {
   });
 
   host.addEventListener('click', (event) => {
+    const chip = event.target.closest?.('[data-holding-topic]');
+    if (chip) {
+      topic = chip.dataset.holdingTopic;
+      // In place: the forms are already rendered, and rebuilding them would
+      // throw away whatever the author had half-typed in another one.
+      for (const button of host.querySelectorAll('[data-holding-topic]')) {
+        const on = button === chip;
+        button.classList.toggle('chip-active', on);
+        button.setAttribute('aria-pressed', String(on));
+      }
+      for (const pane of host.querySelectorAll('[data-holding-topic-panel]')) pane.hidden = pane.dataset.holdingTopicPanel !== topic;
+      return;
+    }
     const button = event.target.closest?.('button[data-holding-action]');
     if (!button) return;
     const { holdingAction: action, holdingId: id } = button.dataset;
     const said = (result) => { if (!result.ok) onStatus(result.message, 'error'); return result.ok; };
+    if (action === 'forget-shape') { said(shapes.remove(id)); render(); return; }
+    if (action === 'flatten') { said(depths.clearElementDepth(id)); render(); return; }
+    if (action === 'go-head') { onStatus('Head positions are on Rig ▸ Head 2.5D, one tab along.'); return; }
     if (action === 'remove-pin') { said(pins.remove(id)); render(); return; }
     if (action === 'remove-constraint') { said(constraints.remove(id)); render(); return; }
     if (action === 'show-pins') { select(id); onStatus(`${nameOf(id)} is selected: its pins are on the canvas. Drag one to move it, drag the small squares to set its reach.`); return; }
@@ -395,6 +455,20 @@ export function createHoldingPanel(host, store, history, {
   const section = host.closest?.('details');
   section?.addEventListener('toggle', () => { if (section.open && stale) render(); });
 
+  /**
+   * Which of the four things this panel is about is showing.
+   *
+   * Pins, the rules that shape them, the named points and the holds between
+   * them were one 1 073 px stack in an 836 px column -- the tallest thing on
+   * Rig ▸ Deform and most of the 1 085 px that screen hid below the fold. They
+   * are four topics an author works on one at a time, which is what the
+   * brief's own list for this screen says (§12, *Pins · Holds · Warp · Shape
+   * Keys · Depth*), so they are a strip and one shows (UX-60 PR 6).
+   *
+   * Session state on the panel, per tab; never anything the mascot is.
+   */
+  let topic = 'pins';
+
   function render() {
     if (section && !section.open) { stale = true; return; }
     stale = false;
@@ -414,10 +488,22 @@ export function createHoldingPanel(host, store, history, {
     host.dataset.holdingPins = String(groups.reduce((count, group) => count + group.pins.length, 0));
     host.dataset.holdingHolds = String(attachments.holds.length);
     host.dataset.holdingConstraints = String((state.rigConstraints || []).length);
+    const topics = [
+      { id: 'pins', label: 'Pins', count: groups.reduce((total, group) => total + group.pins.length, 0) },
+      { id: 'rules', label: 'Rules', count: (state.rigConstraints || []).length },
+      { id: 'points', label: 'Points', count: attachments.points.length },
+      { id: 'holds', label: 'Holds', count: attachments.holds.length },
+      { id: 'shapes', label: 'Shape keys', count: (state.shapeKeys || []).length },
+      { id: 'depth', label: 'Depth', count: Object.values(state.elements || {}).filter((item) => Number(item?.depth)).length }
+    ];
+    const showing = topics.some((entry) => entry.id === topic) ? topic : 'pins';
+    const strip = `<div class="holding-topics" role="group" aria-label="What to work on">${topics.map((entry) => `<button type="button" class="preset-chip${entry.id === showing ? ' chip-active' : ''}" data-holding-topic="${entry.id}" aria-pressed="${entry.id === showing}"><b>${esc(entry.label)}</b><small>${entry.count || ''}</small></button>`).join('')}</div>`;
+    const pane = (id, body) => `<section data-holding-topic-panel="${id}"${id === showing ? '' : ' hidden'}>${body}</section>`;
     host.innerHTML = `<div class="holding-panel" data-holding-panel>
       <datalist id="holding-movements">${known.map((name) => `<option value="${esc(name)}"></option>`).join('')}</datalist>
       <p class="small">A <b>pin</b> holds a piece of artwork by a point, and the artwork near it follows. Its reach is an ellipse, so a mouth's corner can hold the lip line without taking the upper lip with it. A <b>point</b> is a place on the mascot with a name. A <b>hold</b> puts one point on another and keeps it there.</p>
-      <h4>Pins</h4>
+      ${strip}
+      ${pane('pins', `
       ${pinForm(state)}
       ${ordered.length
         ? ordered.map((group) => `<section class="holding-group" data-holding-target="${esc(group.target)}"${group.target === current ? ' data-holding-selected="true"' : ''}>
@@ -427,11 +513,9 @@ export function createHoldingPanel(host, store, history, {
         : '<p class="small">None yet. Pin a path above: click where the pin goes, then drag it and its reach on the canvas.</p>'}
       ${restoreRow(state, groups)}
       ${groups.length ? togetherForm(known) : ''}
-      ${hasSurfacePins(state) ? '<p class="small">The head carries its silhouette pins: the near cheek comes round as it turns, and the far one compresses.</p>' : ''}
-
-      ${constraintSection(rigConstraintModel(state), { pieces: Object.keys(state.elements || {}), movements: known })}
-
-      <h4>Points that can be held</h4>
+      ${hasSurfacePins(state) ? '<p class="small">The head carries its silhouette pins: the near cheek comes round as it turns, and the far one compresses.</p>' : ''}`)}
+      ${pane('rules', constraintSection(rigConstraintModel(state), { pieces: Object.keys(state.elements || {}), movements: known }))}
+      ${pane('points', `
       ${attachments.points.length
         ? bySpace(attachments.points).map(([space, points]) => `<section class="holding-group" data-holding-space="${esc(space)}">
             <b>${esc(space)}</b>
@@ -446,9 +530,8 @@ export function createHoldingPanel(host, store, history, {
         <label>on<select data-point-target aria-label="The artwork to put it on">${Object.keys(state.elements || {}).map((id) => `<option value="${esc(id)}">${esc(id)}</option>`).join('')}</select></label>
         <label>part of<select data-point-space aria-label="What the new point is part of">${ATTACHMENT_SPACES.map((space) => `<option value="${space}">${space}</option>`).join('')}</select></label>
         <button type="button" data-holding-action="add-own-point">Name it</button>
-      </form>
-
-      <h4>Holds</h4>
+      </form>`)}
+      ${pane('holds', `
       ${attachments.holds.length
         ? attachments.holds.map((hold) => `<div class="holding-row" data-holding-hold="${esc(hold.id)}">
             <b>${esc(hold.hold)}</b> on <b>${esc(hold.to)}</b>${hold.ready ? '' : ' <small class="small">a point is missing</small>'}
@@ -462,8 +545,81 @@ export function createHoldingPanel(host, store, history, {
             <label>on<select data-holding-anchor aria-label="The point it holds on to">${attachments.points.map((point, index) => `<option value="${esc(point.id)}"${index === 1 ? ' selected' : ''}>${esc(point.id)}</option>`).join('')}</select></label>
             <button type="button" data-holding-action="hold">Hold it</button>
           </form>`
-        : '<p class="small">Name two points before one can hold the other.</p>'}
+        : '<p class="small">Name two points before one can hold the other.</p>'}`)}
+      ${pane('shapes', shapeKeysBody(state, known))}
+      ${pane('depth', depthBody(state))}
     </div>`;
+  }
+
+
+  /**
+   * Every shape key the project has, and what moves it (UX-60 PR 8,
+   * docs/SHAPE_KEYS.md).
+   *
+   * The editor could already *make* these — a head-pose cell, a face state and
+   * a morph movement all capture one — and then had no surface at all for the
+   * set of them. So a key whose driver was wrong, or whose driver had been
+   * deleted with the movement it named, was a deformation nobody could find,
+   * rename, re-drive or remove. §12 lists *Shape Keys* as one of this screen's
+   * capabilities and this is it.
+   *
+   * What a key is *made of* stays where it was captured: the outline is posed
+   * on the canvas, and this is the register.
+   */
+  function shapeKeysBody(state, known) {
+    const keys = state.shapeKeys || [];
+    if (!keys.length) {
+      return `<p class="small">None yet. A shape key is the difference between a piece's rest outline and a posed one: capture one on a head position (<button type="button" class="link" data-holding-action="go-head">Rig ▸ Head 2.5D</button>), on a face state, or by giving a movement the <b>Change shape</b> method in Rig ▸ Controls.</p>`;
+    }
+    const where = (key) => (key.faceState ? `${esc(key.faceState.kind)} · ${esc(key.faceState.slot)}` : key.generatedBy?.control ? `${esc(key.generatedBy.control)}` : 'posed by hand');
+    const row = (key) => {
+      const parameter = key.driver?.mode === 'range' ? key.driver.parameter : '';
+      const broken = parameter && !known.includes(parameter);
+      return `<li class="shape-key-row" data-shape-key="${esc(key.id)}"${broken ? ' data-shape-key-broken="true"' : ''}>
+        <input class="shape-key-name" data-shape-key-name="${esc(key.id)}" value="${esc(key.name)}" aria-label="What to call this shape key">
+        <small class="small">deforms <b>${esc(nameOf(key.target))}</b> · ${where(key)}</small>
+        <label class="small">Moved by <select data-shape-key-driver="${esc(key.id)}" aria-label="What moves ${esc(key.name)}"><option value=""${parameter ? '' : ' selected'}>nothing on its own</option>${known.map((name) => `<option value="${esc(name)}"${name === parameter ? ' selected' : ''}>${esc(name)}</option>`).join('')}${broken ? `<option value="${esc(parameter)}" selected>${esc(parameter)} (gone)</option>` : ''}</select></label>
+        ${broken ? `<small class="small" data-shape-key-warning>“${esc(parameter)}” is not a movement this mascot has any more.</small>` : ''}
+        <button type="button" class="secondary" data-holding-action="forget-shape" data-holding-id="${esc(key.id)}" aria-label="Forget ${esc(key.name)}" title="Forget it. The rest outline is not touched.">×</button>
+      </li>`;
+    };
+    return `<p class="small">A shape key is a difference applied at draw time: forgetting one leaves the artwork exactly as it was. <b>Moved by</b> is the movement that fades it in.</p>
+      <ul class="expression-list shape-key-list" aria-label="Shape keys">${keys.map(row).join('')}</ul>`;
+  }
+
+  /**
+   * How far in front of or behind the face each piece sits (UX-60 PR 8,
+   * docs/DEPTH_PARALLAX.md).
+   *
+   * There is no Z axis and no camera: a scalar per element, a sideways nudge of
+   * `headX · depth · amount`, and a band crossing that reorders the drawing.
+   * The runtime has read all of it since 3D-03 and **nothing in the editor
+   * wrote it**: the face library sets it on the glasses and the hat, the hand
+   * rig sets it on a pair of hands, and no screen could give a piece a depth,
+   * read the one it has, or turn the nudge off.
+   */
+  function depthBody(state) {
+    const parallax = state.parallax || {};
+    const current = selectedId();
+    const entries = Object.entries(state.elements || {})
+      .map(([id, element]) => ({ id, depth: Number(element?.depth) || 0 }))
+      .filter((entry) => entry.depth || entry.id === current)
+      .sort((a, b) => b.depth - a.depth);
+    const row = (entry) => `<li class="depth-row" data-depth-row="${esc(entry.id)}"${entry.id === current ? ' data-depth-selected="true"' : ''}>
+      <b>${esc(nameOf(entry.id))}</b>
+      <small class="small" data-depth-band="${esc(depthBand(entry.depth, parallax))}">${esc(depthBand(entry.depth, parallax))}${entry.id === current ? ' · selected' : ''}</small>
+      <label class="small"><span class="visually-hidden">Depth of ${esc(nameOf(entry.id))}</span><input type="range" min="-1" max="1" step="0.05" data-depth-field="${esc(entry.id)}" value="${entry.depth}" aria-label="Depth of ${esc(nameOf(entry.id))}"><output data-depth-output="${esc(entry.id)}">${entry.depth.toFixed(2)}</output></label>
+      ${entry.depth ? `<button type="button" class="secondary" data-holding-action="flatten" data-holding-id="${esc(entry.id)}" aria-label="Put ${esc(nameOf(entry.id))} back flat">Flat</button>` : ''}
+    </li>`;
+    return `<p class="small">A piece with a depth drifts sideways as the head turns — <b>headX · depth · amount</b> — and crossing a band puts it in front of or behind the face. ${DEPTH_BANDS.join(' · ')}.</p>
+      <div class="depth-settings">
+        <label class="check"><input type="checkbox" data-depth-parallax="enabled"${parallax.enabled === false ? '' : ' checked'}> The nudge runs</label>
+        <label class="small">How far<input type="number" min="0" max="40" step="1" data-depth-parallax="amount" value="${Number(parallax.amount) || 0}" aria-label="How far the nudge goes"></label>
+        <label class="check"><input type="checkbox" data-depth-parallax="drawOrder"${parallax.drawOrder === false ? '' : ' checked'}> A band may reorder the drawing</label>
+      </div>
+      ${entries.length
+        ? `<ul class="expression-list depth-list" aria-label="Pieces with a depth">${entries.map(row).join('')}</ul>`
+        : '<p class="small">No piece has a depth yet. Select one on the canvas and it appears here with a slider.</p>'}`;
   }
 
   return { render };

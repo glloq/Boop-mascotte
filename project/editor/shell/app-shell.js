@@ -29,7 +29,9 @@ import { PANEL_MODES, surfaceToMode } from '../ui/task-router.js';
 import { readinessVerdict } from '../core/validation/task-readiness.js';
 import { topbarMarkup, wireTopbar } from './topbar.js';
 import { createWorkspaceNav } from './workspace-nav.js';
-import { sideNavHosts, sideNavMarkup, setSetupSections } from './side-nav.js';
+import { sideNavHosts, sideNavMarkup, setCapability, setSetupSections } from './side-nav.js';
+import { readCapabilities, wireCapabilityBar, writeCapabilities } from '../ui/capability-bar.js';
+import { wireChipStrip } from '../ui/chip-strip.js';
 import { canvasColumnMarkup, wireCanvasColumn } from './canvas-column.js';
 import { inspectorHostMarkup, inspectorHosts } from './inspector-host.js';
 import { bottomDockMarkup, wireBottomDock } from './bottom-dock.js';
@@ -57,13 +59,21 @@ export function createAppShell(root) {
 
   q('.skip-link').addEventListener('click', (event) => { event.preventDefault(); q('#canvas').focus(); });
   // A section an author opened stays open, on whichever screen shows it.
+  //
+  // Except a capability: which one of those is showing is the tab strip's
+  // answer, per screen (UX-60 PR 3), and remembering a disclosure state for it
+  // would be a second answer that disagrees -- and a `localStorage` write for
+  // each of the thirteen the shell opens and shuts on every change of screen.
   root.addEventListener('toggle', (event) => {
     const id = event.target?.dataset?.setupSection;
-    if (!id) return;
+    if (!id || event.target.closest('[data-capability-host]')) return;
     preferences.openSections = { ...preferences.openSections, [id]: event.target.open };
     savePreferences();
   }, true);
 
+  // Strips declared in the markup rather than rendered by a panel: Assemble's
+  // "Or bring a picture / add a part / start over" is one (UX-60 PR 7).
+  wireChipStrip(root);
   const dock = wireBottomDock({ root, q, preferences, savePreferences });
   const canvas = wireCanvasColumn({ root, q, qAll, preferences, savePreferences });
   const overlays = wireOverlays({ root, q, qAll });
@@ -104,6 +114,33 @@ export function createAppShell(root) {
    */
   const splitter = wirePanelSplitter({ root, mode: () => MODES[root.dataset.mode] || null });
 
+  /* ── Capabilities, as tabs rather than as a stack of shut accordions ─────
+   *
+   * UX-60 PR 3. The Rig column held nine `<details>`, twelve of thirteen shut
+   * on arrival, and 3 206 px of structure below its own bottom. The sections
+   * of the screen that is open are a tab strip now, and one of them shows.
+   */
+  const modeFor = () => MODES[root.dataset.mode] || null;
+  const capabilities = readCapabilities();
+  let capabilitySummaries = {};
+  const paintCapabilities = () => setCapability(root, {
+    mode: modeFor()?.label,
+    sections: modeFor()?.sections || [],
+    active: capabilities[modeFor()?.id],
+    summaries: capabilitySummaries
+  });
+  wireCapabilityBar(root, {
+    ids: () => modeFor()?.sections || [],
+    active: () => paintCapabilities(),
+    onOpen: (id) => {
+      const current = modeFor();
+      if (!current || !id) return;
+      capabilities[current.id] = id;
+      writeCapabilities(capabilities);
+      paintCapabilities();
+    }
+  });
+
   const nav = createWorkspaceNav({
     root, preferences, savePreferences,
     // The nav owns the fold; the project bar owns the label that offers it.
@@ -117,6 +154,8 @@ export function createAppShell(root) {
       // The screen's own column widths, or whatever the author dragged them to
       // on this screen last.
       splitter.paint();
+      // And the capability this screen was left on, or its first.
+      paintCapabilities();
     },
     resetScroll: () => { hosts.leftSidebarEl.scrollTop = 0; const right = root.querySelector('.panel-right'); if (right) right.scrollTop = 0; }
   });
@@ -128,7 +167,28 @@ export function createAppShell(root) {
     /** The column widths, for a test or a caller that changes the window. */
     repaintSplit: () => splitter.paint(),
     /** Section headings say what is inside without opening it. */
-    setSetupSections: (sections) => setSetupSections(root, sections),
+    setSetupSections: (sections) => {
+      setSetupSections(root, sections);
+      // The headings still say how ready each capability is; the bar above them
+      // shows the same mark, so a capability that is set up says so without
+      // being opened (UX-60 PR 3).
+      capabilitySummaries = Object.fromEntries((sections || []).map((item) => [item.id, { state: item.state, summary: item.summary }]));
+      paintCapabilities();
+    },
+    /**
+     * Which capability of the current screen is showing.
+     *
+     * Session state, per screen, exactly like a column width: where the author
+     * is standing, never anything the mascot is (§ invariants).
+     */
+    openCapability(id) {
+      const current = modeFor();
+      if (!current || !id) return null;
+      capabilities[current.id] = id;
+      writeCapabilities(capabilities);
+      return paintCapabilities();
+    },
+    activeCapability: () => paintCapabilities(),
     /**
      * Open the advanced States & behaviors editor.
      *
@@ -146,6 +206,13 @@ export function createAppShell(root) {
       // tools, Problems, the palette, a validation Fix -- so the screen it lives
       // on is opened here rather than in each of them.
       if (PANEL_MODES[id]) nav.applyMode(PANEL_MODES[id]);
+      // A capability is reached by pressing its tab, not by opening its
+      // disclosure: a section the bar has not selected is `hidden`, so opening
+      // it would leave the deep link on a panel that is open and invisible
+      // (UX-60 PR 3). The tab does the opening, and does it the way an author
+      // would.
+      const capability = panel.closest('[data-capability-host] [data-setup-section]')?.dataset.setupSection;
+      if (capability) this.openCapability(capability);
       // Open first, scroll second: a panel inside a collapsed section has no
       // position to scroll to yet.
       for (let node = panel; node && node !== root; node = node.parentElement) if (node.tagName === 'DETAILS' && !node.open) node.open = true;
@@ -166,7 +233,7 @@ export function createAppShell(root) {
     },
     renderProjectUi({loaded,features,core=[],featureCompatible=false}){q('.core-list').hidden=!loaded;q('#core-status').innerHTML=core.map(item=>`<p>${item.ready?'✓':'●'} ${item.label}</p>`).join('');q('.feature-list').classList.toggle('incompatible',!featureCompatible);for(const [id,state] of Object.entries(features)){const button=root.querySelector(`[data-add-feature="${id}"]`);const note=root.querySelector(`[data-feature-reason="${id}"]`);const installed=Boolean(state?.installed),available=Boolean(state?.available),reason=state?.reason||'';if(button){button.textContent=installed?'✓ Added':'+ Add';button.disabled=installed||!available;button.title=reason;}
       if(note){note.textContent=reason;note.hidden=!reason;}}},
-    onWorkspaceChange(handler) { root.addEventListener('workspacechange', (event) => handler(event.detail.workspace)); },
+    onWorkspaceChange(handler) { root.addEventListener('workspacechange', (event) => handler(event.detail.workspace, event.detail.mode)); },
     setWorkspace(surface) { nav.applyMode(surfaceToMode(surface)); },
     bindAddFeature(handler) { q('.feature-list').addEventListener('click', (event) => event.target.dataset.addFeature && handler(event.target.dataset.addFeature, event.target)); },
     bindGenerateFace(handler) {

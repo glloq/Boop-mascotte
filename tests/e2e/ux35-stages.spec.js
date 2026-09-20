@@ -133,8 +133,21 @@ test('@critical every screen shows its own subject and nobody else\'s', async ({
     await goToMode(page, mode);
     for (const id of all) {
       const section = page.locator(`[data-setup-section="${id}"]`);
-      if (own.includes(id)) await expect(section, `${id} is missing from ${mode}`).toBeVisible();
-      else await expect(section, `${id} is still on ${mode}`).toBeHidden();
+      const tab = page.locator(`[data-capability="${id}"]`);
+      if (!own.includes(id)) {
+        await expect(section, `${id} is still on ${mode}`).toBeHidden();
+        await expect(tab, `${id} is still offered on ${mode}`).toHaveCount(0);
+        continue;
+      }
+      // A screen's own capabilities are a tab strip now, and one panel shows
+      // (UX-60 PR 3). "On this screen" is therefore *named on the bar and one
+      // press away*, not "all five stacked open at once" -- which is what this
+      // asserted, and what the strip replaced.
+      if (own.length > 1) {
+        await expect(tab, `${id} is missing from ${mode}`).toBeVisible();
+        await tab.click();
+      }
+      await expect(section, `${id} is missing from ${mode}`).toBeVisible();
     }
   }
 

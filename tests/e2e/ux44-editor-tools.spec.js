@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToMode, hitTestablePoint, openArtwork, openFreshEditor, openSetupSection, startBasicFace, startBlankCanvas } from './editor-helpers.js';
+import { goToMode, hitTestablePoint, openAddParts as openAddPartsStrip, openArtwork, openFreshEditor, openSetupSection, startBasicFace, startBlankCanvas } from './editor-helpers.js';
 import { FACE_PALETTE } from '../../project/editor/core/sample/templates/face-artwork.js';
 
 /**
@@ -20,7 +20,7 @@ import { FACE_PALETTE } from '../../project/editor/core/sample/templates/face-ar
  * docs/DESIGN_SCREENS.md). No disclosure to open any more.
  */
 const openAddParts = async (page) => {
-  await goToMode(page, 'design.assemble');
+  await openAddPartsStrip(page);
   await expect(page.locator('[data-feature-card="eyelids"]')).toBeVisible();
 };
 
@@ -248,8 +248,9 @@ test('@critical a part is added to a face somebody drew, fitted to it', async ({
 
   // The preset artwork is the template's, and this face is not the template's.
   // It used to be refused outright ("compatible starter faces" only).
-  // The parts that go on whole are on Assemble, in the open (UIR-18).
-  await goToMode(page, 'design.assemble');
+  // The parts that go on whole are on Assemble, one chip along from the
+  // library (UIR-18, UX-60 PR 7).
+  await openAddPartsStrip(page);
   const brows = page.locator('[data-add-feature="eyebrows"]');
   await expect(brows).toBeEnabled();
   await brows.click();

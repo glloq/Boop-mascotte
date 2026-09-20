@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openAdvanced, openFreshEditor, openRigBench, openTask, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
+import { openAdvanced, openFreshEditor, openPreviewSection, openRigBench, openTask, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const effective = (page, name) => page.evaluate((key) => window.__BOOP_E2E__.effectiveParams()[key], name);
@@ -60,7 +60,8 @@ test('the deformation systems a project carries are listed instead of invisible'
   const detail = panel.locator('[data-advanced-detail="deformation"]');
   await expect(detail).toBeVisible();
   await expect(detail.locator('[data-deformation-row]')).toHaveCount(6);
-  await expect(detail.locator('[data-deformation-row="shapeKeys"]')).toContainText('No editor yet');
+  await expect(detail.locator('[data-deformation-row="deformers"]')).toContainText('No editor yet');
+  await expect(detail.locator('[data-deformation-row="shapeKeys"]'), 'shape keys got a surface with UX-60 PR 8').toContainText('Rig ▸ Deform → Shape keys');
   // The listing names the screen that edits each system, in the words the
   // navigation uses (UIR-10): keyforms are captured on Rig ▸ Head 2.5D.
   await expect(detail.locator('[data-deformation-row="keyforms"]')).toContainText('Rig ▸ Head 2.5D');
@@ -88,6 +89,7 @@ test('@critical the motion cross-fade is authored, and playing one motion hands 
   await page.getByRole('button', { name: 'Add Shake motion' }).click();
   await page.locator('[data-motion-stop]').click();
   await openTask(page, 'preview');
+  await openPreviewSection(page, 'animations');
   await page.locator('[data-preview-clip="nod"]').click();
   await expect.poll(() => page.evaluate(() => Object.keys(window.__BOOP_E2E__.motionWeights()).length)).toBe(1);
   await page.locator('[data-preview-clip="shake"]').click();

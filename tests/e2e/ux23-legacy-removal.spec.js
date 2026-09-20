@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { openFreshEditor, startBasicFace, goToPreview } from './editor-helpers.js';
+import { goToPreview, openFreshEditor, openPreviewSection, revealPreviewItem, startBasicFace } from './editor-helpers.js';
 
 // UX-23: the pre-UX-03 Canvas empty state and the "Try your mascot" demo bar are gone.
 // Their capabilities live on Home (UX-03), Artwork and the Preview animations chips (UX-08).
@@ -37,6 +37,7 @@ test('@critical legacy empty state and demo bar are removed; Home, Artwork and P
   await goToPreview(page);
   const before = await page.evaluate(() => window.__BOOP_E2E__.documentRevisions());
   const clip = page.locator('[data-preview-section="animations"] [data-preview-clip="look-around"]');
+  await revealPreviewItem(page, 'animations', '[data-preview-section="animations"] [data-preview-clip="look-around"]');
   await clip.click();
   await expect(clip).toHaveAttribute('aria-pressed', 'true');
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.diagnostics().preview.playing)).toBe(true);

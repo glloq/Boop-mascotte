@@ -29,6 +29,21 @@
  * `resolveSplit` exactly as before, which is what keeps the migration one
  * screen at a time (§33). It writes nothing to the document and nothing to
  * disk: where the author is standing is session state (§ invariants).
+ *
+ * ## Which screens have one, and why the rest wait
+ *
+ * A `stage` share sizes **the canvas column**, and that column is only the
+ * mascot on the screens where the mascot is all it holds. On Behavior it holds
+ * the *board* (#160, "the board is the workspace"), so sizing it as a stage
+ * crushes the surface the screen is about -- which is exactly what happened
+ * the first time this was wired for all fourteen screens at once, and what
+ * `ux39-state-graph` caught.
+ *
+ * So the migrated set is the screens whose column is a mascot and nothing
+ * else: Assemble, Hands, Assign, Controls, Expressions, Motions. The drawing
+ * screens (Draw, Head 2.5D, Deform), the Timeline, Behavior and Preview keep
+ * the old arithmetic until their own layout primitive lands, because each of
+ * them wants something the share alone cannot express.
  */
 
 /**
@@ -57,6 +72,22 @@ export const STAGE_SIZES = Object.freeze({
 
 /** A stage never shrinks below this, or it stops being a mascot and becomes a stamp. */
 export const MIN_STAGE_PX = 240;
+
+/**
+ * How wide the detail column may get before the extra room is wasted on it.
+ *
+ * The columns divide what the stage leaves *in proportion*, which is right for
+ * the one the work is in and wrong for the one beside it: the Inspector on
+ * Rig ▸ Controls is eight lines of a selected part, and a 1920 window gave it
+ * 555 px of them. An Inspector is a column of labelled fields; past about four
+ * hundred pixels a wider one is the same fields with more space after them.
+ *
+ * So it is capped and the work takes the remainder -- which is the same
+ * sentence as the stage share, one column further in. A route may say its own
+ * `layout.rightMax`, and `null` opts out for a screen whose right-hand column
+ * is a second work area rather than a detail.
+ */
+export const MAX_DETAIL_PX = 420;
 
 /**
  * How the stage behaves when the drawing does not fill it.
@@ -132,23 +163,60 @@ export function columnsForStage(mode, available = 0, saved = {}) {
   const stage = clamp(Math.round(available * share), MIN_STAGE_PX, Math.round(available * 0.9));
   const budget = Math.max(0, available - stage);
 
-  // What the screen asked for, as a ratio. `layout` keeps its pixel pair --
-  // fourteen screens and a stylesheet speak it -- and it is read as a shape
-  // here rather than as two measurements.
-  //
   // Nullish rather than falsy, because **zero is an answer**: a control screen
   // asking for `right: 0` is saying its detail lives inside the deck rather
   // than in a third permanent column (§22), and `|| 300` would have given it
   // one anyway.
-  const pick = (...values) => { for (const value of values) if (Number.isFinite(Number(value)) && value !== null && value !== undefined && value !== '') return Number(value); return null; };
-  const wanted = {
-    left: pick(saved?.left, mode?.layout?.left) ?? 320,
-    right: pick(saved?.right, mode?.layout?.right) ?? 300
-  };
-  // A screen with one column: `right: 0` means the detail lives in the task
-  // area, which is the whole point of the control layout (§12).
+  const pick = (value) => (value === null || value === undefined || value === '' || !Number.isFinite(Number(value)) ? null : Number(value));
+
+  /**
+   * A width the author dragged is a **width**, not a proportion.
+   *
+   * This read the saved pair as a ratio like the route's own, and a drag to
+   * 500 px came back as 25: the ratio was computed against a column the author
+   * had not touched, so the number they let go of was not the number they got.
+   * A drag says "this side is this wide"; the other side takes the rest of the
+   * task area, and the stage is not part of the bargain.
+   */
+  const dragged = { left: pick(saved?.left), right: pick(saved?.right) };
+  if (dragged.left !== null || dragged.right !== null) {
+    const side = dragged.left !== null ? 'left' : 'right';
+    const held = clamp(dragged[side], 0, budget);
+    return side === 'left'
+      ? { left: held, right: budget - held, stage }
+      : { left: budget - held, right: held, stage };
+  }
+
+  // Nothing dragged: the screen's own pair, read as the *shape* it wants.
+  // `layout` keeps its pixels -- fourteen screens and a stylesheet speak it --
+  // and the shape is what survives a change of monitor.
+  const wanted = { left: pick(mode?.layout?.left) ?? 320, right: pick(mode?.layout?.right) ?? 300 };
   const total = wanted.left + wanted.right;
   if (!total) return { left: budget, right: 0, stage };
-  const left = Math.round((budget * wanted.left) / total);
-  return { left, right: budget - left, stage };
+  let left = Math.round((budget * wanted.left) / total);
+  let right = budget - left;
+  // The detail column stops growing, and the work gets what it would have had.
+  const ceiling = 'rightMax' in (mode?.layout || {}) ? pick(mode.layout.rightMax) : MAX_DETAIL_PX;
+  if (ceiling !== null && right > ceiling && wanted.right > 0) { right = ceiling; left = budget - right; }
+  return { left, right, stage };
+}
+
+/**
+ * How wide one column may be dragged, on a screen that declares a stage.
+ *
+ * `panel-split.js`'s own clamp measures against `minCanvas` -- the 52 % floor
+ * under the canvas -- and on a staged screen that floor is exactly what the
+ * stage share replaced. Worse, the splitter re-reads the *other* column on
+ * every pointer move, so a clamp computed from a floor that no longer applies
+ * shrank the budget on each step and a drag of a hundred pixels spiralled down
+ * to twenty-five.
+ *
+ * The bound here is the task area itself: a column may take all of it but the
+ * other column's floor, and the stage is never part of the bargain.
+ */
+export function clampStageColumn(mode, available = 0, width = 0, { floor = 200 } = {}) {
+  const columns = columnsForStage(mode, available);
+  if (!columns) return null;
+  const budget = available - columns.stage;
+  return clamp(Math.round(Number(width) || 0), 0, Math.max(0, budget - floor));
 }

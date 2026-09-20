@@ -21,11 +21,16 @@ test('a screen asks for the width its work needs', () => {
   assert.deepEqual(splitForMode(MODES['design.hands']), { left: 400, right: 250 });
   assert.deepEqual(splitForMode(MODES['rig.controls']), { left: 400, right: 320 });
   // On Behavior the right-hand column is the tuning surface — an easing curve,
-  // a waveform, a timing bar — rather than a strip of fields, so it is the
-  // wider of the two (docs/BEHAVIOR_STUDIO.md). All three of its screens ask
-  // for the same shape, because all three are the same board.
+  // a waveform, a timing bar — rather than a strip of fields
+  // (docs/BEHAVIOR_STUDIO.md). It used to be the wider of the two for that
+  // reason, and the reason stopped holding: the tuning rail fits its column
+  // now that a state's twenty-six sliders are a group at a time (UX-60 PR 6),
+  // while the left column holds a catalogue of twenty-one presets *and* the
+  // whole inventory of what runs, and was hiding 1 968 px of it. The work took
+  // the difference. All three screens still ask for the same shape, because
+  // all three are the same board.
   for (const mode of ['behavior.reactions', 'behavior.automatic', 'behavior.stateMachine']) {
-    assert.deepEqual(splitForMode(MODES[mode]), { left: 300, right: 340 }, mode);
+    assert.deepEqual(splitForMode(MODES[mode]), { left: 430, right: 320 }, mode);
   }
   // And a screen that says nothing still gets something: the one default, not
   // an empty column.

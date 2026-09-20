@@ -38,6 +38,9 @@ import {
   handStyleThumbnail, handStyleViewBox
 } from '../../core/hands/hand-style-art.js';
 import { HAND_SET_LIBRARY } from '../../core/hands/hand-set.js';
+
+/** How big one drawing is in a look's preview strip, in the set's own units. */
+const HAND_PREVIEW_SIZE = 44;
 import { installedHandLook } from '../../core/sample/hand-feature.js';
 import { handStates, OTHER_SIDE } from '../../core/hands/hand-state-model.js';
 import { handDrawingIsCustom } from '../../core/hands/hand-drawing.js';
@@ -126,13 +129,31 @@ function actionsMarkup(hand, state) {
  * it afterwards means drawing them again — and placement stays Rig's, with its
  * own door below.
  */
+/**
+ * The screen before there are any hands (UX-60 PR 8).
+ *
+ * This was a heading, a sentence, one button and a `<select>` of looks —
+ * eight controls in a 620 px column on a *browse* screen, which is a
+ * screenful of nothing. A look is a picture, and the only honest way to
+ * choose between pictures is to show them: each look is a card with the
+ * drawings it would make, and pressing it draws the pair in that look. One
+ * press either way, and the press says what you are getting.
+ */
 function nothingDrawnMarkup(looks = []) {
-  const choice = looks.length > 1
-    ? `<label class="small">Look <select data-hand-states-look aria-label="Hand look">${looks.map((look) => `<option value="${esc(look.id)}"${look.current ? ' selected' : ''}>${esc(look.name)}</option>`).join('')}</select></label>`
-    : '';
+  const shown = ['relaxed', 'open', 'point', 'thumbsUp'];
+  const card = (look) => {
+    const size = HAND_PREVIEW_SIZE, span = size * shown.length;
+    const drawings = shown.map((style, index) =>
+      handStyleThumbnail('left', style, { at: { x: index * size - span / 2 + size / 2, y: 0 }, size: size * 0.86, look: look.id })).join('');
+    return `<article class="hand-look-card${look.current ? ' hand-look-current' : ''}" data-hand-look-card="${esc(look.id)}">
+      <svg class="hand-look-preview" viewBox="${-span / 2} ${-size / 2} ${span} ${size}" aria-hidden="true" focusable="false">${drawings}</svg>
+      <b>${esc(look.name)}</b>
+      <button type="button" data-hand-states-draw data-hand-states-look-pick="${esc(look.id)}" aria-label="Draw a pair of ${esc(look.name.toLowerCase())} hands">✋ Draw a pair</button>
+    </article>`;
+  };
   return `<section class="hand-states" data-hand-states="none"><h3>No hands yet</h3>
-    <p class="small">A pair arrives in one press, rigged, with a state for every drawing in the set.</p>
-    <div class="hand-actions"><button type="button" data-hand-states-draw>✋ Draw a pair of hands</button>${choice}</div>
+    <p class="small">A pair arrives in one press, rigged, with a state for every drawing in the set. Pick the look you want them drawn in.</p>
+    <div class="hand-look-cards">${looks.map(card).join('')}</div>
     <p class="small">Where each hand sits on the body is a movement, so it is set in <button type="button" class="link" data-hand-states-route="hand-setup">Rig › Controls</button>.</p></section>`;
 }
 
@@ -229,7 +250,7 @@ export function createHandStatesPanel(host, {
         if (data.handGestureForget) { onForget(data.handGestureForget); return; }
         if (data.handSetExport !== undefined) { onExportSet(); return; }
         if (data.handStatesRoute) { onRoute(data.handStatesRoute); return; }
-        if (data.handStatesDraw !== undefined) { onDrawPair?.(host.querySelector('[data-hand-states-look]')?.value || look || null); return; }
+        if (data.handStatesDraw !== undefined) { onDrawPair?.(data.handStatesLookPick || host.querySelector('[data-hand-states-look]')?.value || look || null); return; }
         const state = chosen();
         if (!state) return;
         if (data.handStateUse !== undefined) onUse(state.side, state.id);
