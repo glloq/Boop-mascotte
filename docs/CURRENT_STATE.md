@@ -210,7 +210,15 @@ it:
 ux14-event-simulator:74       hover reaction does not clear within 4 s
 ux33-artboard:113             the clip paragraph does not name `headShape`
 ux38-publish:41               Home is still open, so the project never loaded
+ux22-stress:18                the click reaction never fires (line 52)
 ```
+
+`ux22-stress` is the newest of them and the one to watch: it passed earlier in
+the same session and now fails 3 runs out of 3 on `origin/main` **and** on the
+branch, at the same line and on an otherwise idle machine. Whatever it is, it
+is not a regression from either; a test that can pass and then consistently
+fail on unchanged code is a test with a real timing dependency in it, and the
+reaction that never fires is worth its own look.
 
 The last three are unexplained and worth a look of their own; none of them
 touches a surface this programme has changed.
