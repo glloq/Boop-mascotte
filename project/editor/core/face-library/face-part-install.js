@@ -408,9 +408,24 @@ export function applyFacePartReplacement(candidate, plan, { asset, artwork, rena
       assignSemanticRole(candidate, other.id, role, id);
       drawnRoles[role] = id;
     }
+    // And the roles it plays that the asset drew **under its own name**.
+    //
+    // One shape plays one role, so a mouth that draws a tongue cannot also list
+    // it under the tongue part: `validateFacePart` refuses the second mention at
+    // the door, and rightly. But the tongue part moves that tongue -- the mouth
+    // says whether it shows, the tongue part says where it is -- so it has to
+    // reach it somehow. It reaches it here, before its movements are refreshed,
+    // which is the one moment at which a shaped movement can still be built for
+    // it. The loop over `cleared` further down does the same for a part the
+    // asset does *not* draw at all; this is its half for one that it does.
+    for (const role of SEMANTIC_PART_REGISTRY[type]?.roles || []) {
+      if (role in drawn.roles || !roleElements[role]) continue;
+      assignSemanticRole(candidate, other.id, role, roleElements[role]);
+      drawnRoles[role] = roleElements[role];
+    }
     refreshControls(candidate, other, { wanted: [...(other.controls || [])], supported: new Set(drawn.capabilities), hints: drawn.drivers || {}, enabled, disabled, fresh: !had && !other.controls?.length, roleElements: drawnRoles });
     recordTurnProfiles(other, drawn.turn);
-    composite[type] = { partId: other.id, roles: Object.fromEntries(Object.entries(drawn.roles).map(([role, elementId]) => [role, idOf(elementId)])) };
+    composite[type] = { partId: other.id, roles: { ...drawnRoles } };
   }
   // A skull that ships a jaw pose: the jaw part takes the skull, and the pose
   // becomes a shape key on it, driven as the template's own (`mouthOpen +
@@ -880,10 +895,12 @@ function installShapedControl(candidate, part, control, hint, roleElements) {
     if (!element || element.meta?.nodeType !== 'path' || !rest || !posePath) continue;
     const shape = createShapeKey({
       id: `${id}-${control}`, target: id, name: `${id} ${control}`, restPath: rest, posePath,
-      // The asset's own sentence where it gives one, the movement's otherwise --
-      // so the side offsets an author may turn on later carry the asymmetry with
-      // no second mechanism (`enableSemanticSideControl`).
-      driver: { mode: 'expression', expression: hint.expression || controlExpression(definition, part, control, role), curve: 'linear', amplitude: 1, offset: 0 },
+      // The role's own sentence where it has one, the asset's otherwise --
+      // the lower row of teeth shows later than the upper one on the same
+      // control (docs/MOUTH_BUILD.md) -- and the part's own where neither says,
+      // so the side offsets an author may turn on later carry the asymmetry
+      // with no second mechanism (`enableSemanticSideControl`).
+      driver: { mode: 'expression', expression: hint.roles?.[role]?.expression || hint.expression || controlExpression(definition, part, control, role), curve: 'linear', amplitude: 1, offset: 0 },
       generatedBy: { semanticPart: part.id, control }
     });
     if (!shape.ok) continue;

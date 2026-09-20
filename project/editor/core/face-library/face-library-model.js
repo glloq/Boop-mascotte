@@ -2,12 +2,12 @@
  * What the face part library offers this mascot, as data
  * (docs/FACE_PART_LIBRARY.md).
  *
- * The library ships **a hundred and fifty drawings** — heads, eyes, brows,
- * noses, mouths, ears, hair, facial hair and accessories, plus the animal,
- * robot and bird packs — and for a while nothing in the editor could reach
- * one. `facePartCommands.replace()` had no caller: the Character Builder that
- * used to drive it was taken out and nothing replaced it, so an author could
- * *add* to a library (••• → Import face pack) they could not browse or use.
+ * The library holds a hundred and thirty-two drawings, and **offers
+ * forty-two**: the human heads, eyes, brows, noses, mouth, ears, hair, facial
+ * hair and accessories. The other ninety are the animal, robot and bird packs,
+ * which V6 declassed to legacy — kept, so that a face already wearing one goes
+ * on opening and wearing it, and not offered, because the editor is about human
+ * faces (`face-catalogue.js`; §3 of the V6 brief).
  *
  * This is the reading half. It says, per category, which drawings there are,
  * which one the face is wearing, and what installing one would do — and it
@@ -27,6 +27,7 @@ import { FACE_PART_CATEGORIES, describeFacePartCapabilities, facePartCategory, p
 import { remapArtworkIds } from './face-part-artwork.js';
 import { morphologiesOfFace } from './compatibility.js';
 import { assetSupportsMorphology } from './face-morphologies.js';
+import { catalogueAssets, isLegacyAsset } from './face-catalogue.js';
 import { findFacePartByType } from '../../rig-editor/semantic-parts/face-roles.js';
 
 /** A little air around the drawing, so a card is not a crop. */
@@ -96,6 +97,11 @@ export function libraryCards(document = {}, categoryId, { library = FACE_PART_LI
       id: asset.id, name: asset.name, description: asset.description || '',
       tags: asset.tags || [], origin: asset.origin || 'builtin',
       worn: worn?.assetId === asset.id,
+      // Kept rather than offered (V6, §3): a drawing no human face can wear.
+      // It is a *reading* here and never a removal -- a face already wearing
+      // one still shows it, because the one thing hiding must never do is hide
+      // the door to something somebody has already put on (`face-catalogue.js`).
+      legacy: isLegacyAsset(asset),
       styles: library.variantsOf(asset.id).length,
       compatible: !morphologies.length || morphologies.some((item) => assetSupportsMorphology(asset, item)),
       // The movements the drawing carries, and the ones this face would lose by
@@ -149,7 +155,30 @@ export function resolveLibraryCategory(document = {}, { library = FACE_PART_LIBR
   return { active, following: Boolean(followed) && active === followed && !category };
 }
 
-export function faceLibraryModel(document = {}, { library = FACE_PART_LIBRARY, category = null, subject = null, showAll = false } = {}) {
+/**
+ * Which cards a shelf shows, before anything is sorted.
+ *
+ * Two filters, and they are not the same question:
+ *
+ * ```text
+ * legacy       is this drawing part of what the editor offers at all?
+ * compatible   does it suit the kind of face this mascot already is?
+ * ```
+ *
+ * The first is the V6 recentring (§3 of the brief): the animal, robot and bird
+ * packs are kept and not offered, so a human face's Mouth row is one mouth
+ * rather than sixteen. The second is MASC-04's, and it was already here.
+ *
+ * Both have the same exception, for the same reason: **a card the face is
+ * wearing is always shown**. Hiding the only door to a part somebody has
+ * already put on is the failure this layer exists to prevent, and it is worse
+ * for legacy than for compatibility — an author who opened an animal made
+ * before the recentring must still be able to see, and change, its muzzle.
+ */
+const shelf = (cards, { showAll, showLegacy }) =>
+  cards.filter((card) => card.worn || ((showLegacy || !card.legacy) && (showAll || card.compatible)));
+
+export function faceLibraryModel(document = {}, { library = FACE_PART_LIBRARY, category = null, subject = null, showAll = false, showLegacy = false } = {}) {
   const categories = FACE_PART_CATEGORIES.map((item) => ({
     id: item.id, label: item.label, part: item.part, installable: item.installable,
     count: library.cards(item.id).length,
@@ -168,7 +197,8 @@ export function faceLibraryModel(document = {}, { library = FACE_PART_LIBRARY, c
   // badge — which is information the author can act on without the row moving
   // under them. An author may well want the drawing more than the movement.
   const sorted = [...all].sort((left, right) => Number(right.compatible) - Number(left.compatible));
-  const cards = showAll ? sorted : sorted.filter((card) => card.compatible);
+  const cards = shelf(sorted, { showAll, showLegacy });
+  const shown = new Set(cards.map((card) => card.id));
   return {
     categories,
     active: active?.id || null,
@@ -176,11 +206,23 @@ export function faceLibraryModel(document = {}, { library = FACE_PART_LIBRARY, c
     following: resolved.following,
     cards,
     showAll,
+    showLegacy,
     /** How many drawings the compatibility filter is holding back, for the button that undoes it. */
-    filtered: all.length - cards.length,
+    filtered: all.filter((card) => !shown.has(card.id) && !card.legacy).length,
+    /** And how many the recentring is: the packs, in this row (V6, §3). */
+    legacy: all.filter((card) => !shown.has(card.id) && card.legacy).length,
     // Which face this is, in the library's own words, so a panel can say why a
     // card is marked as a mismatch.
     morphologies: morphologiesOfFace(document, { library }),
-    total: categories.reduce((sum, item) => sum + item.count, 0)
+    total: categories.reduce((sum, item) => sum + item.count, 0),
+    /**
+     * And how many of those the editor actually offers (V6, §3).
+     *
+     * `total` is what the library *holds*, which is what an importer and a pack
+     * reader care about; `offered` is what an author is choosing from, which is
+     * what a panel should say out loud. They were the same number until the
+     * animal, robot and bird packs were declassed, and now they are 132 and 42.
+     */
+    offered: catalogueAssets({ library }).length
   };
 }

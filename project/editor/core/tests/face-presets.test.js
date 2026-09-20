@@ -136,7 +136,7 @@ test('the built-in presets are recipes the library can honour, in every category
 
 test('a preset is normalised and validated: real categories, real assets in them, a known palette, one id', () => {
   const item = normalizeFacePreset({ id: ' Mine ', name: ' Mine ', parts: { head: ' head.round ', nope: 3 }, accessories: ['accessory.hat', 'accessory.hat', 7], palette: { skin: '#ABC', nope: '#000' } });
-  assert.deepEqual(item, { id: 'Mine', name: 'Mine', description: '', parts: { head: 'head.round' }, accessories: ['accessory.hat'], style: '', morphology: '', tags: [], palette: { skin: '#abc' }, hands: {}, placements: {}, origin: 'custom', pack: null });
+  assert.deepEqual(item, { id: 'Mine', name: 'Mine', description: '', parts: { head: 'head.round' }, accessories: ['accessory.hat'], style: '', morphology: '', tags: [], palette: { skin: '#abc' }, hands: {}, placements: {}, origin: 'custom', legacy: false, pack: null });
   assert.equal(normalizeFacePreset({ style: ' Workshop ' }).style, 'workshop', 'a style is a name, in one case');
   const codes = (input, options) => validateFacePreset(input, FACE_PART_LIBRARY, options).issues.map((issue) => issue.code);
   assert.deepEqual(codes({ name: 'x', parts: { head: 'head.round' } }), ['id-missing']);

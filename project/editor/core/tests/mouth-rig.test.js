@@ -15,16 +15,18 @@ import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-reg
  * expression where it should have a dozen. Every smirk, grimace and lip pulled
  * by a word is the two corners disagreeing.
  */
-const paths = new Set(['head', 'mouth', 'teeth', 'tongue', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairTop', 'hairBack', 'shadeLeft', 'shadeRight', 'faceLight', 'shadeHair']);
+const paths = new Set(['head', 'mouth', 'teeth', 'teethLower', 'tongue', 'tongueTip', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairTop', 'hairBack', 'shadeLeft', 'shadeRight', 'faceLight', 'shadeHair']);
 const eyeChildren = (side) => [`eyeWhite${side}`, `pupil${side}`, `glint${side}`, `spark${side}`, `lidUpper${side}`, `lidLower${side}`, `rim${side}`];
 const earChildren = (side) => [`ear${side}Shape`, `ear${side}Fold`];
 /** The shading is a folder of its own now, clipped to the head. */
 const shadingChildren = ['shadeLeft', 'shadeRight', 'faceLight', 'shadeHair'];
+/** And so is the inside of the mouth, clipped to the lips (docs/MOUTH_BUILD.md). */
+const mouthChildren = ['tongue', 'teethLower', 'teeth'];
 const faceChildren = ['hairBack', 'earLeft', 'earRight', 'head', 'faceShading', ...shadingChildren,
-  'mouth', 'tongue', 'teeth', 'eyeLeft', 'eyeRight', 'eyebrows', 'browLeft', 'browRight', 'nose', 'hairTop', 'hairFront', 'hair'];
+  'mouth', 'mouthInside', ...mouthChildren, 'tongueTip', 'eyeLeft', 'eyeRight', 'eyebrows', 'browLeft', 'browRight', 'nose', 'hairTop', 'hairFront', 'hair'];
 /** The children the artwork nests, so a synthetic tree matches the drawn one. */
-const nested = { eyeLeft: eyeChildren('Left'), eyeRight: eyeChildren('Right'), faceShading: shadingChildren };
-const topChildren = faceChildren.filter((id) => !shadingChildren.includes(id));
+const nested = { eyeLeft: eyeChildren('Left'), eyeRight: eyeChildren('Right'), faceShading: shadingChildren, mouthInside: mouthChildren };
+const topChildren = faceChildren.filter((id) => !shadingChildren.includes(id) && !mouthChildren.includes(id));
 const ids = ['faceRoot', ...faceChildren, ...eyeChildren('Left'), ...eyeChildren('Right'), ...earChildren('Left'), ...earChildren('Right')];
 const element = (id) => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1, constraints: { translate: true, rotate: true, scale: true }, bindings: {}, meta: { nodeType: paths.has(id) ? 'path' : 'circle' } });
 
@@ -94,13 +96,49 @@ test('the tongue is aimed, stuck out and curled (CR-32 … CR-34)', () => {
   const state = project();
   assert.ok(state.semanticParts.tongue, 'the tongue is a part of its own');
   assert.deepEqual(SEMANTIC_PART_REGISTRY.tongue.controls, ['tongueX', 'tongueY', 'tongueOut', 'tongueCurl']);
-  const at = (values) => compileRigFrame(state.elements, { ...state.params, ...values }, {}, {}, { shapeKeys: state.shapeKeys }).tongue.transform;
+  assert.deepEqual(Object.keys(state.semanticParts.tongue.roles), ['tongue', 'tongueTip'], 'the body and the tip');
+  const frame = (values) => compileRigFrame(state.elements, { ...state.params, ...values }, {}, {}, { shapeKeys: state.shapeKeys });
+  const at = (values) => frame(values).tongue.transform;
 
+  // Where it points is still a translate: a tongue that moves sideways really
+  // does move sideways, and saying so with a shape would be a lie with more
+  // numbers in it.
   assert.equal(at({}).x, 0);
   assert.ok(at({ tongueX: 1 }).x > 0 && at({ tongueX: -1 }).x < 0, 'it aims left and right');
   assert.ok(at({ tongueY: 1 }).y > 0, 'and up and down');
-  assert.ok(at({ tongueOut: 1 }).scaleY > at({}).scaleY, 'it comes out');
-  assert.ok(at({ tongueCurl: 1 }).rotation !== 0, 'and it curls');
+  assert.equal(state.semanticParts.tongue.controlDrivers.tongueX.method, 'transform');
+
+  // Coming out and curling are **shapes** (V6). `tongueOut` was a `scaleY`
+  // about the tongue's middle, which stretched its root as far as its tip and
+  // grew it up into the skull; `tongueCurl` was a rotation of the whole
+  // drawing, which swung the root out through a cheek.
+  for (const control of ['tongueOut', 'tongueCurl']) assert.equal(state.semanticParts.tongue.controlDrivers[control].method, 'shapeKey', control);
+  assert.equal(at({ tongueOut: 1 }).scaleY, at({}).scaleY, 'and nothing is scaled any more');
+  assert.equal(at({ tongueCurl: 1 }).rotation, 0);
+
+  // The tip is `M a C‥ C‥ C‥ C‥ Z`, so its five on-curve points are every third
+  // one: the anchor on the lip, the root's middle, the far anchor, the cleft at
+  // the very end of the tongue, and back. The cleft is what a curl moves
+  // (docs/MOUTH_BUILD.md), which is why it is read rather than the lowest point
+  // of the whole path -- a curl holds the shoulders where they are on purpose.
+  const cleft = (path) => { const v = parsePath(path).values; return v[9 * 2 + 1]; };
+  const shut = frame({}).tongueTip.path;
+  // A blep: out between lips that are barely parted, which is the case a
+  // `mouthOpen * …` sentence could never reach.
+  const out = frame({ tongue: 1, tongueOut: 1 }).tongueTip.path;
+  assert.ok(cleft(out) > cleft(shut) + 5, 'the tip laps over the lower lip');
+  const curled = frame({ tongue: 1, tongueOut: 1, tongueCurl: 1 }).tongueTip.path;
+  assert.ok(cleft(curled) < cleft(out) - 5, 'and curling turns its end back up');
+  const drooped = frame({ tongue: 1, tongueOut: 1, tongueCurl: -1 }).tongueTip.path;
+  assert.ok(cleft(drooped) > cleft(out) + 5, 'signed, so one key droops it as well');
+  // And it is **past** the lower lip, which is the whole reason it is a shape of
+  // its own: everything else inside the mouth is clipped to the aperture, and a
+  // tongue hanging out is in front of the lip it hangs over (§8.4 of the brief).
+  // `M left Q top right Q bottom left Z`, so the drawn lower lip at its middle
+  // is a quarter of each corner and half of the control between them.
+  const lowerLip = (values) => { const v = parsePath(frame(values).mouth.path).values; return v[1] / 4 + v[7] / 2 + v[5] / 4; };
+  assert.ok(cleft(out) > lowerLip({ tongue: 1, tongueOut: 1 }) + 5, 'past the lip line rather than behind it');
+  assert.ok(Math.abs(cleft(shut) - lowerLip({})) < 0.01, 'and exactly on it when the tongue is in');
   // The mouth still decides whether the tongue *shows* at all: two questions,
   // two controls, and they do not fight because they write different properties.
   assert.ok(state.semanticParts.mouth.controls.includes('tongue'));

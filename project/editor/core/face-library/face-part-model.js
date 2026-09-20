@@ -165,7 +165,13 @@ function driverHints(value) {
       // transformed: a mouth's teeth and its tongue pucker as the lips they are
       // drawn from do, and each needs its own pose (docs/MOUTH_BUILD.md).
       const rolePose = typeof override.posePath === 'string' && override.posePath.trim() ? { posePath: override.posePath.trim() } : {};
-      roles[role] = Object.freeze({ amplitude: finite(override.amplitude), offset: finite(override.offset), ...pivotOf(override), ...rolePose });
+      // And a sentence of its own, where one role of a movement is driven by a
+      // different product from the rest. The lower row of teeth shows on the
+      // same `teeth` control as the upper one and later than it
+      // (`mouthOpen * mouthOpen * teeth`), because a mouth barely parted shows
+      // its top row and nothing else (docs/MOUTH_BUILD.md).
+      const roleSentence = typeof override.expression === 'string' && override.expression.trim() ? { expression: override.expression.trim() } : {};
+      roles[role] = Object.freeze({ amplitude: finite(override.amplitude), offset: finite(override.offset), ...pivotOf(override), ...rolePose, ...roleSentence });
     }
     // A shape driver carries the shape as drawn at the movement's end, and no amplitude: the pose is the amplitude.
     const posePath = typeof hint.posePath === 'string' && hint.posePath.trim() ? { posePath: hint.posePath.trim() } : {};
@@ -381,6 +387,19 @@ export function normalizeFacePart(input = {}) {
     slot: typeof source.slot === 'string' ? source.slot.trim() : '',
     // The kinds of face it suits. Empty is every kind there is.
     morphologies: Object.freeze([...new Set(strings(source.morphologies).map((id) => id.trim()))]),
+    /**
+     * Kept for compatibility rather than offered (V6, §3 of the brief).
+     *
+     * Almost nothing needs to say this out loud: a drawing for a kind of face
+     * that is itself legacy is legacy by derivation, which is how the ninety
+     * drawings of the animal, robot and bird packs became so without one of
+     * them being edited (`face-catalogue.js`). The flag is here for the case
+     * derivation cannot reach — a *human* drawing an author or a pack has
+     * retired, and which must go on loading on the faces that wear it.
+     *
+     * Silent by default, so every asset written before this reads as active.
+     */
+    legacy: source.legacy === true,
     /* ── How it behaves in a pair, and how many a face may wear (UI-REDESIGN-04)
      *
      * Both optional, both silent by default, for the same reason `morphologies`

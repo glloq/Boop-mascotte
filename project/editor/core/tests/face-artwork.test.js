@@ -453,7 +453,11 @@ test('the face is drawn with paths and fills, and nothing that costs a frame', (
   // The face itself, without the pair of hands the template also ships.
   const face = MASCOT_FACE_SVG.slice(MASCOT_FACE_SVG.indexOf('<g id="faceRoot"'));
   const shapes = (face.match(/<(?:path|circle|ellipse|rect)\b/g) || []).length;
-  assert.ok(shapes < 40, `${shapes} shapes: a cartoon face, not an illustration`);
+  // Two more than V5, and both of them are the mouth's: a lower row of teeth
+  // and the tongue's tip (docs/MOUTH_BUILD.md). The budget moved rather than
+  // being quietly exceeded, because the mouth is the feature a mascot spends
+  // its screen time in and two paths is what the whole of V6 cost.
+  assert.ok(shapes < 42, `${shapes} shapes: a cartoon face, not an illustration`);
   // What is **painted at once**: the face, and one drawing per hand. A drawing
   // is a group of named layers (docs/HAND_STYLES.md, "A gesture is a file") --
   // a palm, the fingers, a thumb -- so a hand on screen is a handful of paths

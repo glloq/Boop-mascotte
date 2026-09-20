@@ -13,7 +13,7 @@ import { enableMouthRig } from '../../rig/mouth-rig.js';
 import { enableGazeSolver } from '../../rig/gaze-rig.js';
 import { enableBrowRig } from '../../rig/brow-rig.js';
 import { createShapeKey, upsertShapeKey } from '../../shape-keys/shape-key-model.js';
-import { BROW_BOXES, BROW_RESTS, FACE_ANCHORS, FACE_CENTRES, HEAD_REST, HEAD_WIDTH, CREASE_PIVOTS, CREASE_RESTS, CREASE_ROLES, LID_MEET, LID_PIVOTS, LID_RESTS, LID_ROLES, MOUTH_BOX, MOUTH_REST, NOSE_CENTRE, NOSE_TURN, TEETH_REST, TONGUE_REST, creasePath, headPath, lidPath, mouthPath, teethPath, tonguePath } from './face-artwork.js';
+import { BROW_BOXES, BROW_RESTS, FACE_ANCHORS, FACE_CENTRES, HEAD_REST, HEAD_WIDTH, CREASE_PIVOTS, CREASE_RESTS, CREASE_ROLES, LID_MEET, LID_PIVOTS, LID_RESTS, LID_ROLES, MOUTH_BOX, MOUTH_REST, NOSE_CENTRE, NOSE_TURN, TEETH_REST, TEETH_LOWER_REST, TONGUE_REST, TONGUE_TIP_REST, creasePath, headPath, lidPath, mouthPath, teethPath, teethLowerPath, tonguePath, tongueTipPath } from './face-artwork.js';
 import { findClip, setClipLoop } from '../../motion/motion-model.js';
 import { installStyleHands } from '../../hands/hand-style-install.js';
 import { createRigAttachment, createRigHold } from '../../rig/attachment-model.js';
@@ -349,18 +349,40 @@ export function applyTemplateProject(state) {
   // the face gave the mascot a double chin the moment it moved, because two
   // outlines cannot be one silhouette.
   const jaw = ours ? add(state, 'jaw', { jaw: 'head' }, ['jawOpen'], { jawOpen: { property: 'shapeKey' } }) : null;
-  const mouth = add(state, 'mouth', { mouth: 'mouth', teeth: 'teeth', tongue: 'tongue' }, ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'teeth', 'tongue']);
+  /**
+   * A mouth of ours is **shaped** throughout, and says so before the movement
+   * is enabled rather than after.
+   *
+   * `mouthOpen` and `smile` reach the tongue's tip as well as the lips (the tip
+   * is the one inside that cannot fold the opening into its own pose), and the
+   * registry's default for both is a transform. Enabled first and re-methoded
+   * afterwards, that transform was written on the tip on the way past -- and
+   * `translateY` on the tip is the tongue part's, so the next `add` refused the
+   * whole template with a binding conflict.
+   *
+   * A face the Face Builder drew has no poses to deform to, so it keeps the
+   * registry's transforms: shaping a movement with nothing to shape it into is
+   * a slider that moves nothing.
+   */
+  const shaped = ours ? { property: 'shapeKey' } : null;
+  const mouth = add(state, 'mouth', { mouth: 'mouth', teeth: 'teeth', teethLower: 'teethLower', tongue: 'tongue', tongueTip: 'tongueTip' },
+    ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'mouthSkew', 'teeth', 'tongue'],
+    shaped ? { mouthOpen: shaped, smile: shaped } : {});
   // Where the tongue is, as opposed to whether it shows: its own part, because
   // the two questions are different and the mouth already answers the second
-  // (docs/FACE_CONTROL_RIG.md, CR-32 … CR-34).
-  add(state, 'tongue', { tongue: 'tongue' }, ['tongueX', 'tongueY', 'tongueOut', 'tongueCurl']);
+  // (docs/FACE_CONTROL_RIG.md, CR-32 … CR-34). It takes the tip as well as the
+  // body, because coming out is something only the tip does -- and where there
+  // is no tip to deform, the two movements keep the transforms they were before
+  // V6 rather than becoming sliders that move nothing.
+  const tonguePart = add(state, 'tongue', { tongue: 'tongue', tongueTip: 'tongueTip' }, ['tongueX', 'tongueY', 'tongueOut', 'tongueCurl'],
+    state.elements.tongueTip ? {} : { tongueOut: { property: 'scaleY', amplitude: .6, offset: 1 }, tongueCurl: { property: 'rotation', amplitude: 18, offset: 0 } });
   // Opening and smiling are both shape changes, and they have to happen at the
   // same time: one closed path, two additive shape keys, so a laughing mouth is
   // the sum of the two rather than a fight between them. A transform cannot do
   // this (a scale flattens the smile as it closes) and the legacy morph cannot
   // either (one shape per element).
   if (mouth && ours) {
-    for (const control of ['mouthOpen', 'smile', 'mouthRound']) setSemanticControlMethod(state, mouth.id, control, 'shapeKey');
+    for (const control of ['mouthOpen', 'smile', 'mouthRound', 'mouthSkew']) setSemanticControlMethod(state, mouth.id, control, 'shapeKey');
     state.elements.mouth.restPath = MOUTH_REST;
     for (const [id, name, pose, driver] of [
       ['mouth-open', 'Mouth open', { open: 1 }, { parameter: 'mouthOpen', min: 0, max: 1 }],
@@ -371,12 +393,28 @@ export function applyTemplateProject(state) {
       // (docs/VISEME_SYSTEM.md). A fourth additive key rather than a narrower
       // scale, because scaling a wide shallow mouth gives a *small* wide
       // shallow mouth and `OO` is the opposite of shallow.
-      ['mouth-round', 'Round', { round: 1 }, { parameter: 'mouthRound', min: 0, max: 1 }]
+      ['mouth-round', 'Round', { round: 1 }, { parameter: 'mouthRound', min: 0, max: 1 }],
+      // And the smirk: one corner up, the other down, and the lip line leaning
+      // after them. The two corner *pins* have been able to disagree since
+      // CR-28; what they cannot do is take the lip line between them with
+      // them, because a pin moves the artwork near it and lets go. Signed, so
+      // one key leans the mouth both ways.
+      ['mouth-skew', 'Skew', { skew: 1 }, { parameter: 'mouthSkew', min: 0, max: 1 }]
     ]) {
       const control = driver.parameter;
       const shape = createShapeKey({ id, target: 'mouth', name, restPath: MOUTH_REST, posePath: mouthPath(pose), driver, generatedBy: { semanticPart: mouth.id, control } });
       if (shape.ok) state.shapeKeys = upsertShapeKey(state.shapeKeys, shape.shapeKey);
     }
+
+    // Everything the mouth has inside it, and the one thing it has in front of
+    // it. Each is drawn from the mouth's own curves, so each follows the lips
+    // by construction rather than by being kept in step (docs/MOUTH_BUILD.md).
+    const INSIDES = [
+      ['teeth', 'Upper teeth', TEETH_REST, teethPath],
+      ['teethLower', 'Lower teeth', TEETH_LOWER_REST, teethLowerPath],
+      ['tongue', 'Tongue', TONGUE_REST, tonguePath],
+      ['tongueTip', 'Tongue tip', TONGUE_TIP_REST, tongueTipPath]
+    ];
 
     // The mouth following the curve of the skull, which is the one thing the
     // 2.5D turn cannot do to it. The turn rotates every feature by the amount
@@ -385,10 +423,10 @@ export function applyTemplateProject(state) {
     // a level bar across it. A mouth does not tilt there, it **bows**, and a
     // rigid element cannot bow: the corners lift as the head drops and fall as
     // it rises, as a shape key like every other change to this mouth.
-    for (const [role, rest, draw] of [['mouth', MOUTH_REST, mouthPath], ['teeth', TEETH_REST, teethPath], ['tongue', TONGUE_REST, tonguePath]]) {
+    for (const [role, name, rest, draw] of [['mouth', 'Mouth', MOUTH_REST, mouthPath], ...INSIDES]) {
       if (!state.elements[role]) continue;
       const shape = createShapeKey({
-        id: `${role}-skull`, target: role, name: `${role === 'mouth' ? 'Mouth' : role === 'teeth' ? 'Teeth' : 'Tongue'} follows the head`,
+        id: `${role}-skull`, target: role, name: `${name} follows the head`,
         restPath: rest, posePath: draw({ arc: 1 }),
         driver: { mode: 'expression', expression: 'headY', curve: 'linear', amplitude: 1, offset: 0 }
         // Owned by no control on purpose. This is the head moving, not a
@@ -401,30 +439,87 @@ export function applyTemplateProject(state) {
     // Teeth and tongue are drawn from the mouth's own curves, so they cannot
     // leave it. `mouthOpen * teeth` is a product rather than a sum: closed
     // lips have nothing behind them to show, however far the control is up.
-    for (const [role, rest, draw] of [['teeth', TEETH_REST, teethPath], ['tongue', TONGUE_REST, tonguePath]]) {
+    for (const [role, name, rest, draw] of INSIDES) {
       const element = state.elements[role];
       if (!element) continue;
       element.restPath = rest;
-      const key = (id, name, posePath, expression) => {
-        const shape = createShapeKey({ id, target: role, name, restPath: rest, posePath, driver: { mode: 'expression', expression, curve: 'linear', amplitude: 1, offset: 0 }, generatedBy: { semanticPart: mouth.id, control: role } });
+      const key = (id, label, posePath, expression, control = role) => {
+        const shape = createShapeKey({ id, target: role, name: label, restPath: rest, posePath, driver: { mode: 'expression', expression, curve: 'linear', amplitude: 1, offset: 0 }, generatedBy: { semanticPart: mouth.id, control } });
         if (shape.ok) state.shapeKeys = upsertShapeKey(state.shapeKeys, shape.shapeKey);
       };
-      // Two keys, because they answer two questions: the band travels with the
-      // lip whenever the mouth opens, and it comes *out* only when its own
-      // control is up. One key for both put a half-shown tongue halfway up the
-      // cavity, clear of the lip it grows from.
-      key(`${role}-open`, `${role === 'teeth' ? 'Teeth' : 'Tongue'} with the jaw`, draw({ open: 1 }), 'mouthOpen');
-      key(`${role}-show`, `${role === 'teeth' ? 'Teeth' : 'Tongue'} showing`, draw({ show: 1 }), `mouthOpen * ${role}`);
       // The upper lip moves with the smile whether or not anything shows
       // behind it, so this one follows `smile` on its own -- signed, so a
       // frown carries it the other way.
-      key(`${role}-follow`, `${role === 'teeth' ? 'Teeth' : 'Tongue'} with the lip`, draw({ smile: 1 }), 'smile');
+      key(`${role}-follow`, `${name} with the lip`, draw({ smile: 1 }), 'smile', 'smile');
       // And a puckered mouth draws them in with it: a band drawn from the
       // resting lip curve is wider than a rounded mouth and would show outside
       // it, which is a row of teeth floating beside an O.
-      key(`${role}-round`, `${role === 'teeth' ? 'Teeth' : 'Tongue'} with the pucker`, draw({ round: 1 }), 'mouthRound');
+      key(`${role}-round`, `${name} with the pucker`, draw({ round: 1 }), 'mouthRound', 'mouthRound');
+      // A leaning mouth takes them with it, for the same reason: they are drawn
+      // from a lip that has leaned.
+      key(`${role}-skew`, `${name} with the lean`, draw({ skew: 1 }), 'mouthSkew', 'mouthSkew');
       // And they widen with the mouth, or a wide grin shows teeth inset from it.
       bind(state, role, 'scaleX', 'mouthWidth', .25, 1);
+    }
+
+    // Two keys, because they answer two questions: the band travels with the
+    // lip whenever the mouth opens, and it comes *out* only when its own
+    // control is up. One key for both put a half-shown tongue halfway up the
+    // cavity, clear of the lip it grows from.
+    for (const [role, name, rest, draw, show] of [
+      ['teeth', 'Upper teeth', TEETH_REST, teethPath, 'mouthOpen * teeth'],
+      // The lower row arrives later than the upper one: a mouth barely parted
+      // shows the top row and nothing else, and a lower row that came up with
+      // it read as a grimace at every small opening. `mouthOpen * mouthOpen` is
+      // that, and it costs a word rather than a mechanism.
+      ['teethLower', 'Lower teeth', TEETH_LOWER_REST, teethLowerPath, 'mouthOpen * mouthOpen * teeth'],
+      ['tongue', 'Tongue', TONGUE_REST, tonguePath, 'mouthOpen * tongue']
+    ]) {
+      if (!state.elements[role]) continue;
+      const key = (id, label, posePath, expression, control) => {
+        const shape = createShapeKey({ id, target: role, name: label, restPath: rest, posePath, driver: { mode: 'expression', expression, curve: 'linear', amplitude: 1, offset: 0 }, generatedBy: { semanticPart: mouth.id, control } });
+        if (shape.ok) state.shapeKeys = upsertShapeKey(state.shapeKeys, shape.shapeKey);
+      };
+      key(`${role}-open`, `${name} with the jaw`, draw({ open: 1 }), 'mouthOpen', 'mouthOpen');
+      key(`${role}-show`, `${name} showing`, draw({ show: 1 }), show, role === 'teethLower' ? 'teeth' : role);
+    }
+
+    // The tip is the one inside that is **not** brought out by the mouth: it
+    // comes out on `tongueOut`, and a blep needs no open mouth at all. So it
+    // follows the lip on a key of its own rather than folding the opening into
+    // its own pose the way the rows and the body do.
+    if (state.elements.tongueTip) {
+      const shape = createShapeKey({
+        id: 'tongueTip-open', target: 'tongueTip', name: 'Tongue tip with the jaw',
+        restPath: TONGUE_TIP_REST, posePath: tongueTipPath({ open: 1 }),
+        driver: { mode: 'expression', expression: 'mouthOpen', curve: 'linear', amplitude: 1, offset: 0 },
+        generatedBy: { semanticPart: mouth.id, control: 'mouthOpen' }
+      });
+      if (shape.ok) state.shapeKeys = upsertShapeKey(state.shapeKeys, shape.shapeKey);
+    }
+  }
+
+  // Coming out, and curling, as **shapes**: the tongue part owns both, and both
+  // used to be transforms of the whole drawing (docs/MOUTH_BUILD.md). A
+  // `scaleY` stretched the root as far as the tip and grew the tongue up into
+  // the skull; a `rotation` swung the root out through a cheek.
+  if (ours && tonguePart && state.elements.tongue && state.elements.tongueTip) {
+    for (const control of ['tongueOut', 'tongueCurl']) setSemanticControlMethod(state, tonguePart.id, control, 'shapeKey');
+    for (const [id, target, name, rest, posePath, expression, control] of [
+      // The tip laps over the lower lip. `tongue * tongueOut` and not
+      // `mouthOpen * …`: a tongue can come out between closed lips, which is
+      // the whole of a blep.
+      ['tongueTip-out', 'tongueTip', 'Tongue out', TONGUE_TIP_REST, tongueTipPath({ out: 1 }), 'tongue * tongueOut', 'tongueOut'],
+      // And the body behind it reaches forward with it -- but only while there
+      // *is* a body: `mouthOpen * tongue` is what draws one, so the same
+      // product gates its share of the movement and a shut mouth stays shut.
+      ['tongue-out', 'tongue', 'Tongue reaching', TONGUE_REST, tonguePath({ out: 1 }), 'mouthOpen * tongue * tongueOut', 'tongueOut'],
+      // The curl is the tip's alone, and it is scaled by how far out the tongue
+      // is: curling a tongue that is still in the mouth is not a movement.
+      ['tongueTip-curl', 'tongueTip', 'Tongue curl', TONGUE_TIP_REST, tongueTipPath({ curl: 1 }), 'tongue * tongueOut * tongueCurl', 'tongueCurl']
+    ]) {
+      const shape = createShapeKey({ id, target, name, restPath: rest, posePath, driver: { mode: 'expression', expression, curve: 'linear', amplitude: 1, offset: 0 }, generatedBy: { semanticPart: tonguePart.id, control } });
+      if (shape.ok) state.shapeKeys = upsertShapeKey(state.shapeKeys, shape.shapeKey);
     }
   }
 

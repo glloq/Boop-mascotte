@@ -193,6 +193,27 @@ export function validateFacePart(input, { taken = () => false, library = null } 
     if (capabilities.missing.length && category.installable) issues.push(warning('capabilities-incomplete', `Limited animation: ${capabilities.missing.join(', ')} ${capabilities.missing.length === 1 ? 'is' : 'are'} not carried by this drawing.`, 'capabilities'));
     checkDrivers(issues, asset.drivers, category.part ? SEMANTIC_PART_REGISTRY[category.part] : null, category.label, asset.capabilities, Object.keys(asset.roles), 'drivers');
     checkTurn(issues, asset.turn, Object.keys(asset.roles), 'turn');
+    /**
+     * A shape two parts move must be moved by shapes.
+     *
+     * The tongue's tip is the one of those the library ships: the mouth follows
+     * the lower lip onto it (`mouthOpen`, `smile`) and the tongue part aims and
+     * extends it (`tongueX`, `tongueY`, `tongueOut`). Shaped, they add up --
+     * a shape key writes no transform, and several on one element simply sum.
+     * As transforms they are two parts writing `translateY` on one drawing,
+     * which `enableSemanticControl` refuses at install with a binding conflict
+     * and a message about a property rather than about the drawing.
+     *
+     * Said here instead, before the asset is ever registered, and in the words
+     * of the thing that is actually wrong (docs/MOUTH_BUILD.md).
+     */
+    if (asset.roles.tongueTip) {
+      for (const control of ['mouthOpen', 'smile']) {
+        if (!asset.capabilities.includes(control)) continue;
+        if (asset.drivers[control]?.property === 'shapeKey') continue;
+        issues.push(error('driver-shared-shape', `This drawing has a tongue tip, which the tongue part moves as well as the mouth. "${control}" has to be shaped on it: a transform would be two parts writing one property on one shape.`, `drivers.${control}.property`));
+      }
+    }
 
     // The other parts the drawing carries: each a real part, not the
     // category's own, with roles it has, on shapes the artwork draws, each
@@ -209,8 +230,20 @@ export function validateFacePart(input, { taken = () => false, library = null } 
         else taken.set(elementId, role);
       }
       for (const control of part.capabilities) if (!definition.controls.includes(control)) issues.push(error('capability-unsupported', `${definition.displayName} has no movement called "${control}".`, `parts.${type}.capabilities`));
-      checkDrivers(issues, part.drivers, definition, definition.displayName, part.capabilities, Object.keys(part.roles), `parts.${type}.drivers`);
-      checkTurn(issues, part.turn, Object.keys(part.roles), `parts.${type}.turn`);
+      /**
+       * A part the asset draws also plays the roles it shares with the asset's
+       * own, and a driver hint may name those.
+       *
+       * One shape plays one role, and that rule is what the check above keeps:
+       * a mouth that draws a tongue cannot list it here as well. But the tongue
+       * part *moves* that tongue -- the mouth says whether it shows, the tongue
+       * part says where it is -- so the installer hands it over, and a hint
+       * naming it is describing something real (docs/MOUTH_BUILD.md).
+       */
+      const shared = definition.roles.filter((role) => asset.roles[role]);
+      const named = [...new Set([...Object.keys(part.roles), ...shared])];
+      checkDrivers(issues, part.drivers, definition, definition.displayName, part.capabilities, named, `parts.${type}.drivers`);
+      checkTurn(issues, part.turn, named, `parts.${type}.turn`);
     }
   }
 

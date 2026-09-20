@@ -86,26 +86,69 @@ export const EYE_CORRECTIVE_SLOTS = Object.freeze([
 /**
  * What a mouth's shape can be corrected along.
  *
- * Eight sentences, and the visemes map onto them: `AE` is `open` and the
+ * Thirteen sentences, and the visemes map onto them: `AE` is `open` and the
  * `openWide` cross-term, `OO` is `round`, `OH` is `round` and `openRound`,
  * `EE` is `openWide`, `MBP` is `lock`, `FV` is `lipTeeth`, `L` is
  * `tongueTeeth`. None of them names a viseme, which is exactly why a mouth
  * puckered by hand comes out as round as one puckered by `OO`.
  *
- * `smile` and `wide` are signed, so one capture corrects a grin and a grimace.
+ * `smile`, `wide` and `skew` are signed, so one capture corrects a grin and a
+ * grimace, a stretch and a purse, a lean each way.
+ *
+ * **Four of them are V6's** (§10.2 of the brief), and each is a pair the
+ * arithmetic is least kind to rather than a pair somebody listed: the lean the
+ * lips gained, the grin, the stretched grin, and the tongue out of a mouth that
+ * is open as against one that is shut. Every one is a distinct monomial, so a
+ * face carrying all thirteen is still corrected exactly once.
  */
 export const MOUTH_CORRECTIVE_SLOTS = Object.freeze([
   slot('mouth', 'open', 'Open', 'The cavity of an open mouth.', () => 'mouthOpen'),
   slot('mouth', 'round', 'Round', 'The aperture puckered into an O.', () => 'mouthRound'),
   slot('mouth', 'smile', 'Smile', 'The lip line of a smile, or a frown.', () => 'smile'),
   slot('mouth', 'wide', 'Wide', 'The lip line stretched, or drawn in.', () => 'mouthWidth'),
+  // The lean, which V6 gave the lips: one corner up, the other down, and the
+  // lip line following them (docs/MOUTH_BUILD.md). Signed, so one capture
+  // corrects a smirk to either side.
+  slot('mouth', 'skew', 'Lean', 'The mouth pulled crooked, one corner up.', () => 'mouthSkew'),
   slot('mouth', 'openRound', 'Open and round', 'An O that is also open — the two together.', () => 'mouthOpen * mouthRound'),
   slot('mouth', 'openWide', 'Open and wide', 'A wide opening — the two together.', () => 'mouthOpen * mouthWidth'),
+  /**
+   * A grin, which is the combination a mouth is asked for more than any other
+   * and the one the arithmetic is least kind to.
+   *
+   * `mouthOpen` drops the lower lip sixty-two units and `smile` lifts the
+   * corners and deepens the lip line; added, they draw an aperture that is
+   * correct and, at the top of the range, wider across the corners than a face
+   * actually opens. Signed, so the same capture tightens a laugh and loosens a
+   * wail (§10.2 of the V6 brief).
+   */
+  slot('mouth', 'openSmile', 'Open and smiling', 'A grin: the corners up and the jaw down together.', () => 'mouthOpen * smile'),
+  /**
+   * And a smile that is also stretched, which is the other pair that fights.
+   *
+   * `mouthWidth` is a `scaleX` about the middle — the one movement of this
+   * mouth that is an honest transform — and a scale applied to a curve that
+   * has already been bowed by a smile flattens the bow. Nothing else in the
+   * vocabulary can say "the corners are out here *and* up".
+   */
+  slot('mouth', 'smileWide', 'Smiling and wide', 'A grin stretched across the face.', () => 'smile * mouthWidth'),
   slot('mouth', 'lock', 'Lips pressed', 'Lips held together against the jaw.', () => 'mouthLock'),
   // The teeth showing while the lips are nearly shut, which is what an `f` is.
   slot('mouth', 'lipTeeth', 'Lip on teeth', 'The lower lip tucked under the upper teeth.', () => 'teeth - teeth * mouthOpen'),
   // The tongue up rather than merely out: `tongueY` is negative upwards.
-  slot('mouth', 'tongueTeeth', 'Tongue at the teeth', 'The tongue raised against the upper teeth.', () => '0 - tongue * tongueY')
+  slot('mouth', 'tongueTeeth', 'Tongue at the teeth', 'The tongue raised against the upper teeth.', () => '0 - tongue * tongueY'),
+  /**
+   * The tongue out of a mouth that is open, which is a different shape from a
+   * tongue out of one that is nearly shut.
+   *
+   * A blep needs no open mouth — the tip is brought out by `tongue * tongueOut`
+   * and the lips can stay together (docs/MOUTH_BUILD.md) — so the two cases are
+   * genuinely two drawings: one is a tongue between the lips, the other is a
+   * tongue over a lower lip that has dropped away from it. The product is what
+   * tells them apart, and it is 0 for both the mouth that is merely open and
+   * the tongue that is merely out.
+   */
+  slot('mouth', 'tongueOut', 'Tongue out of an open mouth', 'The tongue over a lower lip that has dropped.', () => 'mouthOpen * tongue * tongueOut')
 ]);
 
 export const FACE_CORRECTIVE_SLOTS = Object.freeze([...EYE_CORRECTIVE_SLOTS, ...MOUTH_CORRECTIVE_SLOTS]);

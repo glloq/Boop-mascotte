@@ -142,16 +142,24 @@ one would have taken the wink with it.
 ### 3.1 What the artwork is
 
 ```text
-mouth    the lips — required, and the only required one
-cavity   the inside, when the artwork draws it separately
-teeth    optional
-tongue   optional
+mouth       the lips — required, and the only required one
+cavity      the inside, when the artwork draws it separately
+teeth       the upper row                            optional
+teethLower  the lower row                            optional  (V6)
+tongue      the body of it, inside the cavity        optional
+tongueTip   the part that laps over the lower lip    optional  (V6)
 ```
 
 A mascot whose mouth is a single stroked line works: it opens, smiles and
 widens by moving as a whole. Everything inside the lips is optional, and what
 the optional pieces buy is that the 2.5D turn carries them with the lip line
 and that Teeth and Tongue become movements like any other.
+
+The two V6 added are **roles and not movements**: the lower row shows on the
+same `teeth` control as the upper one, and the tip comes out on the tongue
+part's own `tongueOut`. A mouth that draws neither behaves exactly as it did,
+which is every mouth in every project written before V6
+(docs/MOUTH_BUILD.md).
 
 ### 3.2 Closed to open, without a pop
 
@@ -165,11 +173,19 @@ mouthOpen > 0      ╭──────╮
 ```
 
 Because it is one path and every deformation is an additive shape key, there is
-no swap, no fade and no return to neutral anywhere between the two. The teeth
-and the tongue are drawn **from the mouth's own curves**, so they cannot leave
-it; at `show 0` each is two identical curves traced twice, enclosing nothing, so
-closed lips have nothing behind them to hide by construction rather than by
-arithmetic.
+no swap, no fade and no return to neutral anywhere between the two. Everything
+inside is drawn **from the mouth's own curves**, so it cannot leave them; at rest
+each is a closed path whose second half retraces its first exactly, enclosing
+nothing, so closed lips have nothing behind them to hide by construction rather
+than by arithmetic.
+
+Since V6 the template also **clips** the insides to the aperture. That is belt to
+the geometry's braces rather than a second mechanism: the shapes stay inside by
+construction, but `tongueX` and `tongueY` translate the tongue, `mouthWidth`
+scales the rows, and a warp or a pin can reach any of them. The clip is one
+`<use>` of `#mouth`, which *is* the shape of the hole, so it follows every pose
+with nothing to keep in step. The tongue's **tip** is outside it on purpose, and
+is the only thing that is: a tongue hanging out lies over the lower lip.
 
 ### 3.3 `mouthRound`
 
@@ -181,7 +197,18 @@ rounds a mouth is the corners coming in while the lip line bows out above and
 below them, and no combination of opening and narrowing says that. It is the
 whole axis between `AE` and `OO`, and it is the only mouth control added.
 
-### 3.4 What a library mouth can say
+### 3.4 `mouthSkew` (V6)
+
+One more control, −1 … 1, resting at 0, and signed.
+
+The rig has had asymmetric **corners** since CR-28 — two pins, one per end of the
+lip line (docs/FACE_CONTROL_RIG.md §12). What they cannot do is take the lip line
+between them with them: a pin moves the artwork near it and lets go, so pulling
+one corner up leaves the curve where it was. A smirk is the whole mouth
+**leaning**, which is a shape: one corner up, the other down by as much, and the
+lip line following them. Lifting both would be half a smile.
+
+### 3.5 What a library mouth can say
 
 A face part declares its `capabilities`, and a drawing that cannot pucker does
 not claim `mouthRound`. Installing such a mouth over a face that had it turns
@@ -232,9 +259,24 @@ are the same mouth.
 | `wide` | `mouthWidth` | `EE` — signed |
 | `openRound` | `mouthOpen * mouthRound` | `OH` |
 | `openWide` | `mouthOpen * mouthWidth` | `AE`, `EE` |
+| `skew` | `mouthSkew` | a smirk — signed (V6) |
+| `openSmile` | `mouthOpen * smile` | a grin (V6) |
+| `smileWide` | `smile * mouthWidth` | a grin stretched across the face (V6) |
 | `lock` | `mouthLock` | `MBP` |
 | `lipTeeth` | `teeth - teeth * mouthOpen` | `FV` |
 | `tongueTeeth` | `0 - tongue * tongueY` | `L` |
+| `tongueOut` | `mouthOpen * tongue * tongueOut` | a tongue out of an **open** mouth (V6) |
+
+The four V6 added are the pairs the arithmetic is least kind to rather than
+pairs somebody listed. `openSmile` is the combination a mouth is asked for more
+than any other: `mouthOpen` drops the lower lip sixty-two units while `smile`
+lifts the corners and deepens the lip line, and added they draw an aperture that
+is correct and, at the top of the range, wider across the corners than a face
+actually opens. `smileWide` is the other pair that fights — `mouthWidth` is a
+`scaleX`, and a scale applied to a curve a smile has already bowed flattens the
+bow. And `tongueOut` tells a laugh from a blep: the tip needs no open mouth to
+come out (docs/MOUTH_BUILD.md), so a tongue between the lips and a tongue over a
+lower lip that has dropped away from it are genuinely two drawings.
 
 Each sentence is a **distinct monomial** in the controls, so two correctives can
 never double-count the same shape: `closed` is linear in `eyeOpen` and

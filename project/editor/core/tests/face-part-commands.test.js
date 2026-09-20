@@ -42,16 +42,18 @@ test('replacing a mouth is one write and one undo step, and the canvas is asked 
   const revision = ui.store.getPersistentRevision();
   const result = ui.commands.replace('mouth', 'mouth.full');
   assert.equal(result.ok, true, result.reason);
-  assert.deepEqual([result.partId, result.rootId, result.ids, result.enabled, result.disabled, result.fitted], ['mouth', 'mouth-full', ['mouth-full', 'mouth', 'teeth', 'tongue'], ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'teeth', 'tongue'], [], true]);
+  assert.deepEqual([result.partId, result.rootId, result.ids, result.enabled, result.disabled, result.fitted], ['mouth', 'mouth-full', ['mouth-full', 'mouth', 'mouth-full-inside', 'tongue', 'teethLower', 'teeth', 'tongueTip'],
+      ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'mouthSkew', 'teeth', 'tongue', 'tongueX', 'tongueY', 'tongueOut', 'tongueCurl'], [], true]);
   assert.deepEqual(ui.store.getDocument().elements['mouth-full'].baseTransform, { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 120, pivotY: 176.5 }, 'on the template, fitting an asset drawn for the template moves nothing');
   assert.equal(ui.store.getPersistentRevision(), revision + 1, 'one write');
   assert.deepEqual(ui.installed.map((item) => item.rootId), ['mouth-full'], 'the preview is told once, after the write');
   assert.equal(ui.canvas.calls.replace.length, 1);
-  assert.deepEqual(ui.canvas.calls.replace[0].removeIds, ['mouth', 'teeth', 'tongue']);
+  assert.deepEqual(ui.canvas.calls.replace[0].removeIds, ['mouth', 'tongueTip', 'mouthInside', 'tongue', 'teethLower', 'teeth']);
   assert.equal(ui.canvas.calls.load.length, 0, 'nothing to put back');
   const after = ui.store.getDocument();
   assert.equal(after.svgMarkup, ui.canvas.markup(), 'the store holds the markup the canvas shows');
-  assert.deepEqual(Object.values(after.semanticParts).find((part) => part.type === 'mouth').roles, { mouth: 'mouth', teeth: 'teeth', tongue: 'tongue' });
+  assert.deepEqual(Object.values(after.semanticParts).find((part) => part.type === 'mouth').roles,
+    { mouth: 'mouth', teeth: 'teeth', teethLower: 'teethLower', tongue: 'tongue', tongueTip: 'tongueTip' });
   assert.deepEqual(ui.history.getState(), { canUndo: true, canRedo: false });
   ui.history.undo();
   assert.deepEqual(ui.store.getDocument(), before, 'one undo, and everything is as it was');

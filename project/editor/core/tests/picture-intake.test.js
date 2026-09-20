@@ -78,13 +78,15 @@ test('"just a piece" is an answer, and it is the first one offered', () => {
   // (semantic-parts/face-role-vocabulary.js).
   // Twenty-six since the gaze grew an iris per side: a build that draws one
   // needs somewhere to say so when the drawing arrives as a picture
-  // (docs/EYE_BUILDS.md).
-  assert.equal(INTAKE_ROLES.length, 26);
+  // (docs/EYE_BUILDS.md). Twenty-eight since the mouth grew a lower row of
+  // teeth and the tongue a tip (docs/MOUTH_BUILD.md) -- one name each, even
+  // though the tip is a role of the mouth *and* of the tongue part.
+  assert.equal(INTAKE_ROLES.length, 28);
   assert.ok(INTAKE_ROLES.every((entry) => entry.label && entry.hint));
   assert.deepEqual(INTAKE_ROLES.slice(1, 9).map((entry) => entry.id),
     ['head', 'leftEye', 'rightEye', 'leftPupil', 'rightPupil', 'leftBrow', 'rightBrow', 'mouth'],
     'the beginner eight first, in their own order');
-  for (const role of ['hair', 'hairBack', 'leftEar', 'nose', 'jaw', 'tongue', 'teeth', 'leftUpper', 'leftIris', 'rightIris', 'facialHair']) {
+  for (const role of ['hair', 'hairBack', 'leftEar', 'nose', 'jaw', 'tongue', 'tongueTip', 'teeth', 'teethLower', 'leftUpper', 'leftIris', 'rightIris', 'facialHair']) {
     assert.ok(INTAKE_ROLES.some((entry) => entry.id === role), `${role} can be said`);
   }
   // One name for one role: the tongue is a role of the mouth *and* a part of

@@ -83,7 +83,7 @@ test('compatible drawings come first, and nothing else reorders the shelf', () =
   // (`masc07b-library-filtering.test.js`). Compatibility is the one thing this
   // adds to it; what a drawing *costs* is said on the drawing instead, so the
   // row does not move under the hand reaching for it.
-  const cards = faceLibraryModel(state(), { category: 'mouth', showAll: true }).cards;
+  const cards = faceLibraryModel(state(), { category: 'mouth', showAll: true, showLegacy: true }).cards;
   const rank = cards.map((card) => Number(!card.compatible));
   assert.deepEqual(rank, [...rank].sort((a, b) => a - b), 'compatible first');
   const authored = libraryCards(state(), 'mouth').filter((card) => card.compatible).map((card) => card.id);
@@ -91,9 +91,60 @@ test('compatible drawings come first, and nothing else reorders the shelf', () =
     'and within the compatible ones, the library\u2019s own order is untouched');
 });
 
+/**
+ * The shelf has **two** filters now, and they answer different questions
+ * (V6, §3 of the brief).
+ *
+ * ```text
+ * legacy       is this drawing part of what the editor offers at all?
+ * compatible   does it suit the kind of face this mascot already is?
+ * ```
+ *
+ * `Show all` is the second one's way back and always was. The first one's is
+ * its own button, because the two are not interchangeable: an author looking
+ * for a beak is not asking to be shown every drawing that does not fit their
+ * face, and an author whose animal is missing a muzzle is not asking for the
+ * human library.
+ */
+test('the packs are kept and not offered, and there is a way to see them', () => {
+  const human = faceLibraryModel(state(), { category: 'mouth' });
+  assert.deepEqual(human.cards.map((card) => card.id), ['mouth.full'], 'one mouth, where the shelf used to hold sixteen');
+  assert.equal(human.legacy, 15, 'and it says how many it is holding back');
+  assert.equal(human.offered, 42, 'the library holds 132 drawings and offers the human ones');
+  assert.equal(human.total, 132, 'nothing has been taken out of it');
+
+  const everything = faceLibraryModel(state(), { category: 'mouth', showLegacy: true });
+  assert.equal(everything.cards.length, 16);
+  assert.equal(everything.legacy, 0, 'nothing held back once they are shown');
+  assert.ok(everything.cards.filter((card) => card.legacy).length === 15, 'and every one of them says what it is');
+});
+
+/**
+ * The exception that makes hiding safe: a card the face is **wearing** is
+ * always on the shelf.
+ *
+ * An author who opens an animal made before the recentring must still be able
+ * to see its muzzle and change it. Hiding the only door to a part somebody has
+ * already put on is the failure this whole layer exists to prevent, and it is
+ * worse for legacy than for compatibility — a compatibility mismatch is a
+ * warning about a choice, and this would be a choice that had vanished.
+ */
+test('a legacy drawing the face is already wearing is never hidden', () => {
+  const document = state();
+  const mouth = Object.values(document.semanticParts).find((part) => part.type === 'mouth');
+  mouth.assetId = 'mouth.beak-owl';
+  mouth.assetRoot = mouth.roles.mouth;
+  const view = faceLibraryModel(document, { category: 'mouth' });
+  const worn = view.cards.find((card) => card.id === 'mouth.beak-owl');
+  assert.ok(worn, 'the beak this face wears is on the shelf');
+  assert.equal(worn.worn, true);
+  assert.equal(worn.legacy, true, 'and still says what it is');
+  assert.equal(view.legacy, 14, 'the other fourteen are still held back');
+});
+
 test('Show all is a way back, and a lossy drawing was never taken away', () => {
-  const shown = faceLibraryModel(state(), { category: 'mouth' });
-  const all = faceLibraryModel(state(), { category: 'mouth', showAll: true });
+  const shown = faceLibraryModel(state(), { category: 'mouth', showLegacy: true });
+  const all = faceLibraryModel(state(), { category: 'mouth', showLegacy: true, showAll: true });
   assert.equal(shown.cards.length + shown.filtered, all.cards.length,
     'the filter can account for every drawing it is not showing');
   // Badging is not removing: a drawing that costs a movement stays where the

@@ -82,6 +82,10 @@ export const BASIC_MOVEMENTS = Object.freeze([
   // How far the lips pucker, which is the difference between AE and OO and is
   // not how wide or how open the mouth is (docs/VISEME_SYSTEM.md).
   Object.freeze({ id: 'mouthRound', tier: 'quick', band: 'Mouth', part: 'mouth', label: 'Round', group: 'Mouth', axis: 'x' }),
+  // The smirk: one corner up, the other down, and the lip line leaning after
+  // them. `more` rather than `quick`, because a mouth that is not straight is
+  // a character choice rather than one of the four a face is posed by.
+  Object.freeze({ id: 'mouthSkew', tier: 'more', band: 'Mouth', part: 'mouth', label: 'Lean', group: 'Mouth', axis: 'x' }),
   Object.freeze({ id: 'teeth', tier: 'more', band: 'Mouth', part: 'mouth', label: 'Teeth', group: 'Mouth', axis: 'y' }),
   Object.freeze({ id: 'tongue', tier: 'more', band: 'Mouth', part: 'mouth', label: 'Tongue', group: 'Mouth', axis: 'y' }),
   // A beard is carried by the jaw that opens under it, on the same control.

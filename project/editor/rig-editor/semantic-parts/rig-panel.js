@@ -1,3 +1,4 @@
+import { driverRoles } from './part-model.js';
 import { SEMANTIC_PART_REGISTRY, requiredSemanticRoles, supportsSideControl } from './part-registry.js';
 import { selectionSubject } from '../../core/selectors/selection-subject.js';
 import { createSemanticRigCommands } from './semantic-rig-commands.js';
@@ -175,7 +176,7 @@ export function createRigPanel(host,store,history,preview,onControlCommit=()=>{}
           ?`<button type="button"${step===current?'':' class="secondary"'} data-edit-morph="${control}:${step.key}">${done?'Edit again':'Edit shape'}</button>`
           :`<button type="button"${step===current?'':' class="secondary"'} data-pose-capture="${control}:${step.key}" aria-label="${done?'Capture again':'Pose and capture'} ${esc(step.label)}">${done?'Capture again':'Capture'}</button>`}
       </div>`;}).join('');
-    const compatibility=driver?.method==='morph'?`<p class="compatibility ${driver.roles.every(role=>state.elements?.[part.roles[role]]?.morph?.compatible)?'ok':'warn'}">${driver.roles.every(role=>state.elements?.[part.roles[role]]?.morph?.compatible)?'✓ Shapes are compatible':'⚠ Capture both shapes with the same node layout.'}</p>`:'';
+    const compatibility=driver?.method==='morph'?`<p class="compatibility ${driverRoles(part,driver).every(role=>state.elements?.[part.roles[role]]?.morph?.compatible)?'ok':'warn'}">${driverRoles(part,driver).every(role=>state.elements?.[part.roles[role]]?.morph?.compatible)?'✓ Shapes are compatible':'⚠ Capture both shapes with the same node layout.'}</p>`:'';
     const body=`<div class="pose-cards">${cards}</div>${compatibility}${captured?`<button type="button" class="secondary" data-reset-calibration="${control}">Reset to default movement</button>`:''}`;
     // The steps are what an author sees until they are done with them; once the
     // movement is set up, what they came back for is to try it, and redoing a

@@ -46,6 +46,20 @@ test('@critical the library shows its drawings, and one press puts a pair of eye
   expect(await panel.locator('[data-face-library-category]').count()).toBeGreaterThanOrEqual(9);
   const cards = panel.locator('[data-face-library-card]');
   expect(await cards.count()).toBeGreaterThanOrEqual(3);
+
+  // The library *holds* a hundred and thirty-two and *offers* forty-two: the
+  // animal, robot and bird packs are kept for the faces that wear them and no
+  // longer put on the shelf (docs/FACE_PART_LIBRARY.md, "Active and legacy").
+  // Four pairs of eyes are held back here, and the button that shows them says
+  // so rather than the shelf silently being shorter.
+  await expect(panel).toHaveAttribute('data-face-library-legacy', '4');
+  const offered = await cards.evaluateAll((list) => list.map((card) => card.dataset.faceLibraryCard));
+  expect(offered.every((id) => !id.includes('robot')), 'no pack drawing on the human shelf').toBe(true);
+  await panel.locator('[data-face-library-show-legacy="on"]').click();
+  await expect(panel).toHaveAttribute('data-face-library-legacy', '0');
+  expect(await cards.count(), 'and there is a way to see them').toBe(offered.length + 4);
+  await panel.locator('[data-face-library-show-legacy="off"]').click();
+  await expect(panel).toHaveAttribute('data-face-library-legacy', '4');
   // The drawing itself, not its name: *Sleepy* and *Cartoon* were not words
   // anybody could choose eyes by. And each preview's ids are its own, so no card
   // on the shelf is clipped to another card's mask.

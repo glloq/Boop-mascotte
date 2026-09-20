@@ -134,6 +134,28 @@ export function availableMorphologies({ library = FACE_PART_LIBRARY } = {}) {
 }
 
 /**
+ * And which of them are **offered**, which is a different question again
+ * (V6, §3.2 of the brief).
+ *
+ * ```text
+ * available   the library can fill the slots that make this kind of face
+ * legacy      the editor keeps this kind rather than offering it
+ * offered     available and not legacy
+ * ```
+ *
+ * Three words, because they answer three things and collapsing any two of them
+ * loses something. `available` is derived from the drawings and says whether a
+ * kind *could* be made — the animal kind is still perfectly makeable, which is
+ * exactly why a document that wears one still works. `legacy` is a decision
+ * about what the editor is for. A kind that is legacy stays available and stops
+ * being offered, and nothing about that takes a drawing away.
+ *
+ * @returns {object[]} the records `availableMorphologies` returns, narrowed
+ */
+export const offeredMorphologies = ({ library = FACE_PART_LIBRARY } = {}) =>
+  availableMorphologies({ library }).filter((morphology) => morphology.available && !morphology.legacy);
+
+/**
  * Whether a preset can dress this kind of face, and how much of its style the
  * library can grant.
  *

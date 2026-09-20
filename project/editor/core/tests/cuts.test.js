@@ -100,7 +100,11 @@ test('every cut the template ships is one an author can reach', () => {
   // head in `<defs>`: it cut the fringe, it appeared in no layer, and because it
   // was a copy it did not follow the head's jaw either.
   const { byPiece, byCutter } = readCuts(buildMascotFaceSvg());
-  assert.deepEqual(Object.keys(byPiece).sort(), ['eyeInnerLeft', 'eyeInnerRight', 'faceShading', 'hairFront']);
+  // `mouthInside` is V6's: everything the mouth has *in* it is cut to the lips,
+  // so no pose of the rig can push a row of teeth or a tongue onto the chin
+  // (docs/MOUTH_BUILD.md). Cut to `#mouth` itself, which is the shape of the
+  // hole, so the cut follows every pose of it with nothing to keep in step.
+  assert.deepEqual(Object.keys(byPiece).sort(), ['eyeInnerLeft', 'eyeInnerRight', 'faceShading', 'hairFront', 'mouthInside']);
   for (const [id, cut] of Object.entries(byPiece)) {
     assert.equal(cut.named, true, `${id} is cut to a shape with no name`);
     assert.equal(cut.drawn, true, `${id} is cut to a frozen copy rather than to a drawing`);
@@ -110,4 +114,6 @@ test('every cut the template ships is one an author can reach', () => {
   assert.equal(byPiece.hairFront.shapeName, 'Head shape');
   assert.deepEqual(byCutter.head, ['faceShading', 'hairFront']);
   assert.deepEqual(byCutter.eyeWhiteLeft, ['eyeInnerLeft']);
+  assert.deepEqual(byCutter.mouth, ['mouthInside']);
+  assert.equal(byPiece.mouthInside.shapeName, 'Mouth');
 });

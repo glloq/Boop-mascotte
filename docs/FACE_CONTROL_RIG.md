@@ -691,9 +691,30 @@ shallow: what rounds a mouth is the corners coming in while the lip line bows
 out above and below them. `mouthRound` (0 → 1, resting at 0) says how far
 (docs/VISEME_SYSTEM.md).
 
+**The lean** is the one control V6 added, and it is what the corner pins cannot
+do. A pin moves the artwork near it and lets go, so pulling one corner up leaves
+the lip line between the two where it was; a smirk is the whole mouth leaning.
+`mouthSkew` (−1 → 1, resting at 0) lifts one corner and drops the other by as
+much, and leans the lip line after them — signed, so one shape key serves both
+directions, and never half a smile (docs/MOUTH_BUILD.md).
+
 The tongue is a part of its own — `tongueX`, `tongueY`, `tongueOut`,
 `tongueCurl` — because the mouth's `tongue` control answers a different
 question (whether it shows).
+
+**`tongueOut` and `tongueCurl` are shapes** since V6, where they were a `scaleY`
+about the tongue's middle and a `rotation` of the whole drawing. A scale
+stretches the root as far as the tip and grows the tongue up into the skull as
+readily as out of the mouth; a rotation swings the root out through a cheek.
+Neither is what the word means, and both were visible the moment the tongue was
+drawn as more than a hump. Shaped, `tongueOut` extends the tip past the lower lip
+and pushes the body forward behind it, and `tongueCurl` lifts the middle of the
+tip's free edge and moves nothing else. `tongueX` and `tongueY` stay translates,
+because a tongue that moves sideways really does move sideways.
+
+Both keep their old transform in `strategies`, so a project rigged that way can
+be switched back to it — and a document that carries one goes on carrying it, in
+any case: a stored binding is the document's, not the registry's.
 
 **What an open mouth has in it** is two more controls, on the artwork they
 show: `teeth` on the teeth and `tongue` on the tongue, both inside the mouth's

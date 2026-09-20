@@ -979,18 +979,91 @@ change what the part draws: the shape, its transform, its opacity, or the
 group above it, since a head turns as the face. An asset that claims a
 movement its drawing cannot carry fails there, before it reaches a face.
 
-## The built-in assets
+## Active and legacy
 
-A hundred and fifty assets in four parts: the **human** library (forty-seven —
-the basic face library of PR 6, the seven it asked for on top, and the four face
-shapes the brief added later) and three Soft Cartoon packs drawn from delivered
-art direction.
+> *« recentrer l'outil sur les têtes humaines … les anciens packs non humains
+> doivent être traités comme legacy / compatibility only, non proposés par
+> défaut dans la création standard »* — V6, §2.1 and §3.
+
+The library holds a hundred and thirty-two drawings and **offers forty-two**.
 
 ```text
-builtin/            47   human      PR 6 · phase 45
-builtin/animals/    45   muzzle     MASC-10B · Soft Cartoon — Face Parts V1
-builtin/robots/     28   robot      MASC-11B · ROBOT-V1
-builtin/birds/      30   beak       MASC-12B · BIRD-10A
+ACTIVE    human faces        42 drawings   6 presets   1 kind of face
+LEGACY    animals · robots · birds   90 drawings  16 presets   4 kinds
+```
+
+**Kept, and not offered.** Those two words are the whole of it. A legacy drawing
+is a drawing: it registers, it validates, it installs, a document that wears one
+opens with it, a preset that names one still applies, and a pack that ships for a
+legacy kind of face still comes in. The only thing it does not do is appear in a
+list an author is choosing from.
+
+It is a flag and not a deletion because the two failures a deletion causes are
+both worse than a longer table:
+
+```text
+deleted     a muzzle a project wears stops resolving, and the face loses it
+deleted     a pack that declares `morphologies: ['muzzle']` refuses to register
+hidden      neither, and the shelf is as short as if they had gone
+```
+
+### How a thing becomes legacy
+
+**By derivation, first.** A drawing that no human face can wear is legacy — and
+that is the ninety, without one of them being edited. Every asset of the three
+packs already declares the kind of face it is for (MASC-02), so the question
+"can a person wear this?" was already answerable and nobody had thought to ask
+it. An asset that says nothing is universal, so it suits a person and is
+offered: that is every one of the forty-two, and every drawing anybody has ever
+saved. A preset is legacy when the kind of face it makes is.
+
+**By saying so, second.** `legacy: true` on an asset or a preset is for the case
+derivation cannot reach — a *human* drawing that is retired anyway. Silent by
+default, so everything written before this reads as active.
+
+### Three words that are not one word
+
+```text
+available   the library can fill the slots that make this kind of face
+legacy      the editor keeps this kind rather than offering it
+offered     available and not legacy
+```
+
+Collapsing any two of them loses something. The animal kind is still perfectly
+*makeable* — which is exactly why a document that wears one still works — and it
+is not *offered*, which is a decision about what the editor is for. Nothing about
+that takes a drawing away. `availableMorphologies` answers the first two and
+`offeredMorphologies` the third.
+
+### The one exception
+
+**A card the face is wearing is always on the shelf**, legacy or not. Hiding the
+only door to a part somebody has already put on is the failure this whole layer
+exists to prevent, and it is worse for legacy than for compatibility — a
+compatibility mismatch is a warning about a choice, and this would be a choice
+that had vanished. An author who opens an animal made before the recentring can
+still see its muzzle, and still change it.
+
+Design's shelf also carries the way back: *Show the older packs too (15 animal,
+robot and bird drawings)*, beside the compatibility filter's own *Show all*. The
+two are not interchangeable — an author looking for a beak is not asking to be
+shown every drawing that does not fit their face.
+
+`core/face-library/face-catalogue.js` is the one module that decides any of this,
+and `core/tests/face-catalogue.test.js` holds both halves: what is offered, and
+what goes on working.
+
+## The built-in assets
+
+A hundred and thirty-two assets in four parts: the **human** library (forty-two,
+the only one the editor offers) and three Soft Cartoon packs drawn from delivered
+art direction and kept as legacy.
+
+```text
+builtin/            42   human      PR 6 · phase 45 · V6      ACTIVE
+builtin/animals/    39   muzzle     MASC-10B · Soft Cartoon   legacy
+builtin/robots/     28   robot      MASC-11B · ROBOT-V1       legacy
+builtin/birds/      23   beak       MASC-12B · BIRD-10A       legacy
 ```
 
 All four are drawn in the template face's frame, so the same reference boxes fit
@@ -1237,6 +1310,7 @@ project/editor/core/face-library/
   face-part-install.js      planFacePartReplacement, scrubRemovedArtwork, applyFacePartReplacement, followHeadClips
   face-part-commands.js     createFacePartCommands: plan, layout and replace, one undo step
   face-library-model.js     assetPreview, wornAsset, libraryCards, faceLibraryModel: what the library offers this face
+  face-catalogue.js         active vs legacy: isLegacyAsset, isLegacyPreset, catalogueAssets, cataloguePresets, faceCatalogueSummary
   face-layout.js            the layout context, the template's boxes, fitFacePart, layoutThroughRoot, composeFit
   palette-model.js          TOKEN_SEEDS, seedTokens, derivePalette, tokenWrites, tintArtwork
   face-presets.js           FACE_PALETTES, FACE_STYLE_PRESETS, the preset registry, styledAsset and presetDrawings (the style axis), presetOfFace, planFacePreset, presetThumbnail, the browser store
@@ -1255,6 +1329,7 @@ project/editor/core/tests/facial-hair-follow.test.js
 project/editor/core/tests/face-part-commands.test.js
 project/editor/core/tests/face-layout.test.js
 project/editor/core/tests/face-pack.test.js
+project/editor/core/tests/face-catalogue.test.js   what is offered, and what goes on working
 project/editor/core/tests/helpers/fake-face-canvas.js   the swap over the template's markup, in Node
 project/editor/core/tests/face-roles-everywhere.test.js  the library model, and the roles beside it
 tests/e2e/ux46-face-layout.spec.js

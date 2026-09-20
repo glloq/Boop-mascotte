@@ -25,7 +25,7 @@ At 1440×900, before any of this:
 
 One `300px · 1fr · 310px` for every screen is a single compromise across
 screens that want opposite things. Drawing wants the canvas. Choosing among a
-hundred and fifty drawings wants the list. A screen is the only thing that
+library of drawings wants the list. A screen is the only thing that
 knows which it is.
 
 ## The numbers live on the route

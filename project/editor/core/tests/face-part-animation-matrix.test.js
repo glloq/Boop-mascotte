@@ -61,14 +61,21 @@ function drivenValue(parameter) {
  * `mouthOpen * teeth`, a product, so closed lips have nothing behind them to
  * show (docs/MOUTH_BUILD.md).
  *
- * Only words that are **movements of the same part**. A side offset is a word
+ * Only words that are **movements some part declares**. A side offset is a word
  * too — `eyeOpen + eyeOpenLeft` is what a wink is — and it rests at 0 on purpose:
  * driving it would take the sum back to where the drawing rests and read a
- * working blink as a movement that does nothing.
+ * working blink as a movement that does nothing. No part declares one, so none
+ * is driven here.
+ *
+ * Any part's, not only this one's: a gate often belongs to the part that draws
+ * the shape rather than to the part that moves it. The tongue's tip comes out
+ * on `tongue * tongueOut` — the mouth says there is a tongue at all, and the
+ * tongue part says how far — and a beard follows `mouthOpen + jawOpen`, which
+ * is the sentence the chin under it is stretched by.
  */
 function sentence(document, part, control) {
   const names = new Set([control]);
-  const own = new Set(SEMANTIC_PART_REGISTRY[part.type]?.controls || []);
+  const own = new Set(Object.values(SEMANTIC_PART_REGISTRY).flatMap((definition) => definition.controls || []));
   const expressions = [
     ...Object.values(document.elements || {}).flatMap((element) => Object.values(element.bindings || {})
       .filter((binding) => binding.generatedBy?.semanticPart === part.id && binding.generatedBy?.control === control)

@@ -25,7 +25,7 @@ your pictures" and "here is a Bézier node editor" — and it was where the edit
 opened. So the first thing anybody saw was nine vector tools, a hundred and
 thirty layers and an Inspector of geometry, bindings and morph targets.
 
-Meanwhile the **hundred and fifty drawings the editor ships** were inside a
+Meanwhile the **drawings the editor ships** were inside a
 collapsed disclosure called *Add / Create artwork*, under three cards, at the
 bottom of the column. An author's own words for it: *il n'y a rien non plus pour
 l'ajout des yeux ou bouche svg*.

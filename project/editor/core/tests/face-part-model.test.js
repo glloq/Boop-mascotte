@@ -43,10 +43,15 @@ test('an asset is normalised to one shape, defaults filled and frozen', () => {
   // contract every optional field before it kept: a drawing that says nothing
   // about one behaves exactly as it always did (docs/V4_ROADMAP.md, Phase 5).
   const asset = normalizeFacePart({ id: ' mouth.x ', category: 'mouth', name: ' X ', artwork: ' <g id="a"/> ', roles: { mouth: 'a', teeth: 7 }, capabilities: ['smile', 'smile', 3], referenceBox: { x: '1', y: 2, width: '3', height: 4 }, palette: ['mouth', 'mouth'] });
-  assert.deepEqual(asset, { id: 'mouth.x', category: 'mouth', name: 'X', description: '', artwork: '<g id="a"/>', picture: null, roles: { mouth: 'a' }, capabilities: ['smile'], drivers: {}, turn: {}, parts: {}, behind: [], paletteRoles: {}, depth: null, referenceBox: { x: 1, y: 2, width: 3, height: 4 }, mountPoint: 'mouth.center', host: null, variant: null, slot: '', morphologies: [], symmetry: null, maxInstances: 0, tags: [], palette: ['mouth'], origin: 'custom', pack: null });
+  assert.deepEqual(asset, { id: 'mouth.x', category: 'mouth', name: 'X', description: '', artwork: '<g id="a"/>', picture: null, roles: { mouth: 'a' }, capabilities: ['smile'], drivers: {}, turn: {}, parts: {}, behind: [], paletteRoles: {}, depth: null, referenceBox: { x: 1, y: 2, width: 3, height: 4 }, mountPoint: 'mouth.center', host: null, variant: null, slot: '', morphologies: [], legacy: false, symmetry: null, maxInstances: 0, tags: [], palette: ['mouth'], origin: 'custom', pack: null });
   assert.ok(Object.isFrozen(asset) && Object.isFrozen(asset.roles) && Object.isFrozen(asset.capabilities) && Object.isFrozen(asset.parts));
   // Where it is offered, what it suits and what to find it by (MASC-02): all
   // three optional, and "said nothing" is kept as such rather than guessed at.
+  // `legacy` is the fourth of that kind (V6, §3): a drawing kept for the faces
+  // that wear it rather than offered to new ones, and silent by default, so
+  // every drawing written before the recentring reads as active.
+  assert.equal(normalizeFacePart({ id: 'mouth.old', category: 'mouth', legacy: true }).legacy, true);
+  assert.equal(normalizeFacePart({ id: 'mouth.new', category: 'mouth', legacy: 'yes' }).legacy, false, 'a flag is a flag, not a truthy value');
   const filed = normalizeFacePart({ id: 'mouth.b', category: 'mouth', slot: ' beak ', morphologies: ['beak', 'beak', 7], tags: [' Duck ', 'bird'] });
   assert.deepEqual({ slot: filed.slot, morphologies: filed.morphologies, tags: filed.tags }, { slot: 'beak', morphologies: ['beak'], tags: ['duck', 'bird'] });
   assert.ok(Object.isFrozen(filed.morphologies) && Object.isFrozen(filed.tags));
@@ -109,11 +114,15 @@ test('a drawing may say it restyles another, and into which style', () => {
 });
 
 test('the artwork scanner reads elements, ids and balance from a fragment', () => {
-  // The library's own mouth, which draws three shapes inside its group.
+  // The library's own mouth: the lips, a clipped folder holding the tongue and
+  // the two rows, and the tongue's tip in front of them all (docs/MOUTH_BUILD.md).
   const scan = scanArtwork(MOUTH_FULL.artwork);
-  assert.deepEqual(scan.elements.map((item) => [item.tag, item.id, item.depth]), [['g', 'mouth-full', 0], ['path', 'mouth', 1], ['path', 'teeth', 1], ['path', 'tongue', 1]]);
+  assert.deepEqual(scan.elements.map((item) => [item.tag, item.id, item.depth]), [
+    ['g', 'mouth-full', 0], ['path', 'mouth', 1], ['g', 'mouth-full-inside', 1],
+    ['path', 'tongue', 2], ['path', 'teethLower', 2], ['path', 'teeth', 2],
+    ['path', 'tongueTip', 1], ['clipPath', 'mouth-full-aperture', 1], ['use', null, 2]]);
   assert.equal(scan.balanced, true);
-  assert.deepEqual(artworkIds(MOUTH_FULL.artwork), ['mouth-full', 'mouth', 'teeth', 'tongue']);
+  assert.deepEqual(artworkIds(MOUTH_FULL.artwork), ['mouth-full', 'mouth', 'mouth-full-inside', 'tongue', 'teethLower', 'teeth', 'tongueTip', 'mouth-full-aperture']);
   assert.deepEqual(artworkIds("<g><circle id='one'/><rect/></g>"), ['one'], 'single quotes and unnamed shapes');
   assert.equal(scanArtwork('<g><path/>').balanced, false, 'an unclosed group');
   assert.equal(scanArtwork('<g></path>').balanced, false, 'the wrong closing tag');
@@ -122,7 +131,7 @@ test('the artwork scanner reads elements, ids and balance from a fragment', () =
 });
 
 test('capabilities are read against the part: what is carried, what is not, what cannot be', () => {
-  assert.deepEqual(describeFacePartCapabilities(MOUTH_LINE), { controls: ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'teeth', 'tongue'], supported: ['mouthOpen', 'smile', 'mouthWidth'], missing: ['mouthRound', 'teeth', 'tongue'], unsupported: [], complete: false });
+  assert.deepEqual(describeFacePartCapabilities(MOUTH_LINE), { controls: ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'mouthSkew', 'teeth', 'tongue'], supported: ['mouthOpen', 'smile', 'mouthWidth'], missing: ['mouthRound', 'mouthSkew', 'teeth', 'tongue'], unsupported: [], complete: false });
   assert.deepEqual(describeFacePartCapabilities({ category: 'nose', capabilities: ['noseScrunch'] }).missing, []);
   assert.equal(describeFacePartCapabilities({ category: 'nose', capabilities: ['noseScrunch'] }).complete, true);
   assert.deepEqual(describeFacePartCapabilities({ category: 'nose', capabilities: ['smile'] }).unsupported, ['smile']);

@@ -739,10 +739,51 @@ const ear = (side, flip) => {
  * Re-exported here because the template drew this face and everything that reads
  * these numbers reads them from the template.
  */
-export { MOUTH_BOX, MOUTH_REST, TEETH_REST, TONGUE_REST, mouthGeometry, mouthPath, teethPath, tonguePath } from '../../face/mouth-build.js';
+export {
+  MOUTH_BOX, MOUTH_REST, TEETH_REST, TEETH_LOWER_REST, TONGUE_REST, TONGUE_TIP_REST,
+  mouthGeometry, mouthPath, teethPath, teethLowerPath, tonguePath, tongueTipPath
+} from '../../face/mouth-build.js';
 // And imported, because this module draws with them as well as re-exporting them.
-import { MOUTH, MOUTH_REST, TEETH_REST, TONGUE_REST, mouthGeometry, mouthPath, teethPath, tonguePath } from '../../face/mouth-build.js';
+import {
+  MOUTH, MOUTH_REST, TEETH_REST, TEETH_LOWER_REST, TONGUE_REST, TONGUE_TIP_REST,
+  mouthGeometry, mouthPath, teethPath, teethLowerPath, tonguePath, tongueTipPath
+} from '../../face/mouth-build.js';
 
+
+/**
+ * The mouth, as the five shapes the rig moves.
+ *
+ * ```text
+ *   mouth                    the lips, and the cavity they enclose
+ *   mouthInside  ▸ clipped   tongue · teethLower · teeth
+ *   tongueTip                in front of the lips, because that is where it is
+ * ```
+ *
+ * **The order is the drawing.** Inside the cavity, the tongue is behind the
+ * lower teeth and both are behind the upper row, because that is the order they
+ * are in; and the tip is in front of the lips, because a tongue lapping out
+ * lies *over* the lower lip and there is no other way to say that in a flat
+ * drawing (§5.2 of the brief).
+ *
+ * **The clip is the belt to the geometry's braces.** Everything inside the
+ * mouth is drawn from the mouth's own curves and stays inside it by
+ * construction (docs/MOUTH_BUILD.md) -- but only as long as nothing else moves
+ * it. `tongueX` and `tongueY` translate the tongue, `mouthWidth` scales the
+ * rows, and a warp or a pin can reach any of them: each of those is a way for
+ * an inside to end up on the chin, and each of them used to be. Clipping to the
+ * lips answers all of them at once, and it costs one `<use>` because the
+ * aperture is already a path: `#mouth` *is* the shape of the hole, so the clip
+ * follows every pose of it with nothing to keep in step.
+ *
+ * The tip is outside the clip on purpose, and it is the only thing that is.
+ */
+const mouth = (c) => `<path id="mouth" data-name="Mouth" d="${MOUTH_REST}" fill="${c.mouthInterior}" stroke="${c.lip}" stroke-width="${FACE_STYLE.mouthOutline}" stroke-linejoin="round" />
+    <g id="mouthInside" data-name="Inside the mouth" clip-path="url(#mouthAperture)">
+      <path id="tongue" data-name="Tongue" d="${TONGUE_REST}" fill="${c.tongue}" />
+      <path id="teethLower" data-name="Lower teeth" d="${TEETH_LOWER_REST}" fill="${c.teeth}" />
+      <path id="teeth" data-name="Upper teeth" d="${TEETH_REST}" fill="${c.teeth}" />
+    </g>
+    <path id="tongueTip" data-name="Tongue tip" d="${TONGUE_TIP_REST}" fill="${c.tongue}" />`;
 
 /* ------------------------------------------------------------------- nose -- */
 
@@ -953,7 +994,8 @@ export const FACE_CENTRES = Object.freeze({
   nose: { x: NOSE_CENTRE.x, y: NOSE_CENTRE.y },
   mouth: { x: MOUTH.cx, y: MOUTH.cornerY },
   // The same centre as the mouth on purpose: they narrow together on a turn.
-  teeth: { x: MOUTH.cx, y: MOUTH.cornerY }, tongue: { x: MOUTH.cx, y: MOUTH.cornerY },
+  teeth: { x: MOUTH.cx, y: MOUTH.cornerY }, teethLower: { x: MOUTH.cx, y: MOUTH.cornerY },
+  tongue: { x: MOUTH.cx, y: MOUTH.cornerY }, tongueTip: { x: MOUTH.cx, y: MOUTH.cornerY },
   earLeft: { x: round(headEdgeAt(EAR.cy, 'left') + EAR.inset), y: EAR.cy },
   earRight: { x: round(headEdgeAt(EAR.cy, 'right') - EAR.inset), y: EAR.cy },
   // The hair swings from where it is attached, which is the crown and not the
@@ -1073,9 +1115,7 @@ export function buildMascotFaceSvg({ palette = FACE_PALETTE, box = FACE_ARTBOARD
       <path id="faceLight" data-name="Face highlight" d="${faceLightPath()}" fill="${c.skinHighlight}" opacity="${FACE_STYLE.highlightOpacity}" />
       <path id="shadeHair" data-name="Hairline shadow" d="${hairShadePath()}" fill="${c.skinShadow}" opacity="${FACE_STYLE.hairShadeOpacity}" />
     </g>
-    <path id="mouth" data-name="Mouth" d="${MOUTH_REST}" fill="${c.mouthInterior}" stroke="${c.lip}" stroke-width="${FACE_STYLE.mouthOutline}" stroke-linejoin="round" />
-    <path id="tongue" data-name="Tongue" d="${TONGUE_REST}" fill="${c.tongue}" />
-    <path id="teeth" data-name="Teeth" d="${TEETH_REST}" fill="${c.teeth}" />
+    ${mouth(c)}
     ${eye('Left', EYE.left)}
     ${eye('Right', EYE.right)}
     <g id="eyebrows" data-name="Eyebrows" fill="${c.hairShadow}" stroke="${c.hairShadow}" stroke-width="${FACE_STYLE.browEdge}" stroke-linejoin="round">
@@ -1086,6 +1126,7 @@ export function buildMascotFaceSvg({ palette = FACE_PALETTE, box = FACE_ARTBOARD
     <path id="hairTop" data-name="Hair top" d="${hairTopPath()}" fill="${c.hairHighlight}" />
     <g id="hairFront" data-name="Hair front" clip-path="url(#headShape)"><path id="hair" data-name="Fringe" d="${hairFrontPath()}" fill="${c.hairBase}" /></g>
     <clipPath id="headShape"><use href="#head" /></clipPath>
+    <clipPath id="mouthAperture"><use href="#mouth" /></clipPath>
   </g>
 </svg>`;
 }

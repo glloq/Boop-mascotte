@@ -228,6 +228,10 @@ export function normalizeFacePreset(input = {}) {
     hands: Object.freeze(hands),
     placements: Object.freeze(placements),
     origin: source.origin === 'builtin' ? 'builtin' : 'custom',
+    // Kept for compatibility rather than offered (V6, §3). A preset that makes
+    // a legacy kind of face is legacy by derivation and says nothing; this is
+    // for a *human* preset somebody has retired (`face-catalogue.js`).
+    legacy: source.legacy === true,
     pack: typeof source.pack === 'string' && source.pack.trim() ? source.pack.trim() : null
   });
 }

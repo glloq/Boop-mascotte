@@ -35,6 +35,31 @@ underneath -- the movements, the controls, the expressions -- is untouched
 | `palette` | A named palette (`warm`, `cool`, `pale`, `robot`) or the tokens themselves (`{ "skin": "#f9d9b0", … }`), each a colour by its syntax (`#hex`, a named colour, `rgb()`/`hsl()`) | no |
 | `hands` | What each hand rests on: `left` and `right`, a drawing id (`fist`, `open`, `point`, `peace`, `thumbsUp`, `relaxed`) | no |
 | `placements` | Where a part sits over the place its fit gives it: a move, a turn and a size per axis (`scale` for both, or `scaleX` and `scaleY`; a flipped part is a negative one), all relative. Named by its category where the face wears one of it, and by its asset id where it wears several -- `accessory` says nothing about which of a hat and glasses. A placement the preset does not also name under `parts` or `accessories` is refused, never dropped | no |
+| `legacy` | Kept for the faces that wear it rather than offered to new ones (V6). Silent by default, and almost never written: a preset that makes a legacy *kind* of face is legacy by derivation, so the sixteen of the packs became so without being edited. This is for a **human** preset somebody has retired | no |
+
+## Offered, and kept
+
+Twenty-two presets, and the editor offers **six**.
+
+```text
+ACTIVE   classic · professor · young · old · robot · minimal
+LEGACY   cat · dog · fox · bear · wolf · rabbit
+         robot-screen · robot-retro · robot-industrial · robot-toy
+         owl · duck · parrot · crow · cute-bird · slim-bird
+```
+
+Kept, not deleted: a project that wears an animal still opens, `presetsFor({
+morphology: 'beak' })` still lists six birds, and a pack that ships for a legacy
+kind of face still installs. What changed is which ones an author is offered
+(`docs/FACE_PART_LIBRARY.md`, "Active and legacy").
+
+**Robot is on the active list and `robot-screen` is not**, which looks like an
+inconsistency and is the rule working. `robot` is a square head, a bow tie and a
+machine's palette on a *person*: every drawing it names is one a person can wear,
+so `presetMorphology` reads it as human and it stays. What §3 asks to retire is
+the robot *pack* — `robot-screen` and its three siblings, which are made of
+panels, antennas and display mouths. Hiding a human preset for its name would be
+the opposite of what the recentring is for.
 
 ## The six built-in presets
 
