@@ -300,7 +300,7 @@ screen at once.
 | Rig ▸ Assign | 294 | 294 | 41 | 41 |
 | Rig ▸ Controls | 5936 | **0** | 4 | **46** |
 | Rig ▸ Head 2.5D | 695 | **429** | 26 | 26 |
-| Rig ▸ Deform | 1085 | **421** | 21 | 25 |
+| Rig ▸ Deform | 1085 | **421** | 21 | **27** |
 | Animate ▸ Expressions | 1961 | **478** | 12 | **32** |
 | Animate ▸ Motions | 1921 | **505** | 25 | **41** |
 | Animate ▸ Timeline | 2348 | **390** | 21 | **44** |
@@ -310,38 +310,57 @@ screen at once.
 | Preview | 2845 *(Inspector)* | **548** | 24 | 27 |
 
 Nothing hides more than half a screen any more, and most screens hide nothing.
+At 1280×900 the worst is Animate ▸ Expressions at 807 px, which is twenty-six
+authored faces in a three-wide grid — a list you scroll, not a capability you
+cannot find.
 
-The stage is 30 % on the browse screens and 35 % on the control screens, at
-1280 and at 1920 alike, and the automatic zoom no longer enlarges past 1:1 on
-them. Project open, which the stacked disclosures had taken from 1.7 s to
-6.5 s, is 1.59 s.
+The stage is 30 % on the browse screens and 35 % on the control screens, **at
+1280 and at 1920 alike**. The drawing and graph screens still grow with the
+window — Draw 52 → 67 %, Head 2.5D 52 → 64 %, Preview 76 → 84 % — and that is
+the one criterion below deliberately not met: on a screen whose work happens
+*on* the canvas, a bigger monitor buying a bigger canvas is the right answer.
+The inversion this programme was about was a configuration screen doing it.
 
-One shape did most of it, applied at six levels of the same interface: **a
-strip of what there is, and one of them showing.** The capability bar over a
-screen's panels, the bands over the Control Deck, the groups over a preset
-catalogue, the movement groups over a state's pose, the sections over Preview
-and the groups inside them, the four subjects of Deform's holding panel, the
-whens that govern Behavior ▸ Reactions top to bottom, and the three ways into
-Assemble that are not the library. It is the same gesture every time, which is
-the part that matters: an author learns it once. `ui/chip-strip.js` is the
-shared version, for strips the shell writes rather than a panel renders.
+The automatic zoom no longer enlarges past 1:1 on the configuration screens,
+and a screen frames the mascot on arrival only over a view the editor itself
+chose (`isAutoView`). Project open, which the stacked disclosures had taken
+from 1.7 s to 6.5 s, is 1.59 s.
+
+One shape did most of it, applied at seven levels of the same interface: **a
+strip of what there is, and one of them showing.**
+
+```text
+screen        the capabilities of a screen          ui/capability-bar.js
+panel         the bands of the Control Deck         face-movements-panel.js
+              the groups of a preset catalogue      ui/preset-catalogue.js
+              the movement groups of a pose         behavior-studio/tuning.js
+              the four subjects of Deform           holding/holding-panel.js
+              the whens that govern Reactions       ui/reaction-studio.js
+              the sections of Preview, and the      ui/preview-panel.js
+                groups inside them
+markup        the ways into Assemble                ui/chip-strip.js
+```
+
+It is the same gesture every time, which is the part that matters: an author
+learns it once. `ui/chip-strip.js` is the shared version, for strips the shell
+writes rather than a panel renders; the panels own theirs because each has a
+render to hang the state on and flips `hidden` in place rather than rebuilding.
 
 ### What is still owed
 
-* **Shape Keys and Depth.** §12 lists Deform's capabilities as *Pins · Holds ·
-  Warp · Shape Keys · Depth*; the panel has Pins, Rules, Points, Holds and
-  Warp. Shape keys exist in the document and are authored from Head 2.5D and
-  Face states; they have no surface of their own on Deform, and Depth has none
-  anywhere.
-* **The empty Inspector.** On Rig ▸ Assign and Rig ▸ Head 2.5D it is a heading,
-  four tabs and a line of status in 260–420 px. The brief's mapping calls for a
-  *compact* detail on control screens and an in-deck one on Rig ▸ Controls; the
-  cap is the first half of that and the second half is not done.
-* **Design ▸ Hands** offers eight controls on a 620 px column because the
-  template ships no hands: it is an empty state, not a density problem, but it
-  is a screenful of nothing.
-* **Rig ▸ Assign, 294 px**, and **Animate ▸ Motions / Expressions, ~500 px**:
-  the last of the ordinary overflow, all of it the authored list itself.
-* The **board on Behavior ▸ Reactions** is 690 px with three nodes on it while
-  the column beside it does the work. `graph` is the right layout for States;
-  it may not be for the other two.
+* **The board on Behavior ▸ Reactions and ▸ Automatic** is 690 px with three
+  nodes on it while the column beside it does the work. It is the same board
+  filtered three ways, and `graph` is plainly the right layout for States; for
+  the other two it is an open question rather than a measured problem, because
+  a busier project fills it.
+* **Deformers** are the one deformation system the runtime plays and nothing
+  authors. The expert bench says so.
+* **`shell/side-nav.js`** still declares every panel in one markup string, and
+  §10 has it retired last. The capability bar made the accordion stop being
+  navigation, which was the point of retiring it; splitting the column into
+  per-screen layout modules now would be a large refactor of composition with
+  nothing an author would see, against invariants that say not to build a
+  second anything. Left standing, deliberately.
+* **Animate ▸ Expressions and ▸ Motions** hide 478–807 px depending on the
+  window: twenty-six authored faces and thirty motions in a grid. A list you
+  scroll is a list, and the catalogue above it is one press per group.
