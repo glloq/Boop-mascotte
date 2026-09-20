@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToMode, openFreshEditor, openSetupSection, startBuiltFace } from './editor-helpers.js';
+import { goToMode, openAddParts, openFreshEditor, openSetupSection, startBuiltFace } from './editor-helpers.js';
 
 /**
  * Hands without an import (docs/HAND_STYLES.md, docs/HAND_RIGGING.md).
@@ -324,7 +324,7 @@ test('Assemble offers the same hands, once', async ({ page }) => {
   // The parts that go on whole are on Assemble, in the open: it is where a
   // mascot comes from, and a pair of hands is one of the three the library
   // ships no drawing for (UIR-18, docs/DESIGN_SCREENS.md).
-  await goToMode(page, 'design.assemble');
+  await openAddParts(page);
   const card = page.locator('[data-add-feature="hands"]');
   await expect(card).toBeEnabled();
   await card.click();

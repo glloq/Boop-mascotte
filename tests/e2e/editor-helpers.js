@@ -136,6 +136,19 @@ export async function openRigBench(page) {
 }
 
 /**
+ * Show *Add a part* on Assemble.
+ *
+ * The three ways in that are not the library share a strip under it (UX-60
+ * PR 7): the library owns the top of the column, and each of the others is one
+ * press.
+ */
+export async function openAddParts(page) {
+  await goToAssemble(page);
+  await page.locator('[data-strip-pick="assemble:part"]').click();
+  await expect(page.locator('[data-strip-pane="assemble:part"]')).toBeVisible();
+}
+
+/**
  * Bring one thing in Preview into view, wherever it is filed.
  *
  * Preview is a strip of sections and, inside a section, a strip of groups
