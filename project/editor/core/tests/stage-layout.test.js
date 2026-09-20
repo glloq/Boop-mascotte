@@ -7,7 +7,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MIN_STAGE_PX, STAGE_SIZES, autoScale, columnsForStage, hasStage, stageFor } from '../../ui/stage-layout.js';
+import { MAX_DETAIL_PX, MIN_STAGE_PX, STAGE_SIZES, autoScale, columnsForStage, hasStage, stageFor } from '../../ui/stage-layout.js';
 import { MODES } from '../../ui/task-router.js';
 
 const mode = (stage, layout = { left: 400, right: 320 }) => ({ id: 'test', layout, stage });
@@ -125,4 +125,29 @@ test('a drag cannot push a column past the task area it lives in', () => {
   const { left, right, stage } = columnsForStage(mode({ size: 'medium' }), 1440, { left: 99999 });
   assert.equal(right, 0, 'the other column gives way');
   assert.equal(left + stage, 1440, 'and the stage keeps its share whatever the drag asked for');
+});
+
+test('the detail column stops growing and the work takes the rest', () => {
+  // The measured waste: Rig ▸ Controls' Inspector is eight lines of a selected
+  // part, and proportion alone gave it 555 px of them on a 1920 window.
+  const controls = mode({ size: 'medium' }, { left: 400, right: 320 });
+  const wide = columnsForStage(controls, 1920);
+  assert.equal(wide.right, MAX_DETAIL_PX, 'capped');
+  assert.equal(wide.left + wide.right + wide.stage, 1920, 'and the work has the remainder');
+  assert.ok(wide.left > 800, `${wide.left} px of deck rather than 728`);
+
+  // A narrow window is under the cap, so nothing changes there: this is a
+  // ceiling, never a floor.
+  const narrow = columnsForStage(controls, 1280);
+  assert.ok(narrow.right < MAX_DETAIL_PX);
+  assert.equal(narrow.left + narrow.right + narrow.stage, 1280);
+
+  // A screen may say its own, and `null` opts out for a right-hand column that
+  // is a second work area rather than a detail.
+  assert.equal(columnsForStage(mode({ size: 'medium' }, { left: 400, right: 320, rightMax: 260 }), 1920).right, 260);
+  const free = columnsForStage(mode({ size: 'medium' }, { left: 400, right: 320, rightMax: null }), 1920);
+  assert.ok(free.right > MAX_DETAIL_PX, 'opted out, so proportion decides');
+
+  // A screen with no third column still has none.
+  assert.equal(columnsForStage(mode({ size: 'medium' }, { left: 400, right: 0 }), 1920).right, 0);
 });

@@ -78,7 +78,11 @@ export function createRigWorkspace({
     createHandle:({id,name,elements,x,y})=>handleCommands.create(id,{name,elements,x,y})
   });
   const gazePanel=createGazePanel(shell.gazePanelEl,store,history,{onStatus:setStatus});
-  const faceMovements=createFaceMovementsPanel(shell.faceMovementsEl,store,history,editorContext,{openMovement:(id,control)=>{rigPanel.openMovement(id,control);revealInspector();},applyPose:applyPoseValues,liveValues:()=>preview.getEffectiveParams()});
+  const faceMovements=createFaceMovementsPanel(shell.faceMovementsEl,store,history,editorContext,{openMovement:(id,control)=>{rigPanel.openMovement(id,control);revealInspector();},applyPose:applyPoseValues,liveValues:()=>preview.getEffectiveParams(),
+    // Dragging a card's slider writes the live parameter and nothing else; the
+    // release goes through `applyPose`, which is what keys it. Same split the
+    // Movement Inspector makes between `input` and `change`.
+    setLive:(name,value)=>{preview.setLiveParam(name,value);canvas.refreshPuppetHandles();}});
   // The states an eye and a mouth can be in, and the speech shapes
   // (docs/FACE_SVG_STATES.md). A corrective is captured through the canvas's
   // own node editor with the topology locked -- the same bargain the head pose

@@ -576,7 +576,33 @@ button.link:hover{color:#a9c9ff}
 .face-combination label{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px;align-items:center;font-size:11px;min-height:0}
 .face-combination select,.face-combination input[type=range]{margin:0;min-height:26px}
 .face-combination output{font-variant-numeric:tabular-nums;color:var(--ux-muted);min-width:3.5ch;text-align:right}
-.movement-groups{list-style:none;margin:6px 0;padding:0;display:grid;gap:8px}.movement-group>b{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9fb0c9;margin:2px 0 4px}.movement-list{list-style:none;margin:0;padding:0;display:grid;gap:3px}.movement-row{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:8px;padding:3px 6px;border:1px solid var(--ux-border);border-radius:8px;background:#111a2c}.movement-row input{margin:0;width:18px;height:18px}.movement-row.active{outline:2px solid var(--ux-focus);outline-offset:1px}.movement-row[data-movement-status=calibrated]{border-color:#2f6b4f}.movement-row[data-movement-status=on]{border-color:#3b5a8a}.movement-label{min-width:0;justify-content:flex-start;text-align:left;background:transparent;border-color:transparent;padding:3px 4px;display:grid}.movement-label:hover:not(:disabled){background:#1d293e}.movement-label:disabled{opacity:.55}.movement-label span{font-size:13px;font-weight:600}.movement-label small{color:var(--ux-muted);font-weight:400}
+.movement-groups{list-style:none;margin:6px 0;padding:0;display:grid;gap:8px}.movement-group>b{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9fb0c9;margin:2px 0 4px}.movement-list{list-style:none;margin:0;padding:0;display:grid;gap:3px}
+/* UX-60 PR 4 -- the Control Deck (docs/SHELL_V2_AUDIT.md §8, the brief's §12).
+   A movement was a row one per line, and the slider that moves the face lived
+   two panels away. `auto-fill` is the point: the column the window made wider
+   shows two or three cards abreast instead of a longer list. */
+.control-deck{grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:6px;align-items:start}
+.control-card{display:grid;gap:4px;padding:6px 7px;border:1px solid var(--ux-border);border-radius:9px;background:#111a2c}
+.control-card.active{outline:2px solid var(--ux-focus);outline-offset:1px}
+.control-card[data-movement-status=calibrated]{border-color:#2f6b4f}
+.control-card[data-movement-status=on]{border-color:#3b5a8a}
+.control-card-head{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:7px}
+.control-card-head input[type=checkbox]{margin:3px 0 0;width:17px;height:17px}
+.control-card-try{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px;margin:0}
+.control-card-try input[type=range]{width:100%;margin:0}
+.control-card-try output{font-size:11px;color:var(--ux-muted);font-variant-numeric:tabular-nums;min-width:30px;text-align:right}
+/* Which part of the face the deck is about, above the deck rather than under
+   it. These had no rules at all and rendered as a bare list of buttons. */
+.movement-families{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:0 0 8px}
+.movement-families>ul{display:flex;flex-wrap:wrap;gap:4px;list-style:none;margin:0;padding:0}
+.movement-family{display:inline-flex;align-items:baseline;gap:5px;padding:5px 10px;border:1px solid #33415c;border-radius:999px;background:#152137;color:#c7d5e9;font-size:12px;cursor:pointer}
+.movement-family b{font-weight:600}
+.movement-family small{font-size:10px;color:#8ea3c4;font-variant-numeric:tabular-nums}
+.movement-family:hover:not(:disabled){border-color:#4a5e82;color:#e7f0ff}
+.movement-family:disabled{opacity:.45;cursor:default}
+.movement-family.chip-active{background:#22406e;border-color:#79adff;color:#fff}
+.movement-family.chip-active small{color:#bcd4ff}
+.movement-scope{margin-left:auto;padding:5px 10px;font-size:11px;white-space:nowrap}.movement-row{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:8px;padding:3px 6px;border:1px solid var(--ux-border);border-radius:8px;background:#111a2c}.movement-row input{margin:0;width:18px;height:18px}.movement-row.active{outline:2px solid var(--ux-focus);outline-offset:1px}.movement-row[data-movement-status=calibrated]{border-color:#2f6b4f}.movement-row[data-movement-status=on]{border-color:#3b5a8a}.movement-label{min-width:0;justify-content:flex-start;text-align:left;background:transparent;border-color:transparent;padding:3px 4px;display:grid}.movement-label:hover:not(:disabled){background:#1d293e}.movement-label:disabled{opacity:.55}.movement-label span{font-size:13px;font-weight:600}.movement-label small{color:var(--ux-muted);font-weight:400}
 .movement-test,.movement-calibrate{padding:10px;margin:8px 0;border:1px solid var(--ux-border-strong);border-radius:9px}.movement-test .xy-pad{width:100%;max-width:220px;height:140px;margin:6px auto 10px}.pose-cards{display:grid;gap:6px}.pose-card{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 8px;border:1px solid var(--ux-border-strong);border-radius:8px;background:var(--ux-surface)}.pose-card[data-pose-captured=true]{border-color:#2f6b4f}.pose-card button{padding:5px 8px;white-space:nowrap}.movement-advanced{margin:8px 0}.movement-advanced ul{padding-left:16px;margin:6px 0}[data-movement-back]{margin-bottom:8px}
 </style>
 <style>

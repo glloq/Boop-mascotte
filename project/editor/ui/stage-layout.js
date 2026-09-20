@@ -74,6 +74,22 @@ export const STAGE_SIZES = Object.freeze({
 export const MIN_STAGE_PX = 240;
 
 /**
+ * How wide the detail column may get before the extra room is wasted on it.
+ *
+ * The columns divide what the stage leaves *in proportion*, which is right for
+ * the one the work is in and wrong for the one beside it: the Inspector on
+ * Rig ▸ Controls is eight lines of a selected part, and a 1920 window gave it
+ * 555 px of them. An Inspector is a column of labelled fields; past about four
+ * hundred pixels a wider one is the same fields with more space after them.
+ *
+ * So it is capped and the work takes the remainder -- which is the same
+ * sentence as the stage share, one column further in. A route may say its own
+ * `layout.rightMax`, and `null` opts out for a screen whose right-hand column
+ * is a second work area rather than a detail.
+ */
+export const MAX_DETAIL_PX = 420;
+
+/**
  * How the stage behaves when the drawing does not fill it.
  *
  * ```text
@@ -177,8 +193,12 @@ export function columnsForStage(mode, available = 0, saved = {}) {
   const wanted = { left: pick(mode?.layout?.left) ?? 320, right: pick(mode?.layout?.right) ?? 300 };
   const total = wanted.left + wanted.right;
   if (!total) return { left: budget, right: 0, stage };
-  const left = Math.round((budget * wanted.left) / total);
-  return { left, right: budget - left, stage };
+  let left = Math.round((budget * wanted.left) / total);
+  let right = budget - left;
+  // The detail column stops growing, and the work gets what it would have had.
+  const ceiling = 'rightMax' in (mode?.layout || {}) ? pick(mode.layout.rightMax) : MAX_DETAIL_PX;
+  if (ceiling !== null && right > ceiling && wanted.right > 0) { right = ceiling; left = budget - right; }
+  return { left, right, stage };
 }
 
 /**
