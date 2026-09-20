@@ -22,7 +22,10 @@
 import { RENDER_TARGETS } from '../core/state/render-plan.js';
 
 /** Redrawn on every context change, in this order. */
-export const CONTEXT_RENDER_PLAN = Object.freeze(['rigPanel', 'faceSetup', 'faceMovements', 'headPose',
+export const CONTEXT_RENDER_PLAN = Object.freeze(['rigPanel', 'faceSetup', 'faceMovements', 'faceLibrary', 'headPose',
+  // `faceLibrary` because it skips its own render while its column is off
+  // screen (UX-50 PR 7): this is the pass that draws it on arrival, and
+  // without it the cards would be whatever they were when Design was last open.
   // `states` reads `authorMode` from the context: a deep link that set it used
   // to leave the States editor on whatever mode it last drew.
   // `behaviorBoard` reads the lens and the board selection from the context,

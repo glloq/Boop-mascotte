@@ -58,8 +58,10 @@ canvas→panel agreement; no document write.
   folded, Advanced folded — and nothing else.
 - With nothing in hand, the five **families** with their readiness, each one a
   way in.
-- **`Show all controls`** restores the full inventory, and is remembered for the
-  session only.
+- **`Show all controls`** restores the full inventory — the band filter *and*
+  the tier folds, because two mechanisms were holding rows back and a button
+  that lifts one of them shows eighteen of twenty-six while promising all. It
+  is remembered for the session only.
 - Canvas handles named as the way to pose; sliders described as the precise and
   keyboard-accessible alternative rather than the first offer.
 - The families stay visible while narrowed, as a compact strip: without them the
@@ -121,6 +123,10 @@ previewed against Head 2.5D. No claim of a Z-buffer; the runtime's rules stand.
   animation flagged **before** the press; `Show all` ignores the filter.
 - `Replace` joins `ui/piece-actions.js` so the action is the same from canvas,
   menu, floating bar and keyboard.
+- The panel does not rebuild while its column is off screen. Following the
+  selection means being asked on every screen, and its cards are the most
+  expensive render in the editor — a hundred and fifty drawings with their ids
+  remapped. `CONTEXT_RENDER_PLAN` draws it on arrival instead (§31).
 
 Remaining for a later slice: multi-selection rotate/scale, Hands ↔ Draw context
 continuity, drag-to-reparent in the layer tree.
