@@ -150,12 +150,38 @@ export function renderTransitionTuning(document, keys) {
   </section>`;
 }
 
-/** The state panel: the pose, and what can be done to the state itself. */
-export function renderStateTuning(document, name) {
+/**
+ * The state panel: the pose, and what can be done to the state itself.
+ *
+ * The pose is a slider per movement, and a mascot has twenty-six of them. All
+ * of them, in every group, one per line, made this inspector **3 023 px tall**
+ * in an 836 px column -- measured at 1440x900, and the tallest single panel in
+ * the editor by a factor of three.
+ *
+ * So the groups are a strip and one group's sliders show, the same shape as
+ * the capability bar, the Control Deck's bands and the preset catalogues
+ * (UX-60 PR 6). Every group is named with how many of its movements this pose
+ * has moved off their default, so "where did I put the eyes" is answerable
+ * without opening anything.
+ *
+ * `group` is which one is showing; the rail keeps it across re-renders so
+ * dragging a slider does not throw the author back to the first group.
+ */
+export function renderStateTuning(document, name, { group: picked = null } = {}) {
   const pose = document.states?.[name];
   if (!pose) return '';
-  const groups = availableControlGroups(document.params || {});
+  const groups = [...availableControlGroups(document.params || {})];
   const initial = name === document.activeState;
+  const active = groups.some(([group]) => group === picked) ? picked : groups[0]?.[0] || null;
+  // How many of a group's movements this pose actually poses: the number that
+  // says "there is something of mine in here".
+  const posed = (controls) => controls.filter(({ id }) => pose[id] !== undefined && pose[id] !== document.params[id]?.default).length;
+  const strip = groups.length > 1
+    ? `<div class="tune-groups" role="group" aria-label="Which movements">${groups.map(([group, controls]) => {
+      const on = group === active, count = posed(controls);
+      return `<button type="button" class="preset-chip${on ? ' chip-active' : ''}" data-tune-group="${esc(group)}" aria-pressed="${on}" title="${esc(group)}: ${count ? `${count} posed` : 'nothing posed yet'}"><b>${esc(group)}</b><small>${count || ''}</small></button>`;
+    }).join('')}</div>`
+    : '';
   return `<section class="state-inspector tune-panel" data-tune-kind="state" data-tune-state="${esc(name)}">
     <div class="tune-head"><h3>State</h3><p class="tune-subject"><b>${esc(name)}</b><small>${initial ? 'where the mascot starts' : `${(document.transitions?.[name] || []).length} ways out`}</small></p></div>
     <div class="tune-actions">
@@ -165,7 +191,8 @@ export function renderStateTuning(document, name) {
       <button type="button" class="secondary" data-tune-duplicate>Duplicate</button>
       <button type="button" class="danger secondary" data-tune-delete>Delete</button>
     </div>
-    ${[...groups].map(([group, controls]) => `<fieldset><legend>${esc(group)}</legend>${controls.map(({ id, label }) => {
+    ${strip}
+    ${groups.map(([group, controls]) => `<fieldset data-tune-group-panel="${esc(group)}"${strip && group !== active ? ' hidden' : ''}><legend>${esc(group)}</legend>${controls.map(({ id, label }) => {
       const param = document.params[id], value = pose[id] ?? param.default;
       return `<label>${esc(label)} <output>${Number(value).toFixed(2)}</output><input data-tune-state-param="${esc(id)}" type="range" min="${param.min}" max="${param.max}" step="0.01" value="${value}"></label>`;
     }).join('')}</fieldset>`).join('')}
@@ -265,6 +292,19 @@ export function createTuningRail({ host, store, history, preview = null, onStatu
   }
 
   host.addEventListener('click', (event) => {
+    const chip = event.target.closest?.('[data-tune-group]');
+    if (chip) {
+      tuneGroup = chip.dataset.tuneGroup;
+      // In place: the sliders are already rendered, and re-rendering to change
+      // which fieldset shows would drop the focus of whoever pressed the chip.
+      for (const button of host.querySelectorAll('[data-tune-group]')) {
+        const on = button === chip;
+        button.classList.toggle('chip-active', on);
+        button.setAttribute('aria-pressed', String(on));
+      }
+      for (const panel of host.querySelectorAll('[data-tune-group-panel]')) panel.hidden = panel.dataset.tuneGroupPanel !== tuneGroup;
+      return;
+    }
     const button = event.target.closest('button');
     if (!button || !host.contains(button)) return;
     const data = button.dataset, selection = getSelection(), primary = selection.primary;
@@ -338,6 +378,15 @@ export function createTuningRail({ host, store, history, preview = null, onStatu
     return undefined;
   });
 
+  /**
+   * Which group of movements the state panel is showing.
+   *
+   * Session state on the rail, so a slider drag -- which re-renders -- does
+   * not throw the author back to the first group. Never anything the mascot
+   * is.
+   */
+  let tuneGroup = null;
+
   const easingOf = (selection) => {
     const chosen = [...new Set(selection.edges.map((key) => edgeSettings(key).easing || 'easeInOut'))];
     return chosen.length === 1 ? chosen[0] : 'easeInOut';
@@ -348,7 +397,7 @@ export function createTuningRail({ host, store, history, preview = null, onStatu
     const live = selection.edges.filter((key) => state.transitionSettings?.[key] || readTransitionKey(key));
     if (live.length) { host.innerHTML = renderTransitionTuning(state, live); host.dataset.tuneKind = 'transition'; return true; }
     const primary = selection.primary;
-    const markup = primary?.kind === 'state' ? renderStateTuning(state, primary.key)
+    const markup = primary?.kind === 'state' ? renderStateTuning(state, primary.key, { group: tuneGroup })
       : primary?.kind === 'automatic' ? renderAutomaticTuning(state, primary.key)
         : primary?.kind === 'trigger' ? renderTriggerTuning(state, primary.key)
           : '';
