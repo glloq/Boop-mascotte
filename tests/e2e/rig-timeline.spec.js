@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { dragWithin, enterFaceBuilder, goToAnimate, goToMode, goToPreview, openAdvanced, openExport, openFreshEditor, openGazeControl, openProblems, openProjectMenu, openSetupSection, readSvgTranslation, selectSemanticPartById, setRangeControl, startBasicFace, startTemplate } from './editor-helpers.js';
+import { dragWithin, enterFaceBuilder, goToAnimate, goToMode, goToPreview, openAdvanced, openExport, openFreshEditor, openGazeControl, openProblems, openProjectMenu, openSetupSection, readSvgTranslation, selectSemanticPartById, setRangeControl, showAllMovements, startBasicFace, startTemplate } from './editor-helpers.js';
 
 function monitor(page) {
   const errors=[];
@@ -77,7 +77,7 @@ test('Eye Open morph preserves closed-zero/open-one orientation on real paths',a
   const errors=monitor(page);await load(page,'basic');
   // The lids' own two shaped movements hold the outline, and a morph cannot
   // share it: switching them off is what frees the path (see above).
-  await openSetupSection(page,'movements');
+  await openSetupSection(page,'movements');await showAllMovements(page);
   for (const label of ['Enable Narrow (Eyes)','Enable Lid curve (Eyes)']) await page.getByLabel(label).uncheck();
   await part(page,'Eyelids','controls');await page.locator('[data-method="eyeOpen"]').selectOption('morph');await page.locator('[data-rig-tab="calibrate"]').click();
   const closed='M 61 100 Q 85 100 109 100',open='M 61 100 Q 85 78 109 100',eye=page.locator('#lidUpperLeft');
@@ -143,7 +143,7 @@ test('binding conflicts warn and preserve the existing owner',async({page})=>{
   const errors=monitor(page);await load(page,'basic');
   // Round holds the mouth's outline as a shape, and a morph cannot share a
   // path with one, so it goes off before Open asks to morph the same shape.
-  await openSetupSection(page,'movements');await page.getByLabel('Enable Round (Mouth)').uncheck();
+  await openSetupSection(page,'movements');await showAllMovements(page);await page.getByLabel('Enable Round (Mouth)').uncheck();
   await part(page,'Mouth','controls');await page.locator('[data-method="smile"]').selectOption('translateY');await page.locator('[data-method="mouthOpen"]').selectOption('morph');await expect.poll(()=>state(page).then(s=>s.semanticParts.mouth.controlDrivers.mouthOpen.method)).toBe('morph');await page.evaluate(()=>window.__BOOP_E2E__.mutate(s=>{s.elements.mouth.bindings.scaleY={enabled:true,expression:'manual'};}));
   await page.locator('[data-method="mouthOpen"]').selectOption('scaleY');await expect(page.locator('.rig-instruction')).toContainText('already controlled');const model=await state(page);expect(model.elements.mouth.bindings.scaleY.expression).toBe('manual');expect(model.semanticParts.mouth.controlDrivers.mouthOpen.method).toBe('morph');expect(errors).toEqual([]);
 });
@@ -204,7 +204,7 @@ test('@critical @smoke cross-browser template, Rig, Timeline, Save and Export',a
 test('Auto Key authors, drags, saves, reloads and plays a real mouth clip',async({page})=>{
   await load(page,'basic');await goToAnimate(page);await page.locator('[data-action="new-clip"]').click();await page.locator('#clip-name').fill('Hello');await page.locator('#clip-name').dispatchEvent('change');await page.locator('#clip-duration').fill('1');await page.locator('#clip-duration').dispatchEvent('change');await page.locator('#auto-key').check();
   // Auto Key records the Face Setup movement control at the Animate playhead.
-  for(const [time,value] of [[0,0],[.2,1],[.4,0],[.7,1],[1,0]]){await goToAnimate(page);await page.locator('#playhead').fill(String(time));await page.locator('#playhead').dispatchEvent('change');await goToMode(page, 'rig.assign');await openSetupSection(page,'movements');await page.locator('[data-movement-open="mouthOpen"]').click();const control=page.locator('[data-rig-control="mouth:mouthOpen"]');await control.fill(String(value));await control.dispatchEvent('change');await page.evaluate(()=>window.__BOOP_E2E__.clearLiveParam('mouthOpen'));}
+  for(const [time,value] of [[0,0],[.2,1],[.4,0],[.7,1],[1,0]]){await goToAnimate(page);await page.locator('#playhead').fill(String(time));await page.locator('#playhead').dispatchEvent('change');await goToMode(page, 'rig.assign');await openSetupSection(page,'movements');await showAllMovements(page);await page.locator('[data-movement-open="mouthOpen"]').click();const control=page.locator('[data-rig-control="mouth:mouthOpen"]');await control.fill(String(value));await control.dispatchEvent('change');await page.evaluate(()=>window.__BOOP_E2E__.clearLiveParam('mouthOpen'));}
   await goToAnimate(page);const lane=page.locator('.track').filter({hasText:'mouthOpen'}).locator('.key-lane');await expect(lane.locator('[data-key]')).toHaveCount(5);await dragKey(page,lane,lane.locator('[data-key="mouthOpen|0.7"]'),.6);await expect(lane.locator('[data-key="mouthOpen|0.6"]')).toHaveCount(1);
   const rewind=async()=>{await page.locator('#playhead').fill('0');await page.locator('#playhead').dispatchEvent('change');};await rewind();const cavity=page.locator('#mouth'),shut=await cavity.getAttribute('d');await page.locator('#clip-play').click();await expect.poll(()=>cavity.getAttribute('d')).not.toBe(shut);await page.locator('#clip-pause').click();const download=page.waitForEvent('download');await page.getByRole('button',{name:'Save Project'}).click();const path=await (await download).path();await page.locator('#project-file').setInputFiles(path);await goToAnimate(page);await expect(page.locator('#clip-name')).toHaveValue('Hello');await rewind();await page.locator('#clip-play').click();await expect.poll(()=>cavity.getAttribute('d')).not.toBe(shut);
 });

@@ -150,7 +150,11 @@ export function createDesignWorkspace({
     // Which part of the face the author has in hand, so the cards are that
     // part's (UX-50 PR 7). The one derivation every contextual panel reads:
     // the library does not get its own idea of what is selected.
-    subject: () => selectionSubject(store.getDocument(), store.getSession())?.category || null
+    subject: () => selectionSubject(store.getDocument(), store.getSession())?.category || null,
+    // Only Design mounts this column, and the selection it follows changes on
+    // every other screen too. Building its cards is the most expensive render
+    // in the editor, so it is not done for a panel nobody is looking at.
+    shown: () => shell.getWorkspace() === 'create'
   });
 
   /**

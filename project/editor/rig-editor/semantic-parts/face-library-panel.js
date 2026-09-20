@@ -69,8 +69,9 @@ const movementWord = (control) => movementEntry(control)?.label?.toLowerCase() |
  * @param {() => string|null} [deps.subject]  the library category the selection
  *   names, from `core/selectors/selection-subject.js`; `null` when the author
  *   has nothing in hand, and the panel then opens where it always opened
+ * @param {() => boolean} [deps.shown]  whether this column is on screen at all
  */
-export function createFaceLibraryPanel(host, store, { commands, onStatus = () => {}, onSelect = () => {}, onPreview = () => {}, subject = null } = {}) {
+export function createFaceLibraryPanel(host, store, { commands, onStatus = () => {}, onSelect = () => {}, onPreview = () => {}, subject = null, shown = () => true } = {}) {
   const sections = rememberOpen(host);
   const doc = () => store.getDocument();
   // Which category the author asked for **by pressing a tab**, and nothing
@@ -187,6 +188,13 @@ export function createFaceLibraryPanel(host, store, { commands, onStatus = () =>
   function render() {
     const state = doc();
     if (!state.svgMarkup) { host.innerHTML = ''; host.hidden = true; drawn = null; return; }
+    // Not on screen, so not rebuilt. The library follows the selection now, and
+    // a selection changes on screens this panel is not on -- every one of those
+    // was rebuilding a hundred and fifty drawings, each with its ids remapped,
+    // for a column nobody could see. `drawn = null` so the next render that
+    // *is* visible rebuilds rather than trusting a signature from before
+    // (§31 of the brief; `CONTEXT_RENDER_PLAN` is what draws it on arrival).
+    if (!shown()) { drawn = null; return; }
     const mark = signature();
     if (mark === drawn && host.dataset.faceLibraryReady === 'true') return;
     drawn = mark;

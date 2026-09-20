@@ -193,13 +193,27 @@ tests/e2e/                   69 spec files
 After the first slice (PR 0, 1, 2 and the contextual half of 7):
 
 ```text
-npm test                     2333 pass, 0 fail
+npm test                     2335 pass, 0 fail
 npm run build                clean
+tests/e2e/ (chromium)        303 pass, 4 fail  — the four below, all of which
+                             fail identically on f5b4945
 tests/e2e/                   70 spec files (ux50-contextual-selection.spec.js)
 ```
 
-The one E2E that fails locally is `@pages`, which asks a deployed GitHub Pages
-build for its assets; it fails the same way on `f5b4945`.
+Four E2E specs fail locally **and fail identically on `f5b4945`**, so they are
+this repository's state rather than this slice's doing. They were measured by
+building `origin/main` in a second worktree and running the same specs against
+it:
+
+```text
+@pages                        asks a deployed GitHub Pages build for its assets
+ux14-event-simulator:74       hover reaction does not clear within 4 s
+ux33-artboard:113             the clip paragraph does not name `headShape`
+ux38-publish:41               Home is still open, so the project never loaded
+```
+
+The last three are unexplained and worth a look of their own; none of them
+touches a surface this programme has changed.
 
 Invariants, none of which any slice below may touch: old projects open, import
 works, `.boop` round-trips, Save/Open, undo/redo, `rig.json`, `mascot.svg`,

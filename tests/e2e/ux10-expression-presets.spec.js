@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToMode, importArtworkFixture, openFreshEditor, openSetupSection, startEmptyBasicFace } from './editor-helpers.js';
+import { goToMode, importArtworkFixture, openFreshEditor, openSetupSection, showAllMovements, startEmptyBasicFace } from './editor-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const effective = (page, name) => page.evaluate((n) => window.__BOOP_E2E__.effectiveParams()[n], name);
@@ -69,6 +69,9 @@ test('presets that match no movement stay disabled and explain why', async ({ pa
   await goToMode(page, 'rig.assign');
   await page.getByRole('button', { name: 'Accept 8 suggestions' }).click();
   await openSetupSection(page, 'movements');
+  // Turning them all on means all of them: the button is scoped to what is on
+  // screen, and the screen shows the part in hand (UX-50 PR 2).
+  await showAllMovements(page);
   await page.getByRole('button', { name: /Turn on all \d+ available movements/ }).click();
   await openExpressions(page);
   await expect(page.getByRole('button', { name: 'Add Happy preset' })).toBeEnabled();

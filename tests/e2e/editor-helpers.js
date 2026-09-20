@@ -308,6 +308,28 @@ export async function enterFaceBuilder(page) {
   await expect(card).toHaveAttribute('aria-expanded','true');
   for (const selector of ['#face-head', '#face-eyes', '#face-mouth', '#generate-face']) await expect(page.locator(selector)).toBeVisible();
 }
+/**
+ * Put every movement on screen (UX-50 PR 2).
+ *
+ * Rig ▸ Controls shows the band of the part in hand, and the families when
+ * nothing is selected -- it is no longer an inventory of all twenty-six
+ * movements whatever is picked. A spec that is *about* the inventory (every
+ * group's pose chips, a movement of a part it has not selected) asks for it
+ * the way an author does, with `Show all controls`.
+ *
+ * Idempotent: a panel already showing everything is left alone.
+ */
+export async function showAllMovements(page) {
+  const panel = page.locator('#face-movements[data-face-movements-ready="true"]');
+  await expect(panel).toBeVisible();
+  const button = panel.locator('[data-movement-show-all="on"]');
+  if (await button.count()) await button.click();
+  await expect(panel).toHaveAttribute('data-face-movements-scope', 'all');
+  // All of them, folds included: `Show all controls` is the end of what the
+  // panel holds back, not the first of two presses.
+  await expect(panel.locator('[data-movement-more]')).toHaveCount(0);
+}
+
 export async function openTimeline(page) { const app=page.locator('#app'); if (await app.evaluate(el=>el.classList.contains('timeline-collapsed'))) await page.locator('#collapse-timeline').click(); }
 export async function selectSemanticPartById(page,id) {
   await openSetupSection(page, 'all-parts');
