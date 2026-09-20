@@ -241,8 +241,7 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
     for (const button of host.querySelectorAll('[data-preview-pick]')) {
       const on = button === chip;
       button.classList.toggle('chip-active', on);
-      button.setAttribute('aria-selected', String(on));
-      button.tabIndex = on ? 0 : -1;
+      button.setAttribute('aria-pressed', String(on));
     }
     for (const pane of host.querySelectorAll('[data-preview-section]')) {
       if (pane.parentElement === host) pane.hidden = pane.dataset.previewSection !== openSection;
@@ -302,13 +301,18 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
     const list = parts.filter(Boolean);
     if (!list.length) return '';
     const active = list.some((entry) => entry.id === openSection) ? openSection : list[0].id;
+    // Buttons in a group rather than a `tablist`, like every other strip in the
+    // editor: a `tablist` promises arrow-key navigation and a roving tabindex,
+    // and one that does not keep that promise is worse for a screen reader than
+    // the plain toggles these actually are. The capability bar over a *screen*
+    // is a real tablist and does keep it (`ui/capability-bar.js`).
     const strip = list.length > 1
-      ? `<div class="preview-sections" role="tablist" aria-label="What to try">${list.map((entry) => {
+      ? `<div class="preview-sections" role="group" aria-label="What to try">${list.map((entry) => {
         const on = entry.id === active;
-        return `<button type="button" role="tab" class="preset-chip${on ? ' chip-active' : ''}" data-preview-pick="${esc(entry.id)}" aria-selected="${on}" aria-controls="preview-pane-${esc(entry.id)}" tabindex="${on ? '0' : '-1'}"><b>${esc(entry.title)}</b>${entry.count === null ? '' : `<small>${entry.count}</small>`}</button>`;
+        return `<button type="button" class="preset-chip${on ? ' chip-active' : ''}" data-preview-pick="${esc(entry.id)}" aria-pressed="${on}" aria-controls="preview-pane-${esc(entry.id)}"><b>${esc(entry.title)}</b>${entry.count === null ? '' : `<small>${entry.count}</small>`}</button>`;
       }).join('')}</div>`
       : '';
-    return strip + list.map((entry) => `<section class="preview-section" id="preview-pane-${esc(entry.id)}" data-preview-section="${esc(entry.id)}" role="${strip ? 'tabpanel' : 'group'}" aria-label="${esc(entry.title)}"${strip && entry.id !== active ? ' hidden' : ''}>${entry.body}</section>`).join('');
+    return strip + list.map((entry) => `<section class="preview-section" id="preview-pane-${esc(entry.id)}" data-preview-section="${esc(entry.id)}" aria-label="${esc(entry.title)}"${strip && entry.id !== active ? ' hidden' : ''}>${entry.body}</section>`).join('');
   };
   /** Which group of a Preview section is showing, per section. Session. */
   const groupPick = new Map();
