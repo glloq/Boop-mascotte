@@ -193,8 +193,10 @@ tests/e2e/                   69 spec files
 After the first slice (PR 0, 1, 2 and the contextual half of 7):
 
 ```text
-npm test                     2333 pass, 0 fail
+npm test                     2335 pass, 0 fail
 npm run build                clean
+tests/e2e/ (chromium)        303 pass, 4 fail  — the four below, all of which
+                             fail identically on f5b4945
 tests/e2e/                   70 spec files (ux50-contextual-selection.spec.js)
 ```
 
