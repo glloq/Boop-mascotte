@@ -125,11 +125,11 @@ test('@critical the Inspector says what a piece is, for a path as well as a pict
   // knows, grouped by the part that owns it.
   await expect(role).toHaveValue('nose.nose');
   expect(await role.locator('optgroup').count()).toBeGreaterThanOrEqual(9);
-  // Thirty-three: the thirty-two roles the registry knows, and the one that
-  // means none of them. Five of the thirty-two are V6's -- a lower row of
-  // teeth, and the tongue's tip and groove, each of which is a role of the
-  // mouth *and* of the tongue part (docs/MOUTH_BUILD.md).
-  expect(await role.locator('option').count(), 'the vocabulary, and the one that means none of it').toBe(33);
+  // Thirty-four: the thirty-three roles the registry knows, and the one that
+  // means none of them. Six of the thirty-three are V6's -- a lower row of
+  // teeth, the tongue's tip and groove (each of which is a role of the mouth
+  // *and* of the tongue part), and the uvula (docs/MOUTH_BUILD.md).
+  expect(await role.locator('option').count(), 'the vocabulary, and the one that means none of it').toBe(34);
   // A role another drawing holds says so, so nobody takes one by surprise.
   await expect(role.locator('option[value="mouth.mouth"]')).toContainText('now');
 
@@ -146,7 +146,7 @@ test('@critical the Inspector says what a piece is, for a path as well as a pict
   await expect.poll(async () => (await partOfType(page, 'ears')).roles.leftEar).toBeUndefined();
 });
 
-test('@critical the checklist is eight, and the other twenty-four are one disclosure away', async ({ page }) => {
+test('@critical the checklist is eight, and the other twenty-five are one disclosure away', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await openSetupSection(page, 'face-parts');
@@ -163,15 +163,15 @@ test('@critical the checklist is eight, and the other twenty-four are one disclo
   // rather than only from Rig ▸ Deform ▸ All parts.
   const extras = panel.locator('details.face-role-extras');
   await extras.locator('> summary').click();
-  // Twenty-four, grouped into ten: nineteen since the gaze grew an iris per
+  // Twenty-five, grouped into ten: nineteen since the gaze grew an iris per
   // side -- it has extras of its own now, where both its roles used to be in
-  // the eight -- and five more since the mouth grew a lower row of teeth and
-  // the tongue a tip and a groove, both of which the tongue part plays as well
-  // (docs/MOUTH_BUILD.md). All optional, as every extra is: a mouth that draws
-  // none behaves as it did.
-  await expect(extras.locator('[data-face-role-optional="true"]')).toHaveCount(24);
+  // the eight -- and six more since the mouth grew a lower row of teeth, the
+  // tongue a tip and a groove (both of which the tongue part plays as well) and
+  // the mouth a uvula (docs/MOUTH_BUILD.md). All optional, as every extra is:
+  // a mouth that draws none behaves as it did.
+  await expect(extras.locator('[data-face-role-optional="true"]')).toHaveCount(25);
   await expect(extras.locator('[data-face-role-group]')).toHaveCount(10);
-  for (const id of ['eyelids.leftUpper', 'nose.nose', 'ears.leftEar', 'hair.hairBack', 'mouth.teeth', 'mouth.teethLower', 'mouth.tongueTip', 'mouth.tongueGroove', 'jaw.jaw']) {
+  for (const id of ['eyelids.leftUpper', 'nose.nose', 'ears.leftEar', 'hair.hairBack', 'mouth.teeth', 'mouth.teethLower', 'mouth.tongueTip', 'mouth.tongueGroove', 'mouth.uvula', 'jaw.jaw']) {
     await expect(extras.locator(`[data-face-role="${id}"]`)).toBeVisible();
   }
 

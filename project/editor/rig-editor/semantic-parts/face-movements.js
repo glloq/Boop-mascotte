@@ -88,6 +88,10 @@ export const BASIC_MOVEMENTS = Object.freeze([
   Object.freeze({ id: 'mouthSkew', tier: 'more', band: 'Mouth', part: 'mouth', label: 'Lean', group: 'Mouth', axis: 'x' }),
   Object.freeze({ id: 'teeth', tier: 'more', band: 'Mouth', part: 'mouth', label: 'Teeth', group: 'Mouth', axis: 'y' }),
   Object.freeze({ id: 'tongue', tier: 'more', band: 'Mouth', part: 'mouth', label: 'Tongue', group: 'Mouth', axis: 'y' }),
+  // The drop at the back of a shouting mouth: the one movement here that is
+  // about a *register* rather than about a part of the face, which is why it
+  // rests at nothing and has to be asked for (docs/MOUTH_BUILD.md).
+  Object.freeze({ id: 'uvula', tier: 'more', band: 'Mouth', part: 'mouth', label: 'Uvula', group: 'Mouth', axis: 'y' }),
   // A beard is carried by the jaw that opens under it, on the same control.
   Object.freeze({ id: 'jawOpen', tier: 'quick', band: 'Extra', part: 'jaw', also: Object.freeze(['facialHair']), label: 'Drop', group: 'Jaw', axis: 'y' }),
   // Where the tongue is, as opposed to whether it shows (docs/FACE_CONTROL_RIG.md).

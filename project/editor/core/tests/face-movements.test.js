@@ -80,7 +80,7 @@ test('the movement checklist covers every position of the face, with availabilit
   // Every part of the face, not the ten a beginner starts with: a movement
   // that is not here has no pose chip and no live slider, which is the same as
   // not being controllable.
-  assert.equal(BASIC_MOVEMENTS.length, 27);
+  assert.equal(BASIC_MOVEMENTS.length, 28);
   assert.deepEqual([...new Set(BASIC_MOVEMENTS.map((item) => item.group))],
     ['Head', 'Eyes', 'Gaze', 'Eyebrows', 'Nose', 'Mouth', 'Jaw', 'Tongue', 'Hair', 'Ears']);
   const store = createEditorStore(faceProject()), commands = createSemanticRigCommands(store, createHistory(store));
@@ -183,10 +183,10 @@ test('the four movements somebody means by "make the mouth move" are the quick o
   const mouth = BASIC_MOVEMENTS.filter((entry) => entry.group === 'Mouth');
   const { quick, more } = byTier(mouth);
   assert.deepEqual(quick.map((item) => item.id), ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound']);
-  // And the lean folds behind them with the teeth and the tongue: a mouth that
-  // is not straight is a character choice, not one of the four a face is posed
-  // by (docs/MOUTH_BUILD.md).
-  assert.deepEqual(more.map((item) => item.id), ['mouthSkew', 'teeth', 'tongue']);
+  // And the lean folds behind them with the teeth, the tongue and the uvula: a
+  // mouth that is not straight is a character choice, and a uvula is a register
+  // -- neither is one of the four a face is posed by (docs/MOUTH_BUILD.md).
+  assert.deepEqual(more.map((item) => item.id), ['mouthSkew', 'teeth', 'tongue', 'uvula']);
 });
 
 test('a part in hand narrows the panel to its band, and says how much it is holding back', () => {

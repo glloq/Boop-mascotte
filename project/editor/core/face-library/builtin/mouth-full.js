@@ -32,8 +32,8 @@
  * another radius.
  */
 import {
-  MOUTH_REST, TEETH_REST, TEETH_LOWER_REST, TONGUE_REST, TONGUE_TIP_REST, TONGUE_GROOVE_REST,
-  mouthPath, teethPath, teethLowerPath, tonguePath, tongueTipPath, tongueGroovePath
+  MOUTH_REST, TEETH_REST, TEETH_LOWER_REST, TONGUE_REST, TONGUE_TIP_REST, TONGUE_GROOVE_REST, UVULA_REST,
+  mouthPath, teethPath, teethLowerPath, tonguePath, tongueTipPath, tongueGroovePath, uvulaPath
 } from '../../face/mouth-build.js';
 
 const LIP = '#b4525c', INSIDE = '#6d2831', TEETH = '#fff8ec', TONGUE = '#d9707f';
@@ -41,15 +41,21 @@ const LIP = '#b4525c', INSIDE = '#6d2831', TEETH = '#fff8ec', TONGUE = '#d9707f'
 const GROOVE_OPACITY = 0.3;
 
 /**
- * The five shapes, in the order they are painted, and why each is where it is.
+ * The six shapes, in the order they are painted, and why each is where it is.
  *
  * ```text
  *   mouth                    the lips, and the cavity they enclose
  *   mouth-full-inside  ▸ clipped to the aperture
- *       tongue · teethLower · teeth
+ *       uvula · tongue · teethLower · teeth
  *   tongueTip                in front of the lips, because that is where it is
  *   tongueGroove             and the crease down it
  * ```
+ *
+ * The lower row is in **front** of the tongue, which is where a lower row is;
+ * what goes over it is the tongue on its way *out*, and that is `tongueTip` --
+ * a shape that exists only when the tongue is out, painted in front of the lips
+ * (docs/MOUTH_BUILD.md, "The order"). The uvula is painted first because it is
+ * the furthest away.
  *
  * All five insides are **empty at rest**: each is a closed path whose second
  * half retraces its first exactly when its own number is 0, so the shape
@@ -81,6 +87,7 @@ const GROOVE_OPACITY = 0.3;
 const artwork = `<g id="mouth-full" data-name="Mouth">`
   + `<path id="mouth" data-name="Mouth" d="${MOUTH_REST}" fill="${INSIDE}" stroke="${LIP}" stroke-width="3.8" stroke-linejoin="round" />`
   + `<g id="mouth-full-inside" data-name="Inside the mouth" clip-path="url(#mouth-full-aperture)">`
+  + `<path id="uvula" data-name="Uvula" d="${UVULA_REST}" fill="${TONGUE}" />`
   + `<path id="tongue" data-name="Tongue" d="${TONGUE_REST}" fill="${TONGUE}" />`
   + `<path id="teethLower" data-name="Lower teeth" d="${TEETH_LOWER_REST}" fill="${TEETH}" />`
   + `<path id="teeth" data-name="Upper teeth" d="${TEETH_REST}" fill="${TEETH}" />`
@@ -100,6 +107,7 @@ const artwork = `<g id="mouth-full" data-name="Mouth">`
  * (`installShapedControl`; docs/MOUTH_BUILD.md).
  */
 const insides = (pose) => Object.freeze({
+  uvula: Object.freeze({ posePath: uvulaPath(pose) }),
   teeth: Object.freeze({ posePath: teethPath(pose) }),
   teethLower: Object.freeze({ posePath: teethLowerPath(pose) }),
   tongue: Object.freeze({ posePath: tonguePath(pose) }),
@@ -111,8 +119,8 @@ export const MOUTH_FULL = Object.freeze({
   id: 'mouth.full', category: 'mouth', name: 'Mouth', origin: 'builtin',
   description: 'Opens, smiles, widens, puckers, leans, and shows its teeth and its tongue — in the mouth or out over the lip. The one mouth a mascot needs.',
   artwork,
-  roles: Object.freeze({ mouth: 'mouth', teeth: 'teeth', teethLower: 'teethLower', tongue: 'tongue', tongueTip: 'tongueTip', tongueGroove: 'tongueGroove' }),
-  capabilities: Object.freeze(['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'mouthSkew', 'teeth', 'tongue']),
+  roles: Object.freeze({ mouth: 'mouth', uvula: 'uvula', teeth: 'teeth', teethLower: 'teethLower', tongue: 'tongue', tongueTip: 'tongueTip', tongueGroove: 'tongueGroove' }),
+  capabilities: Object.freeze(['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'mouthSkew', 'teeth', 'tongue', 'uvula']),
   /**
    * `mouthRound` is the one that had to be said out loud.
    *
@@ -217,7 +225,15 @@ export const MOUTH_FULL = Object.freeze({
         teethLower: Object.freeze({ posePath: teethLowerPath({ show: 1 }), expression: 'mouthOpen * mouthOpen * teeth' })
       })
     }),
-    tongue: Object.freeze({ property: 'shapeKey', posePath: tonguePath({ show: 1 }), expression: 'mouthOpen * tongue' })
+    tongue: Object.freeze({ property: 'shapeKey', posePath: tonguePath({ show: 1 }), expression: 'mouthOpen * tongue' }),
+    /**
+     * And the drop at the back of a shouting mouth, on a control of its own so
+     * it can be left out. It rests at nothing, so a mascot that never asks for
+     * one draws exactly what it drew before there was one -- the rule every
+     * inside here obeys, and the reason an expressive extra can be added
+     * without changing a single existing face (docs/MOUTH_BUILD.md).
+     */
+    uvula: Object.freeze({ property: 'shapeKey', posePath: uvulaPath({ show: 1 }), expression: 'mouthOpen * uvula' })
   }),
   /**
    * The tongue is a part of the rig in its own right, and this card draws the
@@ -232,9 +248,13 @@ export const MOUTH_FULL = Object.freeze({
    *
    * `tongueOut` and `tongueCurl` are shapes here, where the registry used to
    * make them a `scaleY` and a `rotation`: a scale stretches the root as far as
-   * the tip and grows the tongue up into the skull, and a rotation swings the
-   * root out through a cheek. `tongueX` and `tongueY` stay translates, because
-   * a tongue that moves sideways really does move sideways.
+   * the tip and grows the tongue up into the skull, and a rotation *of the
+   * whole drawing about its own middle* swings the root out through a cheek.
+   *
+   * `tongueX` **is** a rotation, and that is a different thing: about the
+   * mouth's own centre, which is where a tongue is hinged, so a tongue that is
+   * out swings rather than slides. `tongueY` stays a translate, because a
+   * mouth speaking moves its tongue up and down and no rotation does that.
    */
   parts: Object.freeze({
     tongue: Object.freeze({
@@ -273,7 +293,10 @@ export const MOUTH_FULL = Object.freeze({
     tongueTip: Object.freeze({ fill: 'tongue' }),
     // A fold is the cavity showing through, so the crease takes the mouth's own
     // colour: one token fewer, and it stays in step on any face.
-    tongueGroove: Object.freeze({ fill: 'mouth' })
+    tongueGroove: Object.freeze({ fill: 'mouth' }),
+    // The uvula is flesh at the back of the throat, so it takes the tongue's
+    // colour rather than a token of its own.
+    uvula: Object.freeze({ fill: 'tongue' })
   }),
   // The lips, and the room the cavity needs when it is fully open: the teeth and
   // the tongue are drawn from the lips, so they are inside this by construction.

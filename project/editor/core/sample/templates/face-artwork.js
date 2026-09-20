@@ -742,30 +742,39 @@ const ear = (side, flip) => {
  * these numbers reads them from the template.
  */
 export {
-  MOUTH_BOX, MOUTH_REST, TEETH_REST, TEETH_LOWER_REST, TONGUE_REST, TONGUE_TIP_REST, TONGUE_GROOVE_REST,
-  mouthGeometry, mouthPath, teethPath, teethLowerPath, tonguePath, tongueTipPath, tongueGroovePath
+  MOUTH_BOX, MOUTH_REST, TEETH_REST, TEETH_LOWER_REST, TONGUE_REST, TONGUE_TIP_REST, TONGUE_GROOVE_REST, UVULA_REST,
+  mouthGeometry, mouthPath, teethPath, teethLowerPath, tonguePath, tongueTipPath, tongueGroovePath, uvulaPath
 } from '../../face/mouth-build.js';
 // And imported, because this module draws with them as well as re-exporting them.
 import {
-  MOUTH, MOUTH_REST, TEETH_REST, TEETH_LOWER_REST, TONGUE_REST, TONGUE_TIP_REST, TONGUE_GROOVE_REST,
-  mouthGeometry, mouthPath, teethPath, teethLowerPath, tonguePath, tongueTipPath, tongueGroovePath
+  MOUTH, MOUTH_REST, TEETH_REST, TEETH_LOWER_REST, TONGUE_REST, TONGUE_TIP_REST, TONGUE_GROOVE_REST, UVULA_REST,
+  mouthGeometry, mouthPath, teethPath, teethLowerPath, tonguePath, tongueTipPath, tongueGroovePath, uvulaPath
 } from '../../face/mouth-build.js';
 
 
 /**
- * The mouth, as the five shapes the rig moves.
+ * The mouth, as the seven shapes the rig moves.
  *
  * ```text
  *   mouth                    the lips, and the cavity they enclose
- *   mouthInside  ▸ clipped   tongue · teethLower · teeth
+ *   mouthInside  ▸ clipped   uvula · tongue · teethLower · teeth
  *   tongueTip                in front of the lips, because that is where it is
+ *   tongueGroove             and in front of the tip, being a crease in it
  * ```
  *
- * **The order is the drawing.** Inside the cavity, the tongue is behind the
- * lower teeth and both are behind the upper row, because that is the order they
- * are in; and the tip is in front of the lips, because a tongue lapping out
- * lies *over* the lower lip and there is no other way to say that in a flat
- * drawing (§5.2 of the brief).
+ * **The order is the drawing**, and it is the order the mouth is in, front to
+ * back: the uvula is furthest away and painted first, then the tongue, then
+ * the lower row in front of it, then the upper row in front of everything
+ * inside.
+ *
+ * The lower row is in front of the tongue because that is where a lower row
+ * *is*: a tongue sitting in a mouth is behind the teeth. What goes over them
+ * is the tongue on its way **out**, and that is `tongueTip` -- a shape that
+ * exists only when the tongue is out and is painted in front of the lips, so
+ * "in front of the teeth" happens exactly when it should and at no other time.
+ * The tip's root reaches back up into the mouth far enough to cover the row it
+ * laps over, which is what keeps the tongue one shape across the lip line
+ * (docs/MOUTH_BUILD.md, "The order").
  *
  * **The clip is the belt to the geometry's braces.** Everything inside the
  * mouth is drawn from the mouth's own curves and stays inside it by
@@ -787,6 +796,7 @@ import {
  */
 const mouth = (c) => `<path id="mouth" data-name="Mouth" d="${MOUTH_REST}" fill="${c.mouthInterior}" stroke="${c.lip}" stroke-width="${FACE_STYLE.mouthOutline}" stroke-linejoin="round" />
     <g id="mouthInside" data-name="Inside the mouth" clip-path="url(#mouthAperture)">
+      <path id="uvula" data-name="Uvula" d="${UVULA_REST}" fill="${c.tongue}" />
       <path id="tongue" data-name="Tongue" d="${TONGUE_REST}" fill="${c.tongue}" />
       <path id="teethLower" data-name="Lower teeth" d="${TEETH_LOWER_REST}" fill="${c.teeth}" />
       <path id="teeth" data-name="Upper teeth" d="${TEETH_REST}" fill="${c.teeth}" />
@@ -1006,6 +1016,7 @@ export const FACE_CENTRES = Object.freeze({
   teeth: { x: MOUTH.cx, y: MOUTH.cornerY }, teethLower: { x: MOUTH.cx, y: MOUTH.cornerY },
   tongue: { x: MOUTH.cx, y: MOUTH.cornerY }, tongueTip: { x: MOUTH.cx, y: MOUTH.cornerY },
   tongueGroove: { x: MOUTH.cx, y: MOUTH.cornerY },
+  uvula: { x: MOUTH.cx, y: MOUTH.cornerY },
   earLeft: { x: round(headEdgeAt(EAR.cy, 'left') + EAR.inset), y: EAR.cy },
   earRight: { x: round(headEdgeAt(EAR.cy, 'right') - EAR.inset), y: EAR.cy },
   // The hair swings from where it is attached, which is the crown and not the

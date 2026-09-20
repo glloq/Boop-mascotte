@@ -120,10 +120,10 @@ test('the artwork scanner reads elements, ids and balance from a fragment', () =
   const scan = scanArtwork(MOUTH_FULL.artwork);
   assert.deepEqual(scan.elements.map((item) => [item.tag, item.id, item.depth]), [
     ['g', 'mouth-full', 0], ['path', 'mouth', 1], ['g', 'mouth-full-inside', 1],
-    ['path', 'tongue', 2], ['path', 'teethLower', 2], ['path', 'teeth', 2],
+    ['path', 'uvula', 2], ['path', 'tongue', 2], ['path', 'teethLower', 2], ['path', 'teeth', 2],
     ['path', 'tongueTip', 1], ['path', 'tongueGroove', 1], ['clipPath', 'mouth-full-aperture', 1], ['use', null, 2]]);
   assert.equal(scan.balanced, true);
-  assert.deepEqual(artworkIds(MOUTH_FULL.artwork), ['mouth-full', 'mouth', 'mouth-full-inside', 'tongue', 'teethLower', 'teeth', 'tongueTip', 'tongueGroove', 'mouth-full-aperture']);
+  assert.deepEqual(artworkIds(MOUTH_FULL.artwork), ['mouth-full', 'mouth', 'mouth-full-inside', 'uvula', 'tongue', 'teethLower', 'teeth', 'tongueTip', 'tongueGroove', 'mouth-full-aperture']);
   assert.deepEqual(artworkIds("<g><circle id='one'/><rect/></g>"), ['one'], 'single quotes and unnamed shapes');
   assert.equal(scanArtwork('<g><path/>').balanced, false, 'an unclosed group');
   assert.equal(scanArtwork('<g></path>').balanced, false, 'the wrong closing tag');
@@ -132,7 +132,7 @@ test('the artwork scanner reads elements, ids and balance from a fragment', () =
 });
 
 test('capabilities are read against the part: what is carried, what is not, what cannot be', () => {
-  assert.deepEqual(describeFacePartCapabilities(MOUTH_LINE), { controls: ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'mouthSkew', 'teeth', 'tongue'], supported: ['mouthOpen', 'smile', 'mouthWidth'], missing: ['mouthRound', 'mouthSkew', 'teeth', 'tongue'], unsupported: [], complete: false });
+  assert.deepEqual(describeFacePartCapabilities(MOUTH_LINE), { controls: ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'mouthSkew', 'teeth', 'tongue', 'uvula'], supported: ['mouthOpen', 'smile', 'mouthWidth'], missing: ['mouthRound', 'mouthSkew', 'teeth', 'tongue', 'uvula'], unsupported: [], complete: false });
   assert.deepEqual(describeFacePartCapabilities({ category: 'nose', capabilities: ['noseScrunch'] }).missing, []);
   assert.equal(describeFacePartCapabilities({ category: 'nose', capabilities: ['noseScrunch'] }).complete, true);
   assert.deepEqual(describeFacePartCapabilities({ category: 'nose', capabilities: ['smile'] }).unsupported, ['smile']);

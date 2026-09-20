@@ -251,7 +251,7 @@ export const TEETH = Object.freeze({
    * control is solved for, which is the only way a scalloped edge lands where
    * the numbers say.
    */
-  upper: 0.32, lower: 0.16,
+  upper: 0.32, lower: 0.08,
   /**
    * How far the near edge sits inside the lip, as a fraction of the far one.
    * The lip's outline is 3.8 units wide and centred on the path, so a band
@@ -273,7 +273,7 @@ export const TEETH = Object.freeze({
    * Multiplied by `show` and nothing else, so the shape is still exactly empty
    * at `show 0` and the one shape key still interpolates it linearly.
    */
-  clear: 3.4, lowerClear: 3,
+  clear: 3.4, lowerClear: 1.5,
   /** How many crowns a row is divided into, and how far the valleys between them come back. */
   crowns: 4, valley: 0.82
 });
@@ -381,37 +381,84 @@ export function teethLowerPath({ open = 0, smile = 0, arc = 0, show = 0, round: 
  * words mean.
  */
 export const TONGUE = Object.freeze({
-  /** Where the body is anchored along the lower lip. Wide, because a tongue
-   *  that spans the middle third reads as a lozenge in a hole -- but short of
-   *  the corners, or it is the floor of the mouth and the lip vanishes. */
+  /** Where the body is read off the lower lip: the stations its own edges
+   *  take their *height* from, short of the corners so the lip goes on
+   *  reading as a lip behind it. Its *width* is its own -- see `width`. */
   from: 0.27, to: 0.73,
+  /**
+   * Half the tongue's own width, as a fraction of the reach, and how much of
+   * the mouth's own half-span it adds to that (`grip`).
+   *
+   * A tongue used to be the lip curve between `from` and `to`, which meant a
+   * mouth pursed into an OO drew a tongue *58 % narrower* -- a pink spike out
+   * of a small round hole, where what a pursed mouth actually shows is the
+   * same tongue through a smaller opening. A tongue is a piece of the face,
+   * not a share of the aperture, so its width is mostly a number of its own
+   * and the mouth has a quarter of the say: enough that a pucker still reads
+   * as one, far short of taking the roundness off the end of it.
+   *
+   * Both terms are affine in the pose numbers -- a constant, and a quarter of
+   * a span that is itself affine -- so the shape keys still add up exactly.
+   */
+  width: 0.24, grip: 0.45,
   /** How far each lobe rises into the cavity, as a fraction of the cavity a
    *  fully open mouth has. Over the lower row of teeth, clearly -- a tongue
    *  that only just clears them reads as a pink line rather than as a tongue --
    *  and well short of the upper row, or it swallows the mouth. */
   up: 0.56,
-  /** How far the groove between the two lobes comes back off their peaks. */
-  groove: 0.3,
+  /**
+   * How far the groove between the two lobes comes back off their peaks.
+   *
+   * Small, and that is the point of it. At 0.3 the two lobes and the notch
+   * between them drew a capital **M**: a shape with a corner in it, which a
+   * tongue does not have. The dip is a fold in a soft thing, so it is a
+   * shallow one -- enough that the silhouette says *two* lobes, not enough
+   * that the eye reads a letter.
+   */
+  groove: 0.14,
   /** Where each lobe's controls sit inside its half: what makes it round
-   *  rather than square. */
-  shoulder: 0.28,
+   *  rather than square, and -- spread wider than the 0.28 the M was drawn
+   *  with -- what turns the climb out of each corner into a slope rather
+   *  than a shoulder. */
+  shoulder: 0.42,
   /** How far the body's underside hangs below the lip it rests on. Small: the
    *  lip is its floor, and the dark line of it is what says the tongue is in a
    *  mouth rather than being the floor of one. */
   seat: 0.05,
 
-  /** Where the tip is anchored: the middle third of the lower lip, so it comes
-   *  out of the tongue rather than out of the whole mouth. */
-  tipFrom: 0.33, tipTo: 0.67,
+  /**
+   * The tip is drawn in the **body's own seat** -- the same centre, the same
+   * width -- because it is the same tongue. It used to have a seat of its own,
+   * two thirds as wide, and what that drew was a step in the silhouette right
+   * where the tongue crosses the lip: a tongue with a shoulder in it.
+   */
   tipShoulder: 0.3,
   /** How far past the lip the tip laps at `tongueOut 1`. */
   reach: 0.34,
-  /** And how far its root is drawn back *into* the mouth, so the tip joins the
-   *  body under the lip instead of being a shape stuck on top of it. */
-  root: 0.1,
-  /** The soft cleft at the very end: what a cartoon tongue has instead of a
-   *  point, as a fraction of the reach it is taken out of. */
-  notch: 0.14,
+  /**
+   * And how far its root is drawn back **up into the mouth**, so that a tongue
+   * that is out is one shape from its root to its end.
+   *
+   * This is the number that stops the tongue breaking in two. The tip is
+   * outside the clip and the body is inside it, so what joins them is however
+   * much of the tip is painted *above* the lip -- and at 0.1 that was three and
+   * a half units, less than the lower row of teeth stands (four), and less than
+   * `tongueY` moves the whole tongue down (six). Any of those opened a gap
+   * across the middle of the tongue.
+   *
+   * At 0.3 it reaches ten units back: over the lower row it laps across, and
+   * far enough that the aim cannot pull the two apart. Not further, because the
+   * tip is painted in **front** of the lips and a root deep enough for an open
+   * mouth is a pink blot over a shut one -- at 0.42 a blep covered the lip line
+   * it was supposed to be poking between.
+   *
+   * It is still a multiple of `out` and nothing else, so a tongue that is in
+   * has no tip at all.
+   */
+  root: 0.3,
+  /** The soft dimple at the very end: a cartoon tongue is *round*, so this is
+   *  a hint of a cleft rather than one -- at 0.14 the end had a corner in it. */
+  notch: 0.05,
   /**
    * A curl: the **middle** of the free edge lifts, the shoulders barely, and
    * the lobe draws in behind it. Nothing here moves the root, which is what
@@ -423,7 +470,7 @@ export const TONGUE = Object.freeze({
    * the sides turns the end up and leaves the tongue as long as it was, which
    * is what curling is -- and, signed, the same key droops it.
    */
-  curlLift: 0.22, curlShoulder: 0.15, curlPinch: 0.14,
+  curlLift: 0.16, curlShoulder: 1, curlPinch: 0.05,
 
   /**
    * The crease down the middle of the tip, in three numbers: how far back into
@@ -450,6 +497,34 @@ export const TONGUE = Object.freeze({
 const lobeControl = (peak, a, b) => (8 * peak - a - b) / 6;
 
 /**
+ * The frame a tongue is drawn in: where it sits, how wide it is, and how high
+ * the lip is under each point across it.
+ *
+ * `u` runs from −1 at the left edge to +1 at the right. The **x** is the
+ * tongue's own half-width either side of the middle of the lip it grows from;
+ * the **y** is the lip's own height at the station that `u` corresponds to, so
+ * the tongue still sits on a lip that is smiling, open, puckered or leaning,
+ * and still leans with it.
+ *
+ * Splitting the two is the whole of it. A tongue whose edges *were* two points
+ * on the lip curve had no width of its own: pursing the mouth took the corners
+ * in and the tongue came with them, and `mouthRound 1` drew a spike. Reading
+ * the height there and the width from a number of its own gives a tongue that
+ * keeps its shape through the pose and an opening that can still be any size.
+ *
+ * Every term is affine in every pose number — `centre` and the lip heights are
+ * points on a quadratic whose controls are affine, `span` is a difference of
+ * two of them — so the rig's additive shape keys still reproduce any
+ * combination exactly.
+ */
+const tongueSeat = (lip, from, to, width) => {
+  const mid = (from + to) / 2;
+  const centre = lip(mid), span = (lip(to).x - lip(from).x) / 2;
+  const half = BAND_REACH * width + TONGUE.grip * span;
+  return (u, dy = 0, dx = 0) => ({ x: centre.x + half * u + dx, y: lip(mid + (to - mid) * u).y + dy });
+};
+
+/**
  * The body: two lobes over the cavity, and the same two back underneath.
  *
  * The underside uses the back's own control *parameters* in reverse, which is
@@ -459,9 +534,7 @@ const lobeControl = (peak, a, b) => (8 * peak - a - b) / 6;
  */
 export function tonguePath({ open = 0, smile = 0, arc = 0, show = 0, round: pucker = 0, skew = 0 } = {}) {
   const g = mouthGeometry({ open, smile, arc, round: pucker, skew });
-  const lip = lowerLip(g);
-  const at = (t, dy = 0) => { const p = lip(t); return { x: p.x, y: p.y + dy }; };
-  const mid = (TONGUE.from + TONGUE.to) / 2, half = (TONGUE.to - TONGUE.from) / 2;
+  const at = tongueSeat(lowerLip(g), TONGUE.from, TONGUE.to, TONGUE.width);
   // Up is negative. `out` is deliberately not here: the body is what is *in*
   // the mouth, and flattening it as the tip reaches made the two halves of one
   // tongue answer to different numbers -- at `tongue 0` and `tongueOut 1` it
@@ -469,18 +542,17 @@ export function tonguePath({ open = 0, smile = 0, arc = 0, show = 0, round: puck
   const peak = -BAND_REACH * TONGUE.up * show;
   const dip = peak * (1 - TONGUE.groove);
   const seat = BAND_REACH * TONGUE.seat * show;
-  // The four control parameters, a pair inside each half.
-  const t = [TONGUE.from + half * TONGUE.shoulder, mid - half * TONGUE.shoulder,
-    mid + half * TONGUE.shoulder, TONGUE.to - half * TONGUE.shoulder];
+  // The four control stations, a pair inside each half.
+  const s = TONGUE.shoulder, u = [-1 + s, -s, s, 1 - s];
   const backLobe = lobeControl(peak, 0, dip);
   const underLobe = lobeControl(seat, 0, seat);
-  return `M${point(at(TONGUE.from))}`
-    // The two lobes, and the groove where they meet.
-    + ` C${point(at(t[0], backLobe))} ${point(at(t[1], backLobe))} ${point(at(mid, dip))}`
-    + ` C${point(at(t[2], backLobe))} ${point(at(t[3], backLobe))} ${point(at(TONGUE.to))}`
-    // And back underneath, through the same parameters in reverse.
-    + ` C${point(at(t[3], underLobe))} ${point(at(t[2], underLobe))} ${point(at(mid, seat))}`
-    + ` C${point(at(t[1], underLobe))} ${point(at(t[0], underLobe))} ${point(at(TONGUE.from))} Z`;
+  return `M${point(at(-1))}`
+    // The two lobes, and the shallow fold where they meet.
+    + ` C${point(at(u[0], backLobe))} ${point(at(u[1], backLobe))} ${point(at(0, dip))}`
+    + ` C${point(at(u[2], backLobe))} ${point(at(u[3], backLobe))} ${point(at(1))}`
+    // And back underneath, through the same stations in reverse.
+    + ` C${point(at(u[3], underLobe))} ${point(at(u[2], underLobe))} ${point(at(0, seat))}`
+    + ` C${point(at(u[1], underLobe))} ${point(at(u[0], underLobe))} ${point(at(-1))} Z`;
 }
 
 /**
@@ -499,11 +571,8 @@ export function tonguePath({ open = 0, smile = 0, arc = 0, show = 0, round: puck
  */
 export function tongueTipPath({ open = 0, smile = 0, arc = 0, round: pucker = 0, skew = 0, out = 0, curl = 0 } = {}) {
   const g = mouthGeometry({ open, smile, arc, round: pucker, skew });
-  const lip = lowerLip(g);
-  const at = (t, dy = 0, dx = 0) => { const p = lip(t); return { x: p.x + dx, y: p.y + dy }; };
-  const mid = (TONGUE.tipFrom + TONGUE.tipTo) / 2, half = (TONGUE.tipTo - TONGUE.tipFrom) / 2;
-  const t = [TONGUE.tipFrom + half * TONGUE.tipShoulder, mid - half * TONGUE.tipShoulder,
-    mid + half * TONGUE.tipShoulder, TONGUE.tipTo - half * TONGUE.tipShoulder];
+  const at = tongueSeat(lowerLip(g), TONGUE.from, TONGUE.to, TONGUE.width);
+  const s = TONGUE.tipShoulder, u = [-1 + s, -s, s, 1 - s];
   // Back into the mouth at the root, out past the lip at the free edge, and
   // the cleft short of it in the middle.
   const root = -BAND_REACH * TONGUE.root * out;
@@ -513,13 +582,13 @@ export function tongueTipPath({ open = 0, smile = 0, arc = 0, round: pucker = 0,
   const pinch = BAND_REACH * TONGUE.curlPinch * curl;
   const rootLobe = lobeControl(root, 0, root);
   const freeLobe = lobeControl(reach, 0, cleft);
-  return `M${point(at(TONGUE.tipFrom))}`
+  return `M${point(at(-1))}`
     // The upper edge, tucked back under the lip.
-    + ` C${point(at(t[0], rootLobe))} ${point(at(t[1], rootLobe))} ${point(at(mid, root))}`
-    + ` C${point(at(t[2], rootLobe))} ${point(at(t[3], rootLobe))} ${point(at(TONGUE.tipTo))}`
+    + ` C${point(at(u[0], rootLobe))} ${point(at(u[1], rootLobe))} ${point(at(0, root))}`
+    + ` C${point(at(u[2], rootLobe))} ${point(at(u[3], rootLobe))} ${point(at(1))}`
     // And the free edge back, past the lip: the curl lifts it and draws it in.
-    + ` C${point(at(t[3], freeLobe, -pinch))} ${point(at(t[2], freeLobe, -pinch))} ${point(at(mid, cleft))}`
-    + ` C${point(at(t[1], freeLobe, pinch))} ${point(at(t[0], freeLobe, pinch))} ${point(at(TONGUE.tipFrom))} Z`;
+    + ` C${point(at(u[3], freeLobe, -pinch))} ${point(at(u[2], freeLobe, -pinch))} ${point(at(0, cleft))}`
+    + ` C${point(at(u[1], freeLobe, pinch))} ${point(at(u[0], freeLobe, pinch))} ${point(at(-1))} Z`;
 }
 
 /**
@@ -542,7 +611,7 @@ export function tongueTipPath({ open = 0, smile = 0, arc = 0, round: pucker = 0,
  */
 export function tongueGroovePath({ open = 0, smile = 0, arc = 0, round: pucker = 0, skew = 0, out = 0, curl = 0 } = {}) {
   const g = mouthGeometry({ open, smile, arc, round: pucker, skew });
-  const at = lowerLip(g)((TONGUE.tipFrom + TONGUE.tipTo) / 2);
+  const at = lowerLip(g)((TONGUE.from + TONGUE.to) / 2);
   const lap = BAND_REACH * TONGUE.reach * out, lift = BAND_REACH * TONGUE.curlLift * curl;
   const head = { x: at.x, y: at.y - BAND_REACH * TONGUE.grooveRoot * out };
   const foot = { x: at.x, y: at.y + (lap * (1 - TONGUE.notch) - lift) * TONGUE.grooveRun };
@@ -551,9 +620,62 @@ export function tongueGroovePath({ open = 0, smile = 0, arc = 0, round: pucker =
   return `M${point(head)} Q${waist(-1)} ${point(foot)} Q${waist(1)} ${point(head)} Z`;
 }
 
+/* ------------------------------------------------------------------ uvula -- */
+
+/**
+ * The uvula: the drop that hangs at the back of a shouting cartoon mouth.
+ *
+ * It is the one thing in here that is *not* about being read as anatomy. A
+ * mouth wide open with nothing in the dark of it reads as a hole; the same
+ * mouth with one small shape swinging at the back of it reads as a **shout**,
+ * and every cartoon ever drawn knows it. That is why it is offered and why it
+ * is off by default: it is a register, not a feature, and a mascot talking
+ * quietly should not have one.
+ *
+ * Drawn from the **upper** lip, at its middle, hanging down into the cavity —
+ * so it follows the lip line, the pucker and the lean like everything else in
+ * here, and it is the first thing painted inside the aperture because it is
+ * the furthest away.
+ */
+export const UVULA = Object.freeze({
+  /** Where along the upper lip it hangs from: the middle of it, which is the
+   *  back of the throat once the mouth is read as a mouth. */
+  at: 0.5,
+  /** How far its root is tucked up behind the lip, so it grows out of the
+   *  shadow instead of being pinned to the line. */
+  tuck: 0.03,
+  /** How far it hangs, and how wide it gets, as fractions of the cavity a
+   *  fully open mouth has. Small: a uvula that reaches the tongue is a
+   *  different drawing, and a funnier one than this mouth is for. */
+  drop: 0.3, wide: 0.07,
+  /** Where the two controls sit down its length: the shoulder high and the
+   *  belly low, which is what makes a drop rather than a cone. */
+  shoulder: 0.25, belly: 0.72
+});
+
+/**
+ * A drop: two cubics, out and back, from a point on the upper lip.
+ *
+ * Empty at `show 0` like everything else inside this mouth — every offset is a
+ * multiple of `show`, so its four points and its four controls are the same
+ * point on the lip and it encloses nothing.
+ */
+export function uvulaPath({ open = 0, smile = 0, arc = 0, show = 0, round: pucker = 0, skew = 0 } = {}) {
+  const g = mouthGeometry({ open, smile, arc, round: pucker, skew });
+  const lip = upperLip(g)(UVULA.at);
+  const run = BAND_REACH * UVULA.drop * show, wide = BAND_REACH * UVULA.wide * show;
+  const head = { x: lip.x, y: lip.y - BAND_REACH * UVULA.tuck * show };
+  const foot = { x: lip.x, y: lip.y + run };
+  const side = (at, s) => ({ x: lip.x + wide * s, y: head.y + (foot.y - head.y) * at });
+  return `M${point(head)}`
+    + ` C${point(side(UVULA.shoulder, -1))} ${point(side(UVULA.belly, -1))} ${point(foot)}`
+    + ` C${point(side(UVULA.belly, 1))} ${point(side(UVULA.shoulder, 1))} ${point(head)} Z`;
+}
+
 export const MOUTH_REST = mouthPath();
 export const TEETH_REST = teethPath();
 export const TEETH_LOWER_REST = teethLowerPath();
 export const TONGUE_REST = tonguePath();
 export const TONGUE_TIP_REST = tongueTipPath();
 export const TONGUE_GROOVE_REST = tongueGroovePath();
+export const UVULA_REST = uvulaPath();

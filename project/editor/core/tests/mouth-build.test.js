@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  MOUTH, MOUTH_BOX, MOUTH_REST, TEETH, TEETH_REST, TEETH_LOWER_REST, TONGUE, TONGUE_REST, TONGUE_TIP_REST, TONGUE_GROOVE_REST,
-  mouthGeometry, mouthPath, teethPath, teethLowerPath, tonguePath, tongueTipPath, tongueGroovePath
+  MOUTH, MOUTH_BOX, MOUTH_REST, TEETH, TEETH_REST, TEETH_LOWER_REST, TONGUE, TONGUE_REST, TONGUE_TIP_REST, TONGUE_GROOVE_REST, UVULA_REST,
+  mouthGeometry, mouthPath, teethPath, teethLowerPath, tonguePath, tongueTipPath, tongueGroovePath, uvulaPath
 } from '../face/mouth-build.js';
 
 /**
@@ -84,7 +84,8 @@ const SHAPES = [
   ['teethLower', teethLowerPath, TEETH_LOWER_REST],
   ['tongue', tonguePath, TONGUE_REST],
   ['tongueTip', tongueTipPath, TONGUE_TIP_REST],
-  ['tongueGroove', tongueGroovePath, TONGUE_GROOVE_REST]
+  ['tongueGroove', tongueGroovePath, TONGUE_GROOVE_REST],
+  ['uvula', uvulaPath, UVULA_REST]
 ];
 /**
  * No ink at all, in the units the mouth is drawn in.
@@ -116,7 +117,10 @@ test('everything inside the mouth is empty until it is asked for', () => {
 
 test('and full when it is: a row of teeth, a tongue, and a tip over the lip', () => {
   assert.ok(area(teethPath({ open: 1, show: 1 })) > 250, 'the upper row');
-  assert.ok(area(teethLowerPath({ open: 1, show: 1 })) > 100, 'the lower one, shallower');
+  // Half the depth it had, and half the clearance: a lower row is a line of
+  // white along the lip, and one that stood up into the cavity took the bottom
+  // of the tongue's own travel away with it (docs/MOUTH_BUILD.md).
+  assert.ok(area(teethLowerPath({ open: 1, show: 1 })) > 50, 'the lower one, shallower');
   assert.ok(area(teethLowerPath({ open: 1, show: 1 })) < area(teethPath({ open: 1, show: 1 })), 'and never the deeper of the two');
   assert.ok(area(tonguePath({ open: 1, show: 1 })) > 250, 'the body');
   assert.ok(area(tongueTipPath({ out: 1 })) > 150, 'the tip');
@@ -124,6 +128,10 @@ test('and full when it is: a row of teeth, a tongue, and a tip over the lip', ()
   // makes it read as a fold rather than as a second colour.
   assert.ok(area(tongueGroovePath({ out: 1 })) > 5, 'and the crease down it');
   assert.ok(area(tongueGroovePath({ out: 1 })) < area(tongueTipPath({ out: 1 })) / 20, 'a crease, not a stripe');
+  // And the drop at the back of a shouting mouth: small on purpose. A uvula
+  // that reaches the tongue is a different drawing, and a funnier one.
+  assert.ok(area(uvulaPath({ open: 1, show: 1 })) > 15, 'the uvula');
+  assert.ok(area(uvulaPath({ open: 1, show: 1 })) < area(tonguePath({ open: 1, show: 1 })) / 10, 'a drop, not a second tongue');
 });
 
 /* ── 2 · Affine in every number, separately ──────────────────────────────── */
@@ -169,6 +177,7 @@ test('no pose changes a shape\'s topology, so one key interpolates any two', () 
   assert.equal(commands(TONGUE_REST), 'MCCCCZ', 'the tongue is two lobes there and two back');
   assert.equal(commands(TONGUE_TIP_REST), 'MCCCCZ');
   assert.equal(commands(TONGUE_GROOVE_REST), 'MQQZ', 'and the crease is a slim lens');
+  assert.equal(commands(UVULA_REST), 'MCCZ', 'and the uvula is a drop: out and back');
 });
 
 /* ── The drawing itself ──────────────────────────────────────────────────── */
@@ -270,7 +279,10 @@ test('the pucker is still what makes a vowel, and everything inside follows it',
   // the reach, and a product is not the sum of its ends -- the same trap
   // `BAND_REACH` is a constant to avoid (docs/MOUTH_BUILD.md). A crease is a
   // line, and a line the width of a line at any aperture is right.
-  for (const [name, draw] of SHAPES.filter(([id]) => id !== 'tongueGroove')) {
+  // The uvula is out of this loop for the same reason the crease is: it hangs
+  // from the *upper* lip, which a pucker pushes up and away rather than in, so
+  // its width is its own number times `show` and nothing else.
+  for (const [name, draw] of SHAPES.filter(([id]) => id !== 'tongueGroove' && id !== 'uvula')) {
     const open = box(draw({ open: 0.5, show: 1, out: 1 })), puckered = box(draw({ open: 0.5, show: 1, out: 1, round: 1 }));
     assert.ok(puckered.right - puckered.left < open.right - open.left, `${name} narrows with the pucker`);
   }

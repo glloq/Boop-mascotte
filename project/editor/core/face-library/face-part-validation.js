@@ -210,7 +210,7 @@ export function validateFacePart(input, { taken = () => false, library = null } 
      * costs an author a look rather than their asset, and because "limited
      * animation" is the shape every other half-carried movement is reported in.
      */
-    const INSIDES = ['cavity', 'teeth', 'teethLower', 'tongue', 'tongueTip', 'tongueGroove'];
+    const INSIDES = ['cavity', 'teeth', 'teethLower', 'tongue', 'tongueTip', 'tongueGroove', 'uvula'];
     const drawnInside = INSIDES.filter((role) => asset.roles[role]);
     if (drawnInside.length) {
       for (const control of ['mouthOpen', 'smile']) {

@@ -70,9 +70,11 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
   with crowns rather than a white slab, a tongue with a groove down its back,
   and a tip that laps **over** the lower lip when it comes out — of an open
   mouth or of closed lips — with the crease drawn down the middle of it, because
-  a tongue seen from above has no silhouette to read one from. It opens, smiles,
-  widens, puckers into a vowel and leans into a smirk, all of it as additive
-  shape keys over one closed path ([the mouth](docs/MOUTH_BUILD.md))
+  a tongue seen from above has no silhouette to read one from. The tongue swings
+  from its hinge when it is out and slides up and down when the mouth is
+  speaking, and there is a uvula for shouting, off unless you ask for it. It
+  opens, smiles, widens, puckers into a vowel and leans into a smirk, all of it
+  as additive shape keys over one closed path ([the mouth](docs/MOUTH_BUILD.md))
 - **Design is two screens**: *Assemble* is where a mascot comes from — the
   library, a picture of your own, the parts that go on whole — and *Draw* is
   the vector editor, one chevron away rather than the first thing you meet

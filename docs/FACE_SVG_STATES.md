@@ -149,6 +149,7 @@ teethLower    the lower row                            optional  (V6)
 tongue        the body of it, inside the cavity        optional
 tongueTip     the part that laps over the lower lip    optional  (V6)
 tongueGroove  the crease down the middle of that part  optional  (V6)
+uvula         the drop at the back of a shout          optional  (V6)
 ```
 
 A mascot whose mouth is a single stroked line works: it opens, smiles and
@@ -156,11 +157,12 @@ widens by moving as a whole. Everything inside the lips is optional, and what
 the optional pieces buy is that the 2.5D turn carries them with the lip line
 and that Teeth and Tongue become movements like any other.
 
-The three V6 added are **roles and not movements**: the lower row shows on the
-same `teeth` control as the upper one, and the tip and its crease come out on
-the tongue part's own `tongueOut`. A mouth that draws none of them behaves
-exactly as it did, which is every mouth in every project written before V6
-(docs/MOUTH_BUILD.md).
+Three of the four V6 added are **roles and not movements**: the lower row shows
+on the same `teeth` control as the upper one, and the tip and its crease come out
+on the tongue part's own `tongueOut`. The uvula is the one that brought a
+movement with it, and it rests at 0 — a shout is a register, not a feature. A
+mouth that draws none of the four behaves exactly as it did, which is every
+mouth in every project written before V6 (docs/MOUTH_BUILD.md).
 
 ### 3.2 Closed to open, without a pop
 

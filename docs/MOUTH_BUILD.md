@@ -78,10 +78,11 @@ than the rest — the check the unit suite makes, because "smaller" is all a
 
 ### Everything inside is drawn from the lips
 
-Six shapes, and five of them are **empty until they are asked for**:
+Seven shapes, and six of them are **empty until they are asked for**:
 
 ```text
 mouth        the lips, and the cavity: one closed path, fill inside, stroke lips
+uvula        the drop at the back of a shouting mouth, hung off the *upper* lip
 teeth        the upper row, its biting edge scalloped into crowns
 teethLower   the lower row, the same band from the lower lip, shallower
 tongue       the body: two lobes with the groove between them
@@ -89,7 +90,7 @@ tongueTip    the lobe that laps **over** the lower lip
 tongueGroove the crease down the middle of that lobe
 ```
 
-Each of the five is a closed path whose second half retraces its first — the
+Each of the six is a closed path whose second half retraces its first — the
 same points, the same control points, in reverse — whenever its own number is 0.
 The shape encloses nothing and paints nothing. So a closed mouth has nothing
 behind it to hide, by construction rather than by arithmetic, which is what lets
@@ -204,8 +205,78 @@ their peaks — have two peaks and a groove between them, which is what a tongue
 looks like and what the butterfly was reaching for. It costs nothing at the rig:
 the same shape key, two segments longer.
 
+**Two rounds, not an M.** The first pass took the dip to 30 % of the peak and
+put the lobes' controls close in (`shoulder 0.28`), and what that drew was a
+capital **M**: a shape with corners in it, which a tongue has none of. The dip
+is a fold in something soft, so it is shallow — `groove 0.14` — and the controls
+are spread (`shoulder 0.42`) so the climb out of each corner is a slope instead
+of a shoulder. The silhouette still says *two* lobes; it no longer says a
+letter.
+
+```text
+     ╭─╮╭─╮              ╭───╮╭───╮
+    ╱     ╲             ╱    ╲╱    ╲       groove 0.3 → 0.14
+   ╱       ╲           ╱           ╲       shoulder 0.28 → 0.42
+  ────────────        ────────────────
+     an M                two rounds
+```
+
 The underside uses the back's own control *parameters in reverse*, which is what
 makes the body exactly empty when every offset is 0.
+
+**A tongue has a width of its own.** It used to have none: its edges *were* two
+points on the lip curve, at `from` and `to`, so anything that narrowed the mouth
+narrowed the tongue with it — a mouth pursed into an OO drew a tongue **58 %
+narrower**, a pink spike out of a small round hole. What a pursed mouth actually
+shows is the same tongue through a smaller opening.
+
+So `tongueSeat` splits the two questions. The **height** at each station across
+the tongue is still read off the lip, which is what keeps it sitting on a lip
+that is open, smiling, puckered or leaning. The **width** is mostly a number of
+its own and the mouth has a quarter of the say:
+
+```text
+half-width  =  BAND_REACH × width  +  grip × (the lip's own half-span)
+                    a constant           grip = 0.45
+```
+
+At full pucker the tongue is 74 % of its resting width where it was 42 %, and
+the end of it is still round. Both terms are affine in every pose number — a
+constant, and a fraction of a span that is itself affine — so the additive shape
+keys reproduce any combination exactly, as before.
+
+### Aiming it, and speaking with it
+
+`tongueX` and `tongueY` stay **transforms**, and they are the two movements the
+tongue is going to be driven by: sideways when it is out, up and down when the
+mouth is speaking. They are not the same kind of transform, because the two
+movements are not the same kind of movement.
+
+**`tongueX` is a rotation**, about the mouth's own centre. A tongue is hinged at
+the back of the mouth: one hanging out and aimed to a side *swings*, and sliding
+the whole drawing sideways reads as a tongue that has come off. The pivot is the
+mouth's, not each shape's own middle — a rotation about three different middles
+is three tongues going three ways. `translateX` is still in `strategies`, so a
+project that was rigged with the slide keeps it.
+
+**`tongueY` stays a translate**, because a mouth speaking moves its tongue up and
+down and no rotation does that.
+
+Both write on all three shapes with the same numbers, so the tongue moves as one
+tongue — an aim that reached the body and not the tip would swing a tongue off
+its own end, and one that missed the crease would leave a line painted on a
+chin.
+
+The clip does the rest. The **body** is inside `mouthInside`, so aiming it can
+never take it out of the mouth however hard it is driven; the **tip** and its
+crease are outside, because a tongue that is out is outside. A mouth speaking
+with its tongue up shows it against the upper row and hides the lower one behind
+it; the same mouth with its tongue down shows the lower row again. That is the
+z-order below doing the work, not a second drawing.
+
+`core/tests/mouth-rig.test.js` holds the three to the same transform at four
+poses — out and swung to each side, and up and down inside an open mouth — and
+holds the three pivots to one hinge.
 
 **The groove, out of it.** Inside the cavity the groove is the *silhouette*
 between the two lobes and needs no ink. On a tongue lapping over the lip there
@@ -239,14 +310,17 @@ tongue was drawn as anything more than a hump:
 | | was | is |
 | --- | --- | --- |
 | `tongueOut` | `scaleY` — stretches the root as far as the tip, and grows the tongue *up into the skull* as readily as out of the mouth | a shape: the tip extends past the lip, the body reaches forward behind it |
-| `tongueCurl` | `rotation` — swings the root out through a cheek | a shape: the **middle** of the free edge lifts, the shoulders barely, the lobe draws in |
-| `tongueX` / `tongueY` | `translateX` / `translateY` | unchanged — a tongue that moves sideways really does move sideways |
+| `tongueCurl` | `rotation` — swings the root out through a cheek | a shape: the free edge lifts and the end comes up, keeping its round |
+| `tongueX` / `tongueY` | `translateX` / `translateY` | unchanged — a tongue that moves sideways really does move sideways. They are what aims a tongue that is out and what moves one that is speaking ("Aiming it", above) |
 
-The shoulders matter as much as the middle. Lifting the whole free edge by one
-number is not a curl, it is the tongue going back in: at `tongueCurl 1` there was
-nothing left lapping over the lip. Lifting the middle and holding the sides turns
-the end up and leaves the tongue as long as it was — and, signed, the same key
-droops it.
+The first attempt lifted the **middle** of the free edge and held the shoulders
+(`curlShoulder 0.15`), on the theory that lifting all of it is retraction rather
+than a curl. What that drew was a **fork**: two prongs with a deep V between
+them, which is a snake rather than a mascot. A tongue curled up, seen from the
+front, is simply *shorter*, and its end is still round — so the whole free edge
+lifts together now (`curlShoulder 1`) by a little less than it did
+(`curlLift 0.16`), which reads as a curl and keeps the shape it had. Signed, the
+same key droops it.
 
 Both keep the old transform in `strategies`, so a project rigged that way can be
 switched back to it, and a document that carries one goes on carrying it: a
@@ -271,6 +345,30 @@ Every pose is the single factor at 1 with the others at 0, and the expression
 carries the product. The construction being affine makes that exact: the delta
 of `{ curl: 1 }` alone *is* the curl's contribution at any `out`.
 
+### The uvula: the one thing here that is not anatomy
+
+```text
+        ╭─╮                uvula      hung off the *upper* lip, at its middle
+   ─────┴─┴─────           the lip line
+         ╰╯
+```
+
+A mouth wide open with nothing in the dark of it reads as a hole. The same mouth
+with one small shape swinging at the back of it reads as a **shout**, and every
+cartoon ever drawn knows it. That is the whole argument for `uvula`, and it is
+why it is a control rather than a part of the drawing: it is a *register*, and a
+mascot talking quietly should not have one.
+
+It rests at nothing like everything else in here, and its control rests at 0, so
+**a face that never asks for one draws exactly what it drew before there was
+one**. That is what makes an expressive extra free: not that it is small, but
+that it is a path the renderer skips until somebody turns it on.
+
+It is the only inside hung off the **upper** lip, which is the only interesting
+thing about its geometry: it follows the lip line, the pucker and the lean from
+up there instead of from down here, and it is painted first because it is the
+furthest away.
+
 ### The lean
 
 `mouthSkew`: one corner up, the other down by as much, and the lip line leaning
@@ -288,15 +386,39 @@ never half a smile — `core/tests/mouth-build.test.js` holds it to that.
 
 ```text
 mouth                    the lips, and the cavity they enclose
-mouthInside  ▸ clipped   tongue · teethLower · teeth
+mouthInside  ▸ clipped   uvula · tongue · teethLower · teeth
 tongueTip                in front of the lips, because that is where it is
 tongueGroove             and in front of the tip, because it is a crease in it
 ```
 
-Inside the cavity the tongue is behind the lower teeth and both are behind the
-upper row, because that is the order they are in; and the tip is in front of the
-lips, because a tongue lapping out lies *over* the lower lip and there is no
-other way to say that in a flat drawing (§5.2 of the brief).
+Front to back, and that is all it is: the uvula is furthest away and painted
+first, then the tongue, then the lower row in front of it, then the upper row in
+front of everything inside.
+
+**The lower row is in front of the tongue, and the tongue is still in front of
+it when it is out.** Those are not in conflict, because they are two different
+shapes. A tongue sitting in a mouth is behind the teeth — that is where a tongue
+is — and the first attempt at this put the body in front of the row, which drew
+a tongue *through* the teeth at every pose it had. What goes over them is the
+tongue on its way **out**, and that is `tongueTip`: a shape that exists only when
+`tongueOut` is up, painted in front of the lips. So "the tongue is in front of
+the teeth" happens exactly when the tongue is out, and at no other time, without
+the z-order ever having to ask which pose it is in.
+
+That only works if the tip reaches far enough back. Its root is drawn up into
+the mouth by `root` × `out`, and at 0.1 that was three and a half units — less
+than the lower row stands, and less than `tongueY` moves the whole tongue down.
+Either opened a gap across the middle of the tongue, or left a white bar over
+it. At 0.3 it reaches ten units back, which covers the row it laps across and
+survives the aim; not further, because the tip is in **front** of the lips and a
+root deep enough for an open mouth is a pink blot over a shut one.
+
+**And the row itself got out of the way.** With the teeth in front, whatever the
+lower row stands in is tongue the author cannot see, so a mouth showing its teeth
+had a tongue with less travel than the same mouth without them. The row is half
+as deep and half as clear of the lip as it was — a line of white along the lower
+lip, which is what a lower row looks like from the front anyway — and the tongue
+has the same range either way.
 
 **The clip is the belt to the geometry's braces.** Everything inside the mouth is
 drawn from the mouth's own curves and stays inside it by construction — but only
@@ -390,24 +512,27 @@ a card may vary per role is the *pose* and, now, the *sentence*.
 
 ## What moved, and what did not
 
-The **head turn** moved, by exactly twenty-one channels: the generator writes
-seven per element and the mouth grew three. A hundred and seventeen of the
-baseline's words moved with it, all by the same twenty-one, because every head,
-eye, brow, nose, ear and head of hair is installed on a face that now has a lower
-row of teeth, a tongue tip and a crease in it. The fifteen that did **not** move
-are the fifteen that replace the mouth with one of their own, and none of those
-draws any of the three (`core/tests/fixtures/head-turn-baseline.js`).
-`mouthInside` gets no channels at all: it is a clipping group, not a drawing, and
-a group with nothing of its own to turn is not given a turn.
+The **head turn** moved, by exactly twenty-eight channels: the generator writes
+seven per element and the mouth grew four — a lower row of teeth, the tongue's
+tip, the crease down it and the uvula. A hundred and seventeen of the baseline's
+words moved with it, all by the same amount, because every head, eye, brow,
+nose, ear and head of hair is installed on a face that now has those four in it.
+The fifteen that did **not** move are the fifteen that replace the mouth with one
+of their own, and none of those draws any of the four
+(`core/tests/fixtures/head-turn-baseline.js`). `mouthInside` gets no channels at
+all: it is a clipping group, not a drawing, and a group with nothing of its own
+to turn is not given a turn.
 
-The **shape count** moved by three paths, and the budget moved with it rather
+The **shape count** moved by four paths, and the budget moved with it rather
 than being quietly exceeded: the mouth is the feature a mascot spends its screen
-time in, and three paths is what the whole of V6 cost.
+time in, and four paths is what the whole of V6 cost. Three of the four rest at
+nothing, so what a face that asks for none of them pays is a path the renderer
+skips.
 
 ## Where things are
 
 ```text
-core/face/mouth-build.js                geometry: the four points, the six shapes
+core/face/mouth-build.js                geometry: the four points, the seven shapes
 core/face-library/builtin/mouth-full.js the one card
 core/face-library/face-catalogue.js     which drawings are offered at all
 core/face-library/face-part-install.js  installShapedControl, and role adoption
@@ -415,8 +540,9 @@ core/face-library/face-part-model.js    a role may ship its own posePath and sen
 core/face-library/face-correctives.js   the thirteen mouth slots
 rig-editor/semantic-parts/part-registry.js  the roles, the bindings, the strategies
 core/sample/templates/face-artwork.js   draws the five, and clips the insides
-core/sample/templates/template-project.js   the shape keys: thirty-nine over the six shapes
+core/sample/templates/template-project.js   the shape keys: forty-five over the seven shapes
 core/tests/mouth-build.test.js          empty, affine, one topology
+core/tests/mouth-rig.test.js            the three shapes aim as one tongue
 core/tests/fixtures/mouth-line.js       a mouth that carries less, for the tests that need one
 ```
 

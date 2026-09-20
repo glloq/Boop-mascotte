@@ -54,6 +54,7 @@ const ROLE_WORDS = Object.freeze({
   tongue: ['Tongue', 'The body of it, inside the mouth. Shown when the mouth opens, and it can move on its own.'],
   tongueTip: ['Tongue tip', 'The part that comes out over the lower lip. Optional, and drawn in front of the lips.'],
   tongueGroove: ['Tongue groove', 'The crease down the middle of the tip. Optional: a fold, drawn in the mouth\u2019s own colour.'],
+  uvula: ['Uvula', 'The drop at the back of a shouting mouth. Optional, and off unless you ask for it.'],
   jaw: ['Jaw', 'The lower face, which drops when the mouth opens.'],
   leftEar: ['Left ear', 'It wiggles.'],
   rightEar: ['Right ear', 'It wiggles.'],

@@ -46,7 +46,7 @@ export function correctiveTargets(document = {}, kind, side = null) {
   }
   const mouth = findFacePartByType(document, 'mouth');
   if (!mouth) return [];
-  return ['mouth', 'teeth', 'teethLower', 'tongue', 'tongueTip', 'tongueGroove', 'cavity']
+  return ['mouth', 'teeth', 'teethLower', 'tongue', 'tongueTip', 'tongueGroove', 'uvula', 'cavity']
     .map((role) => ({ role, id: mouth.roles?.[role] }))
     .filter((item) => item.id && document.elements?.[item.id])
     .map((item) => ({ ...item, name: document.layerMetadata?.[item.id]?.name || item.id, path: document.elements[item.id].restPath || null }));

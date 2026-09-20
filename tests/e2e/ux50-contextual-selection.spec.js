@@ -26,9 +26,9 @@ test('@critical the movements panel shows the part in hand, and every other move
   const panel = page.locator('#face-movements[data-face-movements-ready="true"]');
   await expect(panel).toBeVisible();
   // The template rigs every part, so the inventory this replaces was twenty-six
-  // rows in five bands, on screen at all times -- twenty-seven since the mouth
-  // gained its lean (docs/MOUTH_BUILD.md).
-  await expect(panel).toHaveAttribute('data-face-movements-available', '27');
+  // rows in five bands, on screen at all times -- twenty-eight since the mouth
+  // gained its lean and its uvula (docs/MOUTH_BUILD.md).
+  await expect(panel).toHaveAttribute('data-face-movements-available', '28');
 
   await panel.locator('[data-movement-family="Mouth"]').click();
   await expect(panel).toHaveAttribute('data-face-movements-scope', 'band');

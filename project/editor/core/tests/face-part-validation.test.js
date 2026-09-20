@@ -21,7 +21,7 @@ test('every built-in asset is valid, and the incomplete ones say so as a warning
     assert.deepEqual(errors(result), []);
   }
   assert.deepEqual(codes(validateFacePart(MOUTH_LINE)), ['capabilities-incomplete'], 'a mouth with nothing inside it is limited, and allowed');
-  assert.match(validateFacePart(MOUTH_LINE).warnings[0].message, /teeth, tongue are not carried/);
+  assert.match(validateFacePart(MOUTH_LINE).warnings[0].message, /teeth, tongue, uvula are not carried/);
   assert.deepEqual(codes(validateFacePart(MOUTH_LINE)), ['capabilities-incomplete']);
   assert.deepEqual(codes(validateFacePart(BUILTIN_FACE_PARTS.find((asset) => asset.id === 'nose.dot'))), [], 'a nose that scrunches carries everything a nose can');
 });

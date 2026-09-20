@@ -44,13 +44,13 @@ test('every role the registry knows can be said, and the words are the author’
 
 test('the eight are the checklist and the rest are optional, and the two do not overlap', () => {
   assert.equal(FACE_ROLE_CHECKLIST.length, 8);
-  // Twenty-four: nineteen since the gaze grew an iris per side
-  // (docs/EYE_BUILDS.md), and five more since the mouth grew a lower row of
+  // Twenty-five: nineteen since the gaze grew an iris per side
+  // (docs/EYE_BUILDS.md), and six more since the mouth grew a lower row of
   // teeth, the tongue a tip and the tip a crease -- the last two the tongue
-  // part plays as well, so each is two rows rather than one
-  // (docs/MOUTH_BUILD.md). All optional, as every extra is: a mouth that draws
-  // none behaves as it did.
-  assert.equal(FACE_ROLE_EXTRAS.length, 24);
+  // part plays as well, so each is two rows rather than one -- and the mouth a
+  // uvula (docs/MOUTH_BUILD.md). All optional, as every extra is: a mouth that
+  // draws none behaves as it did.
+  assert.equal(FACE_ROLE_EXTRAS.length, 25);
   assert.equal(FACE_ROLE_CHECKLIST.length + FACE_ROLE_EXTRAS.length, FACE_ROLE_VOCABULARY.length);
   const basic = new Set(FACE_ROLE_CHECKLIST.map((entry) => `${entry.part}.${entry.role}`));
   assert.deepEqual(FACE_ROLE_EXTRAS.filter((entry) => basic.has(entry.id)), []);
@@ -70,7 +70,7 @@ test('the optional rows never change what "complete" means', () => {
   assert.equal(checklist.assigned, 8);
   assert.equal(checklist.complete, true);
   const extras = deriveFaceRoleExtras(state);
-  assert.equal(extras.total, 24);
+  assert.equal(extras.total, 25);
   // Ten groups: the gaze has extras of its own now, where before both of its
   // roles were in the beginner eight and it therefore had none.
   assert.equal(extras.groups.length, 10, 'grouped by the part that owns them');

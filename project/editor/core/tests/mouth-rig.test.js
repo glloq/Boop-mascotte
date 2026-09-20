@@ -15,13 +15,13 @@ import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-reg
  * expression where it should have a dozen. Every smirk, grimace and lip pulled
  * by a word is the two corners disagreeing.
  */
-const paths = new Set(['head', 'mouth', 'teeth', 'teethLower', 'tongue', 'tongueTip', 'tongueGroove', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairTop', 'hairBack', 'shadeLeft', 'shadeRight', 'faceLight', 'shadeHair']);
+const paths = new Set(['head', 'mouth', 'uvula', 'teeth', 'teethLower', 'tongue', 'tongueTip', 'tongueGroove', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairTop', 'hairBack', 'shadeLeft', 'shadeRight', 'faceLight', 'shadeHair']);
 const eyeChildren = (side) => [`eyeWhite${side}`, `pupil${side}`, `glint${side}`, `spark${side}`, `lidUpper${side}`, `lidLower${side}`, `rim${side}`];
 const earChildren = (side) => [`ear${side}Shape`, `ear${side}Fold`];
 /** The shading is a folder of its own now, clipped to the head. */
 const shadingChildren = ['shadeLeft', 'shadeRight', 'faceLight', 'shadeHair'];
 /** And so is the inside of the mouth, clipped to the lips (docs/MOUTH_BUILD.md). */
-const mouthChildren = ['tongue', 'teethLower', 'teeth'];
+const mouthChildren = ['uvula', 'tongue', 'teethLower', 'teeth'];
 const faceChildren = ['hairBack', 'earLeft', 'earRight', 'head', 'faceShading', ...shadingChildren,
   'mouth', 'mouthInside', ...mouthChildren, 'tongueTip', 'tongueGroove', 'eyeLeft', 'eyeRight', 'eyebrows', 'browLeft', 'browRight', 'nose', 'hairTop', 'hairFront', 'hair'];
 /** The children the artwork nests, so a synthetic tree matches the drawn one. */
@@ -100,13 +100,45 @@ test('the tongue is aimed, stuck out and curled (CR-32 … CR-34)', () => {
   const frame = (values) => compileRigFrame(state.elements, { ...state.params, ...values }, {}, {}, { shapeKeys: state.shapeKeys });
   const at = (values) => frame(values).tongue.transform;
 
-  // Where it points is still a translate: a tongue that moves sideways really
-  // does move sideways, and saying so with a shape would be a lie with more
-  // numbers in it.
-  assert.equal(at({}).x, 0);
-  assert.ok(at({ tongueX: 1 }).x > 0 && at({ tongueX: -1 }).x < 0, 'it aims left and right');
-  assert.ok(at({ tongueY: 1 }).y > 0, 'and up and down');
+  // Where it points is a **swing**, and where it sits is a slide. A tongue is
+  // hinged at the back of the mouth, so one that is out and aimed to a side
+  // pivots about that hinge; sliding the whole drawing sideways reads as a
+  // tongue that has come off (docs/MOUTH_BUILD.md, "Aiming it"). Up and down
+  // stays a translate, because a mouth speaking moves its tongue up and down
+  // and no rotation does that.
+  assert.equal(at({}).rotation, 0);
+  assert.ok(at({ tongueX: 1 }).rotation > 0 && at({ tongueX: -1 }).rotation < 0, 'it swings left and right');
+  assert.equal(at({ tongueX: 1 }).x, 0, 'and nothing slides');
+  assert.ok(at({ tongueY: 1 }).y > 0, 'up and down is still a translate');
+  assert.equal(at({ tongueY: 1 }).rotation, 0);
   assert.equal(state.semanticParts.tongue.controlDrivers.tongueX.method, 'transform');
+  // The hinge is the mouth's own centre rather than each shape's middle, which
+  // is what keeps the three of them one tongue as it swings: a rotation about
+  // three different middles is three tongues going three ways.
+  const pivots = ['tongue', 'tongueTip', 'tongueGroove'].map((role) => `${state.elements[role].baseTransform.pivotX},${state.elements[role].baseTransform.pivotY}`);
+  assert.equal(new Set(pivots).size, 1, `one hinge, not three: ${pivots.join(' | ')}`);
+
+  // And it aims as **one tongue**. The two things the aim is for are a tongue
+  // out and swung to a side, and a tongue inside a speaking mouth going up and
+  // down; both are a tongue in three shapes, and a translate that reached some
+  // of them would pull it apart -- a tip sliding off a body, or a crease left
+  // behind on the chin. So the same two numbers are written on all three
+  // (docs/MOUTH_BUILD.md, "Aiming it, and speaking with it").
+  for (const values of [{ tongue: 1, tongueOut: 1, tongueX: -1 }, { tongue: 1, tongueOut: 1, tongueX: 1 },
+    { mouthOpen: 1, tongue: 1, tongueY: -1 }, { mouthOpen: 1, tongue: 1, tongueY: 1 }]) {
+    const f = frame(values);
+    const moved = f.tongue.transform;
+    assert.ok(moved.x !== 0 || moved.y !== 0 || moved.rotation !== 0, `${JSON.stringify(values)} moves the tongue at all`);
+    for (const role of ['tongueTip', 'tongueGroove']) {
+      assert.deepEqual([f[role].transform.x, f[role].transform.y, f[role].transform.rotation], [moved.x, moved.y, moved.rotation],
+        `${role} goes with the body at ${JSON.stringify(values)}`);
+    }
+  }
+
+  // Of the three, the body is the one cut to the lips, so aiming it can never
+  // take it onto a chin; the tip and its crease are outside the cut, because
+  // that is where a tongue that is out is. Which shape sits in which group is
+  // the artwork's to say, and `templates.test.js` says it.
 
   // Coming out and curling are **shapes** (V6). `tongueOut` was a `scaleY`
   // about the tongue's middle, which stretched its root as far as its tip and

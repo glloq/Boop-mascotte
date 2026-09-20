@@ -13,7 +13,7 @@ import { enableMouthRig } from '../../rig/mouth-rig.js';
 import { enableGazeSolver } from '../../rig/gaze-rig.js';
 import { enableBrowRig } from '../../rig/brow-rig.js';
 import { createShapeKey, upsertShapeKey } from '../../shape-keys/shape-key-model.js';
-import { BROW_BOXES, BROW_RESTS, FACE_ANCHORS, FACE_CENTRES, HEAD_REST, HEAD_WIDTH, CREASE_PIVOTS, CREASE_RESTS, CREASE_ROLES, LID_MEET, LID_PIVOTS, LID_RESTS, LID_ROLES, MOUTH_BOX, MOUTH_REST, NOSE_CENTRE, NOSE_TURN, TEETH_REST, TEETH_LOWER_REST, TONGUE_REST, TONGUE_TIP_REST, TONGUE_GROOVE_REST, creasePath, headPath, lidPath, mouthPath, teethPath, teethLowerPath, tonguePath, tongueTipPath, tongueGroovePath } from './face-artwork.js';
+import { BROW_BOXES, BROW_RESTS, FACE_ANCHORS, FACE_CENTRES, HEAD_REST, HEAD_WIDTH, CREASE_PIVOTS, CREASE_RESTS, CREASE_ROLES, LID_MEET, LID_PIVOTS, LID_RESTS, LID_ROLES, MOUTH_BOX, MOUTH_REST, NOSE_CENTRE, NOSE_TURN, TEETH_REST, TEETH_LOWER_REST, TONGUE_REST, TONGUE_TIP_REST, TONGUE_GROOVE_REST, UVULA_REST, creasePath, headPath, lidPath, mouthPath, teethPath, teethLowerPath, tonguePath, tongueTipPath, tongueGroovePath, uvulaPath } from './face-artwork.js';
 import { findClip, setClipLoop } from '../../motion/motion-model.js';
 import { installStyleHands } from '../../hands/hand-style-install.js';
 import { createRigAttachment, createRigHold } from '../../rig/attachment-model.js';
@@ -365,8 +365,8 @@ export function applyTemplateProject(state) {
    * a slider that moves nothing.
    */
   const shaped = ours ? { property: 'shapeKey' } : null;
-  const mouth = add(state, 'mouth', { mouth: 'mouth', teeth: 'teeth', teethLower: 'teethLower', tongue: 'tongue', tongueTip: 'tongueTip', tongueGroove: 'tongueGroove' },
-    ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'mouthSkew', 'teeth', 'tongue'],
+  const mouth = add(state, 'mouth', { mouth: 'mouth', uvula: 'uvula', teeth: 'teeth', teethLower: 'teethLower', tongue: 'tongue', tongueTip: 'tongueTip', tongueGroove: 'tongueGroove' },
+    ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'mouthSkew', 'teeth', 'tongue', 'uvula'],
     shaped ? { mouthOpen: shaped, smile: shaped } : {});
   // Where the tongue is, as opposed to whether it shows: its own part, because
   // the two questions are different and the mouth already answers the second
@@ -410,6 +410,7 @@ export function applyTemplateProject(state) {
     // it. Each is drawn from the mouth's own curves, so each follows the lips
     // by construction rather than by being kept in step (docs/MOUTH_BUILD.md).
     const INSIDES = [
+      ['uvula', 'Uvula', UVULA_REST, uvulaPath],
       ['teeth', 'Upper teeth', TEETH_REST, teethPath],
       ['teethLower', 'Lower teeth', TEETH_LOWER_REST, teethLowerPath],
       ['tongue', 'Tongue', TONGUE_REST, tonguePath],
@@ -474,7 +475,10 @@ export function applyTemplateProject(state) {
       // it read as a grimace at every small opening. `mouthOpen * mouthOpen` is
       // that, and it costs a word rather than a mechanism.
       ['teethLower', 'Lower teeth', TEETH_LOWER_REST, teethLowerPath, 'mouthOpen * mouthOpen * teeth'],
-      ['tongue', 'Tongue', TONGUE_REST, tonguePath, 'mouthOpen * tongue']
+      ['tongue', 'Tongue', TONGUE_REST, tonguePath, 'mouthOpen * tongue'],
+      // The drop at the back of a shouting mouth, off unless it is asked for:
+      // a shout is a register rather than a feature (docs/MOUTH_BUILD.md).
+      ['uvula', 'Uvula', UVULA_REST, uvulaPath, 'mouthOpen * uvula']
     ]) {
       if (!state.elements[role]) continue;
       const key = (id, label, posePath, expression, control) => {

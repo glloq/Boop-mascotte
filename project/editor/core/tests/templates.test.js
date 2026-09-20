@@ -21,14 +21,14 @@ const earChildren = (side) => [`ear${side}Shape`, `ear${side}Fold`];
 /** The shading is a folder of its own now, clipped to the head. */
 const shadingChildren = ['shadeLeft', 'shadeRight', 'faceLight', 'shadeHair'];
 /** And so is the inside of the mouth, clipped to the lips (docs/MOUTH_BUILD.md). */
-const mouthChildren = ['tongue', 'teethLower', 'teeth'];
+const mouthChildren = ['uvula', 'tongue', 'teethLower', 'teeth'];
 const faceChildren = ['hairBack', 'earLeft', 'earRight', 'head', 'faceShading', ...shadingChildren,
   'mouth', 'mouthInside', ...mouthChildren, 'tongueTip', 'tongueGroove', 'eyeLeft', 'eyeRight', 'eyebrows', 'browLeft', 'browRight', 'nose', 'hairTop', 'hairFront', 'hair'];
 /** The children the artwork nests, so a synthetic tree matches the drawn one. */
 const nested = { eyeLeft: eyeChildren('Left'), eyeRight: eyeChildren('Right'), faceShading: shadingChildren, mouthInside: mouthChildren };
 const topChildren = faceChildren.filter((id) => !shadingChildren.includes(id) && !mouthChildren.includes(id));
 const ids = ['faceRoot', ...faceChildren, ...eyeChildren('Left'), ...eyeChildren('Right'), ...earChildren('Left'), ...earChildren('Right')];
-const paths = new Set(['head', 'mouth', 'teeth', 'teethLower', 'tongue', 'tongueTip', 'tongueGroove', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairTop', 'hairBack', 'shadeLeft', 'shadeRight', 'faceLight', 'shadeHair']);
+const paths = new Set(['head', 'mouth', 'uvula', 'teeth', 'teethLower', 'tongue', 'tongueTip', 'tongueGroove', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairTop', 'hairBack', 'shadeLeft', 'shadeRight', 'faceLight', 'shadeHair']);
 const element = (id) => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1, constraints: { translate: true, rotate: true, scale: true }, bindings: {}, meta: { nodeType: paths.has(id) ? 'path' : 'circle' } });
 const loaded = () => {
   const state = createCleanProjectState();
@@ -170,8 +170,10 @@ test('the mouth is one shape that opens and smiles at the same time', () => {
       // looks down puts across them.
       'mouth-open', 'mouth-smile', 'mouth-frown', 'mouth-round', 'mouth-skew',
       // And the same bow for everything drawn from them.
-      'mouth-skull', 'teeth-skull', 'teethLower-skull', 'tongue-skull', 'tongueTip-skull', 'tongueGroove-skull',
+      'mouth-skull', 'uvula-skull', 'teeth-skull', 'teethLower-skull', 'tongue-skull', 'tongueTip-skull', 'tongueGroove-skull',
       // Each inside follows the lip it hangs off: the smile, the pucker, the lean.
+      // The uvula hangs off the *upper* one, which is the only one of these that does.
+      'uvula-follow', 'uvula-round', 'uvula-skew',
       'teeth-follow', 'teeth-round', 'teeth-skew',
       'teethLower-follow', 'teethLower-round', 'teethLower-skew',
       'tongue-follow', 'tongue-round', 'tongue-skew',
@@ -179,6 +181,9 @@ test('the mouth is one shape that opens and smiles at the same time', () => {
       'tongueGroove-follow', 'tongueGroove-round', 'tongueGroove-skew',
       // Travelling with the jaw, and showing: two questions, two keys.
       'teeth-open', 'teeth-show', 'teethLower-open', 'teethLower-show', 'tongue-open', 'tongue-show',
+      // And the drop at the back of a shouting mouth, which rests at nothing:
+      // a mascot that never asks for one draws what it always drew.
+      'uvula-open', 'uvula-show',
       // The tip and its crease follow the jaw on keys of their own, because what
       // brings them out is `tongueOut` rather than the mouth opening, and a blep
       // needs no open mouth at all (docs/MOUTH_BUILD.md).
@@ -249,7 +254,7 @@ test('an open mouth has teeth and a tongue in it, and a closed one has neither',
   const state = loaded();
   applyTemplateProject(state);
   const part = Object.values(state.semanticParts).find((item) => item.type === 'mouth');
-  assert.deepEqual(part.roles, { mouth: 'mouth', teeth: 'teeth', teethLower: 'teethLower', tongue: 'tongue', tongueTip: 'tongueTip', tongueGroove: 'tongueGroove' });
+  assert.deepEqual(part.roles, { mouth: 'mouth', uvula: 'uvula', teeth: 'teeth', teethLower: 'teethLower', tongue: 'tongue', tongueTip: 'tongueTip', tongueGroove: 'tongueGroove' });
   assert.equal(part.controlDrivers.teeth.method, 'shapeKey');
 
   const at = (values) => compileRigFrame(state.elements, { ...state.params, ...Object.fromEntries(Object.entries(values).map(([name, value]) => [name, { type: 'number', min: -1, max: 1, default: 0, value }])) }, {}, {}, { shapeKeys: state.shapeKeys });
@@ -327,7 +332,7 @@ test('every part of the face has a movement, and the jaw is one of them', () => 
   assert.deepEqual(controls.ears, ['earWiggle']);
   assert.deepEqual(controls.jaw, ['jawOpen']);
   assert.deepEqual(controls.hair, ['hairSway', 'hairLift']);
-  assert.deepEqual(controls.mouth, ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'mouthSkew', 'teeth', 'tongue']);
+  assert.deepEqual(controls.mouth, ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'mouthSkew', 'teeth', 'tongue', 'uvula']);
   assert.deepEqual(controls.tongue, ['tongueX', 'tongueY', 'tongueOut', 'tongueCurl']);
 
   // One outline that lengthens, rather than a second shape sliding out from

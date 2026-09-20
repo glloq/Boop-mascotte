@@ -51,6 +51,7 @@ const FEATURES = Object.freeze([
   ['teethLower', ['teethlower', 'lowerteeth', 'dentsbas', 'basdents'], ['teethLower']],
   ['tongueTip', ['tonguetip', 'tiptongue', 'pointelangue', 'languepointe'], ['tongueTip']],
   ['tongueGroove', ['tonguegroove', 'groovetongue', 'rainurelangue', 'languerainure'], ['tongueGroove']],
+  ['uvula', ['uvula', 'luette', 'glotte'], ['uvula']],
   ['teeth', ['teeth', 'tooth', 'dents', 'dent'], ['teeth']],
   ['tongue', ['tongue', 'langue'], ['tongue']],
   ['cavity', ['cavity', 'cavite', 'inside'], ['cavity']],

@@ -45,9 +45,10 @@ test('@critical one mouth card, and it says AE and OO differently', async ({ pag
   await expect(panel.locator('[data-face-library-card="mouth.full"]')).toHaveClass(/face-library-worn/);
   const mouth = await partOfType(page, 'mouth');
   expect(mouth.assetId).toBe('mouth.full');
-  // All seven movements, including the pucker no library mouth had ever carried
-  // and the lean V6 added (docs/MOUTH_BUILD.md).
-  expect([...mouth.controls].sort()).toEqual(['mouthOpen', 'mouthRound', 'mouthSkew', 'mouthWidth', 'smile', 'teeth', 'tongue']);
+  // All eight movements, including the pucker no library mouth had ever carried,
+  // the lean V6 added, and the uvula that is off until somebody shouts
+  // (docs/MOUTH_BUILD.md).
+  expect([...mouth.controls].sort()).toEqual(['mouthOpen', 'mouthRound', 'mouthSkew', 'mouthWidth', 'smile', 'teeth', 'tongue', 'uvula']);
   expect(mouth.controlDrivers.mouthRound.method, 'the pucker is a shape, not a transform').toBe('shapeKey');
   expect(mouth.controlDrivers.mouthSkew.method, 'and so is the lean').toBe('shapeKey');
   // And the card draws the tongue's tip and its groove as well, both of which
@@ -124,7 +125,16 @@ test('@critical the teeth and the tongue show, and a closed mouth hides nothing'
   expect(open.teethLower.height, 'the lower row too, a little later').toBeGreaterThan(shut.teethLower.height * 2);
   // The tip is the one that does **not**: an open mouth is not a reason for a
   // tongue to be out of it, and `tongue * tongueOut` is what says so.
-  expect(open.tongueTip.height, 'an open mouth alone leaves the tip in').toBeLessThan(open.mouth.height * 0.2);
+  //
+  // A quarter of the mouth rather than nothing, because what is measured here
+  // is a *box*: the tip encloses nothing at `tongueOut 0` -- its second half
+  // retraces its first -- but its points still lie along the lower lip, and a
+  // browser reports the box of the points whether or not anything is painted
+  // between them. On a mouth this open that lip is deep. The number that says
+  // the tip is empty is the area the unit suite measures
+  // (`core/tests/mouth-build.test.js`); what this says is that nothing has come
+  // *out* of the mouth, which is the visible half of the same fact.
+  expect(open.tongueTip.height, 'an open mouth alone leaves the tip in').toBeLessThan(open.mouth.height * 0.25);
   // Every one is drawn *from* the lips, so none can wander off sideways however
   // far the controls go — and each is narrower than the mouth it hangs in.
   for (const [name, band] of [['teeth', open.teeth], ['tongue', open.tongue], ['teethLower', open.teethLower]]) {

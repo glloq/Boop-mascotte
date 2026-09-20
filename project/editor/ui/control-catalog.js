@@ -24,7 +24,7 @@ export const CONTROL_CATALOG = Object.freeze({
   // registry and fails if a declared control has no entry here.
   noseScrunch:{label:'Scrunch',part:'nose',group:'Nose'},
   teeth:{label:'Show teeth',part:'mouth',group:'Mouth'}, tongue:{label:'Show tongue',part:'mouth',group:'Mouth'},
-  mouthSkew:{label:'Lean',part:'mouth',group:'Mouth'},
+  mouthSkew:{label:'Lean',part:'mouth',group:'Mouth'}, uvula:{label:'Show uvula',part:'mouth',group:'Mouth'},
   jawOpen:{label:'Open / close',part:'jaw',group:'Jaw'},
   // The mouth control rig (docs/FACE_CONTROL_RIG.md, CR-27 … CR-34).
   mouthLock:{label:'Lips stay together',part:'mouth',group:'Mouth'},

@@ -82,12 +82,12 @@ test('"just a piece" is an answer, and it is the first one offered', () => {
   // teeth, the tongue a tip and the tip a crease (docs/MOUTH_BUILD.md) -- one
   // name each, even though the last two are roles of the mouth *and* of the
   // tongue part.
-  assert.equal(INTAKE_ROLES.length, 29);
+  assert.equal(INTAKE_ROLES.length, 30);
   assert.ok(INTAKE_ROLES.every((entry) => entry.label && entry.hint));
   assert.deepEqual(INTAKE_ROLES.slice(1, 9).map((entry) => entry.id),
     ['head', 'leftEye', 'rightEye', 'leftPupil', 'rightPupil', 'leftBrow', 'rightBrow', 'mouth'],
     'the beginner eight first, in their own order');
-  for (const role of ['hair', 'hairBack', 'leftEar', 'nose', 'jaw', 'tongue', 'tongueTip', 'tongueGroove', 'teeth', 'teethLower', 'leftUpper', 'leftIris', 'rightIris', 'facialHair']) {
+  for (const role of ['hair', 'hairBack', 'leftEar', 'nose', 'jaw', 'tongue', 'tongueTip', 'tongueGroove', 'uvula', 'teeth', 'teethLower', 'leftUpper', 'leftIris', 'rightIris', 'facialHair']) {
     assert.ok(INTAKE_ROLES.some((entry) => entry.id === role), `${role} can be said`);
   }
   // One name for one role: the tongue is a role of the mouth *and* a part of

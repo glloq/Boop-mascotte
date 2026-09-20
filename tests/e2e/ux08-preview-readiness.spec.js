@@ -63,7 +63,7 @@ test('@critical Preview offers live controls and a readiness list without writin
   await expect(list.locator('[data-publish-step="movements"]')).toHaveAttribute('data-publish-status', 'ready');
   // Twenty-seven since the mouth gained its lean, and eleven set up since its
   // lower row of teeth and its tongue's tip are shaped too (docs/MOUTH_BUILD.md).
-  await expect(list.locator('[data-publish-step="movements"]')).toContainText('27 on · 11 set up');
+  await expect(list.locator('[data-publish-step="movements"]')).toContainText('28 on · 12 set up');
   await expect(list.locator('[data-publish-step="export"]')).toHaveAttribute('data-publish-status', 'ready');
   const model = await readiness(page);
   expect(model.faceSetup.status).toBe('ready');
