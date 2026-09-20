@@ -122,7 +122,7 @@ test('the two whens V3-09 added: following the pointer, and acting when left alo
   // "A mascot that follows the pointer with its eyes is three clicks and no
   // page code": open the group, press Add. It needs nothing of its own —
   // following *is* what it does — so it is usable in any project.
-  await page.locator('[data-preset-group="Following the pointer"] > summary').click();
+  await page.locator('[data-preset-group-pick="Following the pointer"]').click();
   const follow = page.locator('[data-reaction-preset-card="follow-eyes"]');
   await expect(follow).toHaveAttribute('data-preset-usable', 'true');
   await follow.getByRole('button', { name: 'Add Follow the pointer reaction' }).click();

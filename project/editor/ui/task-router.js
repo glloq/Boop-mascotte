@@ -95,7 +95,7 @@ export const MODES = Object.freeze({
   // The Timeline is the detailed editor *of a motion*, never a second way to
   // start one (§9). It is the same surface with the dock open -- `dock` names
   // the one surface under the canvas, and at most one is ever open.
-  'animate.timeline': { id: 'animate.timeline', label: 'Timeline', workspace: 'animate', surface: 'animate', navigable: true, advanced: true, dock: 'timeline', surfaceLayout: 'graph' },
+  'animate.timeline': { id: 'animate.timeline', label: 'Timeline', workspace: 'animate', surface: 'animate', navigable: true, advanced: true, dock: 'timeline', layout: { left: 420, right: 300 }, surfaceLayout: 'graph' },
 
   /* ── Behavior: when does it do it? ───────────────────────────────────────── */
   //
@@ -105,10 +105,10 @@ export const MODES = Object.freeze({
   // a library narrow enough to be a library, and a rail wide enough to draw an
   // easing curve and a waveform in, because on this workspace the right-hand
   // column *is* the tuning surface rather than a strip of fields.
-  'behavior.reactions': { id: 'behavior.reactions', label: 'Reactions', workspace: 'behavior', surface: 'reactions', navigable: true, layout: { left: 300, right: 340 }, surfaceLayout: 'graph' },
+  'behavior.reactions': { id: 'behavior.reactions', label: 'Reactions', workspace: 'behavior', surface: 'reactions', navigable: true, layout: { left: 430, right: 320 }, surfaceLayout: 'graph' },
   // Automatic had no route at all: it was reached by scrolling past Reactions
   // in the same column, which is why nobody found it.
-  'behavior.automatic': { id: 'behavior.automatic', label: 'Automatic', workspace: 'behavior', surface: 'reactions', navigable: true, layout: { left: 300, right: 340 }, surfaceLayout: 'graph' },
+  'behavior.automatic': { id: 'behavior.automatic', label: 'Automatic', workspace: 'behavior', surface: 'reactions', navigable: true, layout: { left: 430, right: 320 }, surfaceLayout: 'graph' },
   // And the state machine was filed under *Motions*, inside an accordion in the
   // step above the one whose subject it is (§10). `panel` is what a screen
   // reveals on arrival: the list it is the screen *for* is a disclosure in its
@@ -121,7 +121,7 @@ export const MODES = Object.freeze({
   // Named in full for a screen reader: the column it opens has its own
   // "States" button inside it, and two controls with one accessible name is a
   // control nobody can ask for.
-  'behavior.stateMachine': { id: 'behavior.stateMachine', label: 'States', aria: 'State machine', workspace: 'behavior', surface: 'reactions', navigable: true, panel: 'state-editor', layout: { left: 300, right: 340 }, surfaceLayout: 'graph' },
+  'behavior.stateMachine': { id: 'behavior.stateMachine', label: 'States', aria: 'State machine', workspace: 'behavior', surface: 'reactions', navigable: true, panel: 'state-editor', layout: { left: 430, right: 320 }, surfaceLayout: 'graph' },
 
   /* ── Global: reachable from every workspace ──────────────────────────────── */
   // Preview is not a step of the project (§11). It keeps a route because the

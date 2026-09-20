@@ -342,6 +342,9 @@ const HOOKS_BEFORE_VOCABULARY = Object.freeze([
  * this build cannot run, and the idle wait the Inspector asks for.
  */
 const HOOKS_ADDED = Object.freeze([
+  // The catalogue's groups became a strip rather than a stack of `<details>`
+  // (UX-60 PR 5): the chip that picks one is the hook the panes answer to.
+  'data-preset-group-pick',
   'data-reaction-sentence', 'data-reaction-clause', 'data-automatic-when',
   'data-runs-when', 'data-runs-when-group', 'data-runs-when-count', 'data-runs-when-automatic',
   'data-runs-when-motions', 'data-runs-when-unsupported', 'data-reaction-when',

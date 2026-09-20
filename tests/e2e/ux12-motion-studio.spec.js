@@ -37,7 +37,7 @@ test('@critical the grouped preset catalogue, Timeline parity and the explicit p
   expect(pop.motion).toEqual({ preset: 'head-pop', amplitude: .7, repeats: 1, controls: { headY: 'headY', mouthOpen: 'mouthOpen', pupilScale: 'pupilScale' } });
   expect(values(pop, 'mouthOpen')).toEqual([[0, 0], [.12, .7], [.36, 0], [.6, 0]]);
   await page.locator('[data-motion-stop]').click();
-  await page.locator('[data-preset-group="Eyes"] > summary').click();
+  await page.locator('[data-preset-group-pick="Eyes"]').click();
   await page.getByRole('button', { name: 'Add Look Around motion' }).click();
   expect(Object.keys((await clipOf(page, 'look-around')).tracks)).toEqual(['lookX', 'lookY']);
   await page.locator('[data-motion-stop]').click();

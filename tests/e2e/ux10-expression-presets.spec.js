@@ -21,7 +21,9 @@ test('@critical presets are offered with the movements the project has and guide
   // The catalogue is large and shown a group at a time; Everyday opens first.
   expect(await cards.count()).toBeGreaterThanOrEqual(24);
   await expect(page.locator('[data-preset-catalogue="expressions"] .preset-group')).toHaveCount(5);
-  await expect(page.locator('[data-preset-group="Everyday"]')).toHaveAttribute('open', '');
+  // The groups are a strip now (UX-60 PR 5): the first is the one showing.
+  await expect(page.locator('[data-preset-group-pick="Everyday"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-preset-group="Everyday"]')).toBeVisible();
   const surprised = page.locator('[data-expression-preset-card="surprised"]');
   await expect(surprised).toHaveAttribute('data-preset-usable', 'true');
   await expect(surprised).toHaveAttribute('data-preset-missing', '0');
