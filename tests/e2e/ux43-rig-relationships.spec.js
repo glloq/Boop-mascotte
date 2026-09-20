@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToMode, openFreshEditor, openSetupSection, showAllMovements, startBasicFace } from './editor-helpers.js';
+import { goToMode, openFreshEditor, openHoldingTopic, openSetupSection, showAllMovements, startBasicFace } from './editor-helpers.js';
 
 /**
  * The rig's relationships panel (docs/FACE_CONTROL_RIG.md, §9 … §11).
@@ -52,6 +52,9 @@ test('a relationship can be added, set, reordered and removed', async ({ page })
   await openHolding(page);
   await expect(page.locator('[data-holding-panel]')).toContainText('None yet');
 
+  // The panel's four subjects are a strip now (UX-60 PR 6): the rules are the
+  // second chip, and pressing it is what an author does.
+  await openHoldingTopic(page, 'rules');
   const form = page.locator('[data-constraint-form]');
   await form.locator('[data-constraint-target]').selectOption('nose');
   await form.locator('[data-constraint-type]').selectOption('parent');
@@ -98,6 +101,7 @@ test('a named point is a starting place, and a mascot can name its own', async (
   await startBasicFace(page);
   await openHolding(page);
 
+  await openHoldingTopic(page, 'points');
   // The suggestions come from the parts the project already has — the ones it
   // has not already named, so the template's own five are not offered again.
   await page.locator('[data-holding-action="add-point"][data-holding-id="face.nose"]').click();
@@ -131,6 +135,7 @@ test('a named point is a starting place, and a mascot can name its own', async (
   expect(Number.isFinite(snout.point.x) && Number.isFinite(snout.point.y)).toBe(true);
 
   // Two points, so one can hold the other; the contact is created with it.
+  await openHoldingTopic(page, 'holds');
   await page.locator('[data-holding-form] [data-holding-hand]').selectOption('snout.tip');
   await page.locator('[data-holding-form] [data-holding-anchor]').selectOption('face.cheek.left');
   await page.locator('[data-holding-action="hold"]').click();

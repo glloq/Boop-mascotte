@@ -161,6 +161,19 @@ export function createHoldingPanel(host, store, history, {
   });
 
   host.addEventListener('click', (event) => {
+    const chip = event.target.closest?.('[data-holding-topic]');
+    if (chip) {
+      topic = chip.dataset.holdingTopic;
+      // In place: the forms are already rendered, and rebuilding them would
+      // throw away whatever the author had half-typed in another one.
+      for (const button of host.querySelectorAll('[data-holding-topic]')) {
+        const on = button === chip;
+        button.classList.toggle('chip-active', on);
+        button.setAttribute('aria-pressed', String(on));
+      }
+      for (const pane of host.querySelectorAll('[data-holding-topic-panel]')) pane.hidden = pane.dataset.holdingTopicPanel !== topic;
+      return;
+    }
     const button = event.target.closest?.('button[data-holding-action]');
     if (!button) return;
     const { holdingAction: action, holdingId: id } = button.dataset;
@@ -395,6 +408,20 @@ export function createHoldingPanel(host, store, history, {
   const section = host.closest?.('details');
   section?.addEventListener('toggle', () => { if (section.open && stale) render(); });
 
+  /**
+   * Which of the four things this panel is about is showing.
+   *
+   * Pins, the rules that shape them, the named points and the holds between
+   * them were one 1 073 px stack in an 836 px column -- the tallest thing on
+   * Rig ▸ Deform and most of the 1 085 px that screen hid below the fold. They
+   * are four topics an author works on one at a time, which is what the
+   * brief's own list for this screen says (§12, *Pins · Holds · Warp · Shape
+   * Keys · Depth*), so they are a strip and one shows (UX-60 PR 6).
+   *
+   * Session state on the panel, per tab; never anything the mascot is.
+   */
+  let topic = 'pins';
+
   function render() {
     if (section && !section.open) { stale = true; return; }
     stale = false;
@@ -414,10 +441,20 @@ export function createHoldingPanel(host, store, history, {
     host.dataset.holdingPins = String(groups.reduce((count, group) => count + group.pins.length, 0));
     host.dataset.holdingHolds = String(attachments.holds.length);
     host.dataset.holdingConstraints = String((state.rigConstraints || []).length);
+    const topics = [
+      { id: 'pins', label: 'Pins', count: groups.reduce((total, group) => total + group.pins.length, 0) },
+      { id: 'rules', label: 'Rules', count: (state.rigConstraints || []).length },
+      { id: 'points', label: 'Points', count: attachments.points.length },
+      { id: 'holds', label: 'Holds', count: attachments.holds.length }
+    ];
+    const showing = topics.some((entry) => entry.id === topic) ? topic : 'pins';
+    const strip = `<div class="holding-topics" role="group" aria-label="What to work on">${topics.map((entry) => `<button type="button" class="preset-chip${entry.id === showing ? ' chip-active' : ''}" data-holding-topic="${entry.id}" aria-pressed="${entry.id === showing}"><b>${esc(entry.label)}</b><small>${entry.count || ''}</small></button>`).join('')}</div>`;
+    const pane = (id, body) => `<section data-holding-topic-panel="${id}"${id === showing ? '' : ' hidden'}>${body}</section>`;
     host.innerHTML = `<div class="holding-panel" data-holding-panel>
       <datalist id="holding-movements">${known.map((name) => `<option value="${esc(name)}"></option>`).join('')}</datalist>
       <p class="small">A <b>pin</b> holds a piece of artwork by a point, and the artwork near it follows. Its reach is an ellipse, so a mouth's corner can hold the lip line without taking the upper lip with it. A <b>point</b> is a place on the mascot with a name. A <b>hold</b> puts one point on another and keeps it there.</p>
-      <h4>Pins</h4>
+      ${strip}
+      ${pane('pins', `
       ${pinForm(state)}
       ${ordered.length
         ? ordered.map((group) => `<section class="holding-group" data-holding-target="${esc(group.target)}"${group.target === current ? ' data-holding-selected="true"' : ''}>
@@ -427,11 +464,9 @@ export function createHoldingPanel(host, store, history, {
         : '<p class="small">None yet. Pin a path above: click where the pin goes, then drag it and its reach on the canvas.</p>'}
       ${restoreRow(state, groups)}
       ${groups.length ? togetherForm(known) : ''}
-      ${hasSurfacePins(state) ? '<p class="small">The head carries its silhouette pins: the near cheek comes round as it turns, and the far one compresses.</p>' : ''}
-
-      ${constraintSection(rigConstraintModel(state), { pieces: Object.keys(state.elements || {}), movements: known })}
-
-      <h4>Points that can be held</h4>
+      ${hasSurfacePins(state) ? '<p class="small">The head carries its silhouette pins: the near cheek comes round as it turns, and the far one compresses.</p>' : ''}`)}
+      ${pane('rules', constraintSection(rigConstraintModel(state), { pieces: Object.keys(state.elements || {}), movements: known }))}
+      ${pane('points', `
       ${attachments.points.length
         ? bySpace(attachments.points).map(([space, points]) => `<section class="holding-group" data-holding-space="${esc(space)}">
             <b>${esc(space)}</b>
@@ -446,9 +481,8 @@ export function createHoldingPanel(host, store, history, {
         <label>on<select data-point-target aria-label="The artwork to put it on">${Object.keys(state.elements || {}).map((id) => `<option value="${esc(id)}">${esc(id)}</option>`).join('')}</select></label>
         <label>part of<select data-point-space aria-label="What the new point is part of">${ATTACHMENT_SPACES.map((space) => `<option value="${space}">${space}</option>`).join('')}</select></label>
         <button type="button" data-holding-action="add-own-point">Name it</button>
-      </form>
-
-      <h4>Holds</h4>
+      </form>`)}
+      ${pane('holds', `
       ${attachments.holds.length
         ? attachments.holds.map((hold) => `<div class="holding-row" data-holding-hold="${esc(hold.id)}">
             <b>${esc(hold.hold)}</b> on <b>${esc(hold.to)}</b>${hold.ready ? '' : ' <small class="small">a point is missing</small>'}
@@ -462,7 +496,7 @@ export function createHoldingPanel(host, store, history, {
             <label>on<select data-holding-anchor aria-label="The point it holds on to">${attachments.points.map((point, index) => `<option value="${esc(point.id)}"${index === 1 ? ' selected' : ''}>${esc(point.id)}</option>`).join('')}</select></label>
             <button type="button" data-holding-action="hold">Hold it</button>
           </form>`
-        : '<p class="small">Name two points before one can hold the other.</p>'}
+        : '<p class="small">Name two points before one can hold the other.</p>'}`)}
     </div>`;
   }
 

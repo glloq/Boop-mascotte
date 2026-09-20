@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openAdvanced, openFreshEditor, openRigBench, openTask, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
+import { openAdvanced, openFreshEditor, openPreviewSection, openRigBench, openTask, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const effective = (page, name) => page.evaluate((key) => window.__BOOP_E2E__.effectiveParams()[key], name);
@@ -88,6 +88,7 @@ test('@critical the motion cross-fade is authored, and playing one motion hands 
   await page.getByRole('button', { name: 'Add Shake motion' }).click();
   await page.locator('[data-motion-stop]').click();
   await openTask(page, 'preview');
+  await openPreviewSection(page, 'animations');
   await page.locator('[data-preview-clip="nod"]').click();
   await expect.poll(() => page.evaluate(() => Object.keys(window.__BOOP_E2E__.motionWeights()).length)).toBe(1);
   await page.locator('[data-preview-clip="shake"]').click();

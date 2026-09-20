@@ -136,6 +136,18 @@ export async function openRigBench(page) {
 }
 
 /**
+ * Show one of the four things Rig ▸ Deform's holding panel is about.
+ *
+ * Pins, rules, points and holds were one 1 073 px stack; they are a strip and
+ * one shows (UX-60 PR 6), so reaching into one is a press on its chip.
+ */
+export async function openHoldingTopic(page, id) {
+  const chip = page.locator(`[data-holding-topic="${id}"]`);
+  if (await chip.count()) await chip.click();
+  await expect(page.locator(`[data-holding-topic-panel="${id}"]`)).toBeVisible();
+}
+
+/**
  * Show one of Preview's sections.
  *
  * They were five open `<details>` stacked, and everything the mascot can do
