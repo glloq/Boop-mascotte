@@ -241,3 +241,37 @@ test('holding Animate still writes nothing to the project', () => {
   harness.advance(20);
   assert.deepEqual(sentinel(harness.store), before, 'no revision, no domain, no document');
 });
+
+test('play and pause leave the loop asleep every time, on a screen that holds still', () => {
+  // The shape behind `starts - stops` in the stability specs. A run ends two
+  // ways -- a tick that finds nothing left to do, or `sleep()` -- and only the
+  // first was counted, so a hundred pauses left a hundred uncounted endings and
+  // the balance read as a runaway loop. It never showed while a project's
+  // behaviours kept the loop awake: the loop had nowhere to sleep. Holding
+  // Animate still is what gave it somewhere.
+  //
+  // The counters themselves are inert outside a browser `e2e` session
+  // (`lifecycle-diagnostics.js`), so what is asserted here is the thing they
+  // count: every play wakes the loop and every pause puts it back to sleep.
+  // `stability.spec.js` reads the counters, in a session where they are live.
+  const harness = createHarness({ workspace: 'animate' });
+  harness.goTo('animate');
+  const clip = { id: 'nod', name: 'Nod', duration: 4, loop: true, tracks: { headX: [{ time: 0, value: 0, easing: 'linear' }, { time: 4, value: 1, easing: 'linear' }] } };
+  harness.store.replaceState({ ...harness.store.getDocument(), animationClips: [clip] });
+  harness.preview.setClip('nod');
+
+  for (let round = 0; round < 25; round += 1) {
+    assert.equal(harness.preview.playClip(), true, `round ${round}: the clip plays`);
+    harness.advance(1);
+    assert.equal(harness.preview.getSession().running, true, `round ${round}: and the loop runs for it`);
+    harness.preview.pauseClip();
+    assert.equal(harness.preview.getSession().running, false, `round ${round}: pausing puts the loop back to sleep`);
+  }
+  // Not `awake()`: this harness's `cancelFrame` is a no-op, so a cancelled
+  // frame stays in its queue where the browser's would be gone. What matters is
+  // that the frame is *inert* -- `tick` drops it on the generation it was
+  // scheduled under -- so advancing does not restart anything.
+  harness.advance(10);
+  assert.equal(harness.preview.getSession().running, false, 'a cancelled frame does not wake the loop back up');
+  assert.equal(sampled(harness, 'eyeOpen').size, 1, 'and nothing blinks after it');
+});
