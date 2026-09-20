@@ -30,16 +30,18 @@ test('@critical each screen opens at the width its work needs', async ({ page })
   expect(artwork.right, 'and the Inspector is the widest column in the editor').toBe(340);
 
   // Hands is the opposite, and is a stage screen (UX-60): the work is a list of
-  // drawings, so the mascot takes its share and the list takes the rest. The
-  // shape the route asked for survives -- a wide list, a narrow detail -- but
-  // the numbers are now a proportion of the window rather than fixed pixels.
+  // drawings, so the mascot takes its share and the list takes the rest.
   await goToMode(page, 'design.hands');
   const hands = await columns(page);
   expect(hands.left, 'far more list than the old 400 px').toBeGreaterThan(artwork.left);
   // Not narrower in pixels -- a proportional column on a 1600 px window is
   // wider than a declared 340 -- but narrower *than its own list*, which is the
-  // shape the route asked for and the thing that has to survive.
-  expect(hands.left / hands.right, 'the 400:250 shape it asked for').toBeCloseTo(400 / 250, 1);
+  // shape the route asked for and the thing that has to survive. The ratio is
+  // the route's 400:250 or wider, never narrower: past `MAX_DETAIL_PX` the
+  // detail column stops growing and the list takes the remainder, so a bigger
+  // monitor buys more list and the same Inspector.
+  expect(hands.left / hands.right, 'at least the 400:250 shape it asked for').toBeGreaterThanOrEqual(400 / 250 - 0.01);
+  expect(hands.right, 'and the detail column is capped, not proportional for ever').toBeLessThanOrEqual(420);
 
   await goToMode(page, 'rig.controls');
   expect((await columns(page)).left, 'a deck, not a 400 px column').toBeGreaterThan(400);

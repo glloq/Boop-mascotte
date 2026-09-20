@@ -1337,8 +1337,24 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
    * the author saying where they want to look instead.
    */
   let framing = null;
-  const setView = ({ scale = 1, x = 0, y = 0 }, { keepFraming = false } = {}) => {
+  /**
+   * Whether the view on screen is one the editor chose, or one the author did.
+   *
+   * A screen declares how it wants the mascot framed (`ui/stage-layout.js`),
+   * and arriving on it should honour that -- but not over the top of somebody
+   * who has zoomed in on an eyelash. So every automatic framing says so, and
+   * every other way of changing the view -- the wheel, a pan, the zoom
+   * buttons, zoom-to-selection -- clears it, because every other way is the
+   * author saying where they want to look.
+   *
+   * It starts true: nothing has been asked for yet.
+   */
+  let autoView = true;
+  /** The arguments of the last automatic fit, so a resize can repeat it. */
+  let fitted = { padding: .1, max: Infinity };
+  const setView = ({ scale = 1, x = 0, y = 0 }, { keepFraming = false, auto = false } = {}) => {
     if (!keepFraming) framing = null;
+    autoView = Boolean(auto);
     const zoom = Number.isFinite(Number(scale)) && Number(scale) > 0 ? Number(scale) : 1;
     const tx = Number.isFinite(Number(x)) ? Number(x) : 0, ty = Number.isFinite(Number(y)) ? Number(y) : 0;
     rootGroup.node.setAttribute('transform', `matrix(${zoom} 0 0 ${zoom} ${tx} ${ty})`);
@@ -3630,6 +3646,14 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
     // was asked to show should still fill the new size, not sit half outside
     // it. This is what a dragged column boundary does to a framed hand.
     if (framing) { api.frameElements(framing.ids, framing.padding, { max: framing.max ?? 5 }); return; }
+    // A view the *editor* chose is re-fitted rather than slid, for the same
+    // reason a framing is re-framed: what it meant was "frame this in the
+    // canvas", and the canvas is a different size now. Sliding it by half the
+    // difference keeps the same artwork point in the middle, which is right
+    // for an author's own view and wrong for one that was a fit -- Draw ended
+    // up 142 px right of centre that way, having been fitted for a stage a
+    // third of the width (`ux33-artboard`).
+    if (autoView) { api.fitToCanvas(fitted.padding, { max: fitted.max }); return; }
     const view = viewTransform();
     setView({ scale: view.scale, x: view.x + dw / 2, y: view.y + dh / 2 });
   }
@@ -4456,13 +4480,16 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
      */
     fitToCanvas(padding=.1,{max=Infinity}={}) {
       if(!rootGroup?.node)return 1;
-      setView({ scale: 1, x: 0, y: 0 });
+      fitted = { padding, max };
+      setView({ scale: 1, x: 0, y: 0 }, { auto: true });
       const box=rootGroup.node.getBBox(),width=container.clientWidth,height=container.clientHeight;
       if(!box.width||!box.height||!width||!height)return 1;
       const scale=Math.min(width*(1-padding*2)/box.width,height*(1-padding*2)/box.height,max);
-      setView({ scale, x: (width-box.width*scale)/2-box.x*scale, y: (height-box.height*scale)/2-box.y*scale });
+      setView({ scale, x: (width-box.width*scale)/2-box.x*scale, y: (height-box.height*scale)/2-box.y*scale }, { auto: true });
       return scale;
     },
+    /** Whether the view is still one the editor chose rather than the author. */
+    isAutoView: () => autoView,
     /**
      * Fill the view with what is selected (audit §5).
      *
@@ -4520,7 +4547,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
      */
     frameElements(ids, padding = 0.18, { max = 5 } = {}) {
       if (!rootGroup?.node || !ids?.length) return viewTransform().scale;
-      setView({ scale: 1, x: 0, y: 0 }, { keepFraming: true });
+      setView({ scale: 1, x: 0, y: 0 }, { keepFraming: true, auto: true });
       const inverse = rootGroup.node.getScreenCTM?.()?.inverse();
       const width = container.clientWidth, height = container.clientHeight;
       if (!inverse || !width || !height) return viewTransform().scale;
@@ -4541,7 +4568,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       // The same ceiling the wheel respects, so framing a thumb-sized piece
       // cannot leave the author at four hundred times life size.
       const scale = Math.max(.2, Math.min(max, Math.min(width * (1 - padding * 2) / box.width, height * (1 - padding * 2) / box.height)));
-      setView({ scale, x: (width - box.width * scale) / 2 - box.x * scale, y: (height - box.height * scale) / 2 - box.y * scale }, { keepFraming: true });
+      setView({ scale, x: (width - box.width * scale) / 2 - box.x * scale, y: (height - box.height * scale) / 2 - box.y * scale }, { keepFraming: true, auto: true });
       // The ceiling rides with the framing: a column drag re-frames, and it has
       // to re-frame the way it was framed the first time.
       framing = { ids: [...ids], padding, max };

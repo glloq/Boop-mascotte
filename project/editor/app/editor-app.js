@@ -247,7 +247,33 @@ export function createEditorApp({ root = document.getElementById('app'), recover
   // it when the surface changed, so the drawing chrome followed an author
   // out of Artwork. Invisible until the editor started opening *on* Artwork
   // (V5-07): before that, nobody reached another screen with it populated.
-  shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);syncPieceModel(workspace);editorContext.update({workspace});syncPuppetHandles();syncArtboard();syncSelectionActions();toolOptions.render();if(workspace!=='animate')timeline?.stopPlayback();previewService.holdStill(workspace);});
+  shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);syncPieceModel(workspace);editorContext.update({workspace});syncPuppetHandles();syncArtboard();syncSelectionActions();toolOptions.render();if(workspace!=='animate')timeline?.stopPlayback();previewService.holdStill(workspace);frameForScreen();});
+
+  /**
+   * Arriving on a screen frames the mascot the way that screen wants it.
+   *
+   * Screens declare how big the mascot should be and how it should be zoomed
+   * (`ui/stage-layout.js`), and their columns are different widths -- so the
+   * view that fitted the previous screen fits nothing on this one. Draw opened
+   * a 240-unit artwork at 240 px in a 666 px canvas, 113 px right of the
+   * middle, because what survived was the framing a 384 px configuration stage
+   * had set (`ux33-artboard`).
+   *
+   * Only over a view the editor itself chose: `isAutoView` is false the moment
+   * an author wheels, pans, or presses a zoom button, and then nothing
+   * reframes under them. After the paint, because the columns are resized by
+   * the same change of screen and a fit measures the canvas.
+   */
+  function frameForScreen() {
+    if (!canvas.isAutoView?.()) return;
+    globalThis.requestAnimationFrame?.(() => {
+      // A screen that framed something of its own has already answered this:
+      // Design ▸ Hands puts one hand in the middle of the stage, and a fit
+      // arriving a frame later would pull the whole mascot back over it.
+      if (canvas.isFraming?.() || !canvas.isAutoView?.()) return;
+      autoFitCanvas();
+    });
+  }
   shell.bindPuppetToggle(()=>syncPuppetHandles());
   shell.bindCanvasView((action)=>action==='fit'?canvas.fitToCanvas():action==='selection'?canvas.zoomToSelection():action==='reset'?canvas.resetView():canvas.zoomView(action==='in'?1.1:1/1.1));
   /**
@@ -256,13 +282,20 @@ export function createEditorApp({ root = document.getElementById('app'), recover
    * `Fit` above passes no cap: pressing it is asking to fill the stage. This is
    * every other call -- a project opening, a hand framing ending, a workspace
    * arriving -- and on a screen whose stage is `down-only` it will shrink the
-   * drawing to fit and never enlarge it. `preserve` screens are the drawing
-   * surfaces, where the author's own zoom is the answer and nothing should
-   * reframe under them.
+   * drawing to fit and never enlarge it.
+   *
+   * `preserve` is the drawing surfaces, and it means *do not reframe under the
+   * author* -- not *do not frame*. This capped them at 1:1 as well, and Draw
+   * opened a 240-unit artwork at 240 px in a 666 px canvas: a third of the
+   * screen it is meant to be drawn on, and off-centre with it, because the
+   * view that survived was the one the previous screen's stage had set
+   * (`ux33-artboard` measured the mascot 113 px right of the middle). The
+   * fitting call is only ever a moment that has *asked* for a frame -- a
+   * project opening, a hand framing ending, a workspace arriving -- so on a
+   * drawing surface it fills, exactly as it did before UX-60 PR 2.
    */
   const autoFitCanvas = () => {
     const policy = stageFor(MODES[taskRouter.currentMode]).autoZoom;
-    if (policy === 'preserve') return canvas.fitToCanvas(.1, { max: 1 });
     return canvas.fitToCanvas(.1, policy === 'down-only' ? { max: 1 } : {});
   };
   // The wheel zooms too, so the readout has to follow the canvas, not the

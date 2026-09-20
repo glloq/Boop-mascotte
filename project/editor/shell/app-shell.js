@@ -229,7 +229,7 @@ export function createAppShell(root) {
     },
     renderProjectUi({loaded,features,core=[],featureCompatible=false}){q('.core-list').hidden=!loaded;q('#core-status').innerHTML=core.map(item=>`<p>${item.ready?'✓':'●'} ${item.label}</p>`).join('');q('.feature-list').classList.toggle('incompatible',!featureCompatible);for(const [id,state] of Object.entries(features)){const button=root.querySelector(`[data-add-feature="${id}"]`);const note=root.querySelector(`[data-feature-reason="${id}"]`);const installed=Boolean(state?.installed),available=Boolean(state?.available),reason=state?.reason||'';if(button){button.textContent=installed?'✓ Added':'+ Add';button.disabled=installed||!available;button.title=reason;}
       if(note){note.textContent=reason;note.hidden=!reason;}}},
-    onWorkspaceChange(handler) { root.addEventListener('workspacechange', (event) => handler(event.detail.workspace)); },
+    onWorkspaceChange(handler) { root.addEventListener('workspacechange', (event) => handler(event.detail.workspace, event.detail.mode)); },
     setWorkspace(surface) { nav.applyMode(surfaceToMode(surface)); },
     bindAddFeature(handler) { q('.feature-list').addEventListener('click', (event) => event.target.dataset.addFeature && handler(event.target.dataset.addFeature, event.target)); },
     bindGenerateFace(handler) {

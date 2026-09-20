@@ -107,21 +107,6 @@ export function setCapability(root, { mode, sections = [], active = null, summar
     if (owned.has(section.dataset.setupSection) || !section.open) continue;
     section.open = false;
   }
-  for (const id of mine) {
-    const section = host.querySelector(`[data-setup-section="${id}"]`);
-    if (!section) continue;
-    const shown = id === open;
-    if (section.hidden === shown) section.hidden = !shown;
-    if (section.open !== shown) section.open = shown;
-    if (section.dataset.capabilityOpen !== String(shown)) section.dataset.capabilityOpen = String(shown);
-    // Set once: the ids and the roles are a property of the section, not of
-    // this call, and writing an attribute its own value is still a write.
-    if (section.id !== `cap-panel-${id}`) {
-      section.setAttribute('id', `cap-panel-${id}`);
-      section.setAttribute('role', 'tabpanel');
-      section.setAttribute('aria-labelledby', `cap-tab-${id}`);
-    }
-  }
   // The bar itself, rebuilt from what the screen holds and how ready each is.
   const bar = host.querySelector('[data-capability-bar]');
   const items = mine.map((id) => {
@@ -132,7 +117,31 @@ export function setCapability(root, { mode, sections = [], active = null, summar
   // A screen with a single capability gets no bar -- there is nothing to
   // choose between -- so its own heading is the only name it has and must
   // stay. Hiding it left `rig.assign` with no heading at all.
-  if (host.dataset.capabilityBar !== String(Boolean(markup))) host.dataset.capabilityBar = String(Boolean(markup));
+  const tabbed = Boolean(markup);
+  if (host.dataset.capabilityBar !== String(tabbed)) host.dataset.capabilityBar = String(tabbed);
+
+  for (const id of mine) {
+    const section = host.querySelector(`[data-setup-section="${id}"]`);
+    if (!section) continue;
+    const shown = id === open;
+    if (section.hidden === shown) section.hidden = !shown;
+    if (section.open !== shown) section.open = shown;
+    if (section.dataset.capabilityOpen !== String(shown)) section.dataset.capabilityOpen = String(shown);
+    // A panel is a `tabpanel` only where there is a tab strip to label it.
+    // `rig.assign` has one capability and therefore no bar, and pointing its
+    // section at a `cap-tab-face-parts` that was never rendered is a dangling
+    // ARIA reference -- which `editor.spec` checks for, and found.
+    const named = tabbed ? `cap-panel-${id}` : '';
+    if (tabbed && section.id !== named) {
+      section.setAttribute('id', named);
+      section.setAttribute('role', 'tabpanel');
+      section.setAttribute('aria-labelledby', `cap-tab-${id}`);
+    } else if (!tabbed && section.hasAttribute('role')) {
+      section.removeAttribute('id');
+      section.removeAttribute('role');
+      section.removeAttribute('aria-labelledby');
+    }
+  }
   if (host.dataset.capabilityMarkup === markup) return open;
   host.dataset.capabilityMarkup = markup;
   if (!bar && markup) { host.insertAdjacentHTML('afterbegin', markup); }
