@@ -31,6 +31,7 @@
  * gesture everybody tries first.
  */
 import { COLUMN, clampColumn, readSplits, resolveSplit, splitForMode, writeSplits } from '../ui/panel-split.js';
+import { columnsForStage, stageFor } from '../ui/stage-layout.js';
 
 /** One nudge, and the bigger one. */
 const STEP = 16;
@@ -61,7 +62,14 @@ export function wirePanelSplitter({ root, mode, storage = globalThis.sessionStor
    */
   function paint() {
     const current = mode() || null;
-    const { left, right } = resolveSplit(current, splits, { available: available() });
+    const width = available();
+    // A screen that declares a stage sizes the *mascot* and gives the columns
+    // what is left (UX-60, docs/SHELL_V2_AUDIT.md). One that does not goes
+    // through `resolveSplit` exactly as before, which is what lets the shell
+    // migrate a screen at a time rather than in one jump.
+    const staged = columnsForStage(current, width, splits?.[current?.id]);
+    const { left, right } = staged || resolveSplit(current, splits, { available: width });
+    root.dataset.stageSize = staged ? stageFor(current).size : '';
     root.style.setProperty('--panel-left', `${left}px`);
     root.style.setProperty('--panel-right', `${right}px`);
     root.dataset.splitLeft = String(left);

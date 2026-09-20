@@ -3613,7 +3613,7 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
     // A view that is a framing is re-framed rather than slid: the pieces it
     // was asked to show should still fill the new size, not sit half outside
     // it. This is what a dragged column boundary does to a framed hand.
-    if (framing) { api.frameElements(framing.ids, framing.padding); return; }
+    if (framing) { api.frameElements(framing.ids, framing.padding, { max: framing.max ?? 5 }); return; }
     const view = viewTransform();
     setView({ scale: view.scale, x: view.x + dw / 2, y: view.y + dh / 2 });
   }
@@ -4424,12 +4424,26 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
     handleGizmoKey(event) { const handled = gizmo.onKeyDown(event); if (handled) syncGizmoToolbar(); return handled; },
     cancelGizmoDrag() { return gizmo.cancel(); },
     renderGizmo() { gizmo.render(); },
-    fitToCanvas(padding=.1) {
+    /**
+     * Frame the whole drawing.
+     *
+     * `max` caps the scale, and exists because *fitting* and *enlarging* are
+     * two different things that shared one function (UX-60,
+     * docs/SHELL_V2_AUDIT.md). Every automatic call -- opening a project,
+     * leaving the hand framing, arriving on a screen -- wants "make it fit if
+     * it does not", and used to get "fill the stage", which is how Design ▸
+     * Hands opened a pair of hands at **246 %** on the screen that is about
+     * choosing which drawing they use.
+     *
+     * The `Fit` button passes no cap, because pressing Fit *is* asking to fill
+     * the stage. That is the whole distinction: fitting upwards is voluntary.
+     */
+    fitToCanvas(padding=.1,{max=Infinity}={}) {
       if(!rootGroup?.node)return 1;
       setView({ scale: 1, x: 0, y: 0 });
       const box=rootGroup.node.getBBox(),width=container.clientWidth,height=container.clientHeight;
       if(!box.width||!box.height||!width||!height)return 1;
-      const scale=Math.min(width*(1-padding*2)/box.width,height*(1-padding*2)/box.height);
+      const scale=Math.min(width*(1-padding*2)/box.width,height*(1-padding*2)/box.height,max);
       setView({ scale, x: (width-box.width*scale)/2-box.x*scale, y: (height-box.height*scale)/2-box.y*scale });
       return scale;
     },
@@ -4478,7 +4492,17 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
      * @param {string[]} ids
      * @param {number} padding  share of the view left around the pieces
      */
-    frameElements(ids, padding = 0.18) {
+    /**
+     * Put named pieces in the middle of the stage, at a size you can work at.
+     *
+     * `max` is the ceiling, and it defaults to the same 5x the wheel allows.
+     * An **automatic** framing passes 1: arriving on Design ▸ Hands framed one
+     * hand and filled the stage with it at 251 %, on the screen that is about
+     * choosing which drawing it uses (UX-60, docs/SHELL_V2_AUDIT.md). Centring
+     * on the thing the screen is about is right; enlarging it because there is
+     * room is the habit this redesign is ending.
+     */
+    frameElements(ids, padding = 0.18, { max = 5 } = {}) {
       if (!rootGroup?.node || !ids?.length) return viewTransform().scale;
       setView({ scale: 1, x: 0, y: 0 }, { keepFraming: true });
       const inverse = rootGroup.node.getScreenCTM?.()?.inverse();
@@ -4500,9 +4524,11 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
       if (!box.width || !box.height) return viewTransform().scale;
       // The same ceiling the wheel respects, so framing a thumb-sized piece
       // cannot leave the author at four hundred times life size.
-      const scale = Math.max(.2, Math.min(5, Math.min(width * (1 - padding * 2) / box.width, height * (1 - padding * 2) / box.height)));
+      const scale = Math.max(.2, Math.min(max, Math.min(width * (1 - padding * 2) / box.width, height * (1 - padding * 2) / box.height)));
       setView({ scale, x: (width - box.width * scale) / 2 - box.x * scale, y: (height - box.height * scale) / 2 - box.y * scale }, { keepFraming: true });
-      framing = { ids: [...ids], padding };
+      // The ceiling rides with the framing: a column drag re-frames, and it has
+      // to re-frame the way it was framed the first time.
+      framing = { ids: [...ids], padding, max };
       return scale;
     },
     /**

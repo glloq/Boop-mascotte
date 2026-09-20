@@ -53,6 +53,7 @@ import { createExportService } from './services/export-service.js';
 import { createPreviewService } from './services/preview-service.js';
 import { browserDownload, createProjectService } from './services/project-service.js';
 import { DEFAULT_MODE, MODES, WORKSPACES, createTaskRouter, modeToWorkspace } from '../ui/task-router.js';
+import { stageFor } from '../ui/stage-layout.js';
 import { createContextInspector } from '../ui/context-inspector.js';
 import { artworkScopeMarkup, describeArtworkScope } from '../ui/artwork-scope.js';
 import { deformBenchMarkup, describeDeformation } from '../ui/advanced-tools.js';
@@ -249,6 +250,21 @@ export function createEditorApp({ root = document.getElementById('app'), recover
   shell.onWorkspaceChange((workspace)=>{canvas.setWorkspace(workspace);syncPieceModel(workspace);editorContext.update({workspace});syncPuppetHandles();syncArtboard();syncSelectionActions();toolOptions.render();if(workspace!=='animate')timeline?.stopPlayback();previewService.holdStill(workspace);});
   shell.bindPuppetToggle(()=>syncPuppetHandles());
   shell.bindCanvasView((action)=>action==='fit'?canvas.fitToCanvas():action==='selection'?canvas.zoomToSelection():action==='reset'?canvas.resetView():canvas.zoomView(action==='in'?1.1:1/1.1));
+  /**
+   * Frame the mascot the way *this screen* wants it framed (UX-60 PR 2).
+   *
+   * `Fit` above passes no cap: pressing it is asking to fill the stage. This is
+   * every other call -- a project opening, a hand framing ending, a workspace
+   * arriving -- and on a screen whose stage is `down-only` it will shrink the
+   * drawing to fit and never enlarge it. `preserve` screens are the drawing
+   * surfaces, where the author's own zoom is the answer and nothing should
+   * reframe under them.
+   */
+  const autoFitCanvas = () => {
+    const policy = stageFor(MODES[taskRouter.currentMode]).autoZoom;
+    if (policy === 'preserve') return canvas.fitToCanvas(.1, { max: 1 });
+    return canvas.fitToCanvas(.1, policy === 'down-only' ? { max: 1 } : {});
+  };
   // The wheel zooms too, so the readout has to follow the canvas, not the
   // buttons -- and so does the bar anchored to the selection. One handler:
   // `onViewChange` holds exactly one, and a second call replaces the first.
@@ -664,7 +680,7 @@ export function createEditorApp({ root = document.getElementById('app'), recover
   // The Behavior workspace shrinks the canvas to a 200 px stage
   // (docs/BEHAVIOR_STUDIO.md), so it has to be able to re-fit the mascot into
   // it: a view framed for a 790 px column shows an eyebrow at 200 px.
-  const behavior = createBehaviorWorkspace({ ...workspaceContext, fitCanvas: () => canvas.fitToCanvas() });
+  const behavior = createBehaviorWorkspace({ ...workspaceContext, fitCanvas: () => autoFitCanvas() });
   syncGraphHighlight = () => behavior.syncLive();
   const { expressionStudio, motionStudio } = animate.panels;
   const { states, reactionStudio, automaticPanel } = behavior.panels;
@@ -723,7 +739,7 @@ export function createEditorApp({ root = document.getElementById('app'), recover
   // stop, swap, clear undo and re-baseline in the same order, and that can be
   // exercised without a browser.
   const projectService = createProjectService({
-    store, history, canvas, preview, timeline, autosave, assets, assetStorage,
+    store, history, canvas, preview, timeline, autosave, assets, assetStorage, autoFit: () => autoFitCanvas(),
     setStatus: (message, tone) => shell.setStatus(message, tone),
     setProjectLoaded: (loaded) => shell.setProjectLoaded(loaded),
     closeHome: () => shell.closeHome(),

@@ -80,7 +80,7 @@ export const browserDownload = (name, data, type = 'application/json') => {
 };
 
 export function createProjectService({
-  store, history, canvas, preview, timeline, autosave,
+  store, history, canvas, preview, timeline, autosave, autoFit = null,
   // How a picture becomes an asset. Absent in a service wired without one, and
   // `addImageFile` then says so rather than throwing.
   assets = null,
@@ -165,7 +165,10 @@ export function createProjectService({
     navigate(mode);
     closeHome();
     // Fitting needs the artwork laid out, which has not happened yet.
-    afterPaint(() => canvas.fitToCanvas());
+    // Screen-aware: a project opening on a configuration screen fits *down*
+    // and never enlarges (UX-60 PR 2). `autoFit` is the editor's policy-aware
+    // wrapper; without one this falls back to the plain fit it always did.
+    afterPaint(() => (autoFit ? autoFit() : canvas.fitToCanvas()));
   };
 
   /**
