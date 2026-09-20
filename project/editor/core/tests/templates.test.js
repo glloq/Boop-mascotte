@@ -23,12 +23,12 @@ const shadingChildren = ['shadeLeft', 'shadeRight', 'faceLight', 'shadeHair'];
 /** And so is the inside of the mouth, clipped to the lips (docs/MOUTH_BUILD.md). */
 const mouthChildren = ['tongue', 'teethLower', 'teeth'];
 const faceChildren = ['hairBack', 'earLeft', 'earRight', 'head', 'faceShading', ...shadingChildren,
-  'mouth', 'mouthInside', ...mouthChildren, 'tongueTip', 'eyeLeft', 'eyeRight', 'eyebrows', 'browLeft', 'browRight', 'nose', 'hairTop', 'hairFront', 'hair'];
+  'mouth', 'mouthInside', ...mouthChildren, 'tongueTip', 'tongueGroove', 'eyeLeft', 'eyeRight', 'eyebrows', 'browLeft', 'browRight', 'nose', 'hairTop', 'hairFront', 'hair'];
 /** The children the artwork nests, so a synthetic tree matches the drawn one. */
 const nested = { eyeLeft: eyeChildren('Left'), eyeRight: eyeChildren('Right'), faceShading: shadingChildren, mouthInside: mouthChildren };
 const topChildren = faceChildren.filter((id) => !shadingChildren.includes(id) && !mouthChildren.includes(id));
 const ids = ['faceRoot', ...faceChildren, ...eyeChildren('Left'), ...eyeChildren('Right'), ...earChildren('Left'), ...earChildren('Right')];
-const paths = new Set(['head', 'mouth', 'teeth', 'teethLower', 'tongue', 'tongueTip', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairTop', 'hairBack', 'shadeLeft', 'shadeRight', 'faceLight', 'shadeHair']);
+const paths = new Set(['head', 'mouth', 'teeth', 'teethLower', 'tongue', 'tongueTip', 'tongueGroove', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairTop', 'hairBack', 'shadeLeft', 'shadeRight', 'faceLight', 'shadeHair']);
 const element = (id) => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1, constraints: { translate: true, rotate: true, scale: true }, bindings: {}, meta: { nodeType: paths.has(id) ? 'path' : 'circle' } });
 const loaded = () => {
   const state = createCleanProjectState();
@@ -170,17 +170,20 @@ test('the mouth is one shape that opens and smiles at the same time', () => {
       // looks down puts across them.
       'mouth-open', 'mouth-smile', 'mouth-frown', 'mouth-round', 'mouth-skew',
       // And the same bow for everything drawn from them.
-      'mouth-skull', 'teeth-skull', 'teethLower-skull', 'tongue-skull', 'tongueTip-skull',
+      'mouth-skull', 'teeth-skull', 'teethLower-skull', 'tongue-skull', 'tongueTip-skull', 'tongueGroove-skull',
       // Each inside follows the lip it hangs off: the smile, the pucker, the lean.
       'teeth-follow', 'teeth-round', 'teeth-skew',
       'teethLower-follow', 'teethLower-round', 'teethLower-skew',
       'tongue-follow', 'tongue-round', 'tongue-skew',
       'tongueTip-follow', 'tongueTip-round', 'tongueTip-skew',
+      'tongueGroove-follow', 'tongueGroove-round', 'tongueGroove-skew',
       // Travelling with the jaw, and showing: two questions, two keys.
       'teeth-open', 'teeth-show', 'teethLower-open', 'teethLower-show', 'tongue-open', 'tongue-show',
-      // The tip follows the jaw on a key of its own, because what brings it out
-      // is `tongueOut` rather than the mouth opening (docs/MOUTH_BUILD.md).
-      'tongueTip-open', 'tongueTip-out', 'tongue-out', 'tongueTip-curl',
+      // The tip and its crease follow the jaw on keys of their own, because what
+      // brings them out is `tongueOut` rather than the mouth opening, and a blep
+      // needs no open mouth at all (docs/MOUTH_BUILD.md).
+      'tongueTip-open', 'tongueGroove-open',
+      'tongueTip-out', 'tongueGroove-out', 'tongue-out', 'tongueTip-curl', 'tongueGroove-curl',
       'head-jaw']);
   const part = Object.values(state.semanticParts).find((item) => item.type === 'mouth');
   assert.equal(part.controlDrivers.mouthOpen.method, 'shapeKey');
@@ -246,7 +249,7 @@ test('an open mouth has teeth and a tongue in it, and a closed one has neither',
   const state = loaded();
   applyTemplateProject(state);
   const part = Object.values(state.semanticParts).find((item) => item.type === 'mouth');
-  assert.deepEqual(part.roles, { mouth: 'mouth', teeth: 'teeth', teethLower: 'teethLower', tongue: 'tongue', tongueTip: 'tongueTip' });
+  assert.deepEqual(part.roles, { mouth: 'mouth', teeth: 'teeth', teethLower: 'teethLower', tongue: 'tongue', tongueTip: 'tongueTip', tongueGroove: 'tongueGroove' });
   assert.equal(part.controlDrivers.teeth.method, 'shapeKey');
 
   const at = (values) => compileRigFrame(state.elements, { ...state.params, ...Object.fromEntries(Object.entries(values).map(([name, value]) => [name, { type: 'number', min: -1, max: 1, default: 0, value }])) }, {}, {}, { shapeKeys: state.shapeKeys });
@@ -301,6 +304,7 @@ test('an open mouth has teeth and a tongue in it, and a closed one has neither',
   assert.ok(area(at({ teeth: 1, tongue: 1 }).teethLower.path) < NOTHING);
   assert.ok(area(at({ teeth: 1, tongue: 1 }).tongue.path) < NOTHING);
   assert.ok(area(at({ tongue: 1 }).tongueTip.path) < NOTHING, 'and the tip is in until it is asked out');
+  assert.ok(area(at({ tongue: 1 }).tongueGroove.path) < NOTHING, 'and so is the crease down it');
   // Open, with the controls down: still nothing, because it is a product.
   assert.ok(area(at({ mouthOpen: 1 }).teeth.path) < NOTHING);
   assert.ok(area(at({ mouthOpen: 1 }).teethLower.path) < NOTHING);

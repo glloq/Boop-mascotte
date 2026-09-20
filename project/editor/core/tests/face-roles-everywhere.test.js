@@ -44,17 +44,18 @@ test('every role the registry knows can be said, and the words are the author’
 
 test('the eight are the checklist and the rest are optional, and the two do not overlap', () => {
   assert.equal(FACE_ROLE_CHECKLIST.length, 8);
-  // Twenty-two: nineteen since the gaze grew an iris per side
-  // (docs/EYE_BUILDS.md), and three more since the mouth grew a lower row of
-  // teeth and the tongue a tip of its own -- which the tongue part plays as
-  // well, so it is two rows rather than one (docs/MOUTH_BUILD.md). All
-  // optional, as every extra is: a mouth that draws none behaves as it did.
-  assert.equal(FACE_ROLE_EXTRAS.length, 22);
+  // Twenty-four: nineteen since the gaze grew an iris per side
+  // (docs/EYE_BUILDS.md), and five more since the mouth grew a lower row of
+  // teeth, the tongue a tip and the tip a crease -- the last two the tongue
+  // part plays as well, so each is two rows rather than one
+  // (docs/MOUTH_BUILD.md). All optional, as every extra is: a mouth that draws
+  // none behaves as it did.
+  assert.equal(FACE_ROLE_EXTRAS.length, 24);
   assert.equal(FACE_ROLE_CHECKLIST.length + FACE_ROLE_EXTRAS.length, FACE_ROLE_VOCABULARY.length);
   const basic = new Set(FACE_ROLE_CHECKLIST.map((entry) => `${entry.part}.${entry.role}`));
   assert.deepEqual(FACE_ROLE_EXTRAS.filter((entry) => basic.has(entry.id)), []);
   // The ones that had nowhere at all before.
-  for (const id of ['eyelids.leftUpper', 'nose.nose', 'ears.leftEar', 'hair.hair', 'hair.hairBack', 'jaw.jaw', 'tongue.tongue', 'tongue.tongueTip', 'mouth.teeth', 'mouth.teethLower', 'mouth.tongueTip', 'mouth.cavity', 'facialHair.facialHair', 'gaze.leftIris', 'gaze.rightIris']) {
+  for (const id of ['eyelids.leftUpper', 'nose.nose', 'ears.leftEar', 'hair.hair', 'hair.hairBack', 'jaw.jaw', 'tongue.tongue', 'tongue.tongueTip', 'tongue.tongueGroove', 'mouth.teeth', 'mouth.teethLower', 'mouth.tongueTip', 'mouth.tongueGroove', 'mouth.cavity', 'facialHair.facialHair', 'gaze.leftIris', 'gaze.rightIris']) {
     assert.ok(FACE_ROLE_EXTRAS.some((entry) => entry.id === id), `${id} can be assigned`);
   }
   assert.ok(FACE_ROLE_EXTRAS.every((entry) => entry.optional));
@@ -69,7 +70,7 @@ test('the optional rows never change what "complete" means', () => {
   assert.equal(checklist.assigned, 8);
   assert.equal(checklist.complete, true);
   const extras = deriveFaceRoleExtras(state);
-  assert.equal(extras.total, 22);
+  assert.equal(extras.total, 24);
   // Ten groups: the gaze has extras of its own now, where before both of its
   // roles were in the beginner eight and it therefore had none.
   assert.equal(extras.groups.length, 10, 'grouped by the part that owns them');

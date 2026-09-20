@@ -68,14 +68,17 @@ test('@critical a face and a speech shape compose, and the correctives the pose 
   expect(halfway.smile, 'the face does not fade with the speech').toBeCloseTo(1);
   expect(halfway.mouthOpen).toBeCloseTo(0.3);
 
-  // Five corrective slots on the eye and nine on the mouth, each a sentence
-  // about the controls; the ones this pose reaches are marked.
+  // Five corrective slots on the eye and thirteen on the mouth, each a sentence
+  // about the controls; the ones this pose reaches are marked. Four of the
+  // thirteen are V6's, and each is a pair the arithmetic is least kind to: the
+  // lean, a grin, a stretched grin, and a tongue out of an *open* mouth as
+  // against a blep (docs/MOUTH_BUILD.md, docs/FACE_SVG_STATES.md §4.1).
   const eyes = panel.locator('[data-disclosure="face-eye-correctives"]');
   await eyes.locator('> summary').click();
   await expect(eyes.locator('[data-face-corrective]')).toHaveCount(5);
   const mouth = panel.locator('[data-disclosure="face-mouth-correctives"]');
   await mouth.locator('> summary').click();
-  await expect(mouth.locator('[data-face-corrective]')).toHaveCount(9);
+  await expect(mouth.locator('[data-face-corrective]')).toHaveCount(13);
   await expect(mouth.locator('[data-face-corrective="open"][data-face-lit="true"]')).toHaveCount(1);
   await expect(mouth.locator('[data-face-corrective="lock"]:not([data-face-lit="true"])')).toHaveCount(1);
   // And the panel says, in as many words, which of the two things it edits.

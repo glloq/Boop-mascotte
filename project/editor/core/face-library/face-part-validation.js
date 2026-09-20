@@ -194,24 +194,29 @@ export function validateFacePart(input, { taken = () => false, library = null } 
     checkDrivers(issues, asset.drivers, category.part ? SEMANTIC_PART_REGISTRY[category.part] : null, category.label, asset.capabilities, Object.keys(asset.roles), 'drivers');
     checkTurn(issues, asset.turn, Object.keys(asset.roles), 'turn');
     /**
-     * A shape two parts move must be moved by shapes.
+     * What is drawn inside a mouth follows the lips, and only a **pose** can
+     * carry it there.
      *
-     * The tongue's tip is the one of those the library ships: the mouth follows
-     * the lower lip onto it (`mouthOpen`, `smile`) and the tongue part aims and
-     * extends it (`tongueX`, `tongueY`, `tongueOut`). Shaped, they add up --
-     * a shape key writes no transform, and several on one element simply sum.
-     * As transforms they are two parts writing `translateY` on one drawing,
-     * which `enableSemanticControl` refuses at install with a binding conflict
-     * and a message about a property rather than about the drawing.
+     * `mouthOpen` and `smile` are bound to the lips and to nothing else, on
+     * purpose: both are transforms by default, and a transform on an inside is
+     * a transform on a shape the tongue part may also be translating, which
+     * every drawing with a tongue would then refuse to install over. So a card
+     * reaches its own insides by shipping a pose per role
+     * (`installShapedControl`; docs/MOUTH_BUILD.md).
      *
-     * Said here instead, before the asset is ever registered, and in the words
-     * of the thing that is actually wrong (docs/MOUTH_BUILD.md).
+     * A card that draws an inside and does not is not wrong — it is a drawing
+     * whose teeth stay where the closed lips were while the lips open, which is
+     * a row of teeth over a chin. A warning rather than a refusal, because it
+     * costs an author a look rather than their asset, and because "limited
+     * animation" is the shape every other half-carried movement is reported in.
      */
-    if (asset.roles.tongueTip) {
+    const INSIDES = ['cavity', 'teeth', 'teethLower', 'tongue', 'tongueTip', 'tongueGroove'];
+    const drawnInside = INSIDES.filter((role) => asset.roles[role]);
+    if (drawnInside.length) {
       for (const control of ['mouthOpen', 'smile']) {
-        if (!asset.capabilities.includes(control)) continue;
-        if (asset.drivers[control]?.property === 'shapeKey') continue;
-        issues.push(error('driver-shared-shape', `This drawing has a tongue tip, which the tongue part moves as well as the mouth. "${control}" has to be shaped on it: a transform would be two parts writing one property on one shape.`, `drivers.${control}.property`));
+        if (!asset.capabilities.includes(control) || asset.drivers[control]?.property !== 'shapeKey') continue;
+        const adrift = drawnInside.filter((role) => !asset.drivers[control].roles?.[role]?.posePath);
+        if (adrift.length) issues.push(warning('driver-inside-adrift', `"${control}" is shaped here but ships no pose for ${adrift.join(', ')}, so what is drawn inside the mouth will not follow the lips when it moves.`, `drivers.${control}.roles`));
       }
     }
 

@@ -115,14 +115,15 @@ test('a drawing may say it restyles another, and into which style', () => {
 
 test('the artwork scanner reads elements, ids and balance from a fragment', () => {
   // The library's own mouth: the lips, a clipped folder holding the tongue and
-  // the two rows, and the tongue's tip in front of them all (docs/MOUTH_BUILD.md).
+  // the two rows, and the tongue's tip and its crease in front of them all
+  // (docs/MOUTH_BUILD.md).
   const scan = scanArtwork(MOUTH_FULL.artwork);
   assert.deepEqual(scan.elements.map((item) => [item.tag, item.id, item.depth]), [
     ['g', 'mouth-full', 0], ['path', 'mouth', 1], ['g', 'mouth-full-inside', 1],
     ['path', 'tongue', 2], ['path', 'teethLower', 2], ['path', 'teeth', 2],
-    ['path', 'tongueTip', 1], ['clipPath', 'mouth-full-aperture', 1], ['use', null, 2]]);
+    ['path', 'tongueTip', 1], ['path', 'tongueGroove', 1], ['clipPath', 'mouth-full-aperture', 1], ['use', null, 2]]);
   assert.equal(scan.balanced, true);
-  assert.deepEqual(artworkIds(MOUTH_FULL.artwork), ['mouth-full', 'mouth', 'mouth-full-inside', 'tongue', 'teethLower', 'teeth', 'tongueTip', 'mouth-full-aperture']);
+  assert.deepEqual(artworkIds(MOUTH_FULL.artwork), ['mouth-full', 'mouth', 'mouth-full-inside', 'tongue', 'teethLower', 'teeth', 'tongueTip', 'tongueGroove', 'mouth-full-aperture']);
   assert.deepEqual(artworkIds("<g><circle id='one'/><rect/></g>"), ['one'], 'single quotes and unnamed shapes');
   assert.equal(scanArtwork('<g><path/>').balanced, false, 'an unclosed group');
   assert.equal(scanArtwork('<g></path>').balanced, false, 'the wrong closing tag');

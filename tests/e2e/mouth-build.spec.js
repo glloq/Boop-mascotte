@@ -50,9 +50,12 @@ test('@critical one mouth card, and it says AE and OO differently', async ({ pag
   expect([...mouth.controls].sort()).toEqual(['mouthOpen', 'mouthRound', 'mouthSkew', 'mouthWidth', 'smile', 'teeth', 'tongue']);
   expect(mouth.controlDrivers.mouthRound.method, 'the pucker is a shape, not a transform').toBe('shapeKey');
   expect(mouth.controlDrivers.mouthSkew.method, 'and so is the lean').toBe('shapeKey');
-  // And the card draws the tongue's tip as well, which the tongue part moves.
+  // And the card draws the tongue's tip and its groove as well, both of which
+  // the tongue part moves: a tip that reached out while the crease down the
+  // middle of it stayed behind would be the crease of a tongue that is no
+  // longer there (docs/MOUTH_BUILD.md, "The tongue").
   const tonguePart = await partOfType(page, 'tongue');
-  expect(Object.keys(tonguePart.roles).sort()).toEqual(['tongue', 'tongueTip']);
+  expect(Object.keys(tonguePart.roles).sort()).toEqual(['tongue', 'tongueGroove', 'tongueTip']);
   expect(tonguePart.controlDrivers.tongueOut.method, 'coming out is a shape now, not a scale').toBe('shapeKey');
 
   await openArtwork(page);
@@ -94,15 +97,20 @@ test('@critical the teeth and the tongue show, and a closed mouth hides nothing'
 
   // Empty at rest: each inside is a closed path whose second half retraces its
   // first, so the shape encloses nothing. A closed mouth has nothing behind it
-  // to hide, by construction rather than by arithmetic. A degenerate shape still
-  // reports the box its control points span, so what is measured is that it is a
-  // hairline beside the mouth rather than that it is exactly nothing.
+  // to hide, by construction rather than by arithmetic.
+  //
+  // That it is exactly nothing is arithmetic, and `core/tests/mouth-build.test.js`
+  // holds it by flattening the curve and measuring the ink. What a browser can
+  // say is the other half: a degenerate path still reports the box its **control
+  // points** span, and a scalloped row has more of them than the two-quadratic
+  // band V5 drew — so what is asserted here is that each is a hairline beside
+  // the mouth, and that showing it makes it many times what it was.
   const shutMouth = await painted(page, 'mouth');
-  const shut = { teeth: await painted(page, 'teeth'), tongue: await painted(page, 'tongue'), teethLower: await painted(page, 'teethLower'), tongueTip: await painted(page, 'tongueTip') };
-  expect(shut.teeth.height, 'the teeth enclose nothing with the mouth closed').toBeLessThan(shutMouth.height * 0.25);
-  expect(shut.tongue.height, 'nor does the tongue').toBeLessThan(shutMouth.height * 0.25);
-  expect(shut.teethLower.height, 'nor the lower row').toBeLessThan(shutMouth.height * 0.25);
-  expect(shut.tongueTip.height, 'nor the tongue\u2019s tip').toBeLessThan(shutMouth.height * 0.25);
+  const insides = ['teeth', 'teethLower', 'tongue', 'tongueTip'];
+  const shut = Object.fromEntries(await Promise.all(insides.map(async (id) => [id, await painted(page, id)])));
+  for (const id of insides) {
+    expect(shut[id].height, `${id} encloses nothing with the mouth closed`).toBeLessThan(shutMouth.height * 0.4);
+  }
 
   await page.evaluate(() => {
     window.__BOOP_E2E__.setLiveParam('mouthOpen', 1);
@@ -110,28 +118,62 @@ test('@critical the teeth and the tongue show, and a closed mouth hides nothing'
     window.__BOOP_E2E__.setLiveParam('tongue', 1);
   });
   await page.waitForTimeout(220);
-  const open = { teeth: await painted(page, 'teeth'), tongue: await painted(page, 'tongue'), mouth: await painted(page, 'mouth'), teethLower: await painted(page, 'teethLower') };
+  const open = { teeth: await painted(page, 'teeth'), tongue: await painted(page, 'tongue'), mouth: await painted(page, 'mouth'), teethLower: await painted(page, 'teethLower'), tongueTip: await painted(page, 'tongueTip') };
   expect(open.teeth.height, 'and they come out when the mouth opens').toBeGreaterThan(shut.teeth.height * 3);
   expect(open.tongue.height).toBeGreaterThan(shut.tongue.height * 3);
   expect(open.teethLower.height, 'the lower row too, a little later').toBeGreaterThan(shut.teethLower.height * 2);
+  // The tip is the one that does **not**: an open mouth is not a reason for a
+  // tongue to be out of it, and `tongue * tongueOut` is what says so.
+  expect(open.tongueTip.height, 'an open mouth alone leaves the tip in').toBeLessThan(open.mouth.height * 0.2);
   // Every one is drawn *from* the lips, so none can wander off sideways however
   // far the controls go — and each is narrower than the mouth it hangs in.
   for (const [name, band] of [['teeth', open.teeth], ['tongue', open.tongue], ['teethLower', open.teethLower]]) {
     expect(band.y, `${name} stays below the upper lip`).toBeGreaterThanOrEqual(open.mouth.y - 2);
     expect(band.width, `${name} is narrower than the mouth`).toBeLessThanOrEqual(open.mouth.width + 2);
   }
-  // Everything inside stays inside, which is what the clip says out loud: the
-  // body of the tongue is in the mouth, and only the **tip** comes out of it
-  // (docs/MOUTH_BUILD.md). V5 had one tongue and it was always in front of the
-  // lips, which is why it had to be kept narrow enough never to reach a corner.
+  // Everything inside stays inside: the body of the tongue is in the mouth, and
+  // only the **tip** comes out of it (docs/MOUTH_BUILD.md). V5 had one tongue
+  // and it was always in front of the lips, which is why it had to be kept
+  // narrow enough never to reach a corner.
+  //
+  // A twentieth of the aperture rather than nothing, because the body's
+  // underside deliberately hangs the width of a dark line below the lip it
+  // rests on: that line is what says the tongue is *in* a mouth rather than
+  // being the floor of one (`TONGUE.seat`), and the clip is what stops it
+  // painting there. Measured against the mouth's own height, so it says the
+  // same thing at any zoom.
+  const inside = open.mouth.y + open.mouth.height + open.mouth.height * 0.08;
   for (const [name, band] of [['teeth', open.teeth], ['tongue', open.tongue], ['teethLower', open.teethLower]]) {
-    expect(band.y + band.height, `${name} is inside the mouth`).toBeLessThanOrEqual(open.mouth.y + open.mouth.height + 2);
+    expect(band.y + band.height, `${name} is inside the mouth`).toBeLessThanOrEqual(inside);
   }
+
+  /**
+   * And the clip is what a browser is for.
+   *
+   * The geometry keeps the insides inside only as long as nothing else moves
+   * them, and `tongueY` moves the tongue: dragged all the way down it used to
+   * paint on the chin, because nothing cut it to the lips. Cutting to `#mouth`
+   * answers that and every other way an inside can be pushed out — a warp, a
+   * pin, `mouthWidth` on the rows — with one `<use>` of the shape of the hole.
+   *
+   * What is asked is what is *painted* rather than what the box says: a clipped
+   * element still reports the box its geometry spans.
+   */
+  await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('tongueY', 1));
+  await page.waitForTimeout(220);
+  const belowTheLip = await page.evaluate(() => {
+    const box = document.querySelector('#canvas #mouth').getBoundingClientRect();
+    return [0.35, 0.5, 0.65].map((f) => document.elementsFromPoint(box.x + box.width * f, box.y + box.height + 3)
+      .map((node) => node.id).filter(Boolean)[0] || '');
+  });
+  for (const hit of belowTheLip) expect(hit, 'the tongue is painted below the lower lip').not.toBe('tongue');
+  await page.evaluate(() => window.__BOOP_E2E__.clearLiveParam('tongueY'));
   // And the tip comes out when it is asked to, over the lower lip.
   await page.evaluate(() => window.__BOOP_E2E__.setLiveParam('tongueOut', 1));
   await page.waitForTimeout(220);
   const tip = await painted(page, 'tongueTip');
   expect(tip.y + tip.height, 'the tongue laps over the lower lip').toBeGreaterThan(open.mouth.y + open.mouth.height);
+  expect(tip.height, 'and it is a tongue rather than a hairline').toBeGreaterThan(open.tongueTip.height * 3);
   await page.evaluate(() => window.__BOOP_E2E__.clearLiveParam('tongueOut'));
 });
 

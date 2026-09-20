@@ -22,18 +22,18 @@ test('@critical user turns on gaze, tests it, and calibrates it by posing the pu
   await openSetupSection(page, 'movements');
   const panel = page.locator('#face-movements[data-face-movements-ready="true"]');
   await expect(panel).toBeVisible();
-  // Fifteen of the twenty-six: the eight roles the suggestions accepted cover
-  // the head, the eyes, the pupils, the brows and the mouth. The lids' own two
-  // (Narrow, Lid curve) wait for an eyelid to be assigned
-  // (docs/FACE_SVG_STATES.md).
-  await expect(panel).toHaveAttribute('data-face-movements-available', '15');
+  // Sixteen of the twenty-seven: the eight roles the suggestions accepted cover
+  // the head, the eyes, the pupils, the brows and the mouth -- whose lean is
+  // the sixteenth since V6 (docs/MOUTH_BUILD.md). The lids' own two (Narrow,
+  // Lid curve) wait for an eyelid to be assigned (docs/FACE_SVG_STATES.md).
+  await expect(panel).toHaveAttribute('data-face-movements-available', '16');
   await expect(panel).toHaveAttribute('data-face-movements-enabled', '0');
   // The panel shows the part that is selected and says so, rather than all
-  // twenty-six at once (UX-50 PR 2). Accepting the suggestions left the head
+  // twenty-seven at once (UX-50 PR 2). Accepting the suggestions left the head
   // in hand, so the head's three movements are what is on screen.
   await expect(panel).toHaveAttribute('data-face-movements-scope', 'band');
   await expect(panel).toHaveAttribute('data-face-movements-band', 'Head');
-  await expect(panel).toHaveAttribute('data-face-movements-hidden', '23');
+  await expect(panel).toHaveAttribute('data-face-movements-hidden', '24');
   await expect(panel.locator('[data-movement]')).toHaveCount(3);
   await expect(panel.getByText('because that is what you have selected')).toBeVisible();
 
@@ -115,8 +115,8 @@ test('@critical templates expose their movements, batch enabling and turning off
   await openSetupSection(page, 'movements');
   const panel = page.locator('#face-movements[data-face-movements-ready="true"]');
   // Every movement, because the template draws every part that carries one.
-  await expect(panel).toHaveAttribute('data-face-movements-available', '26');
-  await expect(panel).toHaveAttribute('data-face-movements-enabled', '26');
+  await expect(panel).toHaveAttribute('data-face-movements-available', '27');
+  await expect(panel).toHaveAttribute('data-face-movements-enabled', '27');
   // `Show all controls` is the way back to the whole inventory, and it is what
   // keeps the contextual filter an aid rather than a cage (UX-50 PR 2): every
   // movement stays reachable, including from a screen narrowed to one part.

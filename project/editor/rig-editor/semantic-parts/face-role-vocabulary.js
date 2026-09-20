@@ -53,6 +53,7 @@ const ROLE_WORDS = Object.freeze({
   teethLower: ['Lower teeth', 'The bottom row. Optional: it shows on the same movement, a little later.'],
   tongue: ['Tongue', 'The body of it, inside the mouth. Shown when the mouth opens, and it can move on its own.'],
   tongueTip: ['Tongue tip', 'The part that comes out over the lower lip. Optional, and drawn in front of the lips.'],
+  tongueGroove: ['Tongue groove', 'The crease down the middle of the tip. Optional: a fold, drawn in the mouth\u2019s own colour.'],
   jaw: ['Jaw', 'The lower face, which drops when the mouth opens.'],
   leftEar: ['Left ear', 'It wiggles.'],
   rightEar: ['Right ear', 'It wiggles.'],

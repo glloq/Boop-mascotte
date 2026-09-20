@@ -39,7 +39,10 @@ test('the shelf is the human library, and says how many drawings it is holding b
   // said "132 drawings" over a shelf of one would be describing a different
   // library from the one on screen.
   assert.match(host.innerHTML, /42 drawings for a human face/);
-  assert.match(host.innerHTML, /Show the older packs too \(15 animal, robot and bird drawings\)/);
+  // The sentence is the morphology table's own words, not a string somebody has
+  // to keep in step with it (§3.2 of the brief; `face-catalogue.js`).
+  assert.match(host.innerHTML, /Show the older packs too \(15 animal, bird and robot drawings\)/);
+  assert.deepEqual([...panel.snapshot().legacyKinds], ['Animal', 'Bird', 'Robot']);
   assert.equal(panel.snapshot().cards.length, 1);
 });
 
@@ -51,7 +54,9 @@ test('and there is a press that shows them, and one that puts them away again', 
   assert.equal(host.dataset.faceLibraryLegacy, '0');
   // Every one of them says what it is, so a drawing that will not be maintained
   // is not silently the same as one that will.
-  assert.match(host.innerHTML, /From a pack the editor keeps but no longer offers/);
+  // And each card says which kind it is *for*, where it used to shrug.
+  assert.match(host.innerHTML, /A Bird drawing: kept for the faces that wear it, and no longer offered/);
+  assert.match(host.innerHTML, /An? Animal drawing: kept for the faces that wear it/);
   assert.match(host.innerHTML, /Hide the older packs/);
   press(host, 'faceLibraryShowLegacy', 'off');
   assert.equal(host.dataset.faceLibraryCards, '1');

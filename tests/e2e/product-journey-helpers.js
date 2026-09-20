@@ -144,6 +144,15 @@ export async function startNewProject(page) {
 }
 
 export async function openEditableProject(page, path) {
+  // Every caller opens a project *over* one, so the canvas already holds an
+  // `svg svg` and waiting for one is waiting for nothing: the file is read
+  // asynchronously, and reading the document back too early gave whichever
+  // project was on screen before. Under load that is what happened, and the
+  // assertion that failed was two helpers away from the race that caused it.
+  // `store.documentMutations` counts project replacements, so waiting for it to
+  // move is waiting for this open in particular.
+  const before = await page.evaluate(() => window.__BOOP_E2E__.diagnostics().store.documentMutations);
   await page.locator('#project-file').setInputFiles(path);
+  await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.diagnostics().store.documentMutations)).toBeGreaterThan(before);
   await expect(page.locator('#canvas svg svg')).toBeVisible();
 }

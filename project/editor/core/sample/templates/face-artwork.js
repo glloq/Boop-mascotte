@@ -143,7 +143,9 @@ export const FACE_STYLE = Object.freeze({
   highlightOpacity: 0.16,
   glintOpacity: 0.92,
   sparkOpacity: 0.66,
-  earFoldOpacity: 0.55
+  earFoldOpacity: 0.55,
+  /** The crease down the tongue: the cavity's own colour, softened into a fold. */
+  grooveOpacity: 0.3
 });
 
 /** One decimal is plenty for a 240-unit artboard, and keeps the paths short. */
@@ -740,13 +742,13 @@ const ear = (side, flip) => {
  * these numbers reads them from the template.
  */
 export {
-  MOUTH_BOX, MOUTH_REST, TEETH_REST, TEETH_LOWER_REST, TONGUE_REST, TONGUE_TIP_REST,
-  mouthGeometry, mouthPath, teethPath, teethLowerPath, tonguePath, tongueTipPath
+  MOUTH_BOX, MOUTH_REST, TEETH_REST, TEETH_LOWER_REST, TONGUE_REST, TONGUE_TIP_REST, TONGUE_GROOVE_REST,
+  mouthGeometry, mouthPath, teethPath, teethLowerPath, tonguePath, tongueTipPath, tongueGroovePath
 } from '../../face/mouth-build.js';
 // And imported, because this module draws with them as well as re-exporting them.
 import {
-  MOUTH, MOUTH_REST, TEETH_REST, TEETH_LOWER_REST, TONGUE_REST, TONGUE_TIP_REST,
-  mouthGeometry, mouthPath, teethPath, teethLowerPath, tonguePath, tongueTipPath
+  MOUTH, MOUTH_REST, TEETH_REST, TEETH_LOWER_REST, TONGUE_REST, TONGUE_TIP_REST, TONGUE_GROOVE_REST,
+  mouthGeometry, mouthPath, teethPath, teethLowerPath, tonguePath, tongueTipPath, tongueGroovePath
 } from '../../face/mouth-build.js';
 
 
@@ -775,7 +777,13 @@ import {
  * aperture is already a path: `#mouth` *is* the shape of the hole, so the clip
  * follows every pose of it with nothing to keep in step.
  *
- * The tip is outside the clip on purpose, and it is the only thing that is.
+ * The tip and the crease down it are outside the clip on purpose, and they are
+ * the only things that are. The crease is drawn in the cavity's own colour at a
+ * low opacity, because a fold is the light that does not reach it rather than a
+ * colour of its own -- and because the body already reads as two lobes from its
+ * silhouette, while a tongue *out* is a flat shape against a chin with nothing
+ * to say which way up it is (§5.1 of the V6 brief puts the groove with the
+ * front, and this is why).
  */
 const mouth = (c) => `<path id="mouth" data-name="Mouth" d="${MOUTH_REST}" fill="${c.mouthInterior}" stroke="${c.lip}" stroke-width="${FACE_STYLE.mouthOutline}" stroke-linejoin="round" />
     <g id="mouthInside" data-name="Inside the mouth" clip-path="url(#mouthAperture)">
@@ -783,7 +791,8 @@ const mouth = (c) => `<path id="mouth" data-name="Mouth" d="${MOUTH_REST}" fill=
       <path id="teethLower" data-name="Lower teeth" d="${TEETH_LOWER_REST}" fill="${c.teeth}" />
       <path id="teeth" data-name="Upper teeth" d="${TEETH_REST}" fill="${c.teeth}" />
     </g>
-    <path id="tongueTip" data-name="Tongue tip" d="${TONGUE_TIP_REST}" fill="${c.tongue}" />`;
+    <path id="tongueTip" data-name="Tongue tip" d="${TONGUE_TIP_REST}" fill="${c.tongue}" />
+    <path id="tongueGroove" data-name="Tongue groove" d="${TONGUE_GROOVE_REST}" fill="${c.mouthInterior}" opacity="${FACE_STYLE.grooveOpacity}" />`;
 
 /* ------------------------------------------------------------------- nose -- */
 
@@ -996,6 +1005,7 @@ export const FACE_CENTRES = Object.freeze({
   // The same centre as the mouth on purpose: they narrow together on a turn.
   teeth: { x: MOUTH.cx, y: MOUTH.cornerY }, teethLower: { x: MOUTH.cx, y: MOUTH.cornerY },
   tongue: { x: MOUTH.cx, y: MOUTH.cornerY }, tongueTip: { x: MOUTH.cx, y: MOUTH.cornerY },
+  tongueGroove: { x: MOUTH.cx, y: MOUTH.cornerY },
   earLeft: { x: round(headEdgeAt(EAR.cy, 'left') + EAR.inset), y: EAR.cy },
   earRight: { x: round(headEdgeAt(EAR.cy, 'right') - EAR.inset), y: EAR.cy },
   // The hair swings from where it is attached, which is the crown and not the

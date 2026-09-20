@@ -15,7 +15,7 @@ import { SEMANTIC_PART_REGISTRY } from '../../rig-editor/semantic-parts/part-reg
  * expression where it should have a dozen. Every smirk, grimace and lip pulled
  * by a word is the two corners disagreeing.
  */
-const paths = new Set(['head', 'mouth', 'teeth', 'teethLower', 'tongue', 'tongueTip', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairTop', 'hairBack', 'shadeLeft', 'shadeRight', 'faceLight', 'shadeHair']);
+const paths = new Set(['head', 'mouth', 'teeth', 'teethLower', 'tongue', 'tongueTip', 'tongueGroove', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairTop', 'hairBack', 'shadeLeft', 'shadeRight', 'faceLight', 'shadeHair']);
 const eyeChildren = (side) => [`eyeWhite${side}`, `pupil${side}`, `glint${side}`, `spark${side}`, `lidUpper${side}`, `lidLower${side}`, `rim${side}`];
 const earChildren = (side) => [`ear${side}Shape`, `ear${side}Fold`];
 /** The shading is a folder of its own now, clipped to the head. */
@@ -23,7 +23,7 @@ const shadingChildren = ['shadeLeft', 'shadeRight', 'faceLight', 'shadeHair'];
 /** And so is the inside of the mouth, clipped to the lips (docs/MOUTH_BUILD.md). */
 const mouthChildren = ['tongue', 'teethLower', 'teeth'];
 const faceChildren = ['hairBack', 'earLeft', 'earRight', 'head', 'faceShading', ...shadingChildren,
-  'mouth', 'mouthInside', ...mouthChildren, 'tongueTip', 'eyeLeft', 'eyeRight', 'eyebrows', 'browLeft', 'browRight', 'nose', 'hairTop', 'hairFront', 'hair'];
+  'mouth', 'mouthInside', ...mouthChildren, 'tongueTip', 'tongueGroove', 'eyeLeft', 'eyeRight', 'eyebrows', 'browLeft', 'browRight', 'nose', 'hairTop', 'hairFront', 'hair'];
 /** The children the artwork nests, so a synthetic tree matches the drawn one. */
 const nested = { eyeLeft: eyeChildren('Left'), eyeRight: eyeChildren('Right'), faceShading: shadingChildren, mouthInside: mouthChildren };
 const topChildren = faceChildren.filter((id) => !shadingChildren.includes(id) && !mouthChildren.includes(id));
@@ -96,7 +96,7 @@ test('the tongue is aimed, stuck out and curled (CR-32 … CR-34)', () => {
   const state = project();
   assert.ok(state.semanticParts.tongue, 'the tongue is a part of its own');
   assert.deepEqual(SEMANTIC_PART_REGISTRY.tongue.controls, ['tongueX', 'tongueY', 'tongueOut', 'tongueCurl']);
-  assert.deepEqual(Object.keys(state.semanticParts.tongue.roles), ['tongue', 'tongueTip'], 'the body and the tip');
+  assert.deepEqual(Object.keys(state.semanticParts.tongue.roles), ['tongue', 'tongueTip', 'tongueGroove'], 'the body, the tip, and the crease down it');
   const frame = (values) => compileRigFrame(state.elements, { ...state.params, ...values }, {}, {}, { shapeKeys: state.shapeKeys });
   const at = (values) => frame(values).tongue.transform;
 

@@ -94,14 +94,19 @@ export const SEMANTIC_PART_REGISTRY = Object.freeze({
   // that draws neither behaves exactly as it did, which is every mouth in every
   // project written before this (docs/MOUTH_BUILD.md).
   //
-  // `tongueTip` is the one role that carries `mouthOpen` and `smile` as well as
-  // `mouthRound`. The other insides fold the opening into their own pose -- a
-  // band shows only when the lips part, so `mouthOpen * teeth` is a product and
-  // the pose is drawn at both ends at once -- and the tip cannot, because it is
-  // brought out by `tongueOut` and a blep does not need an open mouth. So it
-  // follows the lip on keys of its own. Nothing else in the table names those
-  // two controls for an inside, which is what keeps a project drawn before V6
-  // from gaining a binding it never had.
+  // **`mouthOpen` and `smile` are bound to the lips and to nothing else**, and
+  // that is deliberate: both are transforms by default, and a transform on an
+  // inside is a transform on a shape the *tongue part* may also be translating.
+  // Every mouth in the library that draws a tongue would then refuse to install
+  // with a binding conflict.
+  //
+  // What reaches the insides instead is the **card's own pose**. A shaped
+  // movement writes no binding, so several may deform one shape and simply sum,
+  // and `installShapedControl` builds a key for any role the card ships a
+  // `posePath` for. `mouth.full` ships five -- the lips and the four things
+  // drawn from them -- so its teeth, its two rows, its tongue and its tip
+  // follow the smile and the jaw exactly as the template's do
+  // (docs/MOUTH_BUILD.md). A drawing that ships none behaves as it always did.
   //
   // Neither carries a sentence here, because the right one depends on how the
   // drawing carries the movement rather than on the part: a band drawn *from*
@@ -126,7 +131,7 @@ export const SEMANTIC_PART_REGISTRY = Object.freeze({
   // (`DRAWN_DRIVERS` in `face-part-install.js`). Listing only the first left
   // the installer writing a method the Movement Inspector then refused to set
   // -- "Method \"opacity\" is not supported by teeth" on a mouth wearing one.
-  mouth: { displayName: 'Mouth', roles: ['mouth', 'cavity', 'teeth', 'teethLower', 'tongue', 'tongueTip'], requiredRoles: ['mouth'], controls: ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'mouthSkew', 'teeth', 'tongue'], parameters: { mouthOpen: number(0, 1), smile: number(-1, 1), mouthWidth: number(-1, 1), mouthRound: number(0, 1), mouthSkew: number(-1, 1), teeth: number(0, 1), tongue: number(0, 1) }, bindings:{mouth:{mouthOpen:'scaleY',smile:'translateY',mouthWidth:'scaleX',mouthRound:'shapeKey',mouthSkew:'shapeKey'},teeth:{teeth:'shapeKey',mouthRound:'shapeKey',mouthSkew:'shapeKey'},teethLower:{teeth:'shapeKey',mouthRound:'shapeKey',mouthSkew:'shapeKey'},tongue:{tongue:'shapeKey',mouthRound:'shapeKey',mouthSkew:'shapeKey'},tongueTip:{mouthOpen:'shapeKey',smile:'shapeKey',mouthRound:'shapeKey',mouthSkew:'shapeKey'}}, drivers:{mouthOpen:{property:'scaleY',amplitude:1,offset:1},smile:{property:'translateY',amplitude:8,offset:0},mouthWidth:{property:'scaleX',amplitude:.25,offset:1},mouthRound:{property:'shapeKey'},mouthSkew:{property:'shapeKey'},teeth:{property:'shapeKey'},tongue:{property:'shapeKey'}}, strategies:{mouthOpen:['shapeKey','scaleY','morph'],smile:['shapeKey','translateY','morph'],mouthWidth:['scaleX'],mouthRound:['shapeKey'],mouthSkew:['shapeKey'],teeth:['shapeKey','opacity'],tongue:['shapeKey','opacity']}, calibration:{mouthOpen:binary('CLOSED / NEUTRAL','OPEN'),mouthSkew:tri('LEFT','STRAIGHT','RIGHT','left','straight','right')}, morph: true },
+  mouth: { displayName: 'Mouth', roles: ['mouth', 'cavity', 'teeth', 'teethLower', 'tongue', 'tongueTip', 'tongueGroove'], requiredRoles: ['mouth'], controls: ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'mouthSkew', 'teeth', 'tongue'], parameters: { mouthOpen: number(0, 1), smile: number(-1, 1), mouthWidth: number(-1, 1), mouthRound: number(0, 1), mouthSkew: number(-1, 1), teeth: number(0, 1), tongue: number(0, 1) }, bindings:{mouth:{mouthOpen:'scaleY',smile:'translateY',mouthWidth:'scaleX',mouthRound:'shapeKey',mouthSkew:'shapeKey'},teeth:{teeth:'shapeKey',mouthRound:'shapeKey',mouthSkew:'shapeKey'},teethLower:{teeth:'shapeKey',mouthRound:'shapeKey',mouthSkew:'shapeKey'},tongue:{tongue:'shapeKey',mouthRound:'shapeKey',mouthSkew:'shapeKey'},tongueTip:{mouthRound:'shapeKey',mouthSkew:'shapeKey'},tongueGroove:{mouthRound:'shapeKey',mouthSkew:'shapeKey'}}, drivers:{mouthOpen:{property:'scaleY',amplitude:1,offset:1},smile:{property:'translateY',amplitude:8,offset:0},mouthWidth:{property:'scaleX',amplitude:.25,offset:1},mouthRound:{property:'shapeKey'},mouthSkew:{property:'shapeKey'},teeth:{property:'shapeKey'},tongue:{property:'shapeKey'}}, strategies:{mouthOpen:['shapeKey','scaleY','morph'],smile:['shapeKey','translateY','morph'],mouthWidth:['scaleX'],mouthRound:['shapeKey'],mouthSkew:['shapeKey'],teeth:['shapeKey','opacity'],tongue:['shapeKey','opacity']}, calibration:{mouthOpen:binary('CLOSED / NEUTRAL','OPEN'),mouthSkew:tri('LEFT','STRAIGHT','RIGHT','left','straight','right')}, morph: true },
   // The tongue is its own part, not a fifth control on the mouth: the mouth's
   // `tongue` control says *whether it shows*, and these say where it is
   // (docs/FACE_CONTROL_RIG.md, CR-32 … CR-34). Two parts may share artwork so
@@ -149,7 +154,7 @@ export const SEMANTIC_PART_REGISTRY = Object.freeze({
   // `tongueCurl` names the tip alone, because there is nothing to curl on a
   // tongue that has no separate tip -- which is not a refusal, it is a movement
   // with nothing to build, and the part keeps it.
-  tongue: { displayName: 'Tongue', roles: ['tongue', 'tongueTip'], requiredRoles: ['tongue'], controls: ['tongueX', 'tongueY', 'tongueOut', 'tongueCurl'], parameters: { tongueX: number(-1, 1), tongueY: number(-1, 1), tongueOut: number(0, 1), tongueCurl: number(-1, 1) }, bindings: { tongue: { tongueX: 'translateX', tongueY: 'translateY', tongueOut: 'shapeKey' }, tongueTip: { tongueX: 'translateX', tongueY: 'translateY', tongueOut: 'shapeKey', tongueCurl: 'shapeKey' } }, drivers: { tongueX: { property: 'translateX', amplitude: 7, offset: 0 }, tongueY: { property: 'translateY', amplitude: 6, offset: 0 }, tongueOut: { property: 'shapeKey' }, tongueCurl: { property: 'shapeKey' } }, strategies: { tongueX: ['translateX'], tongueY: ['translateY'], tongueOut: ['shapeKey', 'scaleY'], tongueCurl: ['shapeKey', 'rotation'] }, calibration: { tongueX: tri('LEFT', 'CENTER', 'RIGHT', 'left', 'center', 'right'), tongueY: tri('UP', 'CENTER', 'DOWN', 'up', 'center', 'down'), tongueOut: binary('IN', 'OUT'), tongueCurl: tri('CURL DOWN', 'FLAT', 'CURL UP', 'down', 'flat', 'up') } },
+  tongue: { displayName: 'Tongue', roles: ['tongue', 'tongueTip', 'tongueGroove'], requiredRoles: ['tongue'], controls: ['tongueX', 'tongueY', 'tongueOut', 'tongueCurl'], parameters: { tongueX: number(-1, 1), tongueY: number(-1, 1), tongueOut: number(0, 1), tongueCurl: number(-1, 1) }, bindings: { tongue: { tongueX: 'translateX', tongueY: 'translateY', tongueOut: 'shapeKey' }, tongueTip: { tongueX: 'translateX', tongueY: 'translateY', tongueOut: 'shapeKey', tongueCurl: 'shapeKey' }, tongueGroove: { tongueX: 'translateX', tongueY: 'translateY', tongueOut: 'shapeKey', tongueCurl: 'shapeKey' } }, drivers: { tongueX: { property: 'translateX', amplitude: 7, offset: 0 }, tongueY: { property: 'translateY', amplitude: 6, offset: 0 }, tongueOut: { property: 'shapeKey' }, tongueCurl: { property: 'shapeKey' } }, strategies: { tongueX: ['translateX'], tongueY: ['translateY'], tongueOut: ['shapeKey', 'scaleY'], tongueCurl: ['shapeKey', 'rotation'] }, calibration: { tongueX: tri('LEFT', 'CENTER', 'RIGHT', 'left', 'center', 'right'), tongueY: tri('UP', 'CENTER', 'DOWN', 'up', 'center', 'down'), tongueOut: binary('IN', 'OUT'), tongueCurl: tri('CURL DOWN', 'FLAT', 'CURL UP', 'down', 'flat', 'up') } },
   jaw: { displayName: 'Jaw', roles: ['jaw'], controls: ['jawOpen'], parameters: { jawOpen: number(0, 1) }, bindings:{jaw:{jawOpen:'translateY'}}, drivers:{jawOpen:{property:'translateY',amplitude:16,offset:0}}, strategies:{jawOpen:['translateY','rotation']}, calibration:{jawOpen:binary('CLOSED','OPEN')} },
   // A head of hair is more than a fringe: `hairTop` is the volume above the
   // skull and `hairBack` what shows behind it. Both optional, both moved by the

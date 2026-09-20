@@ -18,6 +18,7 @@
       <path id="teeth" data-name="Upper teeth" d="M96.24 173.34 Q120 175.16 143.76 173.34 Q137.82 173.8 131.88 174.02 Q125.94 174.25 120 174.25 Q114.06 174.25 108.12 174.02 Q102.18 173.8 96.24 173.34 Z" fill="#fff8ec" />
     </g>
     <path id="tongueTip" data-name="Tongue tip" d="M108.78 177.36 C112.15 177.69 116.63 177.94 120 178 C123.37 177.94 127.85 177.69 131.22 177.36 C127.85 177.69 123.37 177.94 120 178 C116.63 177.94 112.15 177.69 108.78 177.36 Z" fill="#d9707f" />
+    <path id="tongueGroove" data-name="Tongue groove" d="M120 178 Q120 178 120 178 Q120 178 120 178 Z" fill="#6d2831" opacity="0.3" />
     <g id="eyeLeft" data-name="Left eye">
       <ellipse id="eyeWhiteLeft" data-name="Left eye socket" cx="83" cy="113" rx="24" ry="22.5" fill="#ffffff" />
       <clipPath id="eyeSocketLeft"><use href="#eyeWhiteLeft" /></clipPath>

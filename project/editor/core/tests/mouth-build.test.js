@@ -1,19 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  MOUTH, MOUTH_BOX, MOUTH_REST, TEETH, TEETH_REST, TEETH_LOWER_REST, TONGUE, TONGUE_REST, TONGUE_TIP_REST,
-  mouthGeometry, mouthPath, teethPath, teethLowerPath, tonguePath, tongueTipPath
+  MOUTH, MOUTH_BOX, MOUTH_REST, TEETH, TEETH_REST, TEETH_LOWER_REST, TONGUE, TONGUE_REST, TONGUE_TIP_REST, TONGUE_GROOVE_REST,
+  mouthGeometry, mouthPath, teethPath, teethLowerPath, tonguePath, tongueTipPath, tongueGroovePath
 } from '../face/mouth-build.js';
 
 /**
- * The five shapes a mouth is made of (V6; docs/MOUTH_BUILD.md).
+ * The six shapes a mouth is made of (V6; docs/MOUTH_BUILD.md).
  *
  * ```text
- *   mouth       the lips, and the cavity: one closed path
- *   teeth       the upper row, its biting edge scalloped into crowns
- *   teethLower  the lower row, the same band from the lower lip
- *   tongue      the body: two lobes with a groove between them
- *   tongueTip   the lobe that laps over the lower lip
+ *   mouth         the lips, and the cavity: one closed path
+ *   teeth         the upper row, its biting edge scalloped into crowns
+ *   teethLower    the lower row, the same band from the lower lip
+ *   tongue        the body: two lobes with a groove between them
+ *   tongueTip     the lobe that laps over the lower lip
+ *   tongueGroove  the crease down that lobe
  * ```
  *
  * Three properties hold all of it together, and every test here is one of them:
@@ -82,7 +83,8 @@ const SHAPES = [
   ['teeth', teethPath, TEETH_REST],
   ['teethLower', teethLowerPath, TEETH_LOWER_REST],
   ['tongue', tonguePath, TONGUE_REST],
-  ['tongueTip', tongueTipPath, TONGUE_TIP_REST]
+  ['tongueTip', tongueTipPath, TONGUE_TIP_REST],
+  ['tongueGroove', tongueGroovePath, TONGUE_GROOVE_REST]
 ];
 /**
  * No ink at all, in the units the mouth is drawn in.
@@ -118,6 +120,10 @@ test('and full when it is: a row of teeth, a tongue, and a tip over the lip', ()
   assert.ok(area(teethLowerPath({ open: 1, show: 1 })) < area(teethPath({ open: 1, show: 1 })), 'and never the deeper of the two');
   assert.ok(area(tonguePath({ open: 1, show: 1 })) > 250, 'the body');
   assert.ok(area(tongueTipPath({ out: 1 })) > 150, 'the tip');
+  // The crease is a *line*: a thirtieth of the tip it folds, which is what
+  // makes it read as a fold rather than as a second colour.
+  assert.ok(area(tongueGroovePath({ out: 1 })) > 5, 'and the crease down it');
+  assert.ok(area(tongueGroovePath({ out: 1 })) < area(tongueTipPath({ out: 1 })) / 20, 'a crease, not a stripe');
 });
 
 /* ── 2 · Affine in every number, separately ──────────────────────────────── */
@@ -162,6 +168,7 @@ test('no pose changes a shape\'s topology, so one key interpolates any two', () 
   assert.equal(commands(TEETH_REST), `MQ${'Q'.repeat(TEETH.crowns)}Z`, 'a row is a gum edge and one quadratic per crown');
   assert.equal(commands(TONGUE_REST), 'MCCCCZ', 'the tongue is two lobes there and two back');
   assert.equal(commands(TONGUE_TIP_REST), 'MCCCCZ');
+  assert.equal(commands(TONGUE_GROOVE_REST), 'MQQZ', 'and the crease is a slim lens');
 });
 
 /* ── The drawing itself ──────────────────────────────────────────────────── */
@@ -214,6 +221,15 @@ test('the tongue is two lobes with a groove between them, and its tip laps over 
   // The tip goes *past* the lower lip, which is the one thing the body must
   // never do and the whole reason they are two shapes (§8.4 of the brief).
   const floor = (lip.left.y + 2 * lip.bottom.y + lip.right.y) / 4;
+  // And the crease runs down the tip rather than the body: §5.1 of the brief
+  // files `tongue-groove` under `tongue-front`, and that is a drawing decision
+  // -- the body already reads as two lobes from its silhouette, and a tongue
+  // *out* is a flat shape against a chin with nothing to say which way up it is.
+  assert.ok(area(tongueGroovePath({ show: 1 })) < NOTHING, 'a tongue that is only shown has no crease');
+  const crease = box(tongueGroovePath({ open: 1, out: 1 }));
+  const tip = box(tongueTipPath({ open: 1, out: 1 }));
+  assert.ok(crease.left > tip.left && crease.right < tip.right, 'the crease is inside the tip it folds');
+  assert.ok(crease.bottom < tip.bottom, 'and stops short of its end');
   // The body rests **on** the lower lip: its underside hangs the width of a
   // dark line below it, which is what says the tongue is in a mouth rather
   // than being the floor of one, and nothing like the tip's reach.
@@ -248,10 +264,23 @@ test('the pucker is still what makes a vowel, and everything inside follows it',
   assert.ok(round.top.y < rest.top.y && round.bottom.y > rest.bottom.y, 'and the lip line bows out above and below them');
   // Drawn from the lips, so each inside comes in with them rather than showing
   // outside an O.
-  for (const [name, draw] of SHAPES) {
+  //
+  // Every one but the crease, whose width is a constant times `out` and not a
+  // share of the tip it folds. A share would be a *product* of the pucker and
+  // the reach, and a product is not the sum of its ends -- the same trap
+  // `BAND_REACH` is a constant to avoid (docs/MOUTH_BUILD.md). A crease is a
+  // line, and a line the width of a line at any aperture is right.
+  for (const [name, draw] of SHAPES.filter(([id]) => id !== 'tongueGroove')) {
     const open = box(draw({ open: 0.5, show: 1, out: 1 })), puckered = box(draw({ open: 0.5, show: 1, out: 1, round: 1 }));
     assert.ok(puckered.right - puckered.left < open.right - open.left, `${name} narrows with the pucker`);
   }
+  // It does move with the mouth all the same, because it is anchored on the lip
+  // -- and a pucker bows the lower lip *out*, which is the half of `mouthRound`
+  // that makes an aperture tall for its width. So a puckered mouth's crease
+  // hangs lower, exactly as the tip it folds does.
+  const straight = box(tongueGroovePath({ open: 0.5, out: 1 })), pursed = box(tongueGroovePath({ open: 0.5, out: 1, round: 1 }));
+  assert.ok(pursed.bottom > straight.bottom, 'and the crease follows the lip it is anchored on');
+  assert.ok(box(tongueTipPath({ open: 0.5, out: 1, round: 1 })).bottom > box(tongueTipPath({ open: 0.5, out: 1 })).bottom, 'as the tip does');
 });
 
 test('the numbers the rig measures itself against are where they were', () => {

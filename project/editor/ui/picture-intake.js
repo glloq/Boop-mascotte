@@ -50,6 +50,7 @@ const FEATURES = Object.freeze([
   // reason: `teeth-lower.png` says "teeth" too.
   ['teethLower', ['teethlower', 'lowerteeth', 'dentsbas', 'basdents'], ['teethLower']],
   ['tongueTip', ['tonguetip', 'tiptongue', 'pointelangue', 'languepointe'], ['tongueTip']],
+  ['tongueGroove', ['tonguegroove', 'groovetongue', 'rainurelangue', 'languerainure'], ['tongueGroove']],
   ['teeth', ['teeth', 'tooth', 'dents', 'dent'], ['teeth']],
   ['tongue', ['tongue', 'langue'], ['tongue']],
   ['cavity', ['cavity', 'cavite', 'inside'], ['cavity']],

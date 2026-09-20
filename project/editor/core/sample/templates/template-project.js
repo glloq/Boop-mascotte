@@ -13,7 +13,7 @@ import { enableMouthRig } from '../../rig/mouth-rig.js';
 import { enableGazeSolver } from '../../rig/gaze-rig.js';
 import { enableBrowRig } from '../../rig/brow-rig.js';
 import { createShapeKey, upsertShapeKey } from '../../shape-keys/shape-key-model.js';
-import { BROW_BOXES, BROW_RESTS, FACE_ANCHORS, FACE_CENTRES, HEAD_REST, HEAD_WIDTH, CREASE_PIVOTS, CREASE_RESTS, CREASE_ROLES, LID_MEET, LID_PIVOTS, LID_RESTS, LID_ROLES, MOUTH_BOX, MOUTH_REST, NOSE_CENTRE, NOSE_TURN, TEETH_REST, TEETH_LOWER_REST, TONGUE_REST, TONGUE_TIP_REST, creasePath, headPath, lidPath, mouthPath, teethPath, teethLowerPath, tonguePath, tongueTipPath } from './face-artwork.js';
+import { BROW_BOXES, BROW_RESTS, FACE_ANCHORS, FACE_CENTRES, HEAD_REST, HEAD_WIDTH, CREASE_PIVOTS, CREASE_RESTS, CREASE_ROLES, LID_MEET, LID_PIVOTS, LID_RESTS, LID_ROLES, MOUTH_BOX, MOUTH_REST, NOSE_CENTRE, NOSE_TURN, TEETH_REST, TEETH_LOWER_REST, TONGUE_REST, TONGUE_TIP_REST, TONGUE_GROOVE_REST, creasePath, headPath, lidPath, mouthPath, teethPath, teethLowerPath, tonguePath, tongueTipPath, tongueGroovePath } from './face-artwork.js';
 import { findClip, setClipLoop } from '../../motion/motion-model.js';
 import { installStyleHands } from '../../hands/hand-style-install.js';
 import { createRigAttachment, createRigHold } from '../../rig/attachment-model.js';
@@ -365,7 +365,7 @@ export function applyTemplateProject(state) {
    * a slider that moves nothing.
    */
   const shaped = ours ? { property: 'shapeKey' } : null;
-  const mouth = add(state, 'mouth', { mouth: 'mouth', teeth: 'teeth', teethLower: 'teethLower', tongue: 'tongue', tongueTip: 'tongueTip' },
+  const mouth = add(state, 'mouth', { mouth: 'mouth', teeth: 'teeth', teethLower: 'teethLower', tongue: 'tongue', tongueTip: 'tongueTip', tongueGroove: 'tongueGroove' },
     ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'mouthSkew', 'teeth', 'tongue'],
     shaped ? { mouthOpen: shaped, smile: shaped } : {});
   // Where the tongue is, as opposed to whether it shows: its own part, because
@@ -374,7 +374,7 @@ export function applyTemplateProject(state) {
   // body, because coming out is something only the tip does -- and where there
   // is no tip to deform, the two movements keep the transforms they were before
   // V6 rather than becoming sliders that move nothing.
-  const tonguePart = add(state, 'tongue', { tongue: 'tongue', tongueTip: 'tongueTip' }, ['tongueX', 'tongueY', 'tongueOut', 'tongueCurl'],
+  const tonguePart = add(state, 'tongue', { tongue: 'tongue', tongueTip: 'tongueTip', tongueGroove: 'tongueGroove' }, ['tongueX', 'tongueY', 'tongueOut', 'tongueCurl'],
     state.elements.tongueTip ? {} : { tongueOut: { property: 'scaleY', amplitude: .6, offset: 1 }, tongueCurl: { property: 'rotation', amplitude: 18, offset: 0 } });
   // Opening and smiling are both shape changes, and they have to happen at the
   // same time: one closed path, two additive shape keys, so a laughing mouth is
@@ -413,7 +413,8 @@ export function applyTemplateProject(state) {
       ['teeth', 'Upper teeth', TEETH_REST, teethPath],
       ['teethLower', 'Lower teeth', TEETH_LOWER_REST, teethLowerPath],
       ['tongue', 'Tongue', TONGUE_REST, tonguePath],
-      ['tongueTip', 'Tongue tip', TONGUE_TIP_REST, tongueTipPath]
+      ['tongueTip', 'Tongue tip', TONGUE_TIP_REST, tongueTipPath],
+      ['tongueGroove', 'Tongue groove', TONGUE_GROOVE_REST, tongueGroovePath]
     ];
 
     // The mouth following the curve of the skull, which is the one thing the
@@ -484,14 +485,18 @@ export function applyTemplateProject(state) {
       key(`${role}-show`, `${name} showing`, draw({ show: 1 }), show, role === 'teethLower' ? 'teeth' : role);
     }
 
-    // The tip is the one inside that is **not** brought out by the mouth: it
-    // comes out on `tongueOut`, and a blep needs no open mouth at all. So it
-    // follows the lip on a key of its own rather than folding the opening into
-    // its own pose the way the rows and the body do.
-    if (state.elements.tongueTip) {
+    // The tip and its crease are the two insides **not** brought out by the
+    // mouth: they come out on `tongueOut`, and a blep needs no open mouth at
+    // all. So they follow the lip on keys of their own rather than folding the
+    // opening into their own pose the way the rows and the body do.
+    for (const [role, name, rest, draw] of [
+      ['tongueTip', 'Tongue tip', TONGUE_TIP_REST, tongueTipPath],
+      ['tongueGroove', 'Tongue groove', TONGUE_GROOVE_REST, tongueGroovePath]
+    ]) {
+      if (!state.elements[role]) continue;
       const shape = createShapeKey({
-        id: 'tongueTip-open', target: 'tongueTip', name: 'Tongue tip with the jaw',
-        restPath: TONGUE_TIP_REST, posePath: tongueTipPath({ open: 1 }),
+        id: `${role}-open`, target: role, name: `${name} with the jaw`,
+        restPath: rest, posePath: draw({ open: 1 }),
         driver: { mode: 'expression', expression: 'mouthOpen', curve: 'linear', amplitude: 1, offset: 0 },
         generatedBy: { semanticPart: mouth.id, control: 'mouthOpen' }
       });
@@ -510,13 +515,18 @@ export function applyTemplateProject(state) {
       // `mouthOpen * …`: a tongue can come out between closed lips, which is
       // the whole of a blep.
       ['tongueTip-out', 'tongueTip', 'Tongue out', TONGUE_TIP_REST, tongueTipPath({ out: 1 }), 'tongue * tongueOut', 'tongueOut'],
+      // And the crease down it comes out with it: a tongue out is a flat shape
+      // against a chin, and the fold is what says which way up it is.
+      ['tongueGroove-out', 'tongueGroove', 'Tongue groove out', TONGUE_GROOVE_REST, tongueGroovePath({ out: 1 }), 'tongue * tongueOut', 'tongueOut'],
       // And the body behind it reaches forward with it -- but only while there
       // *is* a body: `mouthOpen * tongue` is what draws one, so the same
       // product gates its share of the movement and a shut mouth stays shut.
       ['tongue-out', 'tongue', 'Tongue reaching', TONGUE_REST, tonguePath({ out: 1 }), 'mouthOpen * tongue * tongueOut', 'tongueOut'],
       // The curl is the tip's alone, and it is scaled by how far out the tongue
-      // is: curling a tongue that is still in the mouth is not a movement.
-      ['tongueTip-curl', 'tongueTip', 'Tongue curl', TONGUE_TIP_REST, tongueTipPath({ curl: 1 }), 'tongue * tongueOut * tongueCurl', 'tongueCurl']
+      // is: curling a tongue that is still in the mouth is not a movement. The
+      // crease turns with it, because a fold turns with what it folds.
+      ['tongueTip-curl', 'tongueTip', 'Tongue curl', TONGUE_TIP_REST, tongueTipPath({ curl: 1 }), 'tongue * tongueOut * tongueCurl', 'tongueCurl'],
+      ['tongueGroove-curl', 'tongueGroove', 'Tongue groove curl', TONGUE_GROOVE_REST, tongueGroovePath({ curl: 1 }), 'tongue * tongueOut * tongueCurl', 'tongueCurl']
     ]) {
       const shape = createShapeKey({ id, target, name, restPath: rest, posePath, driver: { mode: 'expression', expression, curve: 'linear', amplitude: 1, offset: 0 }, generatedBy: { semanticPart: tonguePart.id, control } });
       if (shape.ok) state.shapeKeys = upsertShapeKey(state.shapeKeys, shape.shapeKey);

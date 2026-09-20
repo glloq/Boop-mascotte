@@ -33,17 +33,18 @@
  * ## The five shapes (V6)
  *
  * ```text
- *   mouth       the lips, and the cavity: one closed path, fill inside, stroke lips
- *   teeth       the upper row, hung off the upper lip, its biting edge scalloped
- *   teethLower  the lower row, the same band from the lower lip, shallower
- *   tongue      the body: two lobes with a groove between them, inside the cavity
- *   tongueTip   the lobe that laps **over** the lower lip when the tongue comes out
+ *   mouth         the lips, and the cavity: one closed path, fill inside, stroke lips
+ *   teeth         the upper row, hung off the upper lip, its biting edge scalloped
+ *   teethLower    the lower row, the same band from the lower lip, shallower
+ *   tongue        the body: two lobes with a groove between them, inside the cavity
+ *   tongueTip     the lobe that laps **over** the lower lip when the tongue comes out
+ *   tongueGroove  the crease down the middle of that lobe
  * ```
  *
- * The first four are drawn *inside the aperture* and the template clips them to
- * it; the fifth is drawn in front of the lips on purpose, because a tongue
- * hanging out is in front of the lip it hangs over and nothing else about a
- * cartoon face is as unmistakable.
+ * The first three and the body are drawn *inside the aperture* and the template
+ * clips them to it; the tip and its groove are drawn in front of the lips on
+ * purpose, because a tongue hanging out is in front of the lip it hangs over and
+ * nothing else about a cartoon face is as unmistakable.
  *
  * ## The rule every shape here obeys
  *
@@ -422,7 +423,21 @@ export const TONGUE = Object.freeze({
    * the sides turns the end up and leaves the tongue as long as it was, which
    * is what curling is -- and, signed, the same key droops it.
    */
-  curlLift: 0.22, curlShoulder: 0.15, curlPinch: 0.14
+  curlLift: 0.22, curlShoulder: 0.15, curlPinch: 0.14,
+
+  /**
+   * The crease down the middle of the tip, in three numbers: how far back into
+   * the mouth it starts, how far down it runs as a share of the tip's own
+   * reach, and how wide it is.
+   *
+   * It belongs to the **front** rather than to the body (§5.1 of the V6 brief
+   * puts `tongue-groove` under `tongue-front`), and that is a drawing decision
+   * rather than a filing one: the body already reads as two lobes because its
+   * silhouette dips between them, and a tongue *out* has no silhouette to dip
+   * -- it is a flat pink shape against a chin, and a line down it is the only
+   * thing that says which way up it is.
+   */
+  grooveRoot: 0.06, grooveRun: 0.62, grooveWidth: 0.05
 });
 
 /**
@@ -507,8 +522,38 @@ export function tongueTipPath({ open = 0, smile = 0, arc = 0, round: pucker = 0,
     + ` C${point(at(t[1], freeLobe, pinch))} ${point(at(t[0], freeLobe, pinch))} ${point(at(TONGUE.tipFrom))} Z`;
 }
 
+/**
+ * The crease down the tongue's tip.
+ *
+ * A slim lens from just inside the mouth to short of the tip's cleft, drawn in
+ * the cavity's own colour at a low opacity: a groove is a fold, and a fold is
+ * the shadow the light does not reach rather than a colour of its own. Painting
+ * it with the palette's `mouth` token is what keeps it in step with the inside
+ * of the mouth it is a fold of, on any face and in any palette.
+ *
+ * Every offset is a multiple of `out` or of `curl`, so at `tongueOut 0` its two
+ * ends are the same point, its two controls are that point, and it encloses
+ * nothing — a tongue that is in has no crease to show, by the same construction
+ * as everything else inside this mouth.
+ *
+ * It rides the curl: its foot is a share of the tip's own cleft, so turning the
+ * end of the tongue up carries the crease with it rather than leaving a line
+ * painted across a lip.
+ */
+export function tongueGroovePath({ open = 0, smile = 0, arc = 0, round: pucker = 0, skew = 0, out = 0, curl = 0 } = {}) {
+  const g = mouthGeometry({ open, smile, arc, round: pucker, skew });
+  const at = lowerLip(g)((TONGUE.tipFrom + TONGUE.tipTo) / 2);
+  const lap = BAND_REACH * TONGUE.reach * out, lift = BAND_REACH * TONGUE.curlLift * curl;
+  const head = { x: at.x, y: at.y - BAND_REACH * TONGUE.grooveRoot * out };
+  const foot = { x: at.x, y: at.y + (lap * (1 - TONGUE.notch) - lift) * TONGUE.grooveRun };
+  const wide = BAND_REACH * TONGUE.grooveWidth * out;
+  const waist = (side) => point({ x: at.x + wide * side, y: (head.y + foot.y) / 2 });
+  return `M${point(head)} Q${waist(-1)} ${point(foot)} Q${waist(1)} ${point(head)} Z`;
+}
+
 export const MOUTH_REST = mouthPath();
 export const TEETH_REST = teethPath();
 export const TEETH_LOWER_REST = teethLowerPath();
 export const TONGUE_REST = tonguePath();
 export const TONGUE_TIP_REST = tongueTipPath();
+export const TONGUE_GROOVE_REST = tongueGroovePath();

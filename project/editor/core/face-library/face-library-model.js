@@ -26,8 +26,9 @@ import { FACE_PART_LIBRARY } from './face-part-registry.js';
 import { FACE_PART_CATEGORIES, describeFacePartCapabilities, facePartCategory, partArtworkMarkup } from './face-part-model.js';
 import { remapArtworkIds } from './face-part-artwork.js';
 import { morphologiesOfFace } from './compatibility.js';
-import { assetSupportsMorphology } from './face-morphologies.js';
-import { catalogueAssets, isLegacyAsset } from './face-catalogue.js';
+import { assetSupportsMorphology, compatibleMorphologies, faceMorphology } from './face-morphologies.js';
+import { catalogueAssets, catalogueMorphologies, isLegacyAsset } from './face-catalogue.js';
+import { offeredMorphologies } from './compatibility.js';
 import { findFacePartByType } from '../../rig-editor/semantic-parts/face-roles.js';
 
 /** A little air around the drawing, so a card is not a crop. */
@@ -71,6 +72,19 @@ export function wornAsset(document = {}, categoryId) {
 }
 
 /**
+ * The kinds of face a drawing names, as words rather than as ids.
+ *
+ * A drawing that names none suits every kind, and says so by saying nothing:
+ * that is the library's contract and every human drawing takes it, so listing
+ * five labels for it would be noise. Only a drawing that chose gets a list.
+ */
+const assetKinds = (asset) => {
+  const declared = compatibleMorphologies(asset);
+  return declared.length === catalogueMorphologies({ scope: 'all' }).length
+    ? [] : Object.freeze(declared.map((id) => faceMorphology(id)?.label).filter(Boolean));
+};
+
+/**
  * One category's cards, in library order.
  *
  * `compatible` is whether the drawing suits the morphologies this face already
@@ -102,6 +116,17 @@ export function libraryCards(document = {}, categoryId, { library = FACE_PART_LI
       // one still shows it, because the one thing hiding must never do is hide
       // the door to something somebody has already put on (`face-catalogue.js`).
       legacy: isLegacyAsset(asset),
+      /**
+       * And which kinds of face it *is* for, in the author's own words.
+       *
+       * Empty for a drawing that says nothing, which is every human one and
+       * every drawing anybody has saved: "suits every kind" is not a list worth
+       * printing. A drawing that names kinds gets them named back, so a card
+       * marked as a mismatch says *Drawn for a Bird* rather than the shrug that
+       * "another kind of face" is (MASC-02, and §3.2 of the V6 brief: the
+       * morphologies an author meets are the ones the table says they may).
+       */
+      kinds: assetKinds(asset),
       styles: library.variantsOf(asset.id).length,
       compatible: !morphologies.length || morphologies.some((item) => assetSupportsMorphology(asset, item)),
       // The movements the drawing carries, and the ones this face would lose by
@@ -211,6 +236,17 @@ export function faceLibraryModel(document = {}, { library = FACE_PART_LIBRARY, c
     filtered: all.filter((card) => !shown.has(card.id) && !card.legacy).length,
     /** And how many the recentring is: the packs, in this row (V6, §3). */
     legacy: all.filter((card) => !shown.has(card.id) && card.legacy).length,
+    /**
+     * The kinds those held-back drawings are for, in the author's own words.
+     *
+     * Read off the morphology table rather than written down, so the sentence a
+     * panel prints says exactly what the table says is kept rather than offered
+     * — and un-retiring a kind is one flag in `face-morphologies.js` rather
+     * than that flag and a string somebody has to remember (§3.2 of the brief).
+     */
+    legacyKinds: Object.freeze(catalogueMorphologies({ scope: 'legacy' })
+      .filter((kind) => all.some((card) => !shown.has(card.id) && card.kinds.includes(kind.label)))
+      .map((kind) => kind.label)),
     // Which face this is, in the library's own words, so a panel can say why a
     // card is marked as a mismatch.
     morphologies: morphologiesOfFace(document, { library }),
@@ -223,6 +259,17 @@ export function faceLibraryModel(document = {}, { library = FACE_PART_LIBRARY, c
      * what a panel should say out loud. They were the same number until the
      * animal, robot and bird packs were declassed, and now they are 132 and 42.
      */
-    offered: catalogueAssets({ library }).length
+    offered: catalogueAssets({ library }).length,
+    /**
+     * And which kinds of face those are for, in the author's own words.
+     *
+     * Read off the table rather than written down, so a panel saying "42
+     * drawings for a human face" is saying what the editor is *for* rather than
+     * repeating a word somebody typed. `offeredMorphologies` is the one that
+     * answers it, because a kind is offered when the library can make it **and**
+     * the table has not retired it — three words that are not one word
+     * (`compatibility.js`; §3.2 of the V6 brief).
+     */
+    offeredKinds: Object.freeze(offeredMorphologies({ library }).map((kind) => kind.label))
   };
 }

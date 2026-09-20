@@ -49,15 +49,16 @@
  * the turn reads. A drawing changing while the turn does not is exactly what
  * these words are here to say out loud.
  *
- * **A hundred and seventeen moved in V6, and all of them by the same fourteen
- * channels.** The mouth grew two shapes: a lower row of teeth, and the tongue's
- * tip, which is drawn in front of the lips because that is where a tongue
- * hanging out is (docs/MOUTH_BUILD.md). Both travel with the lip line -- an
- * open mouth whose insides stayed put as the head turned would come apart --
- * so the generator writes its seven channels for each of them, and the
- * template's 139 becomes 153. Every head, every pair of eyes, every brow, nose,
- * ear and head of hair moved by exactly that, because none of them touches the
- * mouth: what changed is the face they are installed on.
+ * **A hundred and seventeen moved in V6, and all of them by the same twenty-one
+ * channels.** The mouth grew three shapes: a lower row of teeth, the tongue's
+ * tip, and the crease down that tip -- the last two drawn in front of the lips,
+ * because that is where a tongue hanging out is (docs/MOUTH_BUILD.md). All
+ * three travel with the lip line -- an open mouth whose insides stayed put as
+ * the head turned would come apart -- so the generator writes its seven
+ * channels for each of them, and the template's 139 becomes 160. Every head,
+ * every pair of eyes, every brow, nose, ear and head of hair moved by exactly
+ * that, because none of them touches the mouth: what changed is the face they
+ * are installed on.
  *
  * The fifteen that did **not** move are the fifteen that replace the mouth
  * with one of their own -- the animal ω, the six beaks and the four grilles --
@@ -81,7 +82,7 @@ export function headTurnWord(keyforms = []) {
 }
 
 /** The template's own shipped turn, before anything is installed on it. */
-export const TEMPLATE_HEAD_TURN = '153:3f267ad5599b7d4c';
+export const TEMPLATE_HEAD_TURN = '160:9719e2117460401d';
 
 /**
  * One word per built-in asset, installed on the template face.
@@ -92,14 +93,14 @@ export const TEMPLATE_HEAD_TURN = '153:3f267ad5599b7d4c';
  * exactly as the template shipped it.
  */
 export const BUILTIN_HEAD_TURNS = Object.freeze({
-  'head.round': '153:3f267ad5599b7d4c',
-  'head.oval': '153:3f267ad5599b7d4c',
-  'head.wide': '153:3f267ad5599b7d4c',
-  'head.narrow': '153:3f267ad5599b7d4c',
-  'head.square-soft': '153:3f267ad5599b7d4c',
-  'head.pear': '153:3f267ad5599b7d4c',
-  'head.chin': '153:3f267ad5599b7d4c',
-  'head.heart': '153:3f267ad5599b7d4c',
+  'head.round': '160:9719e2117460401d',
+  'head.oval': '160:9719e2117460401d',
+  'head.wide': '160:9719e2117460401d',
+  'head.narrow': '160:9719e2117460401d',
+  'head.square-soft': '160:9719e2117460401d',
+  'head.pear': '160:9719e2117460401d',
+  'head.chin': '160:9719e2117460401d',
+  'head.heart': '160:9719e2117460401d',
   /* The three builds (docs/EYE_BUILDS.md) replaced seventeen drawings that were
    * one construction at different radii, and **the word did not move**: a
    * `simple` eye and an `iris` eye sign exactly what `eyes.round-large` signed,
@@ -113,18 +114,18 @@ export const BUILTIN_HEAD_TURNS = Object.freeze({
    * so there is no white, no outline and no pair of lids for the generator to
    * write channels for. Twenty-eight fewer channels, which is four elements'
    * worth -- exactly the four a dot does not draw, twice over for two eyes. */
-  'eyes.dot': '125:0b876e861a94e74a',
-  'eyes.simple': '153:bc8bc884258c52fc',
-  'eyes.iris': '153:bc8bc884258c52fc',
-  'eyebrows.thin': '153:a2c4f74937a93af9',
-  'eyebrows.normal': '153:a2c4f74937a93af9',
-  'eyebrows.thick': '153:a2c4f74937a93af9',
-  'eyebrows.flat': '153:a2c4f74937a93af9',
-  'eyebrows.expressive': '153:a2c4f74937a93af9',
-  'nose.dot': '153:30f3b80130b1d8ef',
-  'nose.hook': '153:30f3b80130b1d8ef',
-  'nose.soft': '153:30f3b80130b1d8ef',
-  'nose.cartoon': '153:30f3b80130b1d8ef',
+  'eyes.dot': '132:8828c03c64f7807e',
+  'eyes.simple': '160:d2ae1b5ecb3e0451',
+  'eyes.iris': '160:d2ae1b5ecb3e0451',
+  'eyebrows.thin': '160:a6d6329ba2cd81a5',
+  'eyebrows.normal': '160:a6d6329ba2cd81a5',
+  'eyebrows.thick': '160:a6d6329ba2cd81a5',
+  'eyebrows.flat': '160:a6d6329ba2cd81a5',
+  'eyebrows.expressive': '160:a6d6329ba2cd81a5',
+  'nose.dot': '160:2d82cd0428410bbd',
+  'nose.hook': '160:2d82cd0428410bbd',
+  'nose.soft': '160:2d82cd0428410bbd',
+  'nose.cartoon': '160:2d82cd0428410bbd',
   /* One mouth where there were five, and it signs the template's own word: the
    * card draws the same five shapes the template does -- the lips, two rows of
    * teeth, the tongue and its tip -- so installing it over the template writes
@@ -134,27 +135,27 @@ export const BUILTIN_HEAD_TURNS = Object.freeze({
    * radius, a fill and whether the teeth were drawn -- a size, a palette and a
    * movement -- and not one of them could pucker, which is the control the
    * vowels turn on. */
-  'mouth.full': '153:617a8f15386d8850',
-  'ears.round': '153:db52327e479fc0c4',
-  'ears.large': '153:db52327e479fc0c4',
-  'ears.small': '153:db52327e479fc0c4',
-  'hair.short': '146:0549ae2cb4e6e932',
-  'hair.spiky': '139:01182b5b92735e81',
-  'hair.curly': '146:0549ae2cb4e6e932',
-  'hair.long': '153:0e7802f9700c99d9',
-  'hair.balding': '146:0549ae2cb4e6e932',
-  'hair.bald': '139:01182b5b92735e81',
-  'facialhair.moustache': '160:7cbeeb121cd6b0ee',
-  'facialhair.large-moustache': '160:7cbeeb121cd6b0ee',
-  'facialhair.goatee': '160:b1d737f4a699e61d',
-  'facialhair.beard': '160:0c5492b18f317692',
-  'facialhair.sideburns': '160:370bf56d90c88fff',
-  'accessory.glasses': '160:72903f69df3cc9b1',
-  'accessory.square-glasses': '160:72903f69df3cc9b1',
-  'accessory.hat': '160:1606456f06ff9e94',
-  'accessory.earring': '160:755396e7cf72669b',
-  'accessory.earring-right': '160:755396e7cf72669b',
-  'accessory.bow-tie': '160:f5a063181cc09663',
+  'mouth.full': '160:df1abfffecacb924',
+  'ears.round': '160:859c25a075cc5121',
+  'ears.large': '160:859c25a075cc5121',
+  'ears.small': '160:859c25a075cc5121',
+  'hair.short': '153:a79edd56f9b3b24e',
+  'hair.spiky': '146:2f113a8863164e8e',
+  'hair.curly': '153:a79edd56f9b3b24e',
+  'hair.long': '160:86dd3e8206657928',
+  'hair.balding': '153:a79edd56f9b3b24e',
+  'hair.bald': '146:2f113a8863164e8e',
+  'facialhair.moustache': '167:5c4f8416d2bc5fd6',
+  'facialhair.large-moustache': '167:5c4f8416d2bc5fd6',
+  'facialhair.goatee': '167:4f4d6f8215caa00c',
+  'facialhair.beard': '167:b54a25afa2840457',
+  'facialhair.sideburns': '167:b4ab4a962e4581a2',
+  'accessory.glasses': '167:591e849efb186dc9',
+  'accessory.square-glasses': '167:591e849efb186dc9',
+  'accessory.hat': '167:df9b291be4a83fdf',
+  'accessory.earring': '167:f501dfc62679f229',
+  'accessory.earring-right': '167:f501dfc62679f229',
+  'accessory.bow-tie': '167:67672437fb2ba987',
 
   /* ── The animal pack (MASC-10B) ────────────────────────────────────────
    * Thirty drawings arriving at once, and every word below is one of the
@@ -181,45 +182,45 @@ export const BUILTIN_HEAD_TURNS = Object.freeze({
    * six were the shipped construction at other radii, and the three builds
    * above serve a muzzle exactly as they serve a face.
    */
-  'head.animal-round': '153:3f267ad5599b7d4c',
-  'head.animal-narrow': '153:3f267ad5599b7d4c',
-  'head.animal-wide': '153:3f267ad5599b7d4c',
-  'head.animal-square': '153:3f267ad5599b7d4c',
-  'head.animal-small': '153:3f267ad5599b7d4c',
-  'head.animal-chubby': '153:3f267ad5599b7d4c',
-  'eyebrows.animal-thin-soft': '153:a2c4f74937a93af9',
-  'eyebrows.animal-firm': '153:a2c4f74937a93af9',
-  'eyebrows.animal-thick': '153:a2c4f74937a93af9',
-  'eyebrows.animal-friendly-raised': '153:a2c4f74937a93af9',
-  'eyebrows.animal-worried': '153:a2c4f74937a93af9',
-  'ears.cat-pointed': '153:2b89587e4e0f5b83',
-  'ears.fox-large-pointed': '153:2b89587e4e0f5b83',
-  'ears.wolf-pointed': '153:2b89587e4e0f5b83',
-  'ears.dog-folded': '153:2b89587e4e0f5b83',
-  'ears.bear-round': '153:2b89587e4e0f5b83',
-  'ears.rabbit-long': '153:2b89587e4e0f5b83',
-  'ears.small-round': '153:2b89587e4e0f5b83',
-  'ears.tufted': '153:2b89587e4e0f5b83',
-  'accessory.muzzle-feline-short': '160:efc38bced69de9f0',
-  'accessory.muzzle-feline-rounded': '160:efc38bced69de9f0',
-  'accessory.muzzle-canine-medium': '160:efc38bced69de9f0',
-  'accessory.muzzle-canine-narrow': '160:efc38bced69de9f0',
-  'accessory.muzzle-bear-broad': '160:efc38bced69de9f0',
-  'accessory.muzzle-rodent-small': '160:efc38bced69de9f0',
-  'nose.triangle-small': '153:30f3b80130b1d8ef',
-  'nose.bear-broad': '153:30f3b80130b1d8ef',
-  'nose.button-tiny': '153:30f3b80130b1d8ef',
-  'nose.oval-soft': '153:30f3b80130b1d8ef',
-  'nose.animal-rounded': '153:30f3b80130b1d8ef',
+  'head.animal-round': '160:9719e2117460401d',
+  'head.animal-narrow': '160:9719e2117460401d',
+  'head.animal-wide': '160:9719e2117460401d',
+  'head.animal-square': '160:9719e2117460401d',
+  'head.animal-small': '160:9719e2117460401d',
+  'head.animal-chubby': '160:9719e2117460401d',
+  'eyebrows.animal-thin-soft': '160:a6d6329ba2cd81a5',
+  'eyebrows.animal-firm': '160:a6d6329ba2cd81a5',
+  'eyebrows.animal-thick': '160:a6d6329ba2cd81a5',
+  'eyebrows.animal-friendly-raised': '160:a6d6329ba2cd81a5',
+  'eyebrows.animal-worried': '160:a6d6329ba2cd81a5',
+  'ears.cat-pointed': '160:32686153ffa32869',
+  'ears.fox-large-pointed': '160:32686153ffa32869',
+  'ears.wolf-pointed': '160:32686153ffa32869',
+  'ears.dog-folded': '160:32686153ffa32869',
+  'ears.bear-round': '160:32686153ffa32869',
+  'ears.rabbit-long': '160:32686153ffa32869',
+  'ears.small-round': '160:32686153ffa32869',
+  'ears.tufted': '160:32686153ffa32869',
+  'accessory.muzzle-feline-short': '167:60787291b11d8c2c',
+  'accessory.muzzle-feline-rounded': '167:60787291b11d8c2c',
+  'accessory.muzzle-canine-medium': '167:60787291b11d8c2c',
+  'accessory.muzzle-canine-narrow': '167:60787291b11d8c2c',
+  'accessory.muzzle-bear-broad': '167:60787291b11d8c2c',
+  'accessory.muzzle-rodent-small': '167:60787291b11d8c2c',
+  'nose.triangle-small': '160:2d82cd0428410bbd',
+  'nose.bear-broad': '160:2d82cd0428410bbd',
+  'nose.button-tiny': '160:2d82cd0428410bbd',
+  'nose.oval-soft': '160:2d82cd0428410bbd',
+  'nose.animal-rounded': '160:2d82cd0428410bbd',
   'mouth.animal-smile': '125:1f5e3e299cb93ba4',
   'mouth.animal-neutral': '125:1f5e3e299cb93ba4',
   'mouth.animal-open-friendly': '132:a759af09698359d4',
   'mouth.animal-small-smile': '125:1f5e3e299cb93ba4',
   'mouth.animal-happy-curve': '125:1f5e3e299cb93ba4',
-  'accessory.whiskers-three-straight': '160:eb8211e10f0f662b',
-  'accessory.whiskers-two-soft': '160:eb8211e10f0f662b',
-  'accessory.whiskers-long-curved': '160:eb8211e10f0f662b',
-  'accessory.whiskers-subtle-short': '160:eb8211e10f0f662b',
+  'accessory.whiskers-three-straight': '167:0b690040ac94e4a7',
+  'accessory.whiskers-two-soft': '167:0b690040ac94e4a7',
+  'accessory.whiskers-long-curved': '167:0b690040ac94e4a7',
+  'accessory.whiskers-subtle-short': '167:0b690040ac94e4a7',
 
   /**
    * The Soft Cartoon robot pack (MASC-11B), and the shortest reading in this
@@ -243,34 +244,34 @@ export const BUILTIN_HEAD_TURNS = Object.freeze({
    * sweeps (`depth 0.35`); a panel is flush with the shell and barely moves
    * against it (`0.08`). Two profiles, two words.
    */
-  'head.robot-screen-rounded': '153:3f267ad5599b7d4c',
-  'head.robot-retro-square': '153:3f267ad5599b7d4c',
-  'head.robot-industrial-plate': '153:3f267ad5599b7d4c',
-  'head.robot-toy-round': '153:3f267ad5599b7d4c',
-  'ears.robot-screen-round': '153:db52327e479fc0c4',
-  'ears.robot-retro-round': '153:db52327e479fc0c4',
-  'ears.robot-industrial-bolt': '153:db52327e479fc0c4',
-  'ears.robot-toy-colorful': '153:db52327e479fc0c4',
-  'eyes.robot-display-friendly': '153:bc8bc884258c52fc',
-  'eyes.robot-retro-led': '153:bc8bc884258c52fc',
-  'eyes.robot-industrial-led': '153:bc8bc884258c52fc',
-  'eyes.robot-toy-expressive': '153:bc8bc884258c52fc',
-  'eyebrows.robot-screen-simple': '153:a2c4f74937a93af9',
-  'eyebrows.robot-retro-plate': '153:a2c4f74937a93af9',
-  'eyebrows.robot-industrial-visor': '153:a2c4f74937a93af9',
-  'eyebrows.robot-toy-cute': '153:a2c4f74937a93af9',
+  'head.robot-screen-rounded': '160:9719e2117460401d',
+  'head.robot-retro-square': '160:9719e2117460401d',
+  'head.robot-industrial-plate': '160:9719e2117460401d',
+  'head.robot-toy-round': '160:9719e2117460401d',
+  'ears.robot-screen-round': '160:859c25a075cc5121',
+  'ears.robot-retro-round': '160:859c25a075cc5121',
+  'ears.robot-industrial-bolt': '160:859c25a075cc5121',
+  'ears.robot-toy-colorful': '160:859c25a075cc5121',
+  'eyes.robot-display-friendly': '160:d2ae1b5ecb3e0451',
+  'eyes.robot-retro-led': '160:d2ae1b5ecb3e0451',
+  'eyes.robot-industrial-led': '160:d2ae1b5ecb3e0451',
+  'eyes.robot-toy-expressive': '160:d2ae1b5ecb3e0451',
+  'eyebrows.robot-screen-simple': '160:a6d6329ba2cd81a5',
+  'eyebrows.robot-retro-plate': '160:a6d6329ba2cd81a5',
+  'eyebrows.robot-industrial-visor': '160:a6d6329ba2cd81a5',
+  'eyebrows.robot-toy-cute': '160:a6d6329ba2cd81a5',
   'mouth.robot-display': '125:1f5e3e299cb93ba4',
   'mouth.robot-retro-grille': '125:1f5e3e299cb93ba4',
   'mouth.robot-industrial-vent': '125:1f5e3e299cb93ba4',
   'mouth.robot-toy-simple': '132:a759af09698359d4',
-  'accessory.antenna-single-short': '160:c65ef1733832973d',
-  'accessory.antenna-retro-multi': '160:c65ef1733832973d',
-  'accessory.antenna-industrial-robust': '160:c65ef1733832973d',
-  'accessory.antenna-toy-fun': '160:c65ef1733832973d',
-  'accessory.panels-light-panel': '160:d94a97da3de79f68',
-  'accessory.panels-retro-buttons': '160:d94a97da3de79f68',
-  'accessory.panels-warning-stripe': '160:d94a97da3de79f68',
-  'accessory.panels-toy-buttons': '160:d94a97da3de79f68',
+  'accessory.antenna-single-short': '167:12ec0bb57d262fd8',
+  'accessory.antenna-retro-multi': '167:12ec0bb57d262fd8',
+  'accessory.antenna-industrial-robust': '167:12ec0bb57d262fd8',
+  'accessory.antenna-toy-fun': '167:12ec0bb57d262fd8',
+  'accessory.panels-light-panel': '167:eaf6d9af71c0b12e',
+  'accessory.panels-retro-buttons': '167:eaf6d9af71c0b12e',
+  'accessory.panels-warning-stripe': '167:eaf6d9af71c0b12e',
+  'accessory.panels-toy-buttons': '167:eaf6d9af71c0b12e',
 
   /**
    * The Soft Cartoon bird pack (MASC-12B), and the one row in this file that
@@ -295,28 +296,28 @@ export const BUILTIN_HEAD_TURNS = Object.freeze({
    * goes, and the baseline's job is to notice if any of it changes, not to
    * explain it.
    */
-  'head.bird-owl': '153:3f267ad5599b7d4c',
-  'head.bird-duck': '153:3f267ad5599b7d4c',
-  'head.bird-parrot': '153:3f267ad5599b7d4c',
-  'head.bird-crow': '153:3f267ad5599b7d4c',
-  'head.bird-cute': '153:3f267ad5599b7d4c',
-  'head.bird-slim': '153:3f267ad5599b7d4c',
-  'eyebrows.bird-angry': '153:a2c4f74937a93af9',
-  'eyebrows.bird-curious': '153:a2c4f74937a93af9',
-  'eyebrows.bird-relaxed': '153:a2c4f74937a93af9',
-  'eyebrows.bird-happy': '153:a2c4f74937a93af9',
-  'eyebrows.bird-sharp': '153:a2c4f74937a93af9',
+  'head.bird-owl': '160:9719e2117460401d',
+  'head.bird-duck': '160:9719e2117460401d',
+  'head.bird-parrot': '160:9719e2117460401d',
+  'head.bird-crow': '160:9719e2117460401d',
+  'head.bird-cute': '160:9719e2117460401d',
+  'head.bird-slim': '160:9719e2117460401d',
+  'eyebrows.bird-angry': '160:a6d6329ba2cd81a5',
+  'eyebrows.bird-curious': '160:a6d6329ba2cd81a5',
+  'eyebrows.bird-relaxed': '160:a6d6329ba2cd81a5',
+  'eyebrows.bird-happy': '160:a6d6329ba2cd81a5',
+  'eyebrows.bird-sharp': '160:a6d6329ba2cd81a5',
   'mouth.beak-owl': '125:0d2371fb57715b8f',
   'mouth.beak-duck': '125:8c5e01f47dbb97d5',
   'mouth.beak-parrot': '125:ea54b64639c451a0',
   'mouth.beak-crow': '125:38c8fde69a9378dc',
   'mouth.beak-small': '125:38c8fde69a9378dc',
   'mouth.beak-wide': '125:1f5e3e299cb93ba4',
-  'accessory.crest-owl-tufts': '160:c65ef1733832973d',
-  'accessory.crest-simple': '160:c65ef1733832973d',
-  'accessory.crest-messy-tuft': '160:c65ef1733832973d',
-  'accessory.crest-smooth-feather': '160:c65ef1733832973d',
-  'accessory.crest-parrot-tall': '160:c65ef1733832973d',
-  'accessory.crest-round-tuft': '160:c65ef1733832973d',
-  'accessory.monocle': '160:2c55f7f5e7158e74'
+  'accessory.crest-owl-tufts': '167:12ec0bb57d262fd8',
+  'accessory.crest-simple': '167:12ec0bb57d262fd8',
+  'accessory.crest-messy-tuft': '167:12ec0bb57d262fd8',
+  'accessory.crest-smooth-feather': '167:12ec0bb57d262fd8',
+  'accessory.crest-parrot-tall': '167:12ec0bb57d262fd8',
+  'accessory.crest-round-tuft': '167:12ec0bb57d262fd8',
+  'accessory.monocle': '167:9d01ca10aff66a54'
 });

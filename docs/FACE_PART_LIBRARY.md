@@ -74,7 +74,7 @@ on every beak, and on every mouth anyone draws later.
 | **paletteRoles** | Which token each paint plays, by element id: `{ skull: { fill: 'skin', stroke: 'outline' } }`. On install every such paint takes the face's colour for its token ("Palette tokens" below). |
 | **depth** | Optional, `-1` to `1`: where the part sits in the stack (`docs/DEPTH_PARALLAX.md`), written to the root on install for a face with parallax on. Glasses sit at `0.6`, a hat at `0.8`. |
 | **turn** | Optional. How each role the drawing plays behaves in the 2.5D head turn, where the role table's own answer would not do: `{ element: { depth: 0.7, side: null, narrow: true } }`, the flags being `depth`, `side`, `squash`, `narrow`, `ear`, `sweeps`, `foreshorten` and `tilt` (`docs/HEAD_POSE_2_5D.md`, "Which parts turn"). A role left out keeps the table's answer; a profile written is read whole rather than merged over one. |
-| **drivers** | Optional. How the drawing carries a movement when the registry's default would not do: `{ eyeOpen: { property, amplitude, offset, roles: { leftLower: { amplitude, offset } } } }`; a shape driver is `{ property: 'shapeKey', posePath }`, the shape as drawn at the movement's end, from the same points as the rest shape. A binding writes `amplitude × control + offset`, so a lid drawn open with `amplitude −38, offset 38` sits where it is drawn at `eyeOpen 1` and comes down 38 as the eye shuts; a role listed under `roles` gets its own numbers (the lower lid goes *up*). The property is one of `translateX`, `translateY`, `rotation`, `scaleX`, `scaleY`, `opacity`. |
+| **drivers** | Optional. How the drawing carries a movement when the registry's default would not do: `{ eyeOpen: { property, amplitude, offset, roles: { leftLower: { amplitude, offset } } } }`; a shape driver is `{ property: 'shapeKey', posePath }`, the shape as drawn at the movement's end, from the same points as the rest shape. A binding writes `amplitude × control + offset`, so a lid drawn open with `amplitude −38, offset 38` sits where it is drawn at `eyeOpen 1` and comes down 38 as the eye shuts; a role listed under `roles` gets its own numbers (the lower lid goes *up*). The property is one of `translateX`, `translateY`, `rotation`, `scaleX`, `scaleY`, `opacity`. A role under a **shape** driver's `roles` gets its own `posePath` and, since V6, its own `expression` — `mouth.full`'s lower teeth show on `mouthOpen * mouthOpen * teeth` where the upper row shows on `mouthOpen * teeth`, which is a word in a sentence rather than a second control ("A pose the card ships", below). |
 | **behind** | Optional. Pieces painted *behind the face* — the back of a head of hair — by id, each a direct child of the root. On install the canvas lifts them out of the fragment to the front of the same group ("Pieces painted behind" below). |
 | **parts** | Optional. The *other* semantic parts the drawing carries, by type: `{ gaze: { roles: { leftPupil, rightPupil }, capabilities: ['lookX', 'lookY', 'pupilScale'] }, eyelids: { roles: {…}, capabilities: ['eyeOpen'], drivers: {…} } }`. A pair of eyes is three parts of the rig — the eyes, the gaze and the lids — and one asset ("Composite assets" below). |
 
@@ -726,6 +726,21 @@ chin too; the skull's rest shape is what the markup draws. A skull that
 ships no pose (one of the author's own, say) leaves `jawOpen` off on the
 jaw part, the parameter staying for the expressions that name it, and the
 next skull with a pose brings it back.
+
+**A pose the card ships is a pose the card means.** A shaped movement is built
+for the roles the registry binds it to — and that is a shorter list than the
+roles that have to move. `mouthOpen` and `smile` are bound to the **lips and
+nothing else**, because a second binding on a tongue the tongue part already
+translates is two parts writing `translateY` on one drawing, which
+`enableSemanticControl` refuses. Since V6 the roles a shaped control is built
+for are the bound ones **plus any the card ships a `posePath` for**: a shape key
+writes no binding, so the extra ones conflict with nothing and several on one
+element simply sum. That is how `mouth.full`'s teeth and tongue follow the lip
+line, and it is why they were still when the template's moved
+(docs/MOUTH_BUILD.md). `validateFacePart` says the other half of it:
+`driver-inside-adrift` is a **warning** on a card that draws an inside and ships
+no pose for its `mouthOpen` or `smile`, because a drawing that means its teeth
+to stay put is entitled to say so.
 
 **The clip follows the skull.** The fringe and the face shading are cut to a
 copy of the head's own outline kept in the definitions (`headShape` on the

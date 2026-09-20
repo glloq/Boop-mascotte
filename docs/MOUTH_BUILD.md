@@ -78,17 +78,18 @@ than the rest — the check the unit suite makes, because "smaller" is all a
 
 ### Everything inside is drawn from the lips
 
-Five shapes, and four of them are **empty until they are asked for**:
+Six shapes, and five of them are **empty until they are asked for**:
 
 ```text
-mouth       the lips, and the cavity: one closed path, fill inside, stroke lips
-teeth       the upper row, its biting edge scalloped into crowns
-teethLower  the lower row, the same band from the lower lip, shallower
-tongue      the body: two lobes with a groove between them
-tongueTip   the lobe that laps **over** the lower lip
+mouth        the lips, and the cavity: one closed path, fill inside, stroke lips
+teeth        the upper row, its biting edge scalloped into crowns
+teethLower   the lower row, the same band from the lower lip, shallower
+tongue       the body: two lobes with the groove between them
+tongueTip    the lobe that laps **over** the lower lip
+tongueGroove the crease down the middle of that lobe
 ```
 
-Each of the four is a closed path whose second half retraces its first — the
+Each of the five is a closed path whose second half retraces its first — the
 same points, the same control points, in reverse — whenever its own number is 0.
 The shape encloses nothing and paints nothing. So a closed mouth has nothing
 behind it to hide, by construction rather than by arithmetic, which is what lets
@@ -176,12 +177,13 @@ came up with the upper one read as a grimace at every small opening. That costs 
 word in a sentence rather than a mechanism, because a driver hint may carry an
 expression per role (`hint.roles.teethLower.expression`).
 
-### The tongue is two shapes, because it does two things in two places
+### The tongue is three shapes, because it does three things in three places
 
 ```text
-         ╭──╮╭──╮          tongue      the body: two lobes and the groove
-  ───────┤        ├──────  the lower lip, where both are anchored
-          ╲____╱           tongueTip   the lobe that laps over it
+         ╭──╮╭──╮          tongue        the body: two lobes and the groove
+  ───────┤   ┊    ├──────  the lower lip, where all three are anchored
+          ╲__┊_╱           tongueTip     the lobe that laps over it
+             ┊             tongueGroove  the crease down the middle of that lobe
 ```
 
 A tongue that is out is *in front of the lower lip*, and a tongue that is in is
@@ -194,16 +196,39 @@ is asked to do can push it through a lip; the **tip** is drawn in front of
 everything, because that is where a tongue hanging out belongs (§8.4 of the
 brief).
 
-**The groove.** V5 drew the back as one arch, on purpose: a single cubic with a
-node in its middle pulled up on both sides of it and came out as a butterfly. One
-arch has one peak, and one peak is a hill rather than a tongue. Two arches — a
-lobe per half, meeting at a node that stops short of their peaks — have two peaks
-and a groove between them, which is what a tongue looks like and what the
-butterfly was reaching for. It costs nothing at the rig: the same shape key, two
-segments longer.
+**The groove, inside the mouth.** V5 drew the back as one arch, on purpose: a
+single cubic with a node in its middle pulled up on both sides of it and came
+out as a butterfly. One arch has one peak, and one peak is a hill rather than a
+tongue. Two arches — a lobe per half, meeting at a node that stops short of
+their peaks — have two peaks and a groove between them, which is what a tongue
+looks like and what the butterfly was reaching for. It costs nothing at the rig:
+the same shape key, two segments longer.
 
 The underside uses the back's own control *parameters in reverse*, which is what
 makes the body exactly empty when every offset is 0.
+
+**The groove, out of it.** Inside the cavity the groove is the *silhouette*
+between the two lobes and needs no ink. On a tongue lapping over the lip there
+is no silhouette to read it from: the tip is seen from above, so the crease down
+the middle of it has to be drawn, or the tongue is a flat paddle. `tongueGroove`
+is that line — a narrow lens, in the cavity's own colour at three tenths, along
+the axis of the tip — and it is a **role of its own** rather than ink on the
+tip's path, for the same reason the tip is a shape of its own: one element is
+one fill, and a crease is a second one *on top of* the shape it is a crease in.
+
+Being a role is also what makes it move. It is bound where the tip is bound and
+poses where the tip poses — `mouthOpen`, `smile`, `mouthRound`, `mouthSkew` from
+the mouth; `tongueX`, `tongueY`, `tongueOut`, `tongueCurl` from the tongue — so
+it goes where the tip goes and lengthens as the tip reaches, instead of being a
+mark left behind on the chin the moment anything moved. It is empty at rest like
+the rest of them, and more bluntly so: `tongueGroove-rest` is a single point
+repeated, so a face that never puts its tongue out draws exactly nothing for it.
+
+Its width is a constant times `out` rather than a fraction of the tip's own
+width — the affine rule, again. A crease that narrowed with the pucker would be
+a product of `round` and `out`, and no pair of additive keys can carry a product.
+What it does follow is the lip: puckering takes the tip down and the crease goes
+with it, because both are measured from the same lower lip.
 
 ### `tongueOut` and `tongueCurl` are shapes now
 
@@ -230,9 +255,11 @@ stored binding is the document's, not the registry's.
 ### The tip comes out of a mouth that need not be open
 
 ```text
-tongueTip-out    tongueTipPath({ out: 1 })    tongue * tongueOut
-tongue-out       tonguePath({ out: 1 })       mouthOpen * tongue * tongueOut
-tongueTip-curl   tongueTipPath({ curl: 1 })   tongue * tongueOut * tongueCurl
+tongueTip-out      tongueTipPath({ out: 1 })      tongue * tongueOut
+tongueGroove-out   tongueGroovePath({ out: 1 })   tongue * tongueOut
+tongue-out         tonguePath({ out: 1 })         mouthOpen * tongue * tongueOut
+tongueTip-curl     tongueTipPath({ curl: 1 })     tongue * tongueOut * tongueCurl
+tongueGroove-curl  tongueGroovePath({ curl: 1 })  tongue * tongueOut * tongueCurl
 ```
 
 `tongue * tongueOut` and not `mouthOpen * …`: a tongue can come out between lips
@@ -263,6 +290,7 @@ never half a smile — `core/tests/mouth-build.test.js` holds it to that.
 mouth                    the lips, and the cavity they enclose
 mouthInside  ▸ clipped   tongue · teethLower · teeth
 tongueTip                in front of the lips, because that is where it is
+tongueGroove             and in front of the tip, because it is a crease in it
 ```
 
 Inside the cavity the tongue is behind the lower teeth and both are behind the
@@ -279,7 +307,9 @@ Clipping to the lips answers all of them at once, and it costs one `<use>`
 because the aperture is already a path: `#mouth` *is* the shape of the hole, so
 the clip follows every pose of it with nothing to keep in step.
 
-The tip is outside the clip on purpose, and it is the only thing that is.
+The tip is outside the clip on purpose, and so is its groove — a crease drawn
+in front of a tongue that is itself in front of the lips cannot be cut to the
+hole they make. They are the only two things that are.
 
 ### The pairs a corrective can now reach
 
@@ -317,6 +347,24 @@ shows later than the upper one on the same control. A role that draws something
 other than a path gets no key, and the movement then goes **off** rather than
 becoming a slider that moves nothing.
 
+**A pose the card ships is a pose the card means.** `installShapedControl` used
+to build keys only for the roles the *registry* binds a control to, and that is
+a shorter list than the roles that have to move: `mouthOpen` and `smile` are
+bound to the **lips and nothing else**, on purpose, because binding them to an
+inside as well would be a second part writing `translateY` on a drawing the
+tongue part already translates. So a card that shipped
+`roles.tongueTip.posePath` for `mouthOpen` was shipping a pose nobody read, and
+`mouth.full`'s insides sat still while the template's followed the lip line —
+the same mouth, built twice, behaving differently.
+
+Since V6 the roles a control is built for are the bound ones **plus any the card
+ships a `posePath` for**. A shape key writes no `bindings` entry, so the extra
+ones cost nothing and conflict with nothing: several may deform one element and
+they simply sum. `validateFacePart` warns the other way round — a shaped
+`mouthOpen` or `smile` on a card that draws an inside and ships no pose for it is
+`driver-inside-adrift`, a warning rather than a refusal, because a drawing that
+means its teeth to stay put is entitled to say so.
+
 **A part the asset draws takes the roles it shares with the asset's own.** One
 shape plays one role, so `mouth.full` cannot list the tongue under its own roles
 *and* under `parts.tongue` — `validateFacePart` refuses the second mention at the
@@ -342,22 +390,24 @@ a card may vary per role is the *pose* and, now, the *sentence*.
 
 ## What moved, and what did not
 
-The **head turn** moved, by exactly fourteen channels: the generator writes seven
-per element and the mouth grew two. A hundred and seventeen of the baseline's
-words moved with it, all by the same fourteen, because every head, eye, brow,
-nose, ear and head of hair is installed on a face that now has a lower row of
-teeth and a tongue tip in it. The fifteen that did **not** move are the fifteen
-that replace the mouth with one of their own, and none of those draws either
-(`core/tests/fixtures/head-turn-baseline.js`).
+The **head turn** moved, by exactly twenty-one channels: the generator writes
+seven per element and the mouth grew three. A hundred and seventeen of the
+baseline's words moved with it, all by the same twenty-one, because every head,
+eye, brow, nose, ear and head of hair is installed on a face that now has a lower
+row of teeth, a tongue tip and a crease in it. The fifteen that did **not** move
+are the fifteen that replace the mouth with one of their own, and none of those
+draws any of the three (`core/tests/fixtures/head-turn-baseline.js`).
+`mouthInside` gets no channels at all: it is a clipping group, not a drawing, and
+a group with nothing of its own to turn is not given a turn.
 
-The **shape count** moved by two paths, and the budget moved with it rather than
-being quietly exceeded: the mouth is the feature a mascot spends its screen time
-in, and two paths is what the whole of V6 cost.
+The **shape count** moved by three paths, and the budget moved with it rather
+than being quietly exceeded: the mouth is the feature a mascot spends its screen
+time in, and three paths is what the whole of V6 cost.
 
 ## Where things are
 
 ```text
-core/face/mouth-build.js                geometry: the four points, the five shapes
+core/face/mouth-build.js                geometry: the four points, the six shapes
 core/face-library/builtin/mouth-full.js the one card
 core/face-library/face-catalogue.js     which drawings are offered at all
 core/face-library/face-part-install.js  installShapedControl, and role adoption
@@ -365,7 +415,7 @@ core/face-library/face-part-model.js    a role may ship its own posePath and sen
 core/face-library/face-correctives.js   the thirteen mouth slots
 rig-editor/semantic-parts/part-registry.js  the roles, the bindings, the strategies
 core/sample/templates/face-artwork.js   draws the five, and clips the insides
-core/sample/templates/template-project.js   the shape keys, all forty-one of them
+core/sample/templates/template-project.js   the shape keys: thirty-nine over the six shapes
 core/tests/mouth-build.test.js          empty, affine, one topology
 core/tests/fixtures/mouth-line.js       a mouth that carries less, for the tests that need one
 ```

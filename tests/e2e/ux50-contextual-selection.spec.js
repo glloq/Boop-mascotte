@@ -26,8 +26,9 @@ test('@critical the movements panel shows the part in hand, and every other move
   const panel = page.locator('#face-movements[data-face-movements-ready="true"]');
   await expect(panel).toBeVisible();
   // The template rigs every part, so the inventory this replaces was twenty-six
-  // rows in five bands, on screen at all times.
-  await expect(panel).toHaveAttribute('data-face-movements-available', '26');
+  // rows in five bands, on screen at all times -- twenty-seven since the mouth
+  // gained its lean (docs/MOUTH_BUILD.md).
+  await expect(panel).toHaveAttribute('data-face-movements-available', '27');
 
   await panel.locator('[data-movement-family="Mouth"]').click();
   await expect(panel).toHaveAttribute('data-face-movements-scope', 'band');
@@ -115,8 +116,16 @@ test('a drawing says what it would cost this face before it is pressed', async (
   await openAssemble(page);
   const library = page.locator('#face-library[data-face-library-ready="true"]');
   await library.locator('[data-face-library-category="mouth"]').click();
-  // The template's mouth uses all six of its movements; most library mouths
+  // The template's mouth uses all seven of its movements; most library mouths
   // carry three. The install used to report that *after* the press.
+  //
+  // They are all in the packs now, and the packs are off the shelf: the one
+  // human mouth carries everything this face uses, which is the point of there
+  // being one (docs/MOUTH_BUILD.md). So the badge is asked of the shelf that
+  // still has drawings to warn about -- the warning is what is under test, not
+  // which shelf it is on (docs/FACE_PART_LIBRARY.md, "Active and legacy").
+  await expect(library.locator('[data-face-library-loses]')).toHaveCount(0, 'the human mouth costs this face nothing');
+  await library.locator('[data-face-library-show-legacy="on"]').click();
   const limited = library.locator('[data-face-library-loses]').first();
   await expect(limited).toBeVisible();
   await expect(limited).toContainText('Limited animation');

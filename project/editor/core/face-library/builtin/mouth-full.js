@@ -32,11 +32,13 @@
  * another radius.
  */
 import {
-  MOUTH_REST, TEETH_REST, TEETH_LOWER_REST, TONGUE_REST, TONGUE_TIP_REST,
-  mouthPath, teethPath, teethLowerPath, tonguePath, tongueTipPath
+  MOUTH_REST, TEETH_REST, TEETH_LOWER_REST, TONGUE_REST, TONGUE_TIP_REST, TONGUE_GROOVE_REST,
+  mouthPath, teethPath, teethLowerPath, tonguePath, tongueTipPath, tongueGroovePath
 } from '../../face/mouth-build.js';
 
 const LIP = '#b4525c', INSIDE = '#6d2831', TEETH = '#fff8ec', TONGUE = '#d9707f';
+/** A fold is the light that does not reach it, so the crease is the cavity's own colour, softened. */
+const GROOVE_OPACITY = 0.3;
 
 /**
  * The five shapes, in the order they are painted, and why each is where it is.
@@ -46,9 +48,10 @@ const LIP = '#b4525c', INSIDE = '#6d2831', TEETH = '#fff8ec', TONGUE = '#d9707f'
  *   mouth-full-inside  ▸ clipped to the aperture
  *       tongue · teethLower · teeth
  *   tongueTip                in front of the lips, because that is where it is
+ *   tongueGroove             and the crease down it
  * ```
  *
- * All four insides are **empty at rest**: each is a closed path whose second
+ * All five insides are **empty at rest**: each is a closed path whose second
  * half retraces its first exactly when its own number is 0, so the shape
  * encloses nothing and paints nothing. A closed mouth therefore has nothing
  * behind it to hide, by construction rather than by arithmetic — which is what
@@ -71,8 +74,9 @@ const LIP = '#b4525c', INSIDE = '#6d2831', TEETH = '#fff8ec', TONGUE = '#d9707f'
  * renames them with everything else it takes, so two mouths on one page clip to
  * their own lips.
  *
- * The tip is outside the clip, and it is the only thing that is: a tongue
- * hanging out lies over the lower lip, and that is the point of it.
+ * The tip and its crease are outside the clip, and they are the only things
+ * that are: a tongue hanging out lies over the lower lip, and that is the point
+ * of it.
  */
 const artwork = `<g id="mouth-full" data-name="Mouth">`
   + `<path id="mouth" data-name="Mouth" d="${MOUTH_REST}" fill="${INSIDE}" stroke="${LIP}" stroke-width="3.8" stroke-linejoin="round" />`
@@ -82,22 +86,32 @@ const artwork = `<g id="mouth-full" data-name="Mouth">`
   + `<path id="teeth" data-name="Upper teeth" d="${TEETH_REST}" fill="${TEETH}" />`
   + `</g>`
   + `<path id="tongueTip" data-name="Tongue tip" d="${TONGUE_TIP_REST}" fill="${TONGUE}" />`
+  + `<path id="tongueGroove" data-name="Tongue groove" d="${TONGUE_GROOVE_REST}" fill="${INSIDE}" opacity="${GROOVE_OPACITY}" />`
   + `<clipPath id="mouth-full-aperture"><use href="#mouth" /></clipPath>`
   + `</g>`;
 
-/** Every inside pinches back onto the lip it is drawn from, so each needs its own pose. */
+/**
+ * Everything drawn from the lips, as the same pose moves each of it.
+ *
+ * Every inside pinches back onto the lip it hangs off, so a movement of the
+ * lips is a different delta on each of them and each needs its own drawing of
+ * it. The installer builds a shape key per role the card ships a pose for —
+ * which is how a movement the registry binds to the lips alone reaches all five
+ * (`installShapedControl`; docs/MOUTH_BUILD.md).
+ */
 const insides = (pose) => Object.freeze({
   teeth: Object.freeze({ posePath: teethPath(pose) }),
   teethLower: Object.freeze({ posePath: teethLowerPath(pose) }),
   tongue: Object.freeze({ posePath: tonguePath(pose) }),
-  tongueTip: Object.freeze({ posePath: tongueTipPath(pose) })
+  tongueTip: Object.freeze({ posePath: tongueTipPath(pose) }),
+  tongueGroove: Object.freeze({ posePath: tongueGroovePath(pose) })
 });
 
 export const MOUTH_FULL = Object.freeze({
   id: 'mouth.full', category: 'mouth', name: 'Mouth', origin: 'builtin',
   description: 'Opens, smiles, widens, puckers, leans, and shows its teeth and its tongue — in the mouth or out over the lip. The one mouth a mascot needs.',
   artwork,
-  roles: Object.freeze({ mouth: 'mouth', teeth: 'teeth', teethLower: 'teethLower', tongue: 'tongue', tongueTip: 'tongueTip' }),
+  roles: Object.freeze({ mouth: 'mouth', teeth: 'teeth', teethLower: 'teethLower', tongue: 'tongue', tongueTip: 'tongueTip', tongueGroove: 'tongueGroove' }),
   capabilities: Object.freeze(['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'mouthSkew', 'teeth', 'tongue']),
   /**
    * `mouthRound` is the one that had to be said out loud.
@@ -131,24 +145,21 @@ export const MOUTH_FULL = Object.freeze({
      * and everything drawn from them agree by construction rather than by two
      * numbers kept in step.
      *
-     * The registry binds these two to the **lips** and to the tongue's **tip**,
-     * and to nothing else. The rows and the body carry their own opening folded
-     * into their own pose, below, because what shows them is a product of it;
-     * the tip is brought out by `tongueOut` instead, so a blep needs no open
-     * mouth and the opening has to reach it on a key of its own.
+     * The registry binds these two to the **lips and nothing else**, because both
+     * are transforms by default and a transform on an inside collides with the
+     * tongue part's own. What reaches the insides is this card's own pose: one
+     * per role, because each pinches back onto the lip it hangs off and a
+     * movement of the lips is therefore a different delta on each of them. The
+     * installer builds a key for every role a shaped movement ships a pose for.
      *
      * `smile` is shaped for the same reason and buys more besides: the geometry
      * lifts the corners *and* deepens the lip line, where a `translateY` moves
-     * the whole curve and leaves its shape alone.
+     * the whole curve and leaves its shape alone. Until V6 it reached none of
+     * the insides, and a broad grin therefore showed a row of teeth two and a
+     * half units above the lip it hangs from.
      */
-    mouthOpen: Object.freeze({
-      property: 'shapeKey', posePath: mouthPath({ open: 1 }),
-      roles: Object.freeze({ tongueTip: Object.freeze({ posePath: tongueTipPath({ open: 1 }) }) })
-    }),
-    smile: Object.freeze({
-      property: 'shapeKey', posePath: mouthPath({ smile: 1 }),
-      roles: Object.freeze({ tongueTip: Object.freeze({ posePath: tongueTipPath({ smile: 1 }) }) })
-    }),
+    mouthOpen: Object.freeze({ property: 'shapeKey', posePath: mouthPath({ open: 1 }), roles: insides({ open: 1 }) }),
+    smile: Object.freeze({ property: 'shapeKey', posePath: mouthPath({ smile: 1 }), roles: insides({ smile: 1 }) }),
     mouthRound: Object.freeze({
       property: 'shapeKey',
       posePath: mouthPath({ round: 1 }),
@@ -177,8 +188,8 @@ export const MOUTH_FULL = Object.freeze({
      * could never bring them out: a shape that encloses nothing paints nothing
      * at any opacity.
      *
-     * The pose is the band **open and shown** together, and the sentence is a
-     * product: `mouthOpen * teeth`. Both halves of that matter.
+     * The pose is the band **shown**, and the sentence is a product:
+     * `mouthOpen * teeth`. Both halves of that matter.
      *
      * The product is what keeps a closed mouth honest — closed lips have nothing
      * behind them to show, however far the control is up — and it is the
@@ -186,13 +197,14 @@ export const MOUTH_FULL = Object.freeze({
      * and not in the registry: a card drawing a finished row of teeth and fading
      * it in wants `teeth` alone.
      *
-     * Drawing the pose at `open: 1` as well as `show: 1` is what keeps the band
-     * *inside* the lips it is drawn from. A control writes one property, so
-     * `mouthOpen` cannot be a scale on the lips and a shape on the bands; drawn
-     * at the closed lip line the band stayed there while the lips dropped sixty
-     * units, which is a row of teeth over the chin. Folded into this one pose it
-     * travels with the aperture: the product is 0 with the mouth shut, the whole
-     * delta with it open and the control up, and proportional in between.
+     * Until V6 the opening was folded into this pose as well (`{ open: 1, show:
+     * 1 }`), because it was the only way to reach a band with a movement the
+     * registry binds to the lips: drawn at the closed lip line, a band stayed
+     * there while the lips dropped sixty units, which is a row of teeth over the
+     * chin. Now `mouthOpen` ships a pose per role of its own, so the two
+     * questions are two keys — travelling with the lip, and being shown — which
+     * is what the template has always done and what makes a card and the sample
+     * the same mouth.
      *
      * The **lower** row is the same pose on the same control, with a sentence of
      * its own: `mouthOpen * mouthOpen * teeth`, so it arrives after the upper
@@ -200,12 +212,12 @@ export const MOUTH_FULL = Object.freeze({
      * row that came up with it read as a grimace at every small opening.
      */
     teeth: Object.freeze({
-      property: 'shapeKey', posePath: teethPath({ open: 1, show: 1 }), expression: 'mouthOpen * teeth',
+      property: 'shapeKey', posePath: teethPath({ show: 1 }), expression: 'mouthOpen * teeth',
       roles: Object.freeze({
-        teethLower: Object.freeze({ posePath: teethLowerPath({ open: 1, show: 1 }), expression: 'mouthOpen * mouthOpen * teeth' })
+        teethLower: Object.freeze({ posePath: teethLowerPath({ show: 1 }), expression: 'mouthOpen * mouthOpen * teeth' })
       })
     }),
-    tongue: Object.freeze({ property: 'shapeKey', posePath: tonguePath({ open: 1, show: 1 }), expression: 'mouthOpen * tongue' })
+    tongue: Object.freeze({ property: 'shapeKey', posePath: tonguePath({ show: 1 }), expression: 'mouthOpen * tongue' })
   }),
   /**
    * The tongue is a part of the rig in its own right, and this card draws the
@@ -236,12 +248,20 @@ export const MOUTH_FULL = Object.freeze({
           property: 'shapeKey', posePath: tongueTipPath({ out: 1 }), expression: 'tongue * tongueOut',
           roles: Object.freeze({
             tongueTip: Object.freeze({ posePath: tongueTipPath({ out: 1 }), expression: 'tongue * tongueOut' }),
+            tongueGroove: Object.freeze({ posePath: tongueGroovePath({ out: 1 }), expression: 'tongue * tongueOut' }),
             tongue: Object.freeze({ posePath: tonguePath({ out: 1 }), expression: 'mouthOpen * tongue * tongueOut' })
           })
         }),
         // And the curl is the tip's alone, scaled by how far out it is: curling
-        // a tongue that is still in the mouth is not a movement.
-        tongueCurl: Object.freeze({ property: 'shapeKey', posePath: tongueTipPath({ curl: 1 }), expression: 'tongue * tongueOut * tongueCurl' })
+        // a tongue that is still in the mouth is not a movement. The crease
+        // rides it, because a fold turns with what it is a fold of.
+        tongueCurl: Object.freeze({
+          property: 'shapeKey', posePath: tongueTipPath({ curl: 1 }), expression: 'tongue * tongueOut * tongueCurl',
+          roles: Object.freeze({
+            tongueTip: Object.freeze({ posePath: tongueTipPath({ curl: 1 }), expression: 'tongue * tongueOut * tongueCurl' }),
+            tongueGroove: Object.freeze({ posePath: tongueGroovePath({ curl: 1 }), expression: 'tongue * tongueOut * tongueCurl' })
+          })
+        })
       })
     })
   }),
@@ -250,7 +270,10 @@ export const MOUTH_FULL = Object.freeze({
     teeth: Object.freeze({ fill: 'teeth' }),
     teethLower: Object.freeze({ fill: 'teeth' }),
     tongue: Object.freeze({ fill: 'tongue' }),
-    tongueTip: Object.freeze({ fill: 'tongue' })
+    tongueTip: Object.freeze({ fill: 'tongue' }),
+    // A fold is the cavity showing through, so the crease takes the mouth's own
+    // colour: one token fewer, and it stays in step on any face.
+    tongueGroove: Object.freeze({ fill: 'mouth' })
   }),
   // The lips, and the room the cavity needs when it is fully open: the teeth and
   // the tongue are drawn from the lips, so they are inside this by construction.

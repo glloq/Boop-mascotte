@@ -882,7 +882,29 @@ function installShapedControl(candidate, part, control, hint, roleElements) {
   const definition = SEMANTIC_PART_REGISTRY[part.type];
   // Which roles the movement writes: the registry's, narrowed to the ones this
   // drawing actually took.
-  const roles = Object.keys(definition?.bindings || {}).filter((role) => definition.bindings[role][control] && roleElements[role]);
+  const bound = Object.keys(definition?.bindings || {}).filter((role) => definition.bindings[role][control] && roleElements[role]);
+  /**
+   * And any role the **card itself** ships a pose for.
+   *
+   * The registry binds a movement to the roles every drawing in the library
+   * moves it on, and that list has to be the cautious one: `smile` is a
+   * `translateY` by default, so binding it to a mouth's tongue would put a
+   * transform on a shape the *tongue part* already translates, and every
+   * drawing with a tongue would refuse to install with a binding conflict.
+   *
+   * A **shaped** movement has no such hazard — it writes no binding at all, and
+   * several shape keys on one element simply sum — so a card that has drawn the
+   * shape may say so. `mouth.full` ships the lips at `smile 1` and the teeth,
+   * the two rows, the tongue and its tip as the *same* smile moves each of them
+   * (docs/MOUTH_BUILD.md), and the result is the template's own mouth rather
+   * than an approximation of it.
+   *
+   * Only where the card gives a pose, and only for a movement that is already
+   * shaped: `installShapedControl` is reached only when the method is
+   * `shapeKey`, so nothing a transform-driven drawing does can arrive here.
+   */
+  const shipped = Object.keys(hint.roles || {}).filter((role) => hint.roles[role].posePath && roleElements[role] && !bound.includes(role));
+  const roles = [...bound, ...shipped];
   if (!roles.length) return 'nothing-to-build';
   let made = 0;
   for (const role of roles) {

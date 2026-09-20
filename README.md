@@ -69,9 +69,10 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
 - **One mouth, and it is the best-drawn thing on the face**: two rows of teeth
   with crowns rather than a white slab, a tongue with a groove down its back,
   and a tip that laps **over** the lower lip when it comes out — of an open
-  mouth or of closed lips. It opens, smiles, widens, puckers into a vowel and
-  leans into a smirk, all of it as additive shape keys over one closed path
-  ([the mouth](docs/MOUTH_BUILD.md))
+  mouth or of closed lips — with the crease drawn down the middle of it, because
+  a tongue seen from above has no silhouette to read one from. It opens, smiles,
+  widens, puckers into a vowel and leans into a smirk, all of it as additive
+  shape keys over one closed path ([the mouth](docs/MOUTH_BUILD.md))
 - **Design is two screens**: *Assemble* is where a mascot comes from — the
   library, a picture of your own, the parts that go on whole — and *Draw* is
   the vector editor, one chevron away rather than the first thing you meet
