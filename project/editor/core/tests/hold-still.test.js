@@ -64,14 +64,14 @@ const sampled = (harness, name, frames = 20) => {
   return seen;
 };
 
-test('the mascot holds still in Artwork, and moves again on the way out', () => {
+test('the mascot holds still where it is authored, and moves again on the way out', () => {
   const harness = createHarness({ workspace: 'preview' });
   harness.goTo('preview');
   harness.preview.start();
   assert.ok(sampled(harness, 'lookX').size > 1, 'the gaze wanders where the mascot is watched');
   assert.ok(harness.awake(), 'and the loop is running');
 
-  for (const designing of ['create']) {
+  for (const designing of ['create', 'hands', 'expressions', 'animate']) {
     assert.equal(harness.goTo(designing), true, `${designing} holds the mascot still`);
     assert.equal(harness.preview.isHeldStill(), true);
     const rest = harness.preview.getEffectiveParams();
@@ -88,11 +88,19 @@ test('the mascot holds still in Artwork, and moves again on the way out', () => 
   assert.ok(sampled(harness, 'lookX').size > 1, 'and the gaze wanders again');
 });
 
-test('every task either designs the mascot or does not, and only the one that does holds it still', () => {
+test('the mascot holds still where it is authored, and moves where it is watched', () => {
+  // Design and Animate both judge the face by looking at it -- where an eye
+  // sits, what an expression makes it do, the pose under the playhead -- and a
+  // blink landing in the middle of that is a change the author did not make.
+  // Rig is watching the face do the thing, and Behavior is *about* what it does
+  // unprompted: a board whose subject held still would be a board that lies.
   const harness = createHarness();
-  for (const [workspace, held] of [['create', true], ['character', false], ['rig', false], ['expressions', false], ['animate', false], ['reactions', false], ['preview', false]]) {
-    assert.equal(harness.goTo(workspace), held, workspace);
-    assert.equal(harness.preview.isHeldStill(), held, workspace);
+  for (const [surface, held] of [
+    ['create', true], ['hands', true], ['expressions', true], ['animate', true],
+    ['rig', false], ['reactions', false], ['preview', false], ['character', false]
+  ]) {
+    assert.equal(harness.goTo(surface), held, surface);
+    assert.equal(harness.preview.isHeldStill(), held, surface);
   }
 });
 
@@ -197,4 +205,39 @@ test('one reset, in the project bar, on every tab', () => {
   // topbar control that appeared in one of them would not be on every tab.
   assert.equal(/\[data-workspace[^{]*reset-mascot-top/.test(index), false, 'nothing gates it on a workspace');
   assert.equal(/reset-mascot-top[^{]*\{[^}]*display:none/.test(index), false, 'and nothing hides it at any width');
+});
+
+test('Animate holds the mascot still by itself, and not when the author presses Play', () => {
+  // The line this whole feature sits on. "Nothing moves it" means nothing moves
+  // it *on its own*: an expression, a clip, a slider and a handle are the
+  // author asking, and an Animate screen that ignored them would be an Animate
+  // screen with no way to see the work.
+  const state = livelyFace();
+  state.animationClips = [{
+    id: 'nod', name: 'Nod', duration: 1, loop: true,
+    tracks: { headX: [{ time: 0, value: 0, easing: 'linear' }, { time: .5, value: 1, easing: 'linear' }, { time: 1, value: 0, easing: 'linear' }] }
+  }];
+  const harness = createHarness({ state, workspace: 'animate' });
+  assert.equal(harness.goTo('animate'), true, 'Animate holds still');
+  harness.preview.start();
+  assert.equal(sampled(harness, 'eyeOpen').size, 1, 'so nothing blinks while a motion is being made');
+  assert.equal(sampled(harness, 'lookX').size, 1, 'and the gaze does not wander off the pose being judged');
+
+  // The author presses Play.
+  harness.preview.playMotion('nod');
+  assert.ok(sampled(harness, 'headX').size > 1, 'the clip the author started plays');
+  assert.ok(harness.awake(), 'and the loop runs for it');
+
+  // A live pose is the author too: a slider, a handle, an expression's weight.
+  harness.preview.setLiveParam('lookX', .8);
+  assert.equal(harness.preview.getEffectiveParams().lookX, .8, 'the pose the author set is the pose that shows');
+});
+
+test('holding Animate still writes nothing to the project', () => {
+  // Session state, like every other thing about where the author is standing.
+  const harness = createHarness({ workspace: 'preview' });
+  const before = sentinel(harness.store);
+  for (const surface of ['animate', 'expressions', 'hands', 'create', 'preview']) harness.goTo(surface);
+  harness.advance(20);
+  assert.deepEqual(sentinel(harness.store), before, 'no revision, no domain, no document');
 });

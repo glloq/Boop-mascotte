@@ -3,23 +3,33 @@
 const CANVAS_CONTROLS = 'button,input,select,label,.canvas-toolbar,.design-toolbar';
 
 /**
- * Where the mascot is *designed* rather than watched, and therefore holds still
+ * Where the mascot is *authored* rather than watched, and therefore holds still
  * (docs/STILL_WHILE_DESIGNING.md).
  *
- * Artwork draws the pieces of the mascot and places them, by clicking the
- * mascot itself: a face that blinks, glances away and drifts its head under
- * the pointer is a moving target, and nobody can judge where an eye sits while
- * the eye is moving. Every other task either watches the mascot (Preview) or
- * edits what it does (Face Setup, Expressions, Motions, Reactions), where the
- * movement is the work rather than in the way.
+ * Design draws the pieces of the mascot and places them, by clicking the mascot
+ * itself: a face that blinks, glances away and drifts its head under the
+ * pointer is a moving target, and nobody can judge where an eye sits while the
+ * eye is moving.
  *
- * The Character Builder was the other one, for the same reason, until V5-07.
+ * **Animate is here too**, and the argument is the same one a step later. An
+ * expression is judged by looking at the face it makes, and a motion is judged
+ * by the pose at the playhead; a blink landing in the middle of either is a
+ * change the author did not make and cannot tell apart from one they did. The
+ * table used to read "Expressions and Motions edit what it does, so there the
+ * movement is the work" -- but the movement that is the work there is the
+ * *authored* one, and this has never gated that: a clip, a transition, a Test
+ * press, a slider and a handle all still move the mascot. What stops is only
+ * what it does **by itself** (§19: Preview is the place for testing).
  *
- * These are workspace names because a workspace is what the shell dispatches;
- * the task router maps the `artwork` task onto the legacy `create` workspace
- * (docs/UX02_TASK_ROUTER_SELECTION_INSPECTOR.md).
+ * Rig is deliberately not here. Calibrating a movement is watching the face do
+ * the thing, and Behavior is *about* what happens unprompted -- a board whose
+ * subject held still would be a board that lies.
+ *
+ * These are surface names, because a surface is what the shell dispatches:
+ * `create` and `hands` are Design's two, `expressions` and `animate` are
+ * Animate's (`ui/task-router.js`).
  */
-const STILL_WORKSPACES = new Set(['create']);
+const STILL_WORKSPACES = new Set(['create', 'hands', 'expressions', 'animate']);
 
 // The DOM half of `bindCanvas`, shaped like the component contract's `listen`
 // (VNX-03) so the gestures can move into a workspace lifecycle unchanged.
