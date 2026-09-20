@@ -296,6 +296,14 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
     say('ok', 'Drag the outline\u2019s points on the canvas, then press Capture. The points themselves stay as they are.');
   }
 
+  /**
+   * The nine positions and the pad that drives them are one thing an author
+   * does with two hands, so `.head-pose-deck` puts them side by side in a
+   * column wide enough for it and one above the other in a narrow one. The
+   * rule is an `@container` query, not a media query: the columns are per
+   * screen and draggable, so the window is the wrong thing to ask about
+   * (UX-60 PR 5).
+   */
   function render() {
     const summary = headPoseSummary(keyforms(), axes);
     const parts = headPoseElements(keyforms(), axes);
@@ -343,6 +351,8 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
         </label>
       </div>
       ${captured ? '' : '<p class="small">Without this, <b>headX</b> only slides the head sideways: the turn is what makes it read as volume. Generating it hands <b>headX</b> and <b>headY</b> to the grid, so the head stops sliding and starts turning — one undo puts it back.</p>'}
+      <div class="head-pose-deck">
+      <div class="head-pose-deck-cell">
       <div class="head-pose-grid" role="grid" aria-label="Head pose positions">
         ${rows.map((j) => `<div role="row">${offered.filter((item) => item.j === j).map((item) => `
           <button type="button" role="gridcell" data-head-cell="${item.i},${item.j}" data-head-state="${item.state}"
@@ -361,6 +371,8 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
       </div>
       <p class="small" data-head-cell-summary>${active ? `${esc(STATE_LABEL[active.state])}${active.elements ? ` · ${active.elements} part${active.elements === 1 ? '' : 's'}` : ''}` : ''}</p>
       ${notice ? `<p class="workspace-hint" data-tone="${notice.tone}" role="status">${esc(notice.text)}</p>` : ''}
+      </div>
+      <div class="head-pose-deck-cell">
       <div class="head-pose-pad">
         ${padFrame({
           label: 'Turn the head', hint: 'drag, or use the arrow keys',
@@ -371,6 +383,8 @@ export function createHeadPosePanel(host, store, history, { beginPose = () => fa
           </div>`
         })}
         <p class="small" data-head-live>${axisReadout(live[axes.x.parameter], ['left', 'right'])} · ${axisReadout(live[axes.y.parameter], ['up', 'down'])}</p>
+      </div>
+      </div>
       </div>
       <details class="head-pose-parts" data-keep-open="head-pose-parts"${sections.attr('head-pose-parts')}${parts.length ? '' : ' hidden'}>
         <summary>${parts.length} part${parts.length === 1 ? '' : 's'} in this pose</summary>

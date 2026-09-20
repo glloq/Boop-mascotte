@@ -444,7 +444,17 @@ export function createReactionStudio({ listHost, inspectorHost, store, history, 
     const automatic = (group) => group.automatic.length
       ? `<p class="small" data-runs-when-automatic="${group.automatic.length}">Also here: ${group.automatic.map((item) => esc(item.name)).join(', ')} · <button type="button" class="link" data-reaction-go="behavior.automatic">Automatic</button></p>`
       : '';
-    const group = (entry) => `<section class="runs-when-group" data-runs-when-group="${entry.id}" data-runs-when-count="${entry.count}"><h4>${esc(entry.label)}<small>${entry.count || 'nothing yet'}</small></h4><p class="small">${esc(entry.hint)}</p>${entry.reactions.length ? `<ol class="expression-list" aria-label="${esc(entry.label)}">${entry.reactions.map(row).join('')}</ol>` : ''}${automatic(entry)}</section>`;
+    /**
+     * One trigger, and what runs on it.
+     *
+     * The hint used to be a paragraph under every heading, empty group or not.
+     * Five of them is three hundred pixels of a column that already hid two
+     * thousand (UX-60 PR 5), and an author who has three reactions on *clicked*
+     * does not need telling what clicked means. It stays, in full, exactly
+     * where it is the answer: on a group with nothing in it, and on the
+     * heading's `title` otherwise.
+     */
+    const group = (entry) => `<section class="runs-when-group" data-runs-when-group="${entry.id}" data-runs-when-count="${entry.count}"><h4 title="${esc(entry.hint)}">${esc(entry.label)}<small>${entry.count || 'nothing yet'}</small></h4>${entry.reactions.length ? `<ol class="expression-list" aria-label="${esc(entry.label)}">${entry.reactions.map(row).join('')}</ol>` : `<p class="small">${esc(entry.hint)}</p>`}${automatic(entry)}</section>`;
     // A motion that nothing runs never reaches the exported mascot, however
     // finished it is: an arrangement is editor-only, so a reaction is the only
     // way out of Animate. Choosing a when and pressing Run is that way.

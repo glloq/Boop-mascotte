@@ -86,7 +86,7 @@ export const MODES = Object.freeze({
   // too, marked advanced: where a hand *is* is a movement; what it is *drawn
   // from* is Design (§6).
   'rig.controls': { id: 'rig.controls', label: 'Controls', workspace: 'rig', surface: 'rig', navigable: true, sections: ['movements', 'face-states', 'gaze', 'handles', 'hands'], layout: { left: 400, right: 320 }, surfaceLayout: 'control', stage: Object.freeze({ size: 'medium', position: 'right', autoZoom: 'down-only' }) },
-  'rig.head2d': { id: 'rig.head2d', label: 'Head 2.5D', workspace: 'rig', surface: 'rig', navigable: true, sections: ['head-pose'], layout: { left: 300, right: 300 }, surfaceLayout: 'edit' },
+  'rig.head2d': { id: 'rig.head2d', label: 'Head 2.5D', workspace: 'rig', surface: 'rig', navigable: true, sections: ['head-pose'], layout: { left: 440, right: 260 }, surfaceLayout: 'edit' },
   'rig.deform': { id: 'rig.deform', label: 'Deform', workspace: 'rig', surface: 'rig', navigable: true, advanced: true, sections: ['holding', 'warp', 'all-parts'], layout: { left: 380, right: 340 }, surfaceLayout: 'edit' },
 
   /* ── Animate: what can its face do? ──────────────────────────────────────── */
