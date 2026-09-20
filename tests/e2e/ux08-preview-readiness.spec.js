@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToMode, goToPreview, importArtworkFixture, openFreshEditor, openProblems, openTask, problemsButton, readSvgTranslation, startBasicFace } from './editor-helpers.js';
+import { goToMode, goToPreview, importArtworkFixture, openFreshEditor, openPreviewSection, openProblems, openTask, problemsButton, readSvgTranslation, startBasicFace } from './editor-helpers.js';
 
 const checkpoint = (page) => page.evaluate(() => ({
   document: window.__BOOP_E2E__.document(), token: window.__BOOP_E2E__.documentVersionToken(), revisions: window.__BOOP_E2E__.documentRevisions(),
@@ -27,9 +27,8 @@ async function openPreview(page) {
  * like an expression, so it reads with them and needs no disclosure.
  */
 async function openRigBench(page) {
-  const bench = page.locator('[data-preview-section="advanced"]');
-  if (!(await bench.evaluate((node) => node.open))) await bench.locator('> summary').click();
-  await expect(bench.locator('[data-preview-section="live"]')).toBeVisible();
+  await openPreviewSection(page, 'advanced');
+  await expect(page.locator('[data-preview-section="advanced"] [data-preview-section="live"]')).toBeVisible();
 }
 
 test('@critical Preview offers live controls and a readiness list without writing to the project', async ({ page }) => {
@@ -97,10 +96,12 @@ test('@critical Preview poses, animations and automatic behaviors are preview-on
   expect((await checkpoint(page)).document.behaviors.find((behavior) => behavior.id === 'auto-blink').enabled).toBe(true);
   await expect(automatic).toContainText('preview only');
 
+  await openPreviewSection(page, 'poses');
   await page.locator('[data-preview-section="poses"] [data-preview-state="happy"]').click();
   await expect.poll(() => effective(page, 'smile'), { timeout: 3000 }).toBeCloseTo(1, 1);
   await expect(page.locator('[data-preview-state="happy"]')).toHaveAttribute('aria-pressed', 'true');
 
+  await openPreviewSection(page, 'animations');
   const clip = page.locator('[data-preview-section="animations"] [data-preview-clip="look-around"]');
   await clip.click();
   await expect(clip).toHaveAttribute('aria-pressed', 'true');
@@ -282,10 +283,13 @@ test('@critical Preview offers every way to try the mascot, hand states included
   for (const id of ['live', 'hands', 'expressions', 'reactions', 'animations', 'automatic']) {
     await expect(page.locator(`[data-preview-section="${id}"]`), `Preview offers ${id}`).toHaveCount(1);
   }
+  // The simulator reads with the reactions it fires, one chip along.
+  await openPreviewSection(page, 'reactions');
   await expect(page.locator('[data-preview-events]'), 'the event simulator is the Events surface').toBeVisible();
   await expect(page.getByRole('button', { name: 'Reset mascot' })).toHaveCount(1);
 
   // The hands are offered as states, in the words Design and Behavior use.
+  await openRigBench(page);
   const hands = page.locator('[data-preview-hand="left"]');
   await expect(hands.locator('.pose-chips-label')).toHaveText(['Place', 'Hand state']);
   const fist = hands.locator('[data-preview-hand-style="left:fist"]');
@@ -353,7 +357,7 @@ test('@critical Preview tests the mascot on a ground and at a size, and writes n
 });
 
 /** The bench is testing the rig, so it is last and folded rather than first. */
-test('@critical the event simulator and the sliders are one disclosure at the bottom', async ({ page }) => {
+test('@critical the sliders are behind the last chip on the strip, and the strip names them all', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await openPreview(page);
@@ -365,12 +369,20 @@ test('@critical the event simulator and the sliders are one disclosure at the bo
   const sections = await page.locator('#preview-panel > [data-preview-section]').evaluateAll((nodes) => nodes.map((node) => node.dataset.previewSection));
   expect(sections).toEqual(['expressions', 'poses', 'animations', 'reactions', 'advanced']);
 
+  // Each is a chip on the strip, in that order, so what the mascot can do is
+  // five words on screen rather than 2 845 px of column (UX-60 PR 6).
+  const picks = await page.locator('[data-preview-pick]').evaluateAll((nodes) => nodes.map((node) => node.dataset.previewPick));
+  expect(picks).toEqual(['expressions', 'poses', 'animations', 'reactions', 'advanced']);
+
   const advanced = page.locator('[data-preview-section="advanced"]');
-  await expect(advanced).toContainText('Test the rig');
-  // The eighteen sliders and the simulator are inside it, not in front of it.
-  await advanced.locator('> summary').click();
+  await expect(page.locator('[data-preview-pick="advanced"]')).toContainText('Test the rig');
+  // The eighteen sliders are inside the bench, not in front of it.
+  await openPreviewSection(page, 'advanced');
   await expect(advanced.locator('[data-preview-section="live"]')).toBeVisible();
+  // The simulator reads with the reactions it fires, which is where it is.
+  await openPreviewSection(page, 'reactions');
   await expect(page.locator('[data-preview-events]')).toBeVisible();
-  // And the states are reachable without opening it.
+  // And the states are one press away, named on the strip the whole time.
+  await openPreviewSection(page, 'poses');
   await expect(page.locator('[data-preview-section="poses"] [data-preview-state]').first()).toBeVisible();
 });

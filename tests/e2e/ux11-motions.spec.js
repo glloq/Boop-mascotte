@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToMode, importArtworkFixture, openFreshEditor, startEmptyBasicFace } from './editor-helpers.js';
+import { goToMode, importArtworkFixture, openFreshEditor, openPreviewSection, startEmptyBasicFace } from './editor-helpers.js';
 import { openEditableProject, saveEditableProject, startNewProject } from './product-journey-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
@@ -108,6 +108,7 @@ test('presets wait for movements, then Shake plays from Preview and can be delet
   expect(times(shake, 'headX')).toEqual([0, .1, .3, .4, .5, .7, .8]);
   await page.locator('[data-motion-stop]').click();
   await goToMode(page, 'preview');
+  await openPreviewSection(page, 'animations');
   const chip = page.locator('[data-preview-section="animations"] [data-preview-clip="shake"]');
   await chip.click();
   await expect.poll(() => playing(page)).toBe(true);

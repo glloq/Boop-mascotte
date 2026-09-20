@@ -131,10 +131,23 @@ export const goToPreview = page => goToMode(page, 'preview');
  * of them opens the disclosure first.
  */
 export async function openRigBench(page) {
-  const bench = page.locator('[data-preview-section="advanced"]');
-  await expect(bench).toBeVisible();
-  if (!(await bench.evaluate((node) => node.open))) await bench.locator('> summary').click();
-  await expect(bench.locator('[data-preview-section="live"]')).toBeVisible();
+  await openPreviewSection(page, 'advanced');
+  await expect(page.locator('[data-preview-section="advanced"] [data-preview-section="live"]')).toBeVisible();
+}
+
+/**
+ * Show one of Preview's sections.
+ *
+ * They were five open `<details>` stacked, and everything the mascot can do
+ * was one 2 845 px column. They are a strip and one of them shows (UX-60
+ * PR 6), so reaching into Poses, Animations, Reactions or the rig bench is a
+ * press on its chip -- which is what an author does.
+ */
+export async function openPreviewSection(page, id) {
+  const chip = page.locator(`[data-preview-pick="${id}"]`);
+  // A panel with one section has no strip, and the section is already showing.
+  if (await chip.count()) await chip.click();
+  await expect(page.locator(`#preview-panel > [data-preview-section="${id}"]`)).toBeVisible();
 }
 /** Behavior's three screens: reactions, the automatic behaviours, the states. */
 export const goToReactions = page => goToMode(page, 'behavior.reactions');

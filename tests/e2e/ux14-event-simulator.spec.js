@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, openTask, startEmptyBasicFace } from './editor-helpers.js';
+import { openFreshEditor, openPreviewSection, openTask, startEmptyBasicFace } from './editor-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
 const activeReaction = (page) => page.evaluate(() => window.__BOOP_E2E__.activeReaction());
@@ -29,6 +29,7 @@ test('@critical the event simulator fires, blocks and logs events without writin
   const authored = await documentOf(page), before = await mutations(page);
 
   await openTask(page, 'preview');
+  await openPreviewSection(page, 'reactions');
   const section = page.locator('[data-preview-section="reactions"]');
   await expect(section.locator('[data-log-empty]')).toBeVisible();
   await section.locator('[data-preview-event="hover"]').click();
@@ -101,6 +102,7 @@ test('hover from the canvas, timer reactions and the enable switch', async ({ pa
   await expect(page.locator('[data-reaction-select="surprise"]')).toContainText('off');
   await openTask(page, 'preview');
   await expect(page.locator('[data-preview-reaction="surprise"]')).toBeDisabled();
+  await openPreviewSection(page, 'reactions');
   await page.locator('[data-preview-section="reactions"] [data-preview-event="click"]').click();
   expect(await latest(page)).toMatchObject({ type: 'click', outcome: 'no-listener' });
   // Cleared first: the reaction was still on for the moment between Reset

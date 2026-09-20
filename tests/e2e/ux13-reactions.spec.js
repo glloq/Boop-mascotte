@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openFreshEditor, openTask, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
+import { openFreshEditor, openPreviewSection, openTask, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
 import { openEditableProject, saveEditableProject, startNewProject } from './product-journey-helpers.js';
 
 const documentOf = (page) => page.evaluate(() => window.__BOOP_E2E__.document());
@@ -58,6 +58,7 @@ test('@critical Click → Surprised: author a reaction, test it, click the masco
   expect(await mutations(page)).toBe(before + 3);
 
   await openTask(page, 'preview');
+  await openPreviewSection(page, 'reactions');
   const chip = page.locator('[data-preview-section="reactions"] [data-preview-reaction="surprise"]');
   await expect(chip).toContainText('Surprise');
   // The canvas keeps an interaction layer above the artwork; the click bubbles to the canvas like a user's would.

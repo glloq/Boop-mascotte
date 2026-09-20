@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToMode, openCapabilitySheet, openFreshEditor, openRigBench, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
+import { goToMode, openCapabilitySheet, openFreshEditor, openPreviewSection, openRigBench, startBasicFace, startEmptyBasicFace } from './editor-helpers.js';
 
 const effective = (page, name) => page.evaluate((n) => window.__BOOP_E2E__.effectiveParams()[n], name);
 const layout = (page) => page.evaluate(() => window.__BOOP_E2E__.layout());
@@ -60,7 +60,11 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }
     await expect(app).toHaveAttribute('data-sheet', 'half');
     await openRigBench(page);
     await expect(page.locator('[data-preview-section="live"]')).toBeVisible();
+    // Preview's sections are a strip on a phone as much as on a desktop
+    // (UX-60 PR 6), and the faces are the first chip on it.
+    await openPreviewSection(page, 'expressions');
     await expect(page.locator('[data-preview-expression="happy"]')).toBeVisible();
+    await openPreviewSection(page, 'reactions');
     await expect(page.locator('[data-preview-reaction="wave"]')).toBeVisible();
 
     // Save and Export never disappear; the capability sheet explains the rest.
