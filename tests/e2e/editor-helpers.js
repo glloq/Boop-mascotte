@@ -334,14 +334,14 @@ const isOpen = details => details.evaluate(element => element.hasAttribute('open
  *
  * It was *Add / Create artwork* in Artwork, and held the ways to start next to
  * the parts that go on whole. Since UIR-18 the parts are in the open on
- * Assemble and this disclosure holds only the three destructive cards — which
- * is why it is folded and last (docs/DESIGN_SCREENS.md).
+ * Assemble and this holds only the three destructive cards — which is why it
+ * is the last chip on the strip rather than anything at the top of the column
+ * (docs/DESIGN_SCREENS.md, UX-60 PR 7).
  */
 export async function openAddArtwork(page) {
   await goToAssemble(page);
-  const create=page.locator('details[data-keep-open="start-over"]');
-  if (!(await isOpen(create))) await create.locator(':scope > summary').click();
-  await expect(create).toHaveAttribute('open', '');
+  await page.locator('[data-strip-pick="assemble:over"]').click();
+  await expect(page.locator('[data-strip-pane="assemble:over"]')).toBeVisible();
 }
 export async function openProjectMenu(page) {
   const menu=page.locator('details.file-menu');

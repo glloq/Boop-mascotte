@@ -69,7 +69,7 @@ export const MODES = Object.freeze({
    * Assemble is first, so it is what `surfaceToMode('create')` answers, what
    * the DESIGN tab opens, and where the editor opens.
    */
-  'design.assemble': { id: 'design.assemble', label: 'Assemble', workspace: 'design', surface: 'create', navigable: true, layout: { left: 420, right: 300 }, surfaceLayout: 'browse', stage: Object.freeze({ size: 'small', position: 'right', autoZoom: 'down-only' }) },
+  'design.assemble': { id: 'design.assemble', label: 'Assemble', workspace: 'design', surface: 'create', navigable: true, layout: { left: 420, right: 300, rightMax: 290 }, surfaceLayout: 'browse', stage: Object.freeze({ size: 'small', position: 'right', autoZoom: 'down-only' }) },
   // Artwork, which is `Draw` now: the same screen, said in the word for what
   // it is. It stopped being where the editor opens for the reason above, and
   // is `advanced` again — a Bézier node editor is not the second thing an

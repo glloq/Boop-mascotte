@@ -31,6 +31,7 @@ import { topbarMarkup, wireTopbar } from './topbar.js';
 import { createWorkspaceNav } from './workspace-nav.js';
 import { sideNavHosts, sideNavMarkup, setCapability, setSetupSections } from './side-nav.js';
 import { readCapabilities, wireCapabilityBar, writeCapabilities } from '../ui/capability-bar.js';
+import { wireChipStrip } from '../ui/chip-strip.js';
 import { canvasColumnMarkup, wireCanvasColumn } from './canvas-column.js';
 import { inspectorHostMarkup, inspectorHosts } from './inspector-host.js';
 import { bottomDockMarkup, wireBottomDock } from './bottom-dock.js';
@@ -70,6 +71,9 @@ export function createAppShell(root) {
     savePreferences();
   }, true);
 
+  // Strips declared in the markup rather than rendered by a panel: Assemble's
+  // "Or bring a picture / add a part / start over" is one (UX-60 PR 7).
+  wireChipStrip(root);
   const dock = wireBottomDock({ root, q, preferences, savePreferences });
   const canvas = wireCanvasColumn({ root, q, qAll, preferences, savePreferences });
   const overlays = wireOverlays({ root, q, qAll });
