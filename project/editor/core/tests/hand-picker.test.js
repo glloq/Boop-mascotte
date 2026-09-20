@@ -131,3 +131,38 @@ test('every cell has its own id, so a press means one thing', () => {
   assert.equal(new Set(ids).size, ids.length);
   assert.ok(ids.every((id) => id.startsWith('hand-left-pick-')));
 });
+
+test('a column beside the hand stays on the stage when the stage is narrow', () => {
+  // The measured bug (UX-60): the column sits outside the hand's *reach*, which
+  // is outside the artwork's own box, so a 35 % stage had nowhere to put it.
+  // All sixteen cells landed over the panel beside the canvas, where the column
+  // boundary swallowed the clicks.
+  const free = handPickerLayout({ rest: { x: 100, y: 250 }, reach: { x: 40, y: 35 }, side: 'left', drawings: 6 });
+  const wanted = free.drawings[0].x;
+  assert.ok(wanted < 100, 'the left hand picks on the left');
+
+  // A window that cannot hold the column pulls it in rather than letting it go.
+  const squeezed = handPickerLayout({ rest: { x: 100, y: 250 }, reach: { x: 40, y: 35 }, side: 'left', drawings: 6, bounds: { x: 60, y: 150, width: 120, height: 300 } });
+  const cell = squeezed.drawings[0];
+  assert.ok(cell.x > wanted, 'it came in');
+  assert.ok(cell.x - cell.size / 2 >= 60, `${cell.x} is inside the left edge`);
+  assert.ok(cell.x + cell.size / 2 <= 180, `${cell.x} is inside the right edge`);
+  assert.equal(squeezed.drawings.length, 6, 'and every drawing is still offered');
+  for (const drawing of squeezed.drawings) assert.equal(drawing.x, cell.x, 'one column, not a scatter');
+
+  // A stage wide enough changes nothing: the clamp is a floor under a failure,
+  // not a new place for the column.
+  const roomy = handPickerLayout({ rest: { x: 100, y: 250 }, reach: { x: 40, y: 35 }, side: 'left', drawings: 6, bounds: { x: -400, y: -200, width: 1200, height: 900 } });
+  assert.equal(roomy.drawings[0].x, wanted);
+
+  // The right hand picks on its own side, and is held by the other edge.
+  const right = handPickerLayout({ rest: { x: 100, y: 250 }, reach: { x: 40, y: 35 }, side: 'right', drawings: 6, bounds: { x: 60, y: 150, width: 120, height: 300 } });
+  assert.ok(right.drawings[0].x + right.drawings[0].size / 2 <= 180);
+  assert.ok(right.drawings[0].x > squeezed.drawings[0].x, 'and the two columns did not collapse onto each other');
+});
+
+test('a window narrower than one cell centres the column rather than inverting it', () => {
+  const { drawings } = handPickerLayout({ rest: { x: 100, y: 250 }, reach: { x: 40, y: 35 }, side: 'left', drawings: 4, bounds: { x: 90, y: 200, width: 6, height: 200 } });
+  assert.equal(drawings.length, 4);
+  for (const cell of drawings) assert.equal(cell.x, 93, 'the middle of what there is');
+});

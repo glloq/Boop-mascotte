@@ -17,46 +17,56 @@ const columns = (page) => page.evaluate(() => {
 });
 
 test('@critical each screen opens at the width its work needs', async ({ page }) => {
-  // Wide enough that every screen gets what it asked for, so the numbers below
-  // are the declared ones. What happens when they do not all fit is the next
-  // test, and `core/tests/panel-split.test.js` holds the arithmetic.
+  // Wide enough that every screen gets what it asked for.
   await page.setViewportSize({ width: 1600, height: 900 });
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
 
+  // A drawing screen has not been migrated to a stage share: the canvas *is*
+  // the work there, and it keeps the pixels the route declares.
   await goToMode(page, 'design.artwork');
   const artwork = await columns(page);
   expect(artwork.left, 'drawing keeps the canvas').toBe(300);
   expect(artwork.right, 'and the Inspector is the widest column in the editor').toBe(340);
 
-  // Hands is the opposite: the work is a list of drawings, and the Inspector
-  // has nothing to say until one of a hand's shapes is selected.
+  // Hands is the opposite, and is a stage screen (UX-60): the work is a list of
+  // drawings, so the mascot takes its share and the list takes the rest. The
+  // shape the route asked for survives -- a wide list, a narrow detail -- but
+  // the numbers are now a proportion of the window rather than fixed pixels.
   await goToMode(page, 'design.hands');
   const hands = await columns(page);
-  expect(hands.left, 'a hundred more pixels of list').toBe(400);
-  expect(hands.right).toBe(250);
-  expect(hands.left).toBeGreaterThan(artwork.left);
-  expect(hands.right).toBeLessThan(artwork.right);
+  expect(hands.left, 'far more list than the old 400 px').toBeGreaterThan(artwork.left);
+  // Not narrower in pixels -- a proportional column on a 1600 px window is
+  // wider than a declared 340 -- but narrower *than its own list*, which is the
+  // shape the route asked for and the thing that has to survive.
+  expect(hands.left / hands.right, 'the 400:250 shape it asked for').toBeCloseTo(400 / 250, 1);
 
   await goToMode(page, 'rig.controls');
-  expect((await columns(page)).left).toBe(400);
+  expect((await columns(page)).left, 'a deck, not a 400 px column').toBeGreaterThan(400);
 });
 
-test('@critical on a laptop the canvas keeps its share, and both columns give way', async ({ page }) => {
-  // The pair of widths that suits a 1600px window starves a 1280px one, and
-  // the rig draws handles *on* the canvas: a hand's own slider sits beside the
-  // face, outside the artwork, and ended up behind the panel where nobody
-  // could reach it. So the columns scale rather than hold their pixels.
-  await page.setViewportSize({ width: 1280, height: 720 });
-  await openFreshEditor(page, { e2e: true });
-  await startBasicFace(page);
+test('@critical the mascot keeps its share of the window, and it is the work that grows', async ({ page }) => {
+  // This used to assert the opposite: `canvas >= 660` on a 1280 px window, the
+  // 52 % floor under the canvas. That floor is the bug the Shell V2 audit
+  // measured -- the columns were pixels and the canvas was `1fr`, so a wider
+  // monitor bought a bigger face (docs/SHELL_V2_AUDIT.md). What is asserted now
+  // is the contract that replaced it.
+  for (const width of [1280, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    await openFreshEditor(page, { e2e: true });
+    await startBasicFace(page);
 
-  for (const mode of ['design.artwork', 'design.hands', 'rig.assign', 'rig.controls']) {
-    await goToMode(page, mode);
-    const c = await columns(page);
-    expect(c.canvas, `${mode} keeps a canvas`).toBeGreaterThanOrEqual(660);
-    expect(c.left, `${mode} keeps a readable panel`).toBeGreaterThanOrEqual(200);
-    expect(c.right, `${mode} keeps a readable inspector`).toBeGreaterThanOrEqual(200);
+    for (const [mode, ceiling] of [['design.hands', .35], ['rig.assign', .40], ['rig.controls', .40]]) {
+      await goToMode(page, mode);
+      const c = await columns(page);
+      const share = c.canvas / width;
+      expect(share, `${mode} at ${width}: the mascot is a corner of the screen, not half of it`).toBeLessThanOrEqual(ceiling);
+      expect(c.canvas, `${mode} at ${width}: and still a mascot`).toBeGreaterThanOrEqual(240);
+      expect(c.left, `${mode} at ${width}: the work keeps a readable column`).toBeGreaterThanOrEqual(200);
+    }
+    // A drawing screen is the other way round, and stays that way.
+    await goToMode(page, 'design.artwork');
+    expect((await columns(page)).canvas, `drawing keeps its canvas at ${width}`).toBeGreaterThanOrEqual(660);
   }
   // And the screen's own proportions survive the squeeze: Hands still has the
   // wider list and the narrower inspector.
@@ -75,27 +85,31 @@ test('@critical a boundary can be dragged, and the drag belongs to that screen',
   await expect(handle).toBeVisible();
   await expect(handle).toHaveAttribute('role', 'separator');
   const box = await handle.boundingBox();
+  // Relative to where it starts, because a staged screen's column is a share of
+  // the window rather than a declared pixel count (UX-60).
+  const before = (await columns(page)).left;
   await page.mouse.move(box.x + box.width / 2, box.y + 300);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2 + 100, box.y + 300, { steps: 8 });
   await page.mouse.up();
-  await expect.poll(async () => (await columns(page)).left).toBe(500);
+  await expect.poll(async () => (await columns(page)).left).toBe(before + 100);
 
   // Another screen is untouched: one number for every screen is the thing this
   // replaces, so a drag that leaked would be the old behaviour back.
   await goToMode(page, 'design.artwork');
   expect((await columns(page)).left).toBe(300);
   await goToMode(page, 'design.hands');
-  expect((await columns(page)).left, 'and coming back remembers it').toBe(500);
+  expect((await columns(page)).left, 'and coming back remembers it').toBe(before + 100);
 
   // The keyboard moves it too: a separator only a pointer can reach is a
   // layout somebody cannot change.
   await handle.focus();
   await page.keyboard.press('ArrowLeft');
-  await expect.poll(async () => (await columns(page)).left).toBe(484);
-  // And Home puts the screen's own width back.
+  await expect.poll(async () => (await columns(page)).left).toBe(before + 100 - 16);
+  // And Home puts the screen's own width back -- which on a staged screen is
+  // the share of the task area the route asked for, not a declared pixel count.
   await page.keyboard.press('Home');
-  await expect.poll(async () => (await columns(page)).left).toBe(400);
+  await expect.poll(async () => (await columns(page)).left).toBe(before);
 });
 
 test('@critical the Hands canvas shows the hand, not the face it hides behind', async ({ page }) => {

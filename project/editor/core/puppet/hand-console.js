@@ -159,6 +159,26 @@ export function handConsoleLayout({ rest = {}, reach = {}, side = 'left', hold =
 }
 
 /**
+ * Keep a column of cells inside what is on screen.
+ *
+ * `bounds` is the visible rectangle in artwork units; without one the wanted
+ * place is taken as given, which is what every caller did before a stage could
+ * be narrower than the hands are wide.
+ */
+function insideBounds(wanted, size, bounds) {
+  const width = number(bounds?.width);
+  if (!bounds || !(width > 0)) return wanted;
+  // A margin of its own, so a cell pushed in from the edge still reads as a
+  // thing beside the drawing rather than a thing stuck to the frame.
+  const half = size / 2 + size * 0.2;
+  const low = number(bounds.x) + half, high = number(bounds.x) + width - half;
+  // A rectangle narrower than the cell has no inside: centre it rather than
+  // returning a low bound above the high one.
+  if (high < low) return number(bounds.x) + width / 2;
+  return Math.min(high, Math.max(low, wanted));
+}
+
+/**
  * Where the drawings a hand can show are laid out (docs/HAND_STYLES.md).
  *
  * ```text
@@ -176,10 +196,23 @@ export function handConsoleLayout({ rest = {}, reach = {}, side = 'left', hold =
  * it selects -- so they are one function and one shape. Geometry only: what
  * goes in a cell is `hand-picker.js`, and drawing it is the canvas.
  *
- * @param {{rest: {x,y}, reach: {x,y}, side: 'left'|'right', poses: number, views: number}} source
- * @returns {{poses: {x,y,size}[], views: {x,y,size}[]}}
+ * ## Why it takes the visible rectangle
+ *
+ * The column sits outside the hand's *reach*, which is outside the artwork's
+ * own box -- so the room it needs is room the drawing does not occupy, and a
+ * stage only as wide as the drawing has none. That was survivable while the
+ * canvas was 58 % of the window; on a 30-35 % stage (UX-60) every one of the
+ * sixteen cells landed off the canvas, over the panel beside it, where the
+ * column boundary swallowed the clicks.
+ *
+ * So the caller may say what is on screen, in artwork units, and the column is
+ * kept inside it. A cell drawn over the hand is worse than a cell beside it;
+ * a cell nobody can reach is worse than both.
+ *
+ * @param {{rest: {x,y}, reach: {x,y}, side: 'left'|'right', drawings: number, bounds?: {x,y,width,height}}} source
+ * @returns {{drawings: {x,y,size}[]}}
  */
-export function handPickerLayout({ rest = {}, reach = {}, side = 'left', drawings = 0 } = {}) {
+export function handPickerLayout({ rest = {}, reach = {}, side = 'left', drawings = 0, bounds = null } = {}) {
   const cx = round(rest.x), cy = round(rest.y);
   const rx = round(Math.max(4, Math.abs(number(reach.x, 40))));
   const ry = round(Math.max(4, Math.abs(number(reach.y, 40))));
@@ -195,7 +228,7 @@ export function handPickerLayout({ rest = {}, reach = {}, side = 'left', drawing
   const columnSpan = ry * (HAND_CONSOLE.pickTop + HAND_CONSOLE.pickBottom);
   const column = fitCells(columnSpan, drawings, { biggest: shorter * HAND_CONSOLE.pickMax, gap: HAND_CONSOLE.pickGap });
   const dir = side === 'right' ? 1 : -1;
-  const columnX = round(cx + dir * rx * (1 + HAND_CONSOLE.showOut + HAND_CONSOLE.pickOut));
+  const columnX = round(insideBounds(cx + dir * rx * (1 + HAND_CONSOLE.showOut + HAND_CONSOLE.pickOut), column.size, bounds));
   // Sitting on the bottom of the run rather than the top: the hand is at the
   // bottom, and a short column belongs beside it and not adrift above it.
   const used = column.step * drawings - (column.step - column.size);

@@ -31,7 +31,7 @@
  * gesture everybody tries first.
  */
 import { COLUMN, clampColumn, readSplits, resolveSplit, splitForMode, writeSplits } from '../ui/panel-split.js';
-import { columnsForStage, stageFor } from '../ui/stage-layout.js';
+import { clampStageColumn, columnsForStage, stageFor } from '../ui/stage-layout.js';
 
 /** One nudge, and the bigger one. */
 const STEP = 16;
@@ -89,8 +89,13 @@ export function wirePanelSplitter({ root, mode, storage = globalThis.sessionStor
   function set(side, width) {
     const current = mode();
     if (!current?.id) return;
+    // A staged screen bounds the drag by its own task area, not by the 52 %
+    // canvas floor the stage share replaced -- and not by the *other* column,
+    // which the splitter re-reads on every pointer move and which therefore
+    // shrank the budget on each step (UX-60).
+    const staged = clampStageColumn(mode(), available(), width);
     const other = side === 'left' ? Number(root.dataset.splitRight) : Number(root.dataset.splitLeft);
-    const next = clampColumn(width, { other, available: available() });
+    const next = staged ?? clampColumn(width, { other, available: available() });
     splits = { ...splits, [current.id]: { ...(splits[current.id] || {}), [side]: next } };
     writeSplits(splits, storage);
     paint();

@@ -103,3 +103,26 @@ test('nothing here is a document write', () => {
   autoScale(3, 1, 'down-only');
   assert.equal(JSON.stringify(MODES['rig.controls']), frozen, 'the route table is untouched');
 });
+
+test('a width the author dragged is a width, not a proportion', () => {
+  // The bug: the saved pair was read as a ratio like the route's own, so a drag
+  // to 500 px came back as 25 -- the proportion was computed against a column
+  // the author had never touched. A drag says "this side is this wide".
+  const controls = mode({ size: 'medium' });
+  const { left, right, stage } = columnsForStage(controls, 1440, { left: 500 });
+  assert.equal(left, 500, 'the number the author let go of');
+  assert.equal(left + right + stage, 1440, 'and the rest of the task area is the other column');
+  // The stage is not part of the bargain: dragging a column boundary resizes
+  // the columns, never the mascot.
+  assert.equal(stage, columnsForStage(controls, 1440).stage);
+
+  const held = columnsForStage(controls, 1440, { right: 420 });
+  assert.equal(held.right, 420);
+  assert.equal(held.left + held.right + held.stage, 1440);
+});
+
+test('a drag cannot push a column past the task area it lives in', () => {
+  const { left, right, stage } = columnsForStage(mode({ size: 'medium' }), 1440, { left: 99999 });
+  assert.equal(right, 0, 'the other column gives way');
+  assert.equal(left + stage, 1440, 'and the stage keeps its share whatever the drag asked for');
+});

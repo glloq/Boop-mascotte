@@ -40,9 +40,14 @@ const number = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number
  * A hand still resting behind the head has no picker: a column of drawings
  * beside a hand nobody can see is clutter around nothing.
  *
+ * `bounds` is what is on screen, in artwork units, and is how a column beside
+ * the hand stays *on* the stage when the stage is narrower than the hands are
+ * wide (`handPickerLayout`). A caller with no view -- a unit test, a headless
+ * read -- passes none and gets the unclamped places.
+ *
  * @returns {{side, group, cells: object[]}|null}
  */
-export function handPickerModel(document = {}, side = 'left', values = {}) {
+export function handPickerModel(document = {}, side = 'left', values = {}, { bounds = null } = {}) {
   const hand = document?.hands?.[side];
   const styles = hand?.styles;
   if (!styles || !document?.elements?.[hand.element]) return null;
@@ -58,7 +63,7 @@ export function handPickerModel(document = {}, side = 'left', values = {}) {
   const anchor = handDrawnAnchor(hand, document.elements);
   const rest = ellipse ? { x: ellipse.cx, y: ellipse.cy } : anchor;
   const reach = ellipse ? { x: ellipse.rx, y: ellipse.ry } : hand.reach;
-  const layout = handPickerLayout({ rest, reach, side, drawings: offered.length });
+  const layout = handPickerLayout({ rest, reach, side, drawings: offered.length, bounds });
 
   const showing = handStyleFromValues(hand, values);
   const label = side === 'right' ? 'Right hand' : 'Left hand';
@@ -84,8 +89,8 @@ export function handPickerModel(document = {}, side = 'left', values = {}) {
 }
 
 /** Both hands' pickers, in side order; a hand without styles simply has none. */
-export function handPickerOverlay(document = {}, values = {}) {
-  return ['left', 'right'].map((side) => handPickerModel(document, side, values)).filter(Boolean);
+export function handPickerOverlay(document = {}, values = {}, { bounds = null } = {}) {
+  return ['left', 'right'].map((side) => handPickerModel(document, side, values, { bounds })).filter(Boolean);
 }
 
 /**

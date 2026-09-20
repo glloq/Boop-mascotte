@@ -38,17 +38,26 @@ function setupSectionsMarkup(openSections = {}) {
   const extra = {
     'all-parts': '<p class="small" aria-label="Part status legend">✓ Ready &nbsp; ● Needs setup &nbsp; ○ Optional &nbsp; ⚠ Invalid</p>'
   };
-  // The `<details>` stay, and stay open (UX-60 PR 3). They are what every deep
-  // link, every `focusPanel` and thirty specs address, and the capability bar
-  // above them is what decides which one is *shown* -- so the accordion stops
-  // being navigation without the panels inside it being rewritten.
+  // The `<details>` stay (UX-60 PR 3). They are what every deep link, every
+  // `focusPanel` and thirty specs address, and the capability bar above them is
+  // what decides which one is *shown* -- so the accordion stops being
+  // navigation without the panels inside it being rewritten.
   //
-  // `open` on every one of them is deliberate: a shut disclosure inside a tab
-  // would be two presses to reach one panel, which is the nesting §25 caps at
-  // three levels and this screen had five.
+  // They start **shut**, and `setCapability` opens the one the screen is on.
+  // Opening all thirteen here was the first shape of this, and it cost four
+  // seconds on every project open: the panels re-render about forty-five times
+  // while a project loads, each write followed by a `scrollTop` read that forces
+  // layout (`ui/panel-render.js`), and an open disclosure is content that layout
+  // has to do. 1.6 s became 6.5 s, which is more than `rig-timeline`'s Save/Open
+  // poll allows. Twelve panels nobody is looking at do not need to be laid out
+  // for the thirteenth to be one press away.
+  //
+  // `openSections` is not read here any more: which capability is showing is
+  // the bar's answer, per screen, and a remembered disclosure would be a second
+  // one that disagrees.
   return `<div class="capability-host" data-capability-host>${SETUP_SECTIONS.map((section) => {
     void openSections;
-    return `<details class="setup-section" data-setup-section="${section.id}" data-setup-mode="${sectionMode(section.id) || ''}" open>
+    return `<details class="setup-section" data-setup-section="${section.id}" data-setup-mode="${sectionMode(section.id) || ''}">
       <summary><span class="setup-mark" data-setup-mark aria-hidden="true">○</span><span class="setup-title">${section.label}${section.advanced ? ' <small class="setup-advanced">advanced</small>' : ''}</span><span class="setup-summary" data-setup-summary></span></summary>
       ${extra[section.id] || ''}<div id="${section.panel}"></div>
     </details>`;
@@ -66,30 +75,66 @@ function setupSectionsMarkup(openSections = {}) {
  * A section the current screen does not own is left entirely alone: the
  * stylesheet already hides it by `data-setup-mode`, and hiding it twice would
  * make `focusPanel` on another screen a puzzle.
+ *
+ * ## Why it compares before it writes
+ *
+ * This runs inside `setSetupSections`, which runs on **every** render of the
+ * editor -- opening one project re-rendered every panel about forty-five times,
+ * measured. Rewriting the bar each of those times was not the cost itself; the
+ * cost was where it sat. `setPanelHtml` reads `scrollTop` immediately after
+ * each panel's write, and a DOM write between two of those turns a batched
+ * layout into a forced one, per panel, per render. Opening a project went from
+ * 1.7 s to 6.5 s, which is the whole of `rig-timeline`'s five-second Save/Open
+ * poll and then some.
+ *
+ * So the bar is rebuilt when it *says* something different, and the sections
+ * are re-flagged when their flags differ. Everything here is idempotent, so
+ * comparing first changes nothing an author can see.
  */
 export function setCapability(root, { mode, sections = [], active = null, summaries = {} } = {}) {
   const host = root?.querySelector('[data-capability-host]');
   if (!host) return null;
   const mine = sections.filter(Boolean);
   const open = activeCapability(mine, active);
-  host.dataset.capabilityActive = open || '';
-  host.dataset.capabilityCount = String(mine.length);
+  if (host.dataset.capabilityActive !== (open || '')) host.dataset.capabilityActive = open || '';
+  if (host.dataset.capabilityCount !== String(mine.length)) host.dataset.capabilityCount = String(mine.length);
+  const owned = new Set(mine);
+  // A capability of another screen is shut as well as hidden: a shut
+  // disclosure is content the browser does not lay out, and the panels of the
+  // twelve screens an author is not on were costing a layout each on every one
+  // of the forty-five renders a project load makes.
+  for (const section of host.querySelectorAll('[data-setup-section]')) {
+    if (owned.has(section.dataset.setupSection) || !section.open) continue;
+    section.open = false;
+  }
   for (const id of mine) {
     const section = host.querySelector(`[data-setup-section="${id}"]`);
     if (!section) continue;
-    section.hidden = id !== open;
-    section.dataset.capabilityOpen = String(id === open);
-    section.setAttribute('id', `cap-panel-${id}`);
-    section.setAttribute('role', 'tabpanel');
-    section.setAttribute('aria-labelledby', `cap-tab-${id}`);
+    const shown = id === open;
+    if (section.hidden === shown) section.hidden = !shown;
+    if (section.open !== shown) section.open = shown;
+    if (section.dataset.capabilityOpen !== String(shown)) section.dataset.capabilityOpen = String(shown);
+    // Set once: the ids and the roles are a property of the section, not of
+    // this call, and writing an attribute its own value is still a write.
+    if (section.id !== `cap-panel-${id}`) {
+      section.setAttribute('id', `cap-panel-${id}`);
+      section.setAttribute('role', 'tabpanel');
+      section.setAttribute('aria-labelledby', `cap-tab-${id}`);
+    }
   }
   // The bar itself, rebuilt from what the screen holds and how ready each is.
-  let bar = host.querySelector('[data-capability-bar]');
+  const bar = host.querySelector('[data-capability-bar]');
   const items = mine.map((id) => {
     const section = SETUP_SECTIONS.find((item) => item.id === id);
     return { id, label: section?.label || id, state: summaries[id]?.state || null, summary: summaries[id]?.summary || '' };
   });
   const markup = capabilityBarMarkup(items, open, { label: `${mode || 'Screen'} capabilities` });
+  // A screen with a single capability gets no bar -- there is nothing to
+  // choose between -- so its own heading is the only name it has and must
+  // stay. Hiding it left `rig.assign` with no heading at all.
+  if (host.dataset.capabilityBar !== String(Boolean(markup))) host.dataset.capabilityBar = String(Boolean(markup));
+  if (host.dataset.capabilityMarkup === markup) return open;
+  host.dataset.capabilityMarkup = markup;
   if (!bar && markup) { host.insertAdjacentHTML('afterbegin', markup); }
   else if (bar && markup) { bar.outerHTML = markup; }
   else if (bar && !markup) { bar.remove(); }

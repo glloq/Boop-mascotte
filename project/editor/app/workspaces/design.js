@@ -20,6 +20,16 @@ import { HAND_REVEAL_SECONDS, handShowParameterName } from '../../../runtime/han
 
 /** How long a hand takes to come out from behind the head, in milliseconds. */
 const HAND_REVEAL_MS = Math.round(HAND_REVEAL_SECONDS * 1000);
+/**
+ * How far the automatic framing on Design ▸ Hands may enlarge a hand.
+ *
+ * The brief names 160 % as the zoom an author should not arrive at, so the
+ * ceiling sits under it. Framing a *part* of the drawing is not the same act
+ * as fitting the whole mascot -- that one is capped at 1:1 by the screen's
+ * `down-only` stage policy (`ui/stage-layout.js`) -- but it still has to stop
+ * somewhere, or a thumb-sized piece fills the stage.
+ */
+const HAND_FRAME_MAX = 1.5;
 import { createHandCommands } from '../../core/hands/hand-commands.js';
 import { createHandStateCommands } from '../../core/hands/hand-state-commands.js';
 import { handStateElementId } from '../../core/hands/hand-state-model.js';
@@ -184,9 +194,14 @@ export function createDesignWorkspace({
     // single hand rather than the pair, because the gap between two hands is
     // the width of a body, and framing that is where this screen started.
     const id = handElementId(handStates.selected()?.side || 'left');
-    // Centred, never enlarged: Hands is a browse screen whose stage is
-    // `down-only`, and it used to open one hand at 251 % (UX-60 PR 2).
-    handsFramed = Boolean(canvas.frameElements?.([id], 0.22, { max: 1 }));
+    // Centred, and barely enlarged: this opened one hand at 251 % on the screen
+    // that is about *choosing which drawing it uses* (UX-60 PR 2). Most of that
+    // came from the stage, which was 58 % of the window and is 30 % now; the
+    // rest is this ceiling. 1:1 was the first fix and it was too far the other
+    // way -- a 161 px hand adrift in a 432 px stage, smaller than the library
+    // thumbnails beside it. `HAND_FRAME_MAX` is the brief's own zoom ceiling:
+    // big enough to judge a drawing by, under the 160 % it names as too much.
+    handsFramed = Boolean(canvas.frameElements?.([id], 0.22, { max: HAND_FRAME_MAX }));
     /**
      * And again once it has arrived.
      *
@@ -207,7 +222,7 @@ export function createDesignWorkspace({
       // The canvas says whether the view is still the framing it was given.
       // A *Fit*, a wheel or a zoom-to-selection in the meantime drops it, and
       // this stands down rather than pulling the author back.
-      if (handsFramed && canvas.isFraming?.([id])) canvas.frameElements?.([id], 0.22, { max: 1 });
+      if (handsFramed && canvas.isFraming?.([id])) canvas.frameElements?.([id], 0.22, { max: HAND_FRAME_MAX });
     }, delay);
     settling = again(HAND_REVEAL_MS + 60);
     again(HAND_REVEAL_MS + 260);

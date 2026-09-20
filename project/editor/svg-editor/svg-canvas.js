@@ -2673,9 +2673,25 @@ export function createSvgCanvas(container, store, history, pluginRegistry, { ass
     return entry;
   }
 
+  /**
+   * What is on screen, in artwork units.
+   *
+   * `artworkMatrix` has no rotation or skew, so its inverse is two divisions.
+   * Canvas controls that sit *outside* the drawing -- the hand pickers, beside
+   * the hands rather than on them -- are placed against this, so a stage
+   * narrower than the mascot is wide keeps them reachable instead of putting
+   * them over the panel next door (UX-60).
+   */
+  const artworkBounds = () => {
+    const matrix = artworkMatrix();
+    const width = container.clientWidth, height = container.clientHeight;
+    if (!matrix || !matrix.a || !matrix.d || !width || !height) return null;
+    return { x: -matrix.e / matrix.a, y: -matrix.f / matrix.d, width: width / matrix.a, height: height / matrix.d };
+  };
+
   /** Which hands are offering a picker, given what the preview is showing. */
   const handPickers = () => (puppet?.visible && store.getDocument().svgMarkup
-    ? handPickerOverlay(store.getDocument(), puppet.getValues?.() || {})
+    ? handPickerOverlay(store.getDocument(), puppet.getValues?.() || {}, { bounds: artworkBounds() })
     : []);
 
   function renderHandPicker() {

@@ -58,9 +58,14 @@ export function createAppShell(root) {
 
   q('.skip-link').addEventListener('click', (event) => { event.preventDefault(); q('#canvas').focus(); });
   // A section an author opened stays open, on whichever screen shows it.
+  //
+  // Except a capability: which one of those is showing is the tab strip's
+  // answer, per screen (UX-60 PR 3), and remembering a disclosure state for it
+  // would be a second answer that disagrees -- and a `localStorage` write for
+  // each of the thirteen the shell opens and shuts on every change of screen.
   root.addEventListener('toggle', (event) => {
     const id = event.target?.dataset?.setupSection;
-    if (!id) return;
+    if (!id || event.target.closest('[data-capability-host]')) return;
     preferences.openSections = { ...preferences.openSections, [id]: event.target.open };
     savePreferences();
   }, true);
@@ -197,6 +202,13 @@ export function createAppShell(root) {
       // tools, Problems, the palette, a validation Fix -- so the screen it lives
       // on is opened here rather than in each of them.
       if (PANEL_MODES[id]) nav.applyMode(PANEL_MODES[id]);
+      // A capability is reached by pressing its tab, not by opening its
+      // disclosure: a section the bar has not selected is `hidden`, so opening
+      // it would leave the deep link on a panel that is open and invisible
+      // (UX-60 PR 3). The tab does the opening, and does it the way an author
+      // would.
+      const capability = panel.closest('[data-capability-host] [data-setup-section]')?.dataset.setupSection;
+      if (capability) this.openCapability(capability);
       // Open first, scroll second: a panel inside a collapsed section has no
       // position to scroll to yet.
       for (let node = panel; node && node !== root; node = node.parentElement) if (node.tagName === 'DETAILS' && !node.open) node.open = true;
