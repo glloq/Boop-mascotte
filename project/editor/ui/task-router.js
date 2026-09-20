@@ -74,7 +74,7 @@ export const MODES = Object.freeze({
   // it is. It stopped being where the editor opens for the reason above, and
   // is `advanced` again — a Bézier node editor is not the second thing an
   // author meets (docs/AUDIT_UI_2026-09/02_PROBLEMES.md §1.5).
-  'design.artwork': { id: 'design.artwork', label: 'Draw', workspace: 'design', surface: 'create', navigable: true, advanced: true, layout: { left: 300, right: 340 }, surfaceLayout: 'edit', stage: Object.freeze({ size: 'large', position: 'center', autoZoom: 'preserve' }) },
+  'design.artwork': { id: 'design.artwork', label: 'Draw', workspace: 'design', surface: 'create', navigable: true, advanced: true, layout: { left: 300, right: 340 }, surfaceLayout: 'edit' },
   // Hands are designed away from the face (docs/HAND_STYLES.md): a library of
   // drawings an author owns, not a section inside somebody else's panel.
   'design.hands': { id: 'design.hands', label: 'Hands', workspace: 'design', surface: 'hands', navigable: true, layout: { left: 400, right: 250 }, surfaceLayout: 'browse', stage: Object.freeze({ size: 'small', position: 'right', autoZoom: 'down-only' }) },
@@ -86,8 +86,8 @@ export const MODES = Object.freeze({
   // too, marked advanced: where a hand *is* is a movement; what it is *drawn
   // from* is Design (§6).
   'rig.controls': { id: 'rig.controls', label: 'Controls', workspace: 'rig', surface: 'rig', navigable: true, sections: ['movements', 'face-states', 'gaze', 'handles', 'hands'], layout: { left: 400, right: 320 }, surfaceLayout: 'control', stage: Object.freeze({ size: 'medium', position: 'right', autoZoom: 'down-only' }) },
-  'rig.head2d': { id: 'rig.head2d', label: 'Head 2.5D', workspace: 'rig', surface: 'rig', navigable: true, sections: ['head-pose'], layout: { left: 300, right: 300 }, surfaceLayout: 'edit', stage: Object.freeze({ size: 'large', position: 'center', autoZoom: 'down-only' }) },
-  'rig.deform': { id: 'rig.deform', label: 'Deform', workspace: 'rig', surface: 'rig', navigable: true, advanced: true, sections: ['holding', 'warp', 'all-parts'], layout: { left: 380, right: 340 }, surfaceLayout: 'edit', stage: Object.freeze({ size: 'large', position: 'center', autoZoom: 'preserve' }) },
+  'rig.head2d': { id: 'rig.head2d', label: 'Head 2.5D', workspace: 'rig', surface: 'rig', navigable: true, sections: ['head-pose'], layout: { left: 300, right: 300 }, surfaceLayout: 'edit' },
+  'rig.deform': { id: 'rig.deform', label: 'Deform', workspace: 'rig', surface: 'rig', navigable: true, advanced: true, sections: ['holding', 'warp', 'all-parts'], layout: { left: 380, right: 340 }, surfaceLayout: 'edit' },
 
   /* ── Animate: what can its face do? ──────────────────────────────────────── */
   'animate.expressions': { id: 'animate.expressions', label: 'Expressions', workspace: 'animate', surface: 'expressions', navigable: true, layout: { left: 340, right: 320 }, surfaceLayout: 'browse', stage: Object.freeze({ size: 'small', position: 'right', autoZoom: 'down-only' }) },
@@ -95,7 +95,7 @@ export const MODES = Object.freeze({
   // The Timeline is the detailed editor *of a motion*, never a second way to
   // start one (§9). It is the same surface with the dock open -- `dock` names
   // the one surface under the canvas, and at most one is ever open.
-  'animate.timeline': { id: 'animate.timeline', label: 'Timeline', workspace: 'animate', surface: 'animate', navigable: true, advanced: true, dock: 'timeline', surfaceLayout: 'graph', stage: Object.freeze({ size: 'mini', position: 'right', autoZoom: 'down-only' }) },
+  'animate.timeline': { id: 'animate.timeline', label: 'Timeline', workspace: 'animate', surface: 'animate', navigable: true, advanced: true, dock: 'timeline', surfaceLayout: 'graph' },
 
   /* ── Behavior: when does it do it? ───────────────────────────────────────── */
   //
@@ -105,10 +105,10 @@ export const MODES = Object.freeze({
   // a library narrow enough to be a library, and a rail wide enough to draw an
   // easing curve and a waveform in, because on this workspace the right-hand
   // column *is* the tuning surface rather than a strip of fields.
-  'behavior.reactions': { id: 'behavior.reactions', label: 'Reactions', workspace: 'behavior', surface: 'reactions', navigable: true, layout: { left: 300, right: 340 }, surfaceLayout: 'graph', stage: Object.freeze({ size: 'mini', position: 'right', autoZoom: 'down-only' }) },
+  'behavior.reactions': { id: 'behavior.reactions', label: 'Reactions', workspace: 'behavior', surface: 'reactions', navigable: true, layout: { left: 300, right: 340 }, surfaceLayout: 'graph' },
   // Automatic had no route at all: it was reached by scrolling past Reactions
   // in the same column, which is why nobody found it.
-  'behavior.automatic': { id: 'behavior.automatic', label: 'Automatic', workspace: 'behavior', surface: 'reactions', navigable: true, layout: { left: 300, right: 340 }, surfaceLayout: 'graph', stage: Object.freeze({ size: 'mini', position: 'right', autoZoom: 'down-only' }) },
+  'behavior.automatic': { id: 'behavior.automatic', label: 'Automatic', workspace: 'behavior', surface: 'reactions', navigable: true, layout: { left: 300, right: 340 }, surfaceLayout: 'graph' },
   // And the state machine was filed under *Motions*, inside an accordion in the
   // step above the one whose subject it is (§10). `panel` is what a screen
   // reveals on arrival: the list it is the screen *for* is a disclosure in its
@@ -121,13 +121,13 @@ export const MODES = Object.freeze({
   // Named in full for a screen reader: the column it opens has its own
   // "States" button inside it, and two controls with one accessible name is a
   // control nobody can ask for.
-  'behavior.stateMachine': { id: 'behavior.stateMachine', label: 'States', aria: 'State machine', workspace: 'behavior', surface: 'reactions', navigable: true, panel: 'state-editor', layout: { left: 300, right: 340 }, surfaceLayout: 'graph', stage: Object.freeze({ size: 'mini', position: 'right', autoZoom: 'down-only' }) },
+  'behavior.stateMachine': { id: 'behavior.stateMachine', label: 'States', aria: 'State machine', workspace: 'behavior', surface: 'reactions', navigable: true, panel: 'state-editor', layout: { left: 300, right: 340 }, surfaceLayout: 'graph' },
 
   /* ── Global: reachable from every workspace ──────────────────────────────── */
   // Preview is not a step of the project (§11). It keeps a route because the
   // shell still mounts it as a surface; UIR-13 turns it into a mode of the
   // canvas rather than a place.
-  preview: { id: 'preview', label: 'Preview', workspace: null, surface: 'preview', navigable: true, global: true, surfaceLayout: 'graph', stage: Object.freeze({ size: 'dominant', position: 'center', autoZoom: 'fit' }) },
+  preview: { id: 'preview', label: 'Preview', workspace: null, surface: 'preview', navigable: true, global: true, surfaceLayout: 'graph' },
 
   export: { id: 'export', label: 'Export', workspace: null, surface: null, navigable: false },
   advanced: { id: 'advanced', label: 'Advanced', workspace: null, surface: null, navigable: false }

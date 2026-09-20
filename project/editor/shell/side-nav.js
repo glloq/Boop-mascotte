@@ -22,6 +22,7 @@
 import { gateMarkup } from '../ui/mobile-capabilities.js';
 import { buildAddPartSection, buildStartArtworkSection } from '../ui/sidebar-sections.js';
 import { SETUP_SECTIONS } from '../core/validation/setup-sections.js';
+import { activeCapability, capabilityBarMarkup } from '../ui/capability-bar.js';
 import { sectionMode } from '../ui/task-router.js';
 
 /**
@@ -37,13 +38,62 @@ function setupSectionsMarkup(openSections = {}) {
   const extra = {
     'all-parts': '<p class="small" aria-label="Part status legend">✓ Ready &nbsp; ● Needs setup &nbsp; ○ Optional &nbsp; ⚠ Invalid</p>'
   };
-  return SETUP_SECTIONS.map((section) => {
-    const open = openSections[section.id] ?? section.open;
-    return `<details class="setup-section" data-setup-section="${section.id}" data-setup-mode="${sectionMode(section.id) || ''}"${open ? ' open' : ''}>
+  // The `<details>` stay, and stay open (UX-60 PR 3). They are what every deep
+  // link, every `focusPanel` and thirty specs address, and the capability bar
+  // above them is what decides which one is *shown* -- so the accordion stops
+  // being navigation without the panels inside it being rewritten.
+  //
+  // `open` on every one of them is deliberate: a shut disclosure inside a tab
+  // would be two presses to reach one panel, which is the nesting §25 caps at
+  // three levels and this screen had five.
+  return `<div class="capability-host" data-capability-host>${SETUP_SECTIONS.map((section) => {
+    void openSections;
+    return `<details class="setup-section" data-setup-section="${section.id}" data-setup-mode="${sectionMode(section.id) || ''}" open>
       <summary><span class="setup-mark" data-setup-mark aria-hidden="true">○</span><span class="setup-title">${section.label}${section.advanced ? ' <small class="setup-advanced">advanced</small>' : ''}</span><span class="setup-summary" data-setup-summary></span></summary>
       ${extra[section.id] || ''}<div id="${section.panel}"></div>
     </details>`;
-  }).join('');
+  }).join('')}</div>`;
+}
+
+/**
+ * Show one capability of the screen, and mark the rest as reachable.
+ *
+ * Called on every render of the Rig column. The sections of the current screen
+ * become the tab strip; the one that is open is displayed and the others are
+ * `hidden`, which is what takes 3 206 px of stacked structure down to the
+ * height of one panel.
+ *
+ * A section the current screen does not own is left entirely alone: the
+ * stylesheet already hides it by `data-setup-mode`, and hiding it twice would
+ * make `focusPanel` on another screen a puzzle.
+ */
+export function setCapability(root, { mode, sections = [], active = null, summaries = {} } = {}) {
+  const host = root?.querySelector('[data-capability-host]');
+  if (!host) return null;
+  const mine = sections.filter(Boolean);
+  const open = activeCapability(mine, active);
+  host.dataset.capabilityActive = open || '';
+  host.dataset.capabilityCount = String(mine.length);
+  for (const id of mine) {
+    const section = host.querySelector(`[data-setup-section="${id}"]`);
+    if (!section) continue;
+    section.hidden = id !== open;
+    section.dataset.capabilityOpen = String(id === open);
+    section.setAttribute('id', `cap-panel-${id}`);
+    section.setAttribute('role', 'tabpanel');
+    section.setAttribute('aria-labelledby', `cap-tab-${id}`);
+  }
+  // The bar itself, rebuilt from what the screen holds and how ready each is.
+  let bar = host.querySelector('[data-capability-bar]');
+  const items = mine.map((id) => {
+    const section = SETUP_SECTIONS.find((item) => item.id === id);
+    return { id, label: section?.label || id, state: summaries[id]?.state || null, summary: summaries[id]?.summary || '' };
+  });
+  const markup = capabilityBarMarkup(items, open, { label: `${mode || 'Screen'} capabilities` });
+  if (!bar && markup) { host.insertAdjacentHTML('afterbegin', markup); }
+  else if (bar && markup) { bar.outerHTML = markup; }
+  else if (bar && !markup) { bar.remove(); }
+  return open;
 }
 
 /**

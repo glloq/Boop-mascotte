@@ -67,14 +67,19 @@ test('an automatic fit shrinks and never enlarges', () => {
   assert.equal(autoScale(2.5, null, 'preserve'), 1, 'and starts at 1:1 rather than filled');
 });
 
-test('every navigable screen declares what its stage is for', () => {
-  // A screen with no declaration silently gets the old behaviour, which is the
-  // migration hatch -- but once they are all migrated, a missing one is a
-  // screen that will quietly keep growing its mascot with the monitor.
-  const navigable = Object.values(MODES).filter((item) => item.navigable);
-  const missing = navigable.filter((item) => !hasStage(item)).map((item) => item.id);
-  assert.deepEqual(missing, [], 'every screen sizes its own stage');
-  for (const item of navigable) {
+test('only the screens whose column is a mascot size it as a stage', () => {
+  // A `stage` share sizes the canvas *column*, and on Behavior that column
+  // holds the board. Sizing it as a stage crushed the surface the screen is
+  // about, which is what `ux39-state-graph` caught the first time this was
+  // wired for all fourteen at once.
+  const staged = Object.values(MODES).filter((item) => item.navigable && hasStage(item)).map((item) => item.id);
+  assert.deepEqual(staged.sort(), [
+    'animate.expressions', 'animate.motions', 'design.assemble', 'design.hands', 'rig.assign', 'rig.controls'
+  ], 'the migrated set is the screens whose column is a mascot and nothing else');
+  for (const id of ['behavior.reactions', 'behavior.stateMachine', 'animate.timeline']) {
+    assert.equal(hasStage(MODES[id]), false, `${id} keeps its column for the surface it is about`);
+  }
+  for (const item of Object.values(MODES).filter((entry) => entry.navigable && hasStage(entry))) {
     const stage = stageFor(item);
     assert.ok(STAGE_SIZES[stage.size] > 0, `${item.id} names a real size`);
     assert.ok(['down-only', 'preserve', 'fit'].includes(stage.autoZoom), `${item.id} names a real zoom policy`);
@@ -87,10 +92,6 @@ test('the screens the brief names as configuration keep their mascot small', () 
   for (const id of ['design.assemble', 'design.hands', 'rig.assign', 'rig.controls', 'animate.expressions', 'animate.motions']) {
     const share = STAGE_SIZES[stageFor(MODES[id]).size];
     assert.ok(share >= 0.25 && share <= 0.35, `${id} is ${Math.round(share * 100)} %, inside 25–35`);
-  }
-  // And the ones where the drawing *is* the work keep it big.
-  for (const id of ['design.artwork', 'rig.deform', 'preview']) {
-    assert.ok(STAGE_SIZES[stageFor(MODES[id]).size] >= 0.6, `${id} keeps a large stage`);
   }
 });
 

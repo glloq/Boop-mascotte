@@ -29,6 +29,21 @@
  * `resolveSplit` exactly as before, which is what keeps the migration one
  * screen at a time (§33). It writes nothing to the document and nothing to
  * disk: where the author is standing is session state (§ invariants).
+ *
+ * ## Which screens have one, and why the rest wait
+ *
+ * A `stage` share sizes **the canvas column**, and that column is only the
+ * mascot on the screens where the mascot is all it holds. On Behavior it holds
+ * the *board* (#160, "the board is the workspace"), so sizing it as a stage
+ * crushes the surface the screen is about -- which is exactly what happened
+ * the first time this was wired for all fourteen screens at once, and what
+ * `ux39-state-graph` caught.
+ *
+ * So the migrated set is the screens whose column is a mascot and nothing
+ * else: Assemble, Hands, Assign, Controls, Expressions, Motions. The drawing
+ * screens (Draw, Head 2.5D, Deform), the Timeline, Behavior and Preview keep
+ * the old arithmetic until their own layout primitive lands, because each of
+ * them wants something the share alone cannot express.
  */
 
 /**

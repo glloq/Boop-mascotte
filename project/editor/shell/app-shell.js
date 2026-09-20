@@ -29,7 +29,8 @@ import { PANEL_MODES, surfaceToMode } from '../ui/task-router.js';
 import { readinessVerdict } from '../core/validation/task-readiness.js';
 import { topbarMarkup, wireTopbar } from './topbar.js';
 import { createWorkspaceNav } from './workspace-nav.js';
-import { sideNavHosts, sideNavMarkup, setSetupSections } from './side-nav.js';
+import { sideNavHosts, sideNavMarkup, setCapability, setSetupSections } from './side-nav.js';
+import { readCapabilities, wireCapabilityBar, writeCapabilities } from '../ui/capability-bar.js';
 import { canvasColumnMarkup, wireCanvasColumn } from './canvas-column.js';
 import { inspectorHostMarkup, inspectorHosts } from './inspector-host.js';
 import { bottomDockMarkup, wireBottomDock } from './bottom-dock.js';
@@ -104,6 +105,33 @@ export function createAppShell(root) {
    */
   const splitter = wirePanelSplitter({ root, mode: () => MODES[root.dataset.mode] || null });
 
+  /* ── Capabilities, as tabs rather than as a stack of shut accordions ─────
+   *
+   * UX-60 PR 3. The Rig column held nine `<details>`, twelve of thirteen shut
+   * on arrival, and 3 206 px of structure below its own bottom. The sections
+   * of the screen that is open are a tab strip now, and one of them shows.
+   */
+  const modeFor = () => MODES[root.dataset.mode] || null;
+  const capabilities = readCapabilities();
+  let capabilitySummaries = {};
+  const paintCapabilities = () => setCapability(root, {
+    mode: modeFor()?.label,
+    sections: modeFor()?.sections || [],
+    active: capabilities[modeFor()?.id],
+    summaries: capabilitySummaries
+  });
+  wireCapabilityBar(root, {
+    ids: () => modeFor()?.sections || [],
+    active: () => paintCapabilities(),
+    onOpen: (id) => {
+      const current = modeFor();
+      if (!current || !id) return;
+      capabilities[current.id] = id;
+      writeCapabilities(capabilities);
+      paintCapabilities();
+    }
+  });
+
   const nav = createWorkspaceNav({
     root, preferences, savePreferences,
     // The nav owns the fold; the project bar owns the label that offers it.
@@ -117,6 +145,8 @@ export function createAppShell(root) {
       // The screen's own column widths, or whatever the author dragged them to
       // on this screen last.
       splitter.paint();
+      // And the capability this screen was left on, or its first.
+      paintCapabilities();
     },
     resetScroll: () => { hosts.leftSidebarEl.scrollTop = 0; const right = root.querySelector('.panel-right'); if (right) right.scrollTop = 0; }
   });
@@ -128,7 +158,28 @@ export function createAppShell(root) {
     /** The column widths, for a test or a caller that changes the window. */
     repaintSplit: () => splitter.paint(),
     /** Section headings say what is inside without opening it. */
-    setSetupSections: (sections) => setSetupSections(root, sections),
+    setSetupSections: (sections) => {
+      setSetupSections(root, sections);
+      // The headings still say how ready each capability is; the bar above them
+      // shows the same mark, so a capability that is set up says so without
+      // being opened (UX-60 PR 3).
+      capabilitySummaries = Object.fromEntries((sections || []).map((item) => [item.id, { state: item.state, summary: item.summary }]));
+      paintCapabilities();
+    },
+    /**
+     * Which capability of the current screen is showing.
+     *
+     * Session state, per screen, exactly like a column width: where the author
+     * is standing, never anything the mascot is (§ invariants).
+     */
+    openCapability(id) {
+      const current = modeFor();
+      if (!current || !id) return null;
+      capabilities[current.id] = id;
+      writeCapabilities(capabilities);
+      return paintCapabilities();
+    },
+    activeCapability: () => paintCapabilities(),
     /**
      * Open the advanced States & behaviors editor.
      *
