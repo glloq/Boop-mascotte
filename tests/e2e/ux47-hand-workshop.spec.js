@@ -237,13 +237,15 @@ test('@critical a pair of hands is drawn from Design, in one press and one undo 
   await goToMode(page, 'design.hands');
   expect(await page.evaluate(() => Object.keys(window.__BOOP_E2E__.document().hands || {}))).toEqual([]);
 
-  // One button for one gesture: hands arrive as a pair, so there is not one
-  // per hand.
-  const draw = page.locator('[data-hand-states-draw]');
+  // One press per look, and the press *is* the look: hands arrive as a pair, so
+  // there is not one button per hand, and choosing the look afterwards means
+  // drawing them again (UX-60 PR 8 shows each look as the drawings it makes,
+  // rather than naming it in a `<select>` beside one button).
+  const looks = page.locator('[data-hand-look-card]');
+  await expect(looks).toHaveCount(2);
+  for (const card of await looks.all()) await expect(card.locator('.hand-look-preview path').first()).toBeVisible();
+  const draw = page.locator('[data-hand-look-card="glove"] [data-hand-states-draw]');
   await expect(draw).toHaveCount(1);
-  // And the look is chosen here, because choosing it afterwards means drawing
-  // them again.
-  await expect(page.locator('[data-hand-states-look]')).toHaveCount(1);
 
   await draw.click();
   await expect.poll(() => page.evaluate(() => { const h = window.__BOOP_E2E__.document().hands || {}; return Boolean(h.left?.element && h.right?.element); })).toBe(true);
