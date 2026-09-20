@@ -97,12 +97,26 @@ export const SETUP_SECTION_MODES = {
   'face-parts': 'rig.assign', movements: 'rig.controls', 'face-states': 'rig.controls', gaze: 'rig.controls', handles: 'rig.controls',
   hands: 'rig.controls', 'head-pose': 'rig.head2d', holding: 'rig.deform', warp: 'rig.deform', 'all-parts': 'rig.deform'
 };
+/**
+ * Open one capability of a Rig screen.
+ *
+ * It used to open a `<details>`, because the capabilities were a stack of them.
+ * They are a tab strip now (UX-60 PR 3, `ui/capability-bar.js`), so this presses
+ * the tab -- which is what an author does, and what makes the panel visible
+ * rather than merely `open`.
+ *
+ * The disclosure fallback stays for the screens that have only one capability
+ * and therefore no bar to press.
+ */
 export async function openSetupSection(page, id) {
   await goToMode(page, SETUP_SECTION_MODES[id] || 'rig.assign');
   const section = page.locator(`[data-setup-section="${id}"]`);
   await expect(section).toHaveCount(1);
-  if (!(await section.evaluate((element) => element.hasAttribute('open')))) await section.locator(':scope > summary').click();
+  const tab = page.locator(`[data-capability-bar] [data-capability="${id}"]`);
+  if (await tab.count()) await tab.click();
+  else if (!(await section.evaluate((element) => element.hasAttribute('open')))) await section.locator(':scope > summary').click();
   await expect(section).toHaveAttribute('open', '');
+  await expect(section).toBeVisible();
 }
 export async function goToAnimate(page) { await goToMode(page, 'animate.motions'); await openTimeline(page); }
 export const goToPreview = page => goToMode(page, 'preview');
