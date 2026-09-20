@@ -674,8 +674,16 @@ button.link:hover{color:#a9c9ff}
 .head-pose-deck-cell{display:grid;gap:6px;align-content:start}
 .tune-groups{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0 6px}
 .preview-sections{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0 6px}
+.preview-groups{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 6px}
 .holding-topics{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0 6px}
 .runs-when-strip{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0}
+/* UX-60 PR 7 -- the Timeline's column is the clips, not the catalogue.
+   Animate ▸ Timeline draws the Motions panel in a 403 px column where Motions
+   itself gives it 588, and the dock takes 210 px of the height: the ready-made
+   motions were 871 px of the 1 269 px it hid. Adding one is Animate ▸ Motions,
+   one tab along, and that is the screen whose task it is. */
+#app[data-mode="animate.timeline"] #motion-panel [data-preset-catalogue="motions"],
+#app[data-mode="animate.timeline"] #motion-panel [data-starter-kit]{display:none}
 .preview-sections .preset-chip small{margin-left:1px}
 /* UX-60 PR 5 -- a panel sizes itself to the column it is in, not to the window.
    The columns are per screen and draggable, so a media query is the wrong

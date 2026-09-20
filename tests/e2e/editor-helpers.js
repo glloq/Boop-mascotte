@@ -136,6 +136,23 @@ export async function openRigBench(page) {
 }
 
 /**
+ * Bring one thing in Preview into view, wherever it is filed.
+ *
+ * Preview is a strip of sections and, inside a section, a strip of groups
+ * (UX-60 PR 6-7) — so a clip is behind its section's chip and then its group's.
+ * This presses whichever of those the thing is actually behind, which is what
+ * an author does with two glances and a press.
+ */
+export async function revealPreviewItem(page, section, selector) {
+  await openPreviewSection(page, section);
+  const target = page.locator(selector);
+  if (await target.isVisible()) return;
+  const group = await page.evaluate((sel) => document.querySelector(sel)?.closest('[data-preview-group]')?.dataset.previewGroup || null, selector);
+  if (group) await page.locator(`[data-preview-group-pick="${group}"]`).click();
+  await expect(target).toBeVisible();
+}
+
+/**
  * Show one of the four things Rig ▸ Deform's holding panel is about.
  *
  * Pins, rules, points and holds were one 1 073 px stack; they are a strip and

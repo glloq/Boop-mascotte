@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToMode, goToPreview, importArtworkFixture, openFreshEditor, openPreviewSection, openProblems, openTask, problemsButton, readSvgTranslation, startBasicFace } from './editor-helpers.js';
+import { goToMode, goToPreview, importArtworkFixture, openFreshEditor, openPreviewSection, openProblems, openTask, problemsButton, readSvgTranslation, revealPreviewItem, startBasicFace } from './editor-helpers.js';
 
 const checkpoint = (page) => page.evaluate(() => ({
   document: window.__BOOP_E2E__.document(), token: window.__BOOP_E2E__.documentVersionToken(), revisions: window.__BOOP_E2E__.documentRevisions(),
@@ -101,8 +101,8 @@ test('@critical Preview poses, animations and automatic behaviors are preview-on
   await expect.poll(() => effective(page, 'smile'), { timeout: 3000 }).toBeCloseTo(1, 1);
   await expect(page.locator('[data-preview-state="happy"]')).toHaveAttribute('aria-pressed', 'true');
 
-  await openPreviewSection(page, 'animations');
   const clip = page.locator('[data-preview-section="animations"] [data-preview-clip="look-around"]');
+  await revealPreviewItem(page, 'animations', '[data-preview-section="animations"] [data-preview-clip="look-around"]');
   await clip.click();
   await expect(clip).toHaveAttribute('aria-pressed', 'true');
   await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.diagnostics().preview.playing)).toBe(true);

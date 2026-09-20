@@ -217,6 +217,21 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
     if (button.dataset.previewExpressionClear !== undefined) { preview.clearExpressions(); render(); }
   });
   host.addEventListener('click', (event) => {
+    const group = event.target.closest?.('[data-preview-group-pick]');
+    if (group) {
+      const [kind, name] = group.dataset.previewGroupPick.split(':');
+      groupPick.set(kind, name);
+      const strip = group.parentElement;
+      for (const button of strip.querySelectorAll('[data-preview-group-pick]')) {
+        const on = button === group;
+        button.classList.toggle('chip-active', on);
+        button.setAttribute('aria-pressed', String(on));
+      }
+      for (const pane of strip.parentElement.querySelectorAll(':scope > [data-preview-group]')) {
+        pane.hidden = pane.dataset.previewGroup !== `${kind}:${name}`;
+      }
+      return;
+    }
     const chip = event.target.closest?.('[data-preview-pick]');
     if (!chip) return;
     openSection = chip.dataset.previewPick;
@@ -295,13 +310,25 @@ export function createPreviewPanel(host, store, preview, { navigate = () => {}, 
       : '';
     return strip + list.map((entry) => `<section class="preview-section" id="preview-pane-${esc(entry.id)}" data-preview-section="${esc(entry.id)}" role="${strip ? 'tabpanel' : 'group'}" aria-label="${esc(entry.title)}"${strip && entry.id !== active ? ' hidden' : ''}>${entry.body}</section>`).join('');
   };
-  // One disclosure per group, open unless the author folded it away. Fewer than
-  // two groups is not a grouping: a project with only its own faces gets the
-  // plain row it had before.
+  /** Which group of a Preview section is showing, per section. Session. */
+  const groupPick = new Map();
+
+  /**
+   * The groups inside a section, as a strip.
+   *
+   * These were five open disclosures inside one open disclosure: Expressions
+   * alone measured 844 px of a section inside a 1 920 px column. Fewer than two
+   * groups is not a grouping, and a project with only its own faces gets the
+   * plain row it had before.
+   */
   const groupBlocks = (kind, names, items, groupOf, body) => {
     const buckets = names.map((name) => ({ name, items: items.filter((item) => groupOf(item) === name) })).filter((bucket) => bucket.items.length);
     if (buckets.length < 2) return buckets.length ? body(buckets[0].items, buckets[0].name) : '';
-    return buckets.map((bucket) => `<details class="preview-group" data-preview-group="${esc(kind)}:${esc(bucket.name)}"${openAttr(`${kind}:${bucket.name}`)}><summary>${esc(bucket.name)}<small>${bucket.items.length}</small></summary>${body(bucket.items, bucket.name)}</details>`).join('');
+    const picked = groupPick.get(kind);
+    const active = buckets.some((bucket) => bucket.name === picked) ? picked : buckets[0].name;
+    const chips = buckets.map((bucket) => `<button type="button" class="preset-chip${bucket.name === active ? ' chip-active' : ''}" data-preview-group-pick="${esc(kind)}:${esc(bucket.name)}" aria-pressed="${bucket.name === active}"><b>${esc(bucket.name)}</b><small>${bucket.items.length}</small></button>`).join('');
+    const panes = buckets.map((bucket) => `<div class="preview-group" data-preview-group="${esc(kind)}:${esc(bucket.name)}"${bucket.name === active ? '' : ' hidden'}>${body(bucket.items, bucket.name)}</div>`).join('');
+    return `<div class="preview-groups" role="group" aria-label="${esc(kind)} groups">${chips}</div>${panes}`;
   };
 
   function syncPads() { for (const pad of host.querySelectorAll('[data-preview-xy]')) { const [x, y] = pad.dataset.previewXy.split(':'); pad.style.setProperty('--x', `${(toUnit(x, padValue(x)) + 1) * 50}%`); pad.style.setProperty('--y', `${(toUnit(y, padValue(y)) + 1) * 50}%`); } }
