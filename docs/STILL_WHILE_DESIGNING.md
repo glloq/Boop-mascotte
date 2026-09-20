@@ -3,9 +3,8 @@
 Two rules about the mascot on the canvas, and both of them are about the
 *session* rather than about the project:
 
-1. **Where the face is being designed, it holds still.** In the Character
-   Builder and in Artwork nothing the mascot does on its own is allowed to move
-   it.
+1. **Where the face is being authored, it holds still.** Across Design and
+   Animate, nothing the mascot does on its own is allowed to move it.
 2. **One control puts it back.** *Reset mascot*, in the project bar, on every
    tab.
 
@@ -17,31 +16,40 @@ ever happened.
 
 ### Why
 
-The Character Builder places the parts of the face and Artwork draws them, and
-both are done **by clicking the mascot itself** — an eye is picked by clicking
-the eye, a point is dragged where it should go. A face that blinks, glances
-away and drifts its head under the pointer is a moving target: the piece is not
-where it was a moment ago, and the drawing cannot be judged while it is moving.
+Design places the parts of the face and draws them, and both are done **by
+clicking the mascot itself** — an eye is picked by clicking the eye, a point is
+dragged where it should go. A face that blinks, glances away and drifts its
+head under the pointer is a moving target: the piece is not where it was a
+moment ago, and the drawing cannot be judged while it is moving.
 
-Every other task either *watches* the mascot (Preview) or *edits what it does*
-(Face Setup, Expressions, Motions, Reactions). There the movement is the work,
-so there it runs.
+**Animate is the same argument one step later.** An expression is judged by the
+face it makes and a motion by the pose at the playhead, and a blink landing in
+the middle of either is a change the author did not make and cannot tell apart
+from one they did. This page used to argue the opposite — that Expressions and
+Motions *edit what it does*, so there the movement is the work — and that was
+half true: the movement that is the work there is the **authored** one, and the
+hold has never gated that. A clip, a transition, a *Test* press, a slider and a
+handle all move the mascot exactly as before.
 
-| Task | Workspace | The mascot |
+Rig and Behavior still move. Calibrating a movement is watching the face do the
+thing, and Behavior is *about* what the mascot does unprompted — a board whose
+subject held still would be a board that lies.
+
+| Screen | Surface | The mascot |
 | --- | --- | --- |
-| **Character** | `character` | holds still |
-| **Artwork** | `create` | holds still |
-| Face Setup | `rig` | moves |
-| Expressions | `expressions` | moves |
-| Motions | `animate` | moves |
-| Reactions | `reactions` | moves |
+| **Design ▸ Assemble, Draw** | `create` | holds still |
+| **Design ▸ Hands** | `hands` | holds still |
+| **Animate ▸ Expressions** | `expressions` | holds still |
+| **Animate ▸ Motions, Timeline** | `animate` | holds still |
+| Rig ▸ Assign, Controls, Head 2.5D, Deform | `rig` | moves |
+| Behavior ▸ Reactions, Automatic, States | `reactions` | moves |
 | Preview | `preview` | moves |
 
 The table lives once, in `app/services/preview-service.js`
-(`STILL_WORKSPACES`). The shell dispatches a workspace, `editor-app.js` hands
-it to `previewService.holdStill(workspace)`, and the service sets one flag on
+(`STILL_WORKSPACES`). The shell dispatches a surface, `editor-app.js` hands
+it to `previewService.holdStill(surface)`, and the service sets one flag on
 the preview controller. The editor opens without dispatching a change for the
-workspace it opens in, so it is also called once at start-up.
+surface it opens in, so it is also called once at start-up.
 
 ### What stops
 
@@ -58,8 +66,8 @@ workspace it opens in, so it is also called once at start-up.
 
 ### What does not stop
 
-The mascot must stay **posable**: the puppet handles are on in Character, and
-Artwork is a drawing surface.
+The mascot must stay **posable** — Design is a drawing surface, and Animate is
+where a pose is recorded and a clip is played back.
 
 * **The live pose** — a puppet handle dragged on the canvas, the head-pose pad,
   the gaze pad, a movement slider. `setLiveParam` recomputes and repaints

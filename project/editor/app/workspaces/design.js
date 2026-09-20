@@ -184,7 +184,9 @@ export function createDesignWorkspace({
     // single hand rather than the pair, because the gap between two hands is
     // the width of a body, and framing that is where this screen started.
     const id = handElementId(handStates.selected()?.side || 'left');
-    handsFramed = Boolean(canvas.frameElements?.([id], 0.22));
+    // Centred, never enlarged: Hands is a browse screen whose stage is
+    // `down-only`, and it used to open one hand at 251 % (UX-60 PR 2).
+    handsFramed = Boolean(canvas.frameElements?.([id], 0.22, { max: 1 }));
     /**
      * And again once it has arrived.
      *
@@ -205,7 +207,7 @@ export function createDesignWorkspace({
       // The canvas says whether the view is still the framing it was given.
       // A *Fit*, a wheel or a zoom-to-selection in the meantime drops it, and
       // this stands down rather than pulling the author back.
-      if (handsFramed && canvas.isFraming?.([id])) canvas.frameElements?.([id], 0.22);
+      if (handsFramed && canvas.isFraming?.([id])) canvas.frameElements?.([id], 0.22, { max: 1 });
     }, delay);
     settling = again(HAND_REVEAL_MS + 60);
     again(HAND_REVEAL_MS + 260);
@@ -218,7 +220,9 @@ export function createDesignWorkspace({
     handsFramed = false;
     for (const side of ['left', 'right']) setLiveParam(handShowParameterName(side), null);
     applyPreview();
-    canvas.fitToCanvas?.();
+    // Down-only: Hands opened a pair of hands at 246 % because leaving the
+    // framing refilled the stage with them (UX-60 PR 2).
+    canvas.fitToCanvas?.(.1, { max: 1 });
   }
 
   return {

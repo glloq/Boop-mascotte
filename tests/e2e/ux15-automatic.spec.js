@@ -124,7 +124,7 @@ test('presets wait for movements and guide to the rig', async ({ page }) => {
  * the behaviours are the project's and stay exactly as the author left them —
  * so this reads the document as well as the frames.
  */
-test('@critical the face holds still where it is designed, and moves again where it is watched', async ({ page }) => {
+test('@critical the face holds still where it is authored, and moves again where it is watched', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   // A blink often enough to catch inside a second, so "nothing moved" means it.
@@ -135,7 +135,10 @@ test('@critical the face holds still where it is designed, and moves again where
   const held = () => page.evaluate(() => window.__BOOP_E2E__.previewSession().heldStill);
   const eyes = async (samples = 16) => { const seen = new Set(); for (let i = 0; i < samples; i += 1) { seen.add(await page.evaluate(() => window.__BOOP_E2E__.effectiveParams().eyeOpen)); await page.waitForTimeout(60); } return seen.size; };
 
-  for (const [task, still] of [['artwork', true], ['hands', false], ['face-setup', false], ['expressions', false], ['animate', false], ['reactions', false], ['preview', false]]) {
+  // Design and Animate both judge the face by looking at it, so a blink landing
+  // in the middle is a change the author did not make. Rig is watching the face
+  // do the thing, and Behavior is *about* what it does unprompted.
+  for (const [task, still] of [['artwork', true], ['hands', true], ['expressions', true], ['animate', true], ['face-setup', false], ['reactions', false], ['preview', false]]) {
     await openTask(page, task);
     await expect.poll(held, `${task} holds the mascot still: ${still}`).toBe(still);
   }
@@ -144,7 +147,7 @@ test('@critical the face holds still where it is designed, and moves again where
   await expect.poll(eyes, { timeout: 4000 }).toBeGreaterThan(1);
   const before = await page.evaluate(() => ({ document: window.__BOOP_E2E__.document(), revisions: window.__BOOP_E2E__.documentRevisions(), history: window.__BOOP_E2E__.history() }));
 
-  for (const task of ['artwork']) {
+  for (const task of ['artwork', 'hands', 'expressions', 'animate']) {
     await openTask(page, task);
     expect(await eyes(), `${task}: the eyes stay open`).toBe(1);
     await expect.poll(() => page.evaluate(() => window.__BOOP_E2E__.previewOverrides())).toEqual({});

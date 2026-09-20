@@ -204,7 +204,23 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
     } finally { if(diagnostics.enabled)diagnostics.increment('preview.computeMs',performance.now()-began); }
   }
   function schedule(token){if(!running||destroyed||raf||token!==generation)return;diagnostics.increment('preview.rafRequests');raf=requestFrame(timestamp=>tick(timestamp,token));diagnostics.set('preview.activeRaf',1);}
-  function sleep(){if(raf){cancelFrame(raf);diagnostics.increment('preview.rafCancellations');}raf=0;running=false;generation++;followerGroup.reset();diagnostics.set('preview.activeRaf',0);}
+  /**
+   * End the run, and count that it ended.
+   *
+   * A run stops in two places -- here, and in `tick` when `continuous()` stops
+   * answering yes -- and only `tick` used to count it. Every other way out
+   * (pausing a clip, muting the behaviours, leaving for a screen that holds the
+   * mascot still) left `preview.starts` one ahead, so the balance the stability
+   * specs read as "no runaway loop" drifted by one per pause.
+   *
+   * It never showed while a project's behaviours kept the loop awake: the loop
+   * had nowhere to sleep, so this path was not taken. Holding Animate still
+   * (docs/STILL_WHILE_DESIGNING.md) is what gave it somewhere.
+   *
+   * `stop()` used to add the missing increment for its own call; it no longer
+   * needs to, and doing both would count one ending twice.
+   */
+  function sleep(){const ended=running;if(raf){cancelFrame(raf);diagnostics.increment('preview.rafCancellations');}raf=0;running=false;generation++;followerGroup.reset();diagnostics.set('preview.activeRaf',0);if(ended)diagnostics.increment('preview.stops');}
   function wake(){if(destroyed)return; if(!running){running=true;last=now();generation++;diagnostics.increment('preview.starts');}schedule(generation);}
   function tick(timestamp,token){
     if(token!==generation||!running||destroyed)return;raf=0;diagnostics.set('preview.activeRaf',0);diagnostics.increment('preview.frames');
@@ -219,7 +235,7 @@ export function createPreviewController({ store, canvas, requestFrame = requestA
   }
   const api={
     start(){if(destroyed||running)return false;wake();return true;},
-    stop(){const changed=running||playing||raf||transition||testBehavior||arrangement;playing=false;transition=null;transitionEdge=null;testBehavior=null;transitionElapsed=0;arrangement=null;motionLayer.stop({fade:0});sleep();behaviors.reset();syncPlaying();if(changed)diagnostics.increment('preview.stops');compute();return changed;},
+    stop(){const changed=running||playing||raf||transition||testBehavior||arrangement;playing=false;transition=null;transitionEdge=null;testBehavior=null;transitionElapsed=0;arrangement=null;motionLayer.stop({fade:0});sleep();behaviors.reset();syncPlaying();compute();return changed;},
     setState(name){const state=store.getDocument(),fromName=authorState||state.activeState;if(!state.states?.[name]||!canTransition(state.transitions,fromName,name))return false;const from={...transitionValues(state),...live},to=resolveStateParams(state.params,state.states[name]),settings=state.transitionSettings?.[`${fromName}->${name}`]||{};const duration=Math.max(0,Number(settings.duration??300)||0);transitionElapsed=0;transition=duration?{from,to,duration,easing:settings.easing||'easeInOut'}:null;transitionEdge=transition?`${fromName}->${name}`:null;authorState=name;if(!duration)effective=to;compute();if(transition)wake();return true;},
     previewState(name){const state=store.getDocument();if(!state.states?.[name])return false;authorState=name;transition=null;transitionEdge=null;compute();return true;},
     testTransition({from,to,duration,easing}={}){const state=store.getDocument();if(!state.states?.[from]||!state.states?.[to])return false;authorState=from;transitionElapsed=0;transition={from:resolveStateParams(state.params,state.states[from]),to:resolveStateParams(state.params,state.states[to]),duration:Math.max(1,Number(duration)||300),easing:easing||'easeInOut'};transitionEdge=`${from}->${to}`;compute();wake();return true;},

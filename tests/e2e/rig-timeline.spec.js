@@ -182,8 +182,25 @@ test('loop playback wraps while the real SVG keeps moving',async({page})=>{
 
 
 
-test('paused clip freezes its pose while deterministic Blink continues',async({page})=>{
-  await load(page,'basic');await page.evaluate(()=>window.__BOOP_E2E__.mutate(s=>{const blink=s.behaviors.find(b=>b.type==='blink');blink.intervalMin=.15;blink.intervalMax=.15;blink.duration=.08;}));await goToAnimate(page);await page.locator('#clip-play').click();await expect.poll(async()=>Number(await page.locator('#current-time').textContent())).toBeGreaterThan(.05);await page.locator('#clip-pause').click();const frozen=await page.evaluate(()=>window.__BOOP_E2E__.previewSession()),eyes=[],looks=[];await expect.poll(async()=>{const params=await page.evaluate(()=>window.__BOOP_E2E__.effectiveParams());eyes.push(params.eyeOpen);looks.push(params.lookX);return new Set(eyes).size;},{timeout:2000,intervals:[40]}).toBeGreaterThan(1);expect(new Set(looks).size).toBe(1);expect(looks[0]).toBe(frozen.effectiveParams.lookX);expect((await page.evaluate(()=>window.__BOOP_E2E__.previewSession())).clipTime).toBe(frozen.clipTime);
+/**
+ * Pause freezes the clip, and Animate holds the rest of the mascot still.
+ *
+ * This used to read "…while deterministic Blink continues": the blink was the
+ * contrast that proved pausing stopped *the clip* rather than the world. Animate
+ * holds the mascot still now (docs/STILL_WHILE_DESIGNING.md), so there is no
+ * blink to continue -- a face that blinked over a paused pose was the thing that
+ * made the paused pose hard to read in the first place.
+ *
+ * The contrast it was making has a better home: `hold-still.test.js` plays a
+ * clip *while* held and watches it move, which is the same claim said directly
+ * rather than through a behaviour that happens to be running.
+ */
+test('a paused clip freezes its pose, and nothing else moves over it',async({page})=>{
+  await load(page,'basic');await page.evaluate(()=>window.__BOOP_E2E__.mutate(s=>{const blink=s.behaviors.find(b=>b.type==='blink');blink.intervalMin=.15;blink.intervalMax=.15;blink.duration=.08;}));await goToAnimate(page);await page.locator('#clip-play').click();await expect.poll(async()=>Number(await page.locator('#current-time').textContent())).toBeGreaterThan(.05);await page.locator('#clip-pause').click();
+  const frozen=await page.evaluate(()=>window.__BOOP_E2E__.previewSession()),eyes=[],looks=[];
+  for(let sample=0;sample<20;sample+=1){const params=await page.evaluate(()=>window.__BOOP_E2E__.effectiveParams());eyes.push(params.eyeOpen);looks.push(params.lookX);await page.waitForTimeout(40);}
+  expect(new Set(eyes).size,'the blink does not run over a pose being authored').toBe(1);
+  expect(new Set(looks).size).toBe(1);expect(looks[0]).toBe(frozen.effectiveParams.lookX);expect((await page.evaluate(()=>window.__BOOP_E2E__.previewSession())).clipTime).toBe(frozen.clipTime);
 });
 
 test('state transition renders an intermediate and final visual pose',async({page})=>{
