@@ -128,7 +128,12 @@ Two things the bands got wrong early, and they were opposite mistakes.
 The **teeth** hung from the upper lip with their ends *on* it. The lip's outline
 is 3.8 units wide and centred on the path, so a row of teeth drawn from it
 painted over the inner half of the stroke and the upper lip went missing where
-they were. They hang `clear` of it now — ends and all — which is a multiple of
+they were. They hang `clear` of it now — ends and all — and `clear` is **exactly
+the half-stroke**, 2 units, and not one more. At 3.4 the row cleared the outline
+and then cleared a unit and a half of cavity as well, which does not read as
+*inside the mouth*: it reads as a hole between an upper lip and the teeth under
+it. Teeth grow out of a lip, and the only thing between them is the lip's own
+outline. The clearance is a multiple of
 `show` and nothing else, so the shape is still exactly empty at rest and the one
 shape key still interpolates it linearly. That also means the clearance is
 *proportional to the opening*: a barely-open mouth shows barely any teeth, just
@@ -358,6 +363,21 @@ with one small shape swinging at the back of it reads as a **shout**, and every
 cartoon ever drawn knows it. That is the whole argument for `uvula`, and it is
 why it is a control rather than a part of the drawing: it is a *register*, and a
 mascot talking quietly should not have one.
+
+It is a **drop**, and it is drawn as one: narrow where it is attached, widest
+low, round at the bottom. And it hangs from *below the upper row of teeth*
+rather than from the lip. Two things put it there. Hung from the lip line it was
+painted over the inner half of the lip's own 3.8-unit outline — and the first
+pass hung it **upwards** from there, which drew the top of a uvula on top of the
+upper lip, a drop growing out of the outside of a mouth. Hung just inside the
+lip, the row of teeth swallowed it whole: the row reaches thirteen units in and
+the uvula only reached ten. It starts a unit past where a full row ends, and
+both it and the teeth scale with the same `mouthOpen`, so they stay in that
+order at every opening.
+
+A tongue raised all the way covers it, and that is not a bug: a throat behind a
+tongue is behind it. A shout is drawn with the tongue low, which is where a
+shouting tongue is.
 
 It rests at nothing like everything else in here, and its control rests at 0, so
 **a face that never asks for one draws exactly what it drew before there was

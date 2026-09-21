@@ -258,7 +258,7 @@ export const TEETH = Object.freeze({
    * whose edge lies exactly on it paints over the inner half and the lip goes
    * thin where the teeth are.
    */
-  tuck: 0.12,
+  tuck: 0.05,
   /**
    * How far a row hangs **clear of the lip it grows from**, in units, at full
    * show.
@@ -266,14 +266,18 @@ export const TEETH = Object.freeze({
    * `tuck` keeps the band's middle off the stroke; its *ends* were still on
    * the lip, so the row of teeth was drawn over the top of the upper lip and
    * the lip went missing behind it. The lip's outline is 3.8 units wide and
-   * centred on the path, so anything nearer than 1.9 is painting on it: this
-   * clears that and leaves a thread of cavity showing, which is what says the
-   * teeth are *inside* the mouth.
+   * centred on the path, so anything nearer than 1.9 is painting on it.
+   *
+   * **Exactly that, and not a unit more.** At 3.4 the row cleared the stroke
+   * and then cleared a unit and a half of cavity as well, and a strip of dark
+   * between an upper lip and the teeth under it does not read as *inside the
+   * mouth* -- it reads as a hole where a gum should be. Teeth grow out of the
+   * lip; the only thing between them is the lip's own outline.
    *
    * Multiplied by `show` and nothing else, so the shape is still exactly empty
    * at `show 0` and the one shape key still interpolates it linearly.
    */
-  clear: 3.4, lowerClear: 1.5,
+  clear: 2, lowerClear: 2,
   /** How many crowns a row is divided into, and how far the valleys between them come back. */
   crowns: 4, valley: 0.82
 });
@@ -641,16 +645,31 @@ export const UVULA = Object.freeze({
   /** Where along the upper lip it hangs from: the middle of it, which is the
    *  back of the throat once the mouth is read as a mouth. */
   at: 0.5,
-  /** How far its root is tucked up behind the lip, so it grows out of the
-   *  shadow instead of being pinned to the line. */
-  tuck: 0.03,
-  /** How far it hangs, and how wide it gets, as fractions of the cavity a
-   *  fully open mouth has. Small: a uvula that reaches the tongue is a
-   *  different drawing, and a funnier one than this mouth is for. */
-  drop: 0.3, wide: 0.07,
-  /** Where the two controls sit down its length: the shoulder high and the
-   *  belly low, which is what makes a drop rather than a cone. */
-  shoulder: 0.25, belly: 0.72
+  /**
+   * How far down the cavity it is hung from, and how far it then hangs, as
+   * fractions of the cavity a fully open mouth has.
+   *
+   * It hangs from *below the upper row of teeth*, not from the lip. Two things
+   * pushed it there. The lip's outline is 3.8 units wide and centred on the
+   * path, so a shape hung from the line itself is painted over the inner half
+   * of it -- and the first pass hung it upwards from there, which put the top
+   * of the uvula on top of the upper lip, a drop growing out of the outside of
+   * a mouth. Then, hung just below the lip, the row of teeth swallowed it
+   * whole: they reach thirteen units in and it only reached ten.
+   *
+   * At `hang 0.4` it starts a unit below where a full row of teeth ends, which
+   * is where a uvula is: at the back of the throat, behind everything and
+   * under the roof of the mouth. Both numbers scale with the same `show`, and
+   * so do the teeth, so the two stay in that order at every opening.
+   */
+  hang: 0.4, drop: 0.28, wide: 0.09,
+  /**
+   * What makes it a **drop falling** rather than a lens: narrow where it is
+   * attached, widest low, round at the bottom. `neck` is the share of the full
+   * width the upper pair of controls gets, and `belly` is how far down the
+   * lower pair sits.
+   */
+  neck: 0.3, shoulder: 0.3, belly: 0.82
 });
 
 /**
@@ -664,12 +683,12 @@ export function uvulaPath({ open = 0, smile = 0, arc = 0, show = 0, round: pucke
   const g = mouthGeometry({ open, smile, arc, round: pucker, skew });
   const lip = upperLip(g)(UVULA.at);
   const run = BAND_REACH * UVULA.drop * show, wide = BAND_REACH * UVULA.wide * show;
-  const head = { x: lip.x, y: lip.y - BAND_REACH * UVULA.tuck * show };
-  const foot = { x: lip.x, y: lip.y + run };
-  const side = (at, s) => ({ x: lip.x + wide * s, y: head.y + (foot.y - head.y) * at });
+  const head = { x: lip.x, y: lip.y + BAND_REACH * UVULA.hang * show };
+  const foot = { x: lip.x, y: head.y + run };
+  const side = (at, s, w) => ({ x: lip.x + w * s, y: head.y + (foot.y - head.y) * at });
   return `M${point(head)}`
-    + ` C${point(side(UVULA.shoulder, -1))} ${point(side(UVULA.belly, -1))} ${point(foot)}`
-    + ` C${point(side(UVULA.belly, 1))} ${point(side(UVULA.shoulder, 1))} ${point(head)} Z`;
+    + ` C${point(side(UVULA.shoulder, -1, wide * UVULA.neck))} ${point(side(UVULA.belly, -1, wide))} ${point(foot)}`
+    + ` C${point(side(UVULA.belly, 1, wide))} ${point(side(UVULA.shoulder, 1, wide * UVULA.neck))} ${point(head)} Z`;
 }
 
 export const MOUTH_REST = mouthPath();
