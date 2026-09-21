@@ -296,6 +296,11 @@ test('@critical legacy empty state and demo bar are removed; Home, Artwork and P
 // was painted over the inner half of it, and hung just inside, a full row of
 // teeth swallowed it whole. It is drawn as a drop now -- narrow where it is
 // attached, widest low (docs/MOUTH_BUILD.md, "The uvula").
+//
+// And once more for its width, which is **one delta**: `uvula-show`, four
+// numbers, twice as wide. `mascot.svg` is byte for byte what it was, because
+// the uvula rests at nothing and a shape that paints nothing is the same
+// nothing at any width -- which is the emptiness rule paying for itself.
 test('@critical Basic Face export artifacts are identical to the pre-removal fixtures', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);

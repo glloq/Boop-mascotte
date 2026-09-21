@@ -662,7 +662,7 @@ export const UVULA = Object.freeze({
    * under the roof of the mouth. Both numbers scale with the same `show`, and
    * so do the teeth, so the two stay in that order at every opening.
    */
-  hang: 0.4, drop: 0.28, wide: 0.09,
+  hang: 0.4, drop: 0.28, wide: 0.18,
   /**
    * What makes it a **drop falling** rather than a lens: narrow where it is
    * attached, widest low, round at the bottom. `neck` is the share of the full

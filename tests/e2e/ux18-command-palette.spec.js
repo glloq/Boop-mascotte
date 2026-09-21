@@ -6,6 +6,14 @@ const session = (page) => page.evaluate(() => window.__BOOP_E2E__.session());
 const palette = (page) => page.evaluate(() => window.__BOOP_E2E__.palette());
 
 async function openPalette(page) {
+  // Ctrl+K is one of the shortcuts the editor deliberately ignores while
+  // somebody is typing (`ui/shortcuts.js`: only Escape and Save fire from a
+  // text field). A screen that has just re-rendered can leave the focus in one
+  // of its own inputs, and this then pressed Ctrl+K into a field that swallowed
+  // it -- which failed about one run in four, on this commit and on every
+  // commit before it. What the test means is "press it from the app", so it
+  // says that: nothing typed, nothing focused.
+  await page.evaluate(() => document.activeElement?.blur?.());
   await page.keyboard.press('Control+k');
   await expect(page.locator('#command-palette')).toBeVisible();
   await expect(page.locator('#command-palette [data-palette-input]')).toBeFocused();
