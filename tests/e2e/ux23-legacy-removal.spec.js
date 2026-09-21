@@ -285,6 +285,17 @@ test('@critical legacy empty state and demo bar are removed; Home, Artwork and P
 //
 // No tooth moved that the row's own depth did not move, and nothing outside the
 // mouth moved at all.
+//
+// One more, and it is **three deltas**: `teeth-show`, `teethLower-show` and
+// `uvula-show`, with every other key, every element, every parameter and every
+// keyform channel byte for byte what it was. Both rows now clear their lip by
+// exactly the half of its 3.8-unit outline and not a unit and a half more --
+// what that extra cleared was cavity, and a strip of dark between an upper lip
+// and the teeth under it reads as a hole where a gum should be. And the uvula
+// hangs from below the upper row instead of from the lip: hung at the lip it
+// was painted over the inner half of it, and hung just inside, a full row of
+// teeth swallowed it whole. It is drawn as a drop now -- narrow where it is
+// attached, widest low (docs/MOUTH_BUILD.md, "The uvula").
 test('@critical Basic Face export artifacts are identical to the pre-removal fixtures', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
