@@ -60,10 +60,21 @@ The editor, persistence, preview and exports use browser APIs only. The [standal
   roles the rig knows, offered on the piece itself (Inspector ▸ *What it is*),
   in the checklist under *More parts*, and read off an imported file's name in
   English and French ([saying what a drawing is](docs/FACE_ROLE_ASSIGNMENT.md))
-- **A hundred and fifty drawings you can browse**: heads, eyes, brows, noses,
-  mouths, ears, hair, facial hair and accessories, each shown as the drawing
+- **Forty-two human drawings you can browse**: heads, eyes, brows, noses, a
+  mouth, ears, hair, facial hair and accessories, each shown as the drawing
   rather than its name, and one press replaces that part of the face keeping
-  where you had moved it ([face part library](docs/FACE_PART_LIBRARY.md))
+  where you had moved it. The animal, robot and bird packs are still there and
+  no longer on the shelf — a face that wears one goes on opening and wearing it
+  ([face part library](docs/FACE_PART_LIBRARY.md), "Active and legacy")
+- **One mouth, and it is the best-drawn thing on the face**: two rows of teeth
+  with crowns rather than a white slab, a tongue with a groove down its back,
+  and a tip that laps **over** the lower lip when it comes out — of an open
+  mouth or of closed lips — with the crease drawn down the middle of it, because
+  a tongue seen from above has no silhouette to read one from. The tongue swings
+  from its hinge when it is out and slides up and down when the mouth is
+  speaking, and there is a uvula for shouting, off unless you ask for it. It
+  opens, smiles, widens, puckers into a vowel and leans into a smirk, all of it
+  as additive shape keys over one closed path ([the mouth](docs/MOUTH_BUILD.md))
 - **Design is two screens**: *Assemble* is where a mascot comes from — the
   library, a picture of your own, the parts that go on whole — and *Draw* is
   the vector editor, one chevron away rather than the first thing you meet

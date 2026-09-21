@@ -82,8 +82,16 @@ export const BASIC_MOVEMENTS = Object.freeze([
   // How far the lips pucker, which is the difference between AE and OO and is
   // not how wide or how open the mouth is (docs/VISEME_SYSTEM.md).
   Object.freeze({ id: 'mouthRound', tier: 'quick', band: 'Mouth', part: 'mouth', label: 'Round', group: 'Mouth', axis: 'x' }),
+  // The smirk: one corner up, the other down, and the lip line leaning after
+  // them. `more` rather than `quick`, because a mouth that is not straight is
+  // a character choice rather than one of the four a face is posed by.
+  Object.freeze({ id: 'mouthSkew', tier: 'more', band: 'Mouth', part: 'mouth', label: 'Lean', group: 'Mouth', axis: 'x' }),
   Object.freeze({ id: 'teeth', tier: 'more', band: 'Mouth', part: 'mouth', label: 'Teeth', group: 'Mouth', axis: 'y' }),
   Object.freeze({ id: 'tongue', tier: 'more', band: 'Mouth', part: 'mouth', label: 'Tongue', group: 'Mouth', axis: 'y' }),
+  // The drop at the back of a shouting mouth: the one movement here that is
+  // about a *register* rather than about a part of the face, which is why it
+  // rests at nothing and has to be asked for (docs/MOUTH_BUILD.md).
+  Object.freeze({ id: 'uvula', tier: 'more', band: 'Mouth', part: 'mouth', label: 'Uvula', group: 'Mouth', axis: 'y' }),
   // A beard is carried by the jaw that opens under it, on the same control.
   Object.freeze({ id: 'jawOpen', tier: 'quick', band: 'Extra', part: 'jaw', also: Object.freeze(['facialHair']), label: 'Drop', group: 'Jaw', axis: 'y' }),
   // Where the tongue is, as opposed to whether it shows (docs/FACE_CONTROL_RIG.md).

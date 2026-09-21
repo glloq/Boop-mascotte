@@ -330,8 +330,22 @@ export function captureSemanticMorph(rig, partId, control, pose, pathByRole) {
     element.morph={...previous,enabled:false,param:control,min:0,max:1,[slot]:path,generatedBy:{semanticPart:part.id,control}};
     if(element.morph.pathA&&element.morph.pathB){element.morph.compatible=canMorphPaths(element.morph.pathA,element.morph.pathB);element.morph.enabled=element.morph.compatible;}
   }
-  return driver.roles.every((role)=>{const morph=rig.elements?.[part.roles[role]]?.morph;return morph?.enabled&&morph.compatible;});
+  return driverRoles(part,driver).every((role)=>{const morph=rig.elements?.[part.roles[role]]?.morph;return morph?.enabled&&morph.compatible;});
 }
+
+/**
+ * The roles a control writes **on this part**: the registry's list for the
+ * movement, narrowed to the ones the part actually plays.
+ *
+ * `controlDrivers[control].roles` is the registry's, on purpose — a part that
+ * is given a role later should find the movement already naming it. So every
+ * reading that asks whether a movement is *ready* has to narrow first: a role
+ * the part has not got cannot have a shape captured for it, and counting it as
+ * missing reads a finished calibration as an unfinished one. The mouth's
+ * `mouthOpen` names the tongue's tip, and most mouths draw none
+ * (docs/MOUTH_BUILD.md).
+ */
+export const driverRoles = (part, driver) => (driver?.roles || []).filter((role) => part?.roles?.[role]);
 
 export function resetSemanticMorph(rig,partId,control){const part=requiredPart(rig,partId);cleanupOwnedDriver(rig,part.id,control);delete part.calibration?.[control];}
 

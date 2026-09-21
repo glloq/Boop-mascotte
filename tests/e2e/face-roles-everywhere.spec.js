@@ -46,6 +46,20 @@ test('@critical the library shows its drawings, and one press puts a pair of eye
   expect(await panel.locator('[data-face-library-category]').count()).toBeGreaterThanOrEqual(9);
   const cards = panel.locator('[data-face-library-card]');
   expect(await cards.count()).toBeGreaterThanOrEqual(3);
+
+  // The library *holds* a hundred and thirty-two and *offers* forty-two: the
+  // animal, robot and bird packs are kept for the faces that wear them and no
+  // longer put on the shelf (docs/FACE_PART_LIBRARY.md, "Active and legacy").
+  // Four pairs of eyes are held back here, and the button that shows them says
+  // so rather than the shelf silently being shorter.
+  await expect(panel).toHaveAttribute('data-face-library-legacy', '4');
+  const offered = await cards.evaluateAll((list) => list.map((card) => card.dataset.faceLibraryCard));
+  expect(offered.every((id) => !id.includes('robot')), 'no pack drawing on the human shelf').toBe(true);
+  await panel.locator('[data-face-library-show-legacy="on"]').click();
+  await expect(panel).toHaveAttribute('data-face-library-legacy', '0');
+  expect(await cards.count(), 'and there is a way to see them').toBe(offered.length + 4);
+  await panel.locator('[data-face-library-show-legacy="off"]').click();
+  await expect(panel).toHaveAttribute('data-face-library-legacy', '4');
   // The drawing itself, not its name: *Sleepy* and *Cartoon* were not words
   // anybody could choose eyes by. And each preview's ids are its own, so no card
   // on the shelf is clipped to another card's mask.
@@ -111,7 +125,11 @@ test('@critical the Inspector says what a piece is, for a path as well as a pict
   // knows, grouped by the part that owns it.
   await expect(role).toHaveValue('nose.nose');
   expect(await role.locator('optgroup').count()).toBeGreaterThanOrEqual(9);
-  expect(await role.locator('option').count(), 'the vocabulary, and the one that means none of it').toBe(28);
+  // Thirty-four: the thirty-three roles the registry knows, and the one that
+  // means none of them. Six of the thirty-three are V6's -- a lower row of
+  // teeth, the tongue's tip and groove (each of which is a role of the mouth
+  // *and* of the tongue part), and the uvula (docs/MOUTH_BUILD.md).
+  expect(await role.locator('option').count(), 'the vocabulary, and the one that means none of it').toBe(34);
   // A role another drawing holds says so, so nobody takes one by surprise.
   await expect(role.locator('option[value="mouth.mouth"]')).toContainText('now');
 
@@ -128,7 +146,7 @@ test('@critical the Inspector says what a piece is, for a path as well as a pict
   await expect.poll(async () => (await partOfType(page, 'ears')).roles.leftEar).toBeUndefined();
 });
 
-test('@critical the checklist is eight, and the other seventeen are one disclosure away', async ({ page }) => {
+test('@critical the checklist is eight, and the other twenty-five are one disclosure away', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);
   await openSetupSection(page, 'face-parts');
@@ -145,11 +163,15 @@ test('@critical the checklist is eight, and the other seventeen are one disclosu
   // rather than only from Rig ▸ Deform ▸ All parts.
   const extras = panel.locator('details.face-role-extras');
   await extras.locator('> summary').click();
-  // Nineteen since the gaze grew an iris per side, grouped into ten: the gaze
-  // has extras of its own now, where both its roles used to be in the eight.
-  await expect(extras.locator('[data-face-role-optional="true"]')).toHaveCount(19);
+  // Twenty-five, grouped into ten: nineteen since the gaze grew an iris per
+  // side -- it has extras of its own now, where both its roles used to be in
+  // the eight -- and six more since the mouth grew a lower row of teeth, the
+  // tongue a tip and a groove (both of which the tongue part plays as well) and
+  // the mouth a uvula (docs/MOUTH_BUILD.md). All optional, as every extra is:
+  // a mouth that draws none behaves as it did.
+  await expect(extras.locator('[data-face-role-optional="true"]')).toHaveCount(25);
   await expect(extras.locator('[data-face-role-group]')).toHaveCount(10);
-  for (const id of ['eyelids.leftUpper', 'nose.nose', 'ears.leftEar', 'hair.hairBack', 'mouth.teeth', 'jaw.jaw']) {
+  for (const id of ['eyelids.leftUpper', 'nose.nose', 'ears.leftEar', 'hair.hairBack', 'mouth.teeth', 'mouth.teethLower', 'mouth.tongueTip', 'mouth.tongueGroove', 'mouth.uvula', 'jaw.jaw']) {
     await expect(extras.locator(`[data-face-role="${id}"]`)).toBeVisible();
   }
 

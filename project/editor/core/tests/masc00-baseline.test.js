@@ -110,7 +110,7 @@ test('an asset carrying none of the morphology metadata normalises, validates an
   // library reads a drawing that says nothing exactly as it always did.
   const plain = mouth('mouth.plain', 'Plain');
   const normalized = normalizeFacePart(plain);
-  assert.deepEqual(Object.keys(normalized).sort(), ['artwork', 'behind', 'capabilities', 'category', 'depth', 'description', 'drivers', 'host', 'id', 'maxInstances', 'morphologies', 'mountPoint', 'name', 'origin', 'paletteRoles', 'palette', 'parts', 'pack', 'picture', 'referenceBox', 'roles', 'slot', 'symmetry', 'tags', 'turn', 'variant'].sort());
+  assert.deepEqual(Object.keys(normalized).sort(), ['artwork', 'behind', 'capabilities', 'category', 'depth', 'description', 'drivers', 'host', 'id', 'legacy', 'maxInstances', 'morphologies', 'mountPoint', 'name', 'origin', 'paletteRoles', 'palette', 'parts', 'pack', 'picture', 'referenceBox', 'roles', 'slot', 'symmetry', 'tags', 'turn', 'variant'].sort());
   // `picture` keeps that contract too: in the shape, null here, and a drawing
   // that names none is drawn by its markup exactly as before (V4-050).
   assert.equal(normalized.picture, null);
@@ -118,6 +118,9 @@ test('an asset carrying none of the morphology metadata normalises, validates an
   // empty here, and a drawing that says nothing behaves as it always did.
   assert.deepEqual({ slot: normalized.slot, morphologies: normalized.morphologies, tags: normalized.tags, symmetry: normalized.symmetry, maxInstances: normalized.maxInstances },
     { slot: '', morphologies: [], tags: [], symmetry: null, maxInstances: 0 });
+  // And `legacy`, which V6 added on the same terms: in the shape, false here,
+  // and a drawing that says nothing is one the editor offers (§3 of the brief).
+  assert.equal(normalized.legacy, false);
   assert.equal(normalized.origin, 'custom');
   assert.equal(normalized.pack, null);
 

@@ -60,14 +60,17 @@ test('the plan names what goes, where the new drawing lands, and what the author
   state.elements.mouth.baseTransform = { ...state.elements.mouth.baseTransform, x: 4, y: -2, rotation: 5, scaleX: 1.2, scaleY: 1.2 };
   const plan = planFacePartReplacement(state, 'mouth', asset(MOUTH_FULL));
   assert.equal(plan.ok, true);
-  assert.deepEqual(plan.removeIds, ['mouth', 'teeth', 'tongue'], 'every role of the part, and nothing drawn inside them because nothing is');
+  // Every role of the part, and now the group the insides are clipped inside as
+  // well: the lips, the tip and its crease drawn in front of them, and the
+  // folder holding the tongue and the two rows (docs/MOUTH_BUILD.md).
+  assert.deepEqual(plan.removeIds, ['mouth', 'tongueTip', 'tongueGroove', 'mouthInside', 'uvula', 'tongue', 'teethLower', 'teeth']);
   assert.equal(plan.partId, 'mouth');
   assert.equal(plan.mountPoint, 'faceRoot', 'the group the old mouth sat in');
   assert.equal(plan.before, 'eyeLeft', 'painted behind the sibling that followed the old part');
   assert.equal(plan.previousRoot, 'mouth');
   assert.deepEqual(plan.previousTransform, { x: 4, y: -2, rotation: 5, scaleX: 1.2, scaleY: 1.2 });
   assert.equal(plan.category.id, 'mouth');
-  assert.deepEqual([...plan.definition.controls], ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'teeth', 'tongue']);
+  assert.deepEqual([...plan.definition.controls], ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'mouthSkew', 'teeth', 'tongue', 'uvula']);
 
   const nose = planFacePartReplacement(state, 'nose', asset(NOSE_DOT));
   assert.deepEqual([nose.removeIds, nose.mountPoint, nose.before, nose.previousTransform.x], [['nose'], 'faceRoot', 'hairTop', 0]);
@@ -120,8 +123,12 @@ test('scrubbing takes every reference to the old shapes with them', () => {
   state.followers = [{ element: 'tongue' }, { element: 'nose' }];
   state.warps = [{ id: 'mouth-warp', target: 'mouth', grid: { columns: 2, rows: 2, points: [] } }];
   const mouthPins = state.rigPins.filter((pin) => pin.target === 'mouth').length, browPins = state.rigPins.length - mouthPins;
-  const cleared = scrubRemovedArtwork(state, ['mouth', 'teeth', 'tongue']);
-  assert.deepEqual(cleared, [{ partId: 'mouth', role: 'mouth' }, { partId: 'mouth', role: 'teeth' }, { partId: 'mouth', role: 'tongue' }, { partId: 'tongue', role: 'tongue' }], 'the tongue part shared the tongue');
+  const cleared = scrubRemovedArtwork(state, ['mouth', 'uvula', 'teeth', 'teethLower', 'tongue', 'tongueTip', 'tongueGroove']);
+  assert.deepEqual(cleared, [
+    { partId: 'mouth', role: 'mouth' }, { partId: 'mouth', role: 'uvula' }, { partId: 'mouth', role: 'teeth' }, { partId: 'mouth', role: 'teethLower' },
+    { partId: 'mouth', role: 'tongue' }, { partId: 'mouth', role: 'tongueTip' }, { partId: 'mouth', role: 'tongueGroove' },
+    { partId: 'tongue', role: 'tongue' }, { partId: 'tongue', role: 'tongueTip' }, { partId: 'tongue', role: 'tongueGroove' }
+  ], 'the tongue part shared the tongue, its tip and the crease down it');
   assert.deepEqual(part(state, 'mouth').roles, {});
   assert.deepEqual(part(state, 'tongue').roles, {});
   assert.equal('mouth' in state.elements, false);
@@ -136,7 +143,7 @@ test('scrubbing takes every reference to the old shapes with them', () => {
     'creaseUpperLeft-eyeSquint', 'creaseUpperLeft-eyeCurve', 'creaseLowerLeft-eyeSquint', 'creaseLowerLeft-eyeCurve',
       'creaseUpperRight-eyeSquint', 'creaseUpperRight-eyeCurve', 'creaseLowerRight-eyeSquint', 'creaseLowerRight-eyeCurve',
     'head-jaw'], 'nothing of the mouth\'s is left; the lids\' and the jaw\'s keys stay');
-  assert.equal(state.keyforms.some((keyform) => ['mouth', 'teeth', 'tongue'].includes(keyform.target?.id)), false);
+  assert.equal(state.keyforms.some((keyform) => ['mouth', 'uvula', 'teeth', 'teethLower', 'tongue', 'tongueTip', 'tongueGroove'].includes(keyform.target?.id)), false);
   assert.equal(state.rigPins.length, browPins, 'the brows keep their pins');
   assert.deepEqual(state.warps, []);
   assert.deepEqual(state.rigAttachments.map((item) => item.id), ['chin-point']);
@@ -151,19 +158,19 @@ test('a lesser mouth over the template: the movements stay, on drivers the new d
   const original = structuredClone(fx.store.getDocument());
   fx.store.execute({ type: 'test/move', domains: ['artwork'], source: 'test', apply: (document) => { document.elements.mouth.baseTransform.x = 5; document.elements.mouth.baseTransform.rotation = 3; } });
   const { summary, document } = install(fx, 'mouth', MOUTH_LINE);
-  // A line has nothing to pucker with and nothing inside it: `mouthRound` needs
-  // a shape the drawing does not carry, so it goes off beside the teeth and the
-  // tongue. The library's own mouth carries all three (docs/MOUTH_BUILD.md);
-  // this is the fixture that does not, which is what the check needs.
-  assert.deepEqual(summary, { partId: 'mouth', rootId: 'mouth-line', ids: ['mouth-line', 'mouth'], roles: { mouth: 'mouth' }, parts: {}, detached: [], enabled: ['mouthOpen', 'smile', 'mouthWidth'], disabled: ['mouthRound', 'teeth', 'tongue'], pinned: true, turned: true, fitted: false, skull: false, rehomed: [], hosted: null, removed: ['mouth', 'teeth', 'tongue'] });
+  // A line has nothing to pucker with, nothing to lean and nothing inside it:
+  // `mouthRound` and `mouthSkew` need shapes the drawing does not carry, so
+  // they go off beside the teeth and the tongue. The library's own mouth
+  // carries all of them (docs/MOUTH_BUILD.md); this is the fixture that does
+  // not, which is what the check needs.
+  assert.deepEqual(summary, { partId: 'mouth', rootId: 'mouth-line', ids: ['mouth-line', 'mouth'], roles: { mouth: 'mouth' }, parts: {}, detached: [], enabled: ['mouthOpen', 'smile', 'mouthWidth'], disabled: ['mouthRound', 'mouthSkew', 'teeth', 'tongue', 'uvula'], pinned: true, turned: true, fitted: false, skull: false, rehomed: [], hosted: null, removed: ['mouth', 'tongueTip', 'tongueGroove', 'mouthInside', 'uvula', 'tongue', 'teethLower', 'teeth'] });
   assert.equal(fx.canvas.calls.replace.length, 1);
-  assert.deepEqual(fx.canvas.calls.replace[0], { removeIds: ['mouth', 'teeth', 'tongue'], fragment: MOUTH_LINE.artwork, mountPoint: 'faceRoot', before: 'eyeLeft', behind: null, rehome: [] });
+  assert.deepEqual(fx.canvas.calls.replace[0], { removeIds: ['mouth', 'tongueTip', 'tongueGroove', 'mouthInside', 'uvula', 'tongue', 'teethLower', 'teeth'], fragment: MOUTH_LINE.artwork, mountPoint: 'faceRoot', before: 'eyeLeft', behind: null, rehome: [] });
 
   // The drawing: the fragment where the mouth was, the old three gone.
   assert.deepEqual(layerChildren(document, 'faceRoot'), ['hairBack', 'earLeft', 'earRight', 'head', 'faceShading', 'mouth-line', 'eyeLeft', 'eyeRight', 'eyebrows', 'nose', 'hairTop', 'hairFront']);
   assert.deepEqual(layerChildren(document, 'mouth-line'), ['mouth']);
-  assert.equal('tongue' in document.elements, false);
-  assert.equal('teeth' in document.elements, false);
+  for (const id of ['tongue', 'uvula', 'teeth', 'teethLower', 'tongueTip', 'tongueGroove', 'mouthInside']) assert.equal(id in document.elements, false, id);
   assert.match(document.svgMarkup, /<g id="mouth-line" data-name="Mouth">/);
   assert.equal(document.svgMarkup.includes('id="tongue"'), false);
 
@@ -171,6 +178,10 @@ test('a lesser mouth over the template: the movements stay, on drivers the new d
   const mouth = part(document, 'mouth');
   assert.deepEqual(mouth.roles, { mouth: 'mouth' });
   assert.deepEqual(mouth.controls, ['mouthOpen', 'smile', 'mouthWidth']);
+  // `mouthOpen` and `smile` are bound to the lips and to nothing else, because
+  // both are transforms by default and a transform on an inside is a transform
+  // on a shape the tongue part may also be translating. What reaches an inside
+  // is the card's own pose (docs/MOUTH_BUILD.md), and a line has none.
   assert.deepEqual(mouth.controlDrivers, {
     mouthOpen: { method: 'transform', property: 'scaleY', roles: ['mouth'] },
     smile: { method: 'transform', property: 'translateY', roles: ['mouth'] },
@@ -210,8 +221,8 @@ test('a lesser mouth over the template: the movements stay, on drivers the new d
   assert.ok(document.rigPins.some((pin) => pin.target === 'browLeft'), 'the brows keep theirs');
   const targets = headPoseTargets(document);
   assert.equal(targets.has('mouth'), true, 'the new mouth turns with the head');
-  for (const id of ['teeth', 'tongue', 'mouth-line']) assert.equal(targets.has(id), false, `${id} has no pose`);
-  assert.equal(document.keyforms.filter(isHeadPoseKeyform).length, original.keyforms.filter(isHeadPoseKeyform).length - 21 + 7, 'three old shapes\' poses gone, one new shape\'s poses made');
+  for (const id of ['teeth', 'uvula', 'teethLower', 'tongue', 'tongueTip', 'tongueGroove', 'mouth-line']) assert.equal(targets.has(id), false, `${id} has no pose`);
+  assert.equal(document.keyforms.filter(isHeadPoseKeyform).length, original.keyforms.filter(isHeadPoseKeyform).length - 49 + 7, 'seven old shapes\' poses gone, one new shape\'s poses made');
   assert.equal(document.keyforms.filter((keyform) => isHeadPoseKeyform(keyform) && keyform.target.id === 'eyeLeft').length, original.keyforms.filter((keyform) => isHeadPoseKeyform(keyform) && keyform.target.id === 'eyeLeft').length, 'the eyes\' poses are exactly as they were');
   assert.deepEqual(validateRig(document), []);
 });
@@ -236,28 +247,55 @@ test('the full mouth after a lesser one: what the last drawing could not carry s
   const { plan, summary, document } = install(fx, 'mouth', MOUTH_FULL);
   assert.deepEqual(plan.removeIds, ['mouth-line', 'mouth'], 'the asset root the last install left, with what it drew');
   assert.deepEqual([plan.mountPoint, plan.before], ['faceRoot', 'eyeLeft']);
-  assert.deepEqual(summary.enabled, ['mouthOpen', 'smile', 'mouthWidth'], 'the movements the part had');
-  assert.deepEqual(summary.disabled, [], 'the other three were already off, so nothing is switched off');
+  // The mouth keeps the three the line could carry; the tongue part is fresh --
+  // the line drew it nothing, so it had nothing to keep off -- and claims every
+  // movement this drawing's tip carries.
+  assert.deepEqual(summary.enabled, ['mouthOpen', 'smile', 'mouthWidth', 'tongueX', 'tongueY', 'tongueOut', 'tongueCurl'], 'the movements the part had');
+  assert.deepEqual(summary.disabled, [], 'the others were already off, so nothing is switched off');
   const mouth = part(document, 'mouth');
   // The roles the new drawing plays are taken -- it draws teeth and a tongue --
   // but a movement switched off by the last replacement stays off: the drawing
   // can carry it and nobody has asked for it back. Switching it on is Face
   // Setup's, which is the same rule for every part.
-  assert.deepEqual(mouth.roles, { mouth: 'mouth', teeth: 'teeth', tongue: 'tongue' });
+  assert.deepEqual(mouth.roles, { mouth: 'mouth', uvula: 'uvula', teeth: 'teeth', teethLower: 'teethLower', tongue: 'tongue', tongueTip: 'tongueTip', tongueGroove: 'tongueGroove' });
   assert.deepEqual(mouth.controls, ['mouthOpen', 'smile', 'mouthWidth']);
-  assert.deepEqual(layerChildren(document, 'mouth-full'), ['mouth', 'teeth', 'tongue']);
-  assert.equal(Object.keys(document.elements).filter((id) => /^mouth/.test(id)).join(','), 'mouth-full,mouth');
+  assert.deepEqual(layerChildren(document, 'mouth-full'), ['mouth', 'mouth-full-inside', 'tongueTip', 'tongueGroove']);
+  assert.deepEqual(layerChildren(document, 'mouth-full-inside'), ['uvula', 'tongue', 'teethLower', 'teeth']);
+  assert.equal(Object.keys(document.elements).filter((id) => /^mouth/.test(id)).join(','), 'mouth-full,mouth,mouth-full-inside');
   assert.deepEqual(validateRig(document), []);
 });
 
 test('the full mouth straight over the template: the bands grow from the lips they are drawn from', () => {
   const fx = fixture();
   const { summary, document } = install(fx, 'mouth', MOUTH_FULL);
-  // All six, where every retired mouth claimed three or four and not one of them
-  // could pucker (docs/MOUTH_BUILD.md).
-  assert.deepEqual(summary.enabled, ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'teeth', 'tongue']);
+  // All seven of the mouth's, where every retired mouth claimed three or four
+  // and not one of them could pucker -- and the four of the tongue part, which
+  // this card also draws the tip for (docs/MOUTH_BUILD.md).
+  assert.deepEqual(summary.enabled,
+    ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'mouthSkew', 'teeth', 'tongue', 'uvula', 'tongueX', 'tongueY', 'tongueOut', 'tongueCurl']);
   assert.deepEqual(summary.disabled, []);
   const mouth = part(document, 'mouth');
+  // The tongue part took the tip the card names for it **and** the body the
+  // card draws under its own roles: one shape plays one role, so the card
+  // cannot list the body twice, and the installer hands it over instead.
+  assert.deepEqual(part(document, 'tongue').roles, { tongue: 'tongue', tongueTip: 'tongueTip', tongueGroove: 'tongueGroove' });
+  // Out and curl are shapes now, where they were a `scaleY` and a `rotation`.
+  const tongue = part(document, 'tongue');
+  assert.equal(tongue.controlDrivers.tongueOut.method, 'shapeKey');
+  assert.equal(tongue.controlDrivers.tongueCurl.method, 'shapeKey');
+  assert.equal(tongue.controlDrivers.tongueX.method, 'transform', 'and pointing is still an honest translate');
+  // The lower row shows later than the upper one, on a sentence of its own
+  // carried by the same control.
+  const lower = document.shapeKeys.find((item) => item.target === 'teethLower' && item.generatedBy?.control === 'teeth');
+  assert.equal(lower.driver.expression, 'mouthOpen * mouthOpen * teeth');
+  // And the lips reach every inside through the card's own poses, which is what
+  // makes a smiling mouth's teeth stay on the lip they hang from.
+  for (const control of ['mouthOpen', 'smile']) {
+    assert.deepEqual(document.shapeKeys.filter((item) => item.generatedBy?.control === control).map((item) => item.target).sort(),
+      ['mouth', 'teeth', 'teethLower', 'tongue', 'tongueGroove', 'tongueTip', 'uvula'], control);
+  }
+  // And the tip comes out with no open mouth at all, which is a blep.
+  assert.equal(document.shapeKeys.find((item) => item.target === 'tongueTip' && item.generatedBy?.control === 'tongueOut').driver.expression, 'tongue * tongueOut');
   // The bands **grow** rather than fade. `DRAWN_DRIVERS` would make each an
   // opacity movement, which is right for a card that draws a finished row of
   // teeth and hides it; these are drawn *empty* -- two quadratics sharing their
@@ -747,7 +785,11 @@ test('a driver hint without an offset leaves the binding at the property\'s own 
   const scaled = nose.document.elements[part(nose.document, 'nose').roles.nose].bindings.scaleY;
   assert.deepEqual([scaled.amplitude, scaled.offset], [-0.3, 1], 'a scale rests at 1');
   // And the reverse: the registry's mouthWidth is a scale; a hint that makes it a translation rests at 0.
-  const shifted = { ...MOUTH_FULL, drivers: { mouthWidth: { property: 'translateX', amplitude: 4 } } };
+  // Spread over the card's own hints rather than replacing them: the rest of
+  // this mouth is shaped, and a mouth that draws a tongue tip and then says its
+  // smile is a `translateY` is asking the lips and the tongue part to write the
+  // same property on the same shape (docs/MOUTH_BUILD.md).
+  const shifted = { ...MOUTH_FULL, drivers: { ...MOUTH_FULL.drivers, mouthWidth: { property: 'translateX', amplitude: 4 } } };
   const mouth = install(fx, 'mouth', shifted);
   assert.ok(mouth.summary.enabled.includes('mouthWidth'));
   const moved = mouth.document.elements.mouth.bindings.translateX;
@@ -793,17 +835,19 @@ test('the one mouth puckers, which is what makes a vowel, and the installer buil
   const { document, summary } = install(fixture(), 'mouth', MOUTH_FULL);
   const mouth = part(document, 'mouth');
 
-  // All six, where every retired mouth claimed three or four.
-  assert.deepEqual(summary.enabled, ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'teeth', 'tongue']);
+  // All seven of the mouth's, where every retired mouth claimed three or four --
+  // and the four of the tongue part, whose tip this card also draws.
+  assert.deepEqual(summary.enabled,
+    ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'mouthSkew', 'teeth', 'tongue', 'uvula', 'tongueX', 'tongueY', 'tongueOut', 'tongueCurl']);
   assert.deepEqual(summary.disabled, []);
-  assert.deepEqual([...mouth.controls], ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'teeth', 'tongue']);
+  assert.deepEqual([...mouth.controls], ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'mouthSkew', 'teeth', 'tongue', 'uvula']);
 
   // The pucker is **shaped**: no transform, a shape key per lip it moves.
   assert.equal(mouth.controlDrivers.mouthRound.method, 'shapeKey');
   assert.equal(document.elements.mouth.bindings.shapeKey, undefined, 'a shape is not a transform');
   const keys = document.shapeKeys.filter((key) => key.generatedBy?.control === 'mouthRound');
-  assert.deepEqual(keys.map((key) => key.target).sort(), ['mouth', 'teeth', 'tongue'],
-    'the lips, and the two shapes drawn from them: each puckers as its own lip does');
+  assert.deepEqual(keys.map((key) => key.target).sort(), ['mouth', 'teeth', 'teethLower', 'tongue', 'tongueGroove', 'tongueTip', 'uvula'],
+    'the lips, and everything drawn from them: each puckers as its own lip does');
   for (const key of keys) {
     assert.equal(key.driver.expression, 'mouthRound', 'driven by the movement\'s own sentence');
     assert.ok(key.delta?.length, `${key.target} deforms to somewhere`);
@@ -843,9 +887,13 @@ test('a shaped movement the drawing cannot carry goes off, rather than becoming 
   // The same card with the pose taken out: it still *claims* `mouthRound`, and
   // there is nothing to build. That has to read as "this drawing cannot", not as
   // a movement the Face states panel offers and no author can see working.
-  const { drivers, ...poseless } = MOUTH_FULL;
-  const { summary, document } = install(fixture(), 'mouth', { ...poseless, id: 'mouth.test' });
-  assert.deepEqual(summary.enabled, ['mouthOpen', 'smile', 'mouthWidth', 'teeth', 'tongue']);
+  // Only the pucker's pose is taken out. The rest of the card keeps its hints,
+  // because a mouth that draws a tongue tip and drives its smile by transform
+  // is refused before it is ever registered (`face-part-validation.js`).
+  const { mouthRound, ...drivers } = MOUTH_FULL.drivers;
+  const { summary, document } = install(fixture(), 'mouth', { ...MOUTH_FULL, drivers, id: 'mouth.test' });
+  assert.deepEqual(summary.enabled,
+    ['mouthOpen', 'smile', 'mouthWidth', 'mouthSkew', 'teeth', 'tongue', 'uvula', 'tongueX', 'tongueY', 'tongueOut', 'tongueCurl']);
   assert.deepEqual(summary.disabled, ['mouthRound']);
   assert.equal(part(document, 'mouth').controls.includes('mouthRound'), false);
   // The parameter stays, because an expression or a clip that names it keeps

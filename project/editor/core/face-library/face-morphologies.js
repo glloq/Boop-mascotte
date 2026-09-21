@@ -94,33 +94,65 @@ export const assetSlot = (asset) => (faceSlot(asset?.slot)?.id) || (facePartCate
  * `morphologies` and every test still say `muzzle` and `beak` — and only the
  * second column, which is the only one an author ever reads, is in their words.
  */
+/**
+ * Human first, and the other four kept (V6, §2.1 and §3 of the brief).
+ *
+ * The fifth column is `legacy`, and it is the whole of the recentring: a kind
+ * of face marked legacy is **not offered** where an author is choosing what to
+ * make, and is **not taken away** anywhere else. A document that wears a muzzle
+ * still opens, its parts still resolve, `assetSupportsMorphology` still answers
+ * for it, `presetsFor({ morphology: 'beak' })` still lists six birds, and a
+ * pack that ships for one still installs. What changes is that Design offers
+ * the human library and nothing else unless an author asks to see the rest.
+ *
+ * It is a flag rather than a deletion because the two failures a deletion
+ * causes are both worse than a longer table: a project drawn with a muzzle
+ * that no longer opens, and a pack whose assets refuse to register because the
+ * kind they declare has gone. The drawings cost nothing while nobody is looking
+ * at them, and `face-catalogue.js` is the one place that decides who is.
+ */
 const MORPHOLOGY_TABLE = [
   ['human', 'Human', 'A person: hair, brows, a nose and a mouth.',
     ['head', 'eyes', 'pupils', 'eyelids', 'eyebrows', 'nose', 'mouth', 'ears', 'hair', 'facialHair', 'accessory'], 'classic'],
   ['muzzle', 'Animal', 'A cat, a dog, a fox, a bear: a snout out in front of the face.',
-    ['head', 'eyes', 'pupils', 'eyebrows', 'ears', 'muzzle', 'nose', 'mouth', 'whiskers', 'hair', 'accessory'], 'cat'],
+    ['head', 'eyes', 'pupils', 'eyebrows', 'ears', 'muzzle', 'nose', 'mouth', 'whiskers', 'hair', 'accessory'], 'cat', true],
   // `owl` is the default because it is the most recognisable of the six birds
   // MASC-12B drew. It said null until now, which was true when it was written
   // and has been stale since the pack landed: a kind with six presets and no
   // default has no picture to put on its card and nothing for "Surprise me".
   ['beak', 'Bird', 'A bird: a beak that opens, and a crest instead of hair.',
-    ['head', 'eyes', 'pupils', 'eyebrows', 'beak', 'crest', 'accessory'], 'owl'],
+    ['head', 'eyes', 'pupils', 'eyebrows', 'beak', 'crest', 'accessory'], 'owl', true],
   // `ears` and `eyebrows` are the side modules and the visor (MASC-11A): a
   // module where an ear goes wiggles, and a visor over the eyes raises and
   // tilts, so both take the controls their category already carries rather
   // than being flat decoration under `panels`.
   ['robot', 'Robot', 'A machine: panels, an antenna, a mouth that is a display.',
-    ['head', 'eyes', 'pupils', 'eyebrows', 'mouth', 'ears', 'antenna', 'panels', 'accessory'], 'robot-screen'],
+    ['head', 'eyes', 'pupils', 'eyebrows', 'mouth', 'ears', 'antenna', 'panels', 'accessory'], 'robot-screen', true],
   ['monster', 'Creature', 'Horns, too many teeth, and whatever else you like.',
-    ['head', 'eyes', 'pupils', 'eyebrows', 'horns', 'ears', 'mouth', 'hair', 'accessory'], null]
+    ['head', 'eyes', 'pupils', 'eyebrows', 'horns', 'ears', 'mouth', 'hair', 'accessory'], null, true]
 ];
 
-export const FACE_MORPHOLOGIES = Object.freeze(Object.fromEntries(MORPHOLOGY_TABLE.map(([id, label, description, slots, defaultPreset]) => {
+export const FACE_MORPHOLOGIES = Object.freeze(Object.fromEntries(MORPHOLOGY_TABLE.map(([id, label, description, slots, defaultPreset, legacy = false]) => {
   for (const slot of slots) if (!FACE_SLOTS[slot]) throw new Error(`Morphology "${id}" names a slot that does not exist: ${slot}`);
-  return [id, Object.freeze({ id, label, description, slots: Object.freeze([...slots]), defaultPreset })];
+  return [id, Object.freeze({ id, label, description, slots: Object.freeze([...slots]), defaultPreset, legacy: Boolean(legacy) })];
 })));
 
 export const FACE_MORPHOLOGY_IDS = Object.freeze(Object.keys(FACE_MORPHOLOGIES));
+
+/** The kinds of face the editor is *for*, in the order Design offers them. */
+export const ACTIVE_FACE_MORPHOLOGY_IDS = Object.freeze(FACE_MORPHOLOGY_IDS.filter((id) => !FACE_MORPHOLOGIES[id].legacy));
+
+/** And the ones kept for the documents and the packs that already use them. */
+export const LEGACY_FACE_MORPHOLOGY_IDS = Object.freeze(FACE_MORPHOLOGY_IDS.filter((id) => FACE_MORPHOLOGIES[id].legacy));
+
+/**
+ * Whether a kind of face is kept for compatibility rather than offered.
+ *
+ * An unknown id reads as legacy on purpose: a document naming a kind this
+ * editor has never heard of is exactly the case the flag exists for, and
+ * offering it in Design would be offering a row nothing can fill.
+ */
+export const isLegacyMorphology = (id) => !ACTIVE_FACE_MORPHOLOGY_IDS.includes(String(id ?? ''));
 
 /** A morphology by id, or null. */
 export const faceMorphology = (id) => FACE_MORPHOLOGIES[String(id ?? '')] || null;

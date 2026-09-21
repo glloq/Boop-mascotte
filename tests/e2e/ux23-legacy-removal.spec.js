@@ -177,6 +177,114 @@ test('@critical legacy empty state and demo bar are removed; Home, Artwork and P
 // cutting. The eye sockets keep `use-1` and `use-2`; the head's is `use-3`
 // because it is written at the end of `faceRoot`, which is where the canvas's
 // importer puts a `<clipPath>` whatever the template says.
+//
+// Then the mouth, which is V6 and is the largest of these moves. Everything it
+// changed is the mouth's, and the list is exactly that (docs/MOUTH_BUILD.md):
+//
+//   + teethLower, tongueTip,     a lower row of teeth, the part of the tongue
+//     tongueGroove               that laps over the lower lip, and the crease
+//                                down the middle of it. The tip has to be its
+//                                own shape, because one element cannot be both
+//                                in front of the lower lip and behind it; and
+//                                the groove has to be its own, because a
+//                                crease is drawn on top of the tongue it is a
+//                                crease in
+//   + mouthInside                the group the teeth and the tongue's body are
+//                                cut to the lips inside. A group, for the same
+//                                reason the eyes' is: `clip-path` is resolved
+//                                after an element's own transform, so a tongue
+//                                carrying it would translate its own aperture
+//                                away
+//   + mouthAperture (`use-4`)    the cut itself, a `<use>` of `#mouth` -- the
+//                                aperture *is* the shape of the hole, so the
+//                                cut follows every pose of it with nothing to
+//                                keep in step
+//   + mouthSkew                  the lean, resting at 0 and adding nothing --
+//                                the one new parameter, and the one new rest
+//                                value in each of the three states
+//   + 24 shape keys              the three new shapes' own, `mouth-skew`, and
+//                                the lean and the reach the old three gained
+//   ~ teeth, tongue and their    a scalloped row of crowns where the teeth were
+//     ten keys                   a white band, and a tongue of two lobes with a
+//                                groove between them where it was one arch
+//   ~ 21 keyform channels        seven each for the three new elements, which
+//                                is the 2.5D turn carrying them with the lip
+//                                line. `mouthInside` gets none: a clipping
+//                                group is not a drawing and has nothing to turn
+//
+// The tongue's tip and its groove rest at nothing -- the groove's rest path is
+// a single point repeated, `M120 178 Q120 178 120 178 …` -- so a mouth that
+// never puts its tongue out draws exactly what it drew before them. That is
+// the point of them being additive rather than poses of the tongue itself.
+//
+// No parameter outside the mouth, no state, no reaction, no expression, no
+// animation, no hand, no pin, no attachment and no hold moved: 21 reactions,
+// 36 expressions, 45 clips, 4 behaviours, 7 pins, 7 attachments and 8 holds,
+// before and after, and 78 parameters where there were 77. That is the check,
+// not a footnote to it.
+// And once more for the tongue, which is three changes and no new anything.
+// Nothing was added or removed: 140 elements, 56 shape keys, 178 keyform
+// channels and 78 parameters, before and after. What moved is exactly:
+//
+//   ~ teethLower ↔ tongue      the lower row is behind the tongue now. A
+//     (in `mascot.svg`)        tongue on its way out of a mouth goes over the
+//                              lower teeth, and it was drawing a white bar
+//                              across itself at every pose that had one
+//   ~ tongue, tongueTip        the tongue has a width of its own, mostly: it
+//     (rest paths, 2 of them)  used to be the lip curve between two fractions
+//                              of itself, so a mouth pursed into an OO drew a
+//                              tongue 58 % narrower -- a spike out of a small
+//                              round hole. And the fold between its lobes is
+//                              shallower, because at 30 % of the peak the two
+//                              of them drew a capital M
+//   ~ 10 shape-key deltas      the same ten, re-measured over the new rests:
+//                              `tongue-` skull, follow, round, skew, open,
+//                              show, and `tongueTip-` follow, round, skew,
+//                              curl. The five that did **not** move are the
+//                              five whose offsets are vertical only, so their
+//                              x deltas were 0 before and are 0 now --
+//                              `tongueTip-out`, `-open`, and the groove's --
+//                              which is the arithmetic agreeing with the
+//                              change rather than a gap in it
+//
+// No parameter, state, reaction, expression, animation, clip, hand, pin,
+// attachment or hold moved, and neither did a tooth: the two rows are byte for
+// byte what they were, in `mascot.svg` and in every one of their keys.
+// And once more for the tongue's finish and the uvula, which is one element and
+// no new mechanism. 141 elements, 62 shape keys, 185 keyform channels, 79
+// parameters; 21 reactions, 36 expressions and 45 clips, before and after.
+//
+//   + uvula, and its six keys     the drop at the back of a shouting mouth. It
+//     (`uvula-` skull, follow,    is the only inside hung off the *upper* lip,
+//     round, skew, open, show)    the only one that brought a control with it,
+//                                 and it rests at 0 -- so a face that never
+//                                 asks for one draws exactly what it drew
+//                                 before it existed
+//   ~ the lower row's depth       half what it was, and half as clear of the
+//     (`teethLower-show`)         lip. With the row in front of the tongue,
+//                                 whatever it stands in is tongue the author
+//                                 cannot see, so a mouth showing its teeth had
+//                                 a tongue with less travel than the same mouth
+//                                 without them
+//   ~ tongueTip, and its keys     the tip is drawn in the body's own seat now,
+//     (skull, follow, round,      the same width, so there is no step in the
+//     skew, open, out, curl)      silhouette where the tongue crosses the lip;
+//                                 its root reaches ten units back instead of
+//                                 three and a half, which is what stops the
+//                                 tongue breaking in two over the lower teeth
+//                                 or under `tongueY`; its end is rounder, and
+//                                 its curl lifts the whole free edge rather
+//                                 than forking it
+//   ~ tongueGroove-out / -curl    the crease follows the tip it folds
+//
+// `tongueX` became a **rotation** about the mouth's own centre -- a tongue
+// hanging out swings from its hinge -- and that changed no byte here: a driver's
+// property lives on the element's bindings, which this fixture records, and the
+// three tongue shapes' bindings are the one place it shows. The paths are
+// untouched by it, because a transform is not a shape.
+//
+// No tooth moved that the row's own depth did not move, and nothing outside the
+// mouth moved at all.
 test('@critical Basic Face export artifacts are identical to the pre-removal fixtures', async ({ page }) => {
   await openFreshEditor(page, { e2e: true });
   await startBasicFace(page);

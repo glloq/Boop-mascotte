@@ -172,11 +172,14 @@ test('the pad moves the head the way it is dragged', async ({ page }) => {
 
   // Nothing of this is authored: the pad is a live preview, and the grid it
   // shipped with is untouched.
-  // 120 transform records plus the 19 depth ones a projected turn writes
+  // 148 transform records plus the 19 depth ones a projected turn writes
   // (3D-08), and the 18 the pair of hands brings with it -- five a side to
   // slide it out from behind the head, and its holds. A hand deforms nothing,
-  // so it writes no pose grid at all (docs/HAND_STYLES.md).
-  expect((await documentOf(page)).keyforms.length).toBe(157);
+  // so it writes no pose grid at all (docs/HAND_STYLES.md). It was 120: the
+  // mouth grew a lower row of teeth, a tongue tip, the crease down it and a
+  // uvula, and the generator writes seven channels for each drawing that turns
+  // (docs/MOUTH_BUILD.md).
+  expect((await documentOf(page)).keyforms.length).toBe(185);
 });
 
 test('@critical the turn moves both sides of the face the same way', async ({ page }) => {

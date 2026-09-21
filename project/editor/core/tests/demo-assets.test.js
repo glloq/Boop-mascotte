@@ -20,9 +20,11 @@ import { validateRig } from '../validation/rig-validator.js';
 
 test('the template artwork parses into the records the canvas would build', () => {
   const { elements, layers } = parseTemplateArtwork(MASCOT_FACE_SVG);
-  // A hundred and thirty-six: four eyelid creases, and a group per eye holding
-  // the pieces the socket cuts (docs/EYE_BUILDS.md).
-  assert.equal(Object.keys(elements).length, 136, 'every layer the artwork draws — the face and the pair of hands — and nothing that only cuts');
+  // A hundred and forty: four eyelid creases, a group per eye holding the
+  // pieces the socket cuts (docs/EYE_BUILDS.md), and the mouth's four -- a
+  // lower row of teeth, the tongue's tip, the crease down that tip, and the
+  // folder the insides are cut to the lips inside (docs/MOUTH_BUILD.md).
+  assert.equal(Object.keys(elements).length, 141, 'every layer the artwork draws — the face and the pair of hands — and nothing that only cuts');
   for (const id of ['eyeInnerLeft', 'eyeInnerRight']) assert.equal(elements[id].meta.nodeType, 'g', `${id} is the group the cut goes on`);
   // A shape that only cuts is not a layer, wherever it is written: a clip path
   // in `<defs>`, and the `<use>` inside the eye's own socket.
@@ -85,7 +87,7 @@ test('the template export is the rig the editor writes for the untouched face', 
   const { svg, rig } = createTemplateExport();
   assert.equal(svg, MASCOT_FACE_SVG);
   assert.equal(rig.schemaVersion, RIG_SCHEMA_VERSION);
-  assert.equal(Object.keys(rig.elements).length, 136);
+  assert.equal(Object.keys(rig.elements).length, 141);
   for (const id of Object.keys(rig.elements)) assert.match(svg, new RegExp(`id="${id}"`), `${id} is drawn`);
   assert.deepEqual(Object.keys(rig.states), ['idle', 'happy', 'surprised']);
   assert.equal(rig.activeState, 'idle');
@@ -128,12 +130,13 @@ test('the template export is the rig the editor writes for the untouched face', 
   // A hand has **one** movement that decides its shape, not fifteen: which
   // drawing it is. Nothing curls, spreads, grips, flips, turns or animates it
   // (docs/HAND_STYLES.md).
-  // Seventy, plus the two lid axes with a side offset each and the mouth's
-  // pucker (docs/FACE_SVG_STATES.md, docs/VISEME_SYSTEM.md). All seven rest at
-  // 0 and add nothing until something moves them.
-  assert.equal(Object.keys(rig.params).length, 77);
-  assert.deepEqual(Object.keys(rig.params).filter((name) => /^eyeSquint|^eyeCurve|^mouthRound/.test(name)).sort(),
-    ['eyeCurve', 'eyeCurveLeft', 'eyeCurveRight', 'eyeSquint', 'eyeSquintLeft', 'eyeSquintRight', 'mouthRound']);
+  // Seventy, plus the two lid axes with a side offset each, the mouth's pucker
+  // and its lean (docs/FACE_SVG_STATES.md, docs/VISEME_SYSTEM.md,
+  // docs/MOUTH_BUILD.md). All eight rest at 0 and add nothing until something
+  // moves them.
+  assert.equal(Object.keys(rig.params).length, 79);
+  assert.deepEqual(Object.keys(rig.params).filter((name) => /^eyeSquint|^eyeCurve|^mouthRound|^mouthSkew/.test(name)).sort(),
+    ['eyeCurve', 'eyeCurveLeft', 'eyeCurveRight', 'eyeSquint', 'eyeSquintLeft', 'eyeSquintRight', 'mouthRound', 'mouthSkew']);
   // Two of those seventy are the gaze target: the template ships the solver on
   // (V3-12), so looking somewhere turns the eyes and then the head. They rest
   // at 0 and add nothing until something moves them.
@@ -147,11 +150,23 @@ test('the template export is the rig the editor writes for the untouched face', 
   // six paths a side could be deformed into a turn, and then 30 more for the
   // drawings' own little animations. A drawing is chosen and never deformed, so
   // there is nothing at all left to measure on a hand (docs/HAND_STYLES.md).
-  assert.equal(rig.keyforms.length, 157, 'the 2.5D turn is generated, and the hands hide and hold');
-  // Thirteen, plus eight on the four eyelids and eight more on the four creases
-  // that draw their edges (narrowed and curved, per shape), and three on the
-  // mouth's pucker (the lips, the teeth and the tongue).
-  assert.equal(rig.shapeKeys.length, 32, "the face's own, and not one on a hand");
+  // Twenty-one more since V6: the turn writes seven channels per element, and
+  // the mouth grew three -- a lower row of teeth, the tongue's tip and the
+  // crease down it, all of which travel with the lip line or an open mouth
+  // comes apart as the head turns (docs/MOUTH_BUILD.md, docs/HEAD_POSE_2_5D.md).
+  assert.equal(rig.keyforms.length, 185, 'the 2.5D turn is generated, and the hands hide and hold');
+  // Fifty-six, and most of them are the mouth's.
+  //
+  // Eight on the four eyelids and eight more on the four creases that draw
+  // their edges (narrowed and curved, per shape). Then one closed path for the
+  // lips and five shapes drawn from them -- two rows of teeth, the tongue, its
+  // tip and the crease down that tip -- each of which follows the lip it hangs
+  // off through the smile, the pucker, the lean and the bow a head that looks
+  // down puts across the face, travels with the jaw, and comes out on a
+  // movement of its own (docs/MOUTH_BUILD.md). None of them is a viseme and
+  // none of them is a second drawing: the alternative to six shapes with a key
+  // each is a drawing per mouth, which is the library the editor replaced.
+  assert.equal(rig.shapeKeys.length, 62, "the face's own, and not one on a hand");
   assert.equal(rig.shapeKeys.filter((key) => /^lid/.test(key.target)).length, 8);
   assert.equal(rig.shapeKeys.filter((key) => /^crease/.test(key.target)).length, 8,
     'a crease is bent by the same two controls its lid is: it *is* the lid\'s edge (docs/EYE_BUILDS.md)');

@@ -19,7 +19,7 @@ import { installVisemes, installedVisemes } from '../face-library/face-state-ins
 import { createFaceStateCommands } from '../face-library/face-state-commands.js';
 import { faceStateModel } from '../face-library/face-state-model.js';
 import { compileRigFrame, composeExpressionParams, normalizeExpressions, parsePath, resolveStateParams, visemeBlendWeights } from '../../../runtime/runtime.js';
-import { LID_PIVOTS, LID_RESTS, lidPath, mouthGeometry } from '../sample/templates/face-artwork.js';
+import { LID_PIVOTS, LID_RESTS, lidPath, mouthGeometry, teethPath } from '../sample/templates/face-artwork.js';
 
 /**
  * The states an eye and a mouth can be in, and the mouth speaking while it
@@ -317,8 +317,8 @@ test('15 … 22 · every viseme is a distinct mouth, from one outline', () => {
   }
   assert.equal(new Set(drawn.values()).size, VISEME_PRESETS.length, 'nine distinct mouths');
   // The mouth is **one** path throughout: nine visemes and not one extra shape.
-  assert.equal(new Set(state.shapeKeys.filter((key) => key.target === 'mouth').map((key) => key.id)).size, 5,
-    'four movements and the skull bow — no shape key per viseme');
+  assert.equal(new Set(state.shapeKeys.filter((key) => key.target === 'mouth').map((key) => key.id)).size, 6,
+    'five movements — open, smile, frown, pucker, lean — and the skull bow: no shape key per viseme');
   assert.equal(Object.keys(state.elements).filter((id) => /^mouth-/.test(id)).length, 0, 'and no second mouth drawing');
 });
 
@@ -371,10 +371,33 @@ test('what is behind the lips stays behind them, puckered or not', () => {
     assert.ok(report.narrowest >= report.corners[0] - 0.5 && report.widest <= report.corners[1] + 0.5,
       `${key}: the teeth stay inside the lips (${report.narrowest} … ${report.widest} in ${report.corners.join(' … ')})`);
   }
-  // Closed lips have nothing behind them to show, by construction: the band
-  // encloses no area at all.
-  const shut = parsePath(pose(state, { mouthOpen: 0, teeth: 1 }).teeth.path).values;
-  assert.ok(Math.abs(shut[3] - shut[7]) < 1e-6, 'the two curves are the same curve traced twice');
+  // Closed lips have nothing behind them to show, by construction: every key
+  // the row carries is a product of the mouth being open, so a shut mouth draws
+  // the row exactly as it rests -- and as it rests the biting edge retraces the
+  // gum edge and the shape encloses nothing (docs/MOUTH_BUILD.md).
+  const shut = pose(state, { mouthOpen: 0, teeth: 1 }).teeth.path;
+  assert.deepEqual([...parsePath(shut).values], [...parsePath(teethPath()).values], 'the row is the row as drawn');
+  // And as drawn it encloses nothing: the quadratics flattened and shoelaced,
+  // because the emptiness is a property of the curve rather than of the control
+  // points that shape it. Not exactly nothing -- the coordinates are rounded to
+  // a hundredth and each segment rounds on its own -- but a hundredth of a
+  // square unit across a row 47 units long, which is no ink at all.
+  const flat = [];
+  const tokens = String(shut).match(/[MQZ]|-?\d+(?:\.\d+)?/g) || [];
+  for (let index = 0, at = null; index < tokens.length;) {
+    const command = tokens[index++];
+    if (command === 'Z') continue;
+    const read = () => ({ x: Number(tokens[index++]), y: Number(tokens[index++]) });
+    if (command === 'M') { at = read(); flat.push(at); continue; }
+    const control = read(), end = read();
+    for (let step = 1; step <= 32; step += 1) {
+      const t = step / 32, u = 1 - t;
+      flat.push({ x: u * u * at.x + 2 * u * t * control.x + t * t * end.x, y: u * u * at.y + 2 * u * t * control.y + t * t * end.y });
+    }
+    at = end;
+  }
+  const area = Math.abs(flat.reduce((total, point, index) => { const next = flat[(index + 1) % flat.length]; return total + point.x * next.y - next.x * point.y; }, 0)) / 2;
+  assert.ok(area < 0.05, `a row that shows nothing paints nothing: ${area.toFixed(4)} square units`);
 });
 
 /* ══ EXPRESSION + VISEME ════════════════════════════════════════════════════ */
@@ -626,6 +649,19 @@ test('a corrective slot is a sentence about the controls, and the sentences are 
   // correcting the same shape twice.
   const sentences = [...EYE_CORRECTIVE_SLOTS, ...MOUTH_CORRECTIVE_SLOTS].map((slot) => correctiveExpression(slot.kind, slot.id));
   assert.equal(new Set(sentences).size, sentences.length, 'no two slots read the same sentence');
+  // Thirteen for the mouth since V6 added the four pairs the arithmetic is
+  // least kind to: the lean, the grin, the stretched grin, and the tongue out
+  // of a mouth that is open rather than shut (docs/FACE_SVG_STATES.md, §10.2).
+  assert.equal(MOUTH_CORRECTIVE_SLOTS.length, 13);
+  for (const id of ['skew', 'openSmile', 'smileWide', 'tongueOut']) {
+    assert.ok(MOUTH_CORRECTIVE_SLOTS.some((slot) => slot.id === id), `${id} can be corrected`);
+  }
+  // A blep and a laugh are two drawings, and the product is what tells them
+  // apart: the tongue out of a shut mouth reaches none of this slot.
+  assert.equal(correctiveActivation('mouth', 'tongueOut', { mouthOpen: 0, tongue: 1, tongueOut: 1 }), 0);
+  assert.ok(correctiveActivation('mouth', 'tongueOut', { mouthOpen: 1, tongue: 1, tongueOut: 1 }) > 0);
+  // And a lean is signed, so one capture serves a smirk to either side.
+  assert.equal(correctiveActivation('mouth', 'skew', { mouthSkew: -1 }), -correctiveActivation('mouth', 'skew', { mouthSkew: 1 }));
   // And every one of them is 0 at rest, which is what makes a corrective free.
   const state = template();
   for (const slot of [...EYE_CORRECTIVE_SLOTS, ...MOUTH_CORRECTIVE_SLOTS]) {

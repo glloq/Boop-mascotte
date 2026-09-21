@@ -677,3 +677,39 @@ as that category, because a turn is generated from roles and profiles and never
 from path data. Only the three rows that had to declare a profile produce
 anything new: the ears (`depth 0.25`, sweeping, because they sit on top of the
 skull), the muzzles (`0.9`) and the whiskers (`0.85`).
+
+---
+
+## V6 — human first, and the packs kept
+
+> *« recentrer l'outil sur les têtes humaines … les anciens packs non humains
+> doivent être traités comme legacy / compatibility only »*
+
+Everything this page describes is still true, and one more thing is: **the
+editor offers one of the five kinds of face.**
+
+```text
+ACTIVE    human        42 drawings   6 presets
+LEGACY    muzzle · beak · robot · monster    90 drawings   16 presets
+```
+
+Nothing here was undone to get there. The mechanism MASC-02 built — every asset
+declaring the kinds of face it suits, and an asset that says nothing being
+universal — is what makes the split derivable rather than listed: a drawing no
+human face can wear is legacy, and that is the ninety, without one of them being
+edited. The mechanism MASC-05 built still answers what each kind is *waiting
+for*; what V6 added beside it is what each kind is *offered for*, which is a
+different question (`compatibility.js`: `availableMorphologies` against
+`offeredMorphologies`).
+
+**Kept, not deleted.** A document that wears a muzzle still opens, `presetsFor({
+morphology: 'beak' })` still lists six birds, and a pack declaring
+`morphologies: ['muzzle']` still installs. Deleting the drawings would have
+broken both of those, which is why the recentring is a flag and a filter rather
+than a removal — `core/face-library/face-catalogue.js` is the one module that
+decides who sees what, and `docs/FACE_PART_LIBRARY.md`, "Active and legacy", is
+the page about it.
+
+The four legacy kinds are **closed to new work**: MASC-10B's six species,
+MASC-11B's four machines and MASC-12B's six birds stay exactly as they are, and
+nothing further is drawn for them.

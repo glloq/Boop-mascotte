@@ -271,6 +271,20 @@
       "default": 0,
       "value": 0
     },
+    "mouthSkew": {
+      "type": "number",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
+    "uvula": {
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "value": 0
+    },
     "tongueX": {
       "type": "number",
       "min": -1,
@@ -605,6 +619,8 @@
       "browRaiseRight": 0,
       "browTiltLeft": 0,
       "browTiltRight": 0,
+      "mouthSkew": 0,
+      "uvula": 0,
       "tongueX": 0,
       "tongueY": 0,
       "tongueOut": 0,
@@ -684,6 +700,8 @@
       "browRaiseRight": 0,
       "browTiltLeft": 0,
       "browTiltRight": 0,
+      "mouthSkew": 0,
+      "uvula": 0,
       "tongueX": 0,
       "tongueY": 0,
       "tongueOut": 0,
@@ -763,6 +781,8 @@
       "browRaiseRight": 0,
       "browTiltLeft": 0,
       "browTiltRight": 0,
+      "mouthSkew": 0,
+      "uvula": 0,
       "tongueX": 0,
       "tongueY": 0,
       "tongueOut": 0,
@@ -3358,6 +3378,62 @@
       },
       "restPath": "M87 172.5 Q120 176 153 172.5 Q120 183.5 87 172.5 Z"
     },
+    "mouthInside": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 0,
+        "pivotY": 0
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "rigging": "rigid",
+      "bindings": {},
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "g"
+      }
+    },
+    "uvula": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 120,
+        "pivotY": 172.5
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "rigging": "rigid",
+      "bindings": {
+        "scaleX": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "mouthWidth",
+          "curve": "linear",
+          "amplitude": 0.25,
+          "offset": 1
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      },
+      "restPath": "M120 174.25 C120 174.25 120 174.25 120 174.25 C120 174.25 120 174.25 120 174.25 Z"
+    },
     "tongue": {
       "baseTransform": {
         "x": 0,
@@ -3376,12 +3452,12 @@
       },
       "rigging": "rigid",
       "bindings": {
-        "translateX": {
+        "rotation": {
           "enabled": true,
           "mode": "simple",
           "expression": "tongueX",
           "curve": "linear",
-          "amplitude": 7,
+          "amplitude": 25,
           "offset": 0,
           "generatedBy": {
             "semanticPart": "tongue",
@@ -3400,30 +3476,6 @@
             "control": "tongueY"
           }
         },
-        "scaleY": {
-          "enabled": true,
-          "mode": "simple",
-          "expression": "tongueOut",
-          "curve": "linear",
-          "amplitude": 0.6,
-          "offset": 1,
-          "generatedBy": {
-            "semanticPart": "tongue",
-            "control": "tongueOut"
-          }
-        },
-        "rotation": {
-          "enabled": true,
-          "mode": "simple",
-          "expression": "tongueCurl",
-          "curve": "linear",
-          "amplitude": 18,
-          "offset": 0,
-          "generatedBy": {
-            "semanticPart": "tongue",
-            "control": "tongueCurl"
-          }
-        },
         "scaleX": {
           "enabled": true,
           "mode": "simple",
@@ -3437,7 +3489,40 @@
       "meta": {
         "nodeType": "path"
       },
-      "restPath": "M104.2 176.7 C112.1 177.7 127.9 177.7 135.8 176.7 C127.9 177.7 112.1 177.7 104.2 176.7 Z"
+      "restPath": "M104.83 176.84 C111.2 177.61 113.63 177.79 120 178 C126.37 177.79 128.8 177.61 135.17 176.84 C128.8 177.61 126.37 177.79 120 178 C113.63 177.79 111.2 177.61 104.83 176.84 Z"
+    },
+    "teethLower": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 120,
+        "pivotY": 172.5
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "rigging": "rigid",
+      "bindings": {
+        "scaleX": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "mouthWidth",
+          "curve": "linear",
+          "amplitude": 0.25,
+          "offset": 1
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      },
+      "restPath": "M101.52 176.28 Q120 179.72 138.48 176.28 Q133.86 177.14 129.24 177.57 Q124.62 178 120 178 Q115.38 178 110.76 177.57 Q106.14 177.14 101.52 176.28 Z"
     },
     "teeth": {
       "baseTransform": {
@@ -3470,7 +3555,121 @@
       "meta": {
         "nodeType": "path"
       },
-      "restPath": "M96.2 173.3 Q120 175.2 143.8 173.3 Q120 175.2 96.2 173.3 Z"
+      "restPath": "M96.24 173.34 Q120 175.16 143.76 173.34 Q137.82 173.8 131.88 174.02 Q125.94 174.25 120 174.25 Q114.06 174.25 108.12 174.02 Q102.18 173.8 96.24 173.34 Z"
+    },
+    "tongueTip": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 120,
+        "pivotY": 172.5
+      },
+      "baseOpacity": 1,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "rigging": "rigid",
+      "bindings": {
+        "rotation": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "tongueX",
+          "curve": "linear",
+          "amplitude": 25,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "tongue",
+            "control": "tongueX"
+          }
+        },
+        "translateY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "tongueY",
+          "curve": "linear",
+          "amplitude": 6,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "tongue",
+            "control": "tongueY"
+          }
+        },
+        "scaleX": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "mouthWidth",
+          "curve": "linear",
+          "amplitude": 0.25,
+          "offset": 1
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      },
+      "restPath": "M104.83 176.84 C109.38 177.43 115.45 177.9 120 178 C124.55 177.9 130.62 177.43 135.17 176.84 C130.62 177.43 124.55 177.9 120 178 C115.45 177.9 109.38 177.43 104.83 176.84 Z"
+    },
+    "tongueGroove": {
+      "baseTransform": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0,
+        "scaleX": 1,
+        "scaleY": 1,
+        "pivotX": 120,
+        "pivotY": 172.5
+      },
+      "baseOpacity": 0.3,
+      "constraints": {
+        "translate": true,
+        "rotate": true,
+        "scale": true
+      },
+      "rigging": "rigid",
+      "bindings": {
+        "rotation": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "tongueX",
+          "curve": "linear",
+          "amplitude": 25,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "tongue",
+            "control": "tongueX"
+          }
+        },
+        "translateY": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "tongueY",
+          "curve": "linear",
+          "amplitude": 6,
+          "offset": 0,
+          "generatedBy": {
+            "semanticPart": "tongue",
+            "control": "tongueY"
+          }
+        },
+        "scaleX": {
+          "enabled": true,
+          "mode": "simple",
+          "expression": "mouthWidth",
+          "curve": "linear",
+          "amplitude": 0.25,
+          "offset": 1
+        }
+      },
+      "symmetryPeer": null,
+      "meta": {
+        "nodeType": "path"
+      },
+      "restPath": "M120 178 Q120 178 120 178 Q120 178 120 178 Z"
     },
     "eyeLeft": {
       "baseTransform": {
@@ -22718,6 +22917,657 @@
       "extrapolation": "clamp"
     },
     {
+      "id": "headPose:teethLower:translateX",
+      "target": {
+        "kind": "element",
+        "id": "teethLower"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -22.3958
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 22.3958
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -22.3958
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 22.3958
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -22.3958
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 22.3958
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:teethLower:translateY",
+      "target": {
+        "kind": "element",
+        "id": "teethLower"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -11.987
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -13.8414
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -11.987
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 11.987
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 13.8414
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 11.987
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:teethLower:rotation",
+      "target": {
+        "kind": "element",
+        "id": "teethLower"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -6.5752
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 6.5752
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 6.5752
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": -6.5752
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:teethLower:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "teethLower"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.85
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:teethLower:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "teethLower"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.85
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:teethLower:opacity",
+      "target": {
+        "kind": "element",
+        "id": "teethLower"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:teethLower:depth",
+      "target": {
+        "kind": "element",
+        "id": "teethLower"
+      },
+      "channel": "depth",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.1497
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0.27
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.1497
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -0.138
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": -0.138
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -0.27
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": -0.27
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": -0.27
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
       "id": "headPose:tongue:translateX",
       "target": {
         "kind": "element",
@@ -23280,6 +24130,1959 @@
       "target": {
         "kind": "element",
         "id": "tongue"
+      },
+      "channel": "depth",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.1497
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0.27
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.1497
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -0.138
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": -0.138
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -0.27
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": -0.27
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": -0.27
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:tongueTip:translateX",
+      "target": {
+        "kind": "element",
+        "id": "tongueTip"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -22.3958
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 22.3958
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -22.3958
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 22.3958
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -22.3958
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 22.3958
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:tongueTip:translateY",
+      "target": {
+        "kind": "element",
+        "id": "tongueTip"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -11.987
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -13.8414
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -11.987
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 11.987
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 13.8414
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 11.987
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:tongueTip:rotation",
+      "target": {
+        "kind": "element",
+        "id": "tongueTip"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -6.5752
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 6.5752
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 6.5752
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": -6.5752
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:tongueTip:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "tongueTip"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.85
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:tongueTip:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "tongueTip"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.85
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:tongueTip:opacity",
+      "target": {
+        "kind": "element",
+        "id": "tongueTip"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:tongueTip:depth",
+      "target": {
+        "kind": "element",
+        "id": "tongueTip"
+      },
+      "channel": "depth",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.1497
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0.27
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.1497
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -0.138
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": -0.138
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -0.27
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": -0.27
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": -0.27
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:tongueGroove:translateX",
+      "target": {
+        "kind": "element",
+        "id": "tongueGroove"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -22.3958
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 22.3958
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -22.3958
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 22.3958
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -22.3958
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 22.3958
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:tongueGroove:translateY",
+      "target": {
+        "kind": "element",
+        "id": "tongueGroove"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -11.987
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -13.8414
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -11.987
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 11.987
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 13.8414
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 11.987
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:tongueGroove:rotation",
+      "target": {
+        "kind": "element",
+        "id": "tongueGroove"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -6.5752
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 6.5752
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 6.5752
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": -6.5752
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:tongueGroove:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "tongueGroove"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.85
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:tongueGroove:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "tongueGroove"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.85
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:tongueGroove:opacity",
+      "target": {
+        "kind": "element",
+        "id": "tongueGroove"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:tongueGroove:depth",
+      "target": {
+        "kind": "element",
+        "id": "tongueGroove"
+      },
+      "channel": "depth",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.1497
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0.27
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.1497
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -0.138
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": -0.138
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -0.27
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": -0.27
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": -0.27
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:uvula:translateX",
+      "target": {
+        "kind": "element",
+        "id": "uvula"
+      },
+      "channel": "translateX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -22.3958
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 22.3958
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": -22.3958
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 22.3958
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": -22.3958
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 22.3958
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:uvula:translateY",
+      "target": {
+        "kind": "element",
+        "id": "uvula"
+      },
+      "channel": "translateY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -11.987
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": -13.8414
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": -11.987
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 11.987
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 13.8414
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 11.987
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:uvula:rotation",
+      "target": {
+        "kind": "element",
+        "id": "uvula"
+      },
+      "channel": "rotation",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": -6.5752
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 6.5752
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 6.5752
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": -6.5752
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:uvula:scaleX",
+      "target": {
+        "kind": "element",
+        "id": "uvula"
+      },
+      "channel": "scaleX",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.85
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:uvula:scaleY",
+      "target": {
+        "kind": "element",
+        "id": "uvula"
+      },
+      "channel": "scaleY",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 0.85
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 0.85
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:uvula:opacity",
+      "target": {
+        "kind": "element",
+        "id": "uvula"
+      },
+      "channel": "opacity",
+      "shapeKey": null,
+      "axes": [
+        {
+          "parameter": "headX",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        },
+        {
+          "parameter": "headY",
+          "values": [
+            -1,
+            0,
+            1
+          ]
+        }
+      ],
+      "keyforms": [
+        {
+          "at": [
+            0,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            0
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            1
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            0,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            1,
+            2
+          ],
+          "value": 1
+        },
+        {
+          "at": [
+            2,
+            2
+          ],
+          "value": 1
+        }
+      ],
+      "extrapolation": "clamp"
+    },
+    {
+      "id": "headPose:uvula:depth",
+      "target": {
+        "kind": "element",
+        "id": "uvula"
       },
       "channel": "depth",
       "shapeKey": null,
@@ -24027,6 +26830,34 @@
       ]
     },
     {
+      "id": "mouth-skew",
+      "target": "mouth",
+      "name": "Skew",
+      "driver": {
+        "mode": "range",
+        "parameter": "mouthSkew",
+        "min": 0,
+        "max": 1,
+        "clamp": true
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "mouthSkew"
+      },
+      "delta": [
+        0,
+        6,
+        4,
+        0,
+        0,
+        -6,
+        4,
+        0,
+        0,
+        6
+      ]
+    },
+    {
       "id": "mouth-skull",
       "target": "mouth",
       "name": "Mouth follows the head",
@@ -24051,9 +26882,9 @@
       ]
     },
     {
-      "id": "teeth-skull",
-      "target": "teeth",
-      "name": "Teeth follows the head",
+      "id": "uvula-skull",
+      "target": "uvula",
+      "name": "Uvula follows the head",
       "driver": {
         "mode": "expression",
         "expression": "headY",
@@ -24063,15 +26894,91 @@
       },
       "delta": [
         0,
-        -3.8000000000000114,
+        -2.5,
         0,
-        -1.1999999999999886,
+        -2.5,
         0,
-        -3.8000000000000114,
+        -2.5,
         0,
-        -1.1999999999999886,
+        -2.5,
         0,
-        -3.8000000000000114
+        -2.5,
+        0,
+        -2.5,
+        0,
+        -2.5
+      ]
+    },
+    {
+      "id": "teeth-skull",
+      "target": "teeth",
+      "name": "Upper teeth follows the head",
+      "driver": {
+        "mode": "expression",
+        "expression": "headY",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "delta": [
+        0,
+        -3.789999999999992,
+        0,
+        -1.210000000000008,
+        0,
+        -3.789999999999992,
+        0,
+        -3.1500000000000057,
+        0,
+        -2.8200000000000216,
+        0,
+        -2.5,
+        0,
+        -2.5,
+        0,
+        -2.5,
+        0,
+        -2.8200000000000216,
+        0,
+        -3.1500000000000057,
+        0,
+        -3.789999999999992
+      ]
+    },
+    {
+      "id": "teethLower-skull",
+      "target": "teethLower",
+      "name": "Lower teeth follows the head",
+      "driver": {
+        "mode": "expression",
+        "expression": "headY",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "delta": [
+        0,
+        -3.289999999999992,
+        0,
+        -1.710000000000008,
+        0,
+        -3.289999999999992,
+        0,
+        -2.8899999999999864,
+        0,
+        -2.6999999999999886,
+        0,
+        -2.5,
+        0,
+        -2.5,
+        0,
+        -2.5,
+        0,
+        -2.6999999999999886,
+        0,
+        -2.8899999999999864,
+        0,
+        -3.289999999999992
       ]
     },
     {
@@ -24087,25 +26994,785 @@
       },
       "delta": [
         0,
-        -3,
+        -3.030000000000001,
         0,
-        -2.6999999999999886,
+        -2.680000000000007,
         0,
-        -2.6999999999999886,
+        -2.5900000000000034,
         0,
-        -3,
+        -2.5,
         0,
-        -2.6999999999999886,
+        -2.5900000000000034,
         0,
-        -2.6999999999999886,
+        -2.680000000000007,
         0,
-        -3
+        -3.030000000000001,
+        0,
+        -2.680000000000007,
+        0,
+        -2.5900000000000034,
+        0,
+        -2.5,
+        0,
+        -2.5900000000000034,
+        0,
+        -2.680000000000007,
+        0,
+        -3.030000000000001
+      ]
+    },
+    {
+      "id": "tongueTip-skull",
+      "target": "tongueTip",
+      "name": "Tongue tip follows the head",
+      "driver": {
+        "mode": "expression",
+        "expression": "headY",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "delta": [
+        0,
+        -3.030000000000001,
+        0,
+        -2.7600000000000193,
+        0,
+        -2.5500000000000114,
+        0,
+        -2.5,
+        0,
+        -2.5500000000000114,
+        0,
+        -2.7600000000000193,
+        0,
+        -3.030000000000001,
+        0,
+        -2.7600000000000193,
+        0,
+        -2.5500000000000114,
+        0,
+        -2.5,
+        0,
+        -2.5500000000000114,
+        0,
+        -2.7600000000000193,
+        0,
+        -3.030000000000001
+      ]
+    },
+    {
+      "id": "tongueGroove-skull",
+      "target": "tongueGroove",
+      "name": "Tongue groove follows the head",
+      "driver": {
+        "mode": "expression",
+        "expression": "headY",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "delta": [
+        0,
+        -2.5,
+        0,
+        -2.5,
+        0,
+        -2.5,
+        0,
+        -2.5,
+        0,
+        -2.5
+      ]
+    },
+    {
+      "id": "uvula-follow",
+      "target": "uvula",
+      "name": "Uvula with the lip",
+      "driver": {
+        "mode": "expression",
+        "expression": "smile",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "smile"
+      },
+      "delta": [
+        0,
+        2.5,
+        0,
+        2.5,
+        0,
+        2.5,
+        0,
+        2.5,
+        0,
+        2.5,
+        0,
+        2.5,
+        0,
+        2.5
+      ]
+    },
+    {
+      "id": "uvula-round",
+      "target": "uvula",
+      "name": "Uvula with the pucker",
+      "driver": {
+        "mode": "expression",
+        "expression": "mouthRound",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "mouthRound"
+      },
+      "delta": [
+        0,
+        -3.5,
+        0,
+        -3.5,
+        0,
+        -3.5,
+        0,
+        -3.5,
+        0,
+        -3.5,
+        0,
+        -3.5,
+        0,
+        -3.5
+      ]
+    },
+    {
+      "id": "uvula-skew",
+      "target": "uvula",
+      "name": "Uvula with the lean",
+      "driver": {
+        "mode": "expression",
+        "expression": "mouthSkew",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "mouthSkew"
+      },
+      "delta": [
+        2,
+        0,
+        2,
+        0,
+        2,
+        0,
+        2,
+        0,
+        2,
+        0,
+        2,
+        0,
+        2,
+        0
+      ]
+    },
+    {
+      "id": "teeth-follow",
+      "target": "teeth",
+      "name": "Upper teeth with the lip",
+      "driver": {
+        "mode": "expression",
+        "expression": "smile",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "smile"
+      },
+      "delta": [
+        -1.4399999999999977,
+        -2.9399999999999977,
+        0,
+        7.939999999999998,
+        1.4399999999999977,
+        -2.9399999999999977,
+        1.0800000000000125,
+        -0.2300000000000182,
+        0.7199999999999989,
+        1.1399999999999864,
+        0.35999999999999943,
+        2.5,
+        0,
+        2.5,
+        -0.35999999999999943,
+        2.5,
+        -0.7199999999999989,
+        1.1399999999999864,
+        -1.0800000000000125,
+        -0.2300000000000182,
+        -1.4399999999999977,
+        -2.9399999999999977
+      ]
+    },
+    {
+      "id": "teeth-round",
+      "target": "teeth",
+      "name": "Upper teeth with the pucker",
+      "driver": {
+        "mode": "expression",
+        "expression": "mouthRound",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "mouthRound"
+      },
+      "delta": [
+        13.680000000000007,
+        -1.6800000000000068,
+        0,
+        -5.319999999999993,
+        -13.679999999999978,
+        -1.6800000000000068,
+        -10.259999999999991,
+        -2.6000000000000227,
+        -6.839999999999989,
+        -3.0400000000000205,
+        -3.4200000000000017,
+        -3.5,
+        0,
+        -3.5,
+        3.4200000000000017,
+        -3.5,
+        6.839999999999989,
+        -3.0400000000000205,
+        10.259999999999991,
+        -2.6000000000000227,
+        13.680000000000007,
+        -1.6800000000000068
+      ]
+    },
+    {
+      "id": "teeth-skew",
+      "target": "teeth",
+      "name": "Upper teeth with the lean",
+      "driver": {
+        "mode": "expression",
+        "expression": "mouthSkew",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "mouthSkew"
+      },
+      "delta": [
+        0.960000000000008,
+        4.319999999999993,
+        3.0400000000000063,
+        0,
+        0.960000000000008,
+        -4.319999999999993,
+        1.4800000000000182,
+        -3.240000000000009,
+        1.740000000000009,
+        -2.1599999999999966,
+        2,
+        -1.0800000000000125,
+        2,
+        0,
+        2,
+        1.0800000000000125,
+        1.7399999999999949,
+        2.1599999999999966,
+        1.4799999999999898,
+        3.2399999999999807,
+        0.960000000000008,
+        4.319999999999993
+      ]
+    },
+    {
+      "id": "teethLower-follow",
+      "target": "teethLower",
+      "name": "Lower teeth with the lip",
+      "driver": {
+        "mode": "expression",
+        "expression": "smile",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "smile"
+      },
+      "delta": [
+        -1.1199999999999903,
+        -0.8000000000000114,
+        0,
+        5.800000000000011,
+        1.1200000000000045,
+        -0.8000000000000114,
+        0.839999999999975,
+        0.8500000000000227,
+        0.5600000000000023,
+        1.6800000000000068,
+        0.28000000000000114,
+        2.5,
+        0,
+        2.5,
+        -0.28000000000000114,
+        2.5,
+        -0.5600000000000023,
+        1.6800000000000068,
+        -0.8400000000000034,
+        0.8500000000000227,
+        -1.1199999999999903,
+        -0.8000000000000114
+      ]
+    },
+    {
+      "id": "teethLower-round",
+      "target": "teethLower",
+      "name": "Lower teeth with the pucker",
+      "driver": {
+        "mode": "expression",
+        "expression": "mouthRound",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "mouthRound"
+      },
+      "delta": [
+        10.64,
+        3.0800000000000125,
+        0,
+        5.9199999999999875,
+        -10.639999999999986,
+        3.0800000000000125,
+        -7.980000000000018,
+        3.7900000000000205,
+        -5.320000000000007,
+        4.150000000000006,
+        -2.660000000000011,
+        4.5,
+        0,
+        4.5,
+        2.660000000000011,
+        4.5,
+        5.319999999999993,
+        4.150000000000006,
+        7.980000000000004,
+        3.7900000000000205,
+        10.64,
+        3.0800000000000125
+      ]
+    },
+    {
+      "id": "teethLower-skew",
+      "target": "teethLower",
+      "name": "Lower teeth with the lean",
+      "driver": {
+        "mode": "expression",
+        "expression": "mouthSkew",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "mouthSkew"
+      },
+      "delta": [
+        1.3700000000000045,
+        3.359999999999985,
+        2.6299999999999955,
+        0,
+        1.3700000000000045,
+        -3.3600000000000136,
+        1.6899999999999977,
+        -2.519999999999982,
+        1.8400000000000034,
+        -1.6800000000000068,
+        2,
+        -0.8400000000000034,
+        2,
+        0,
+        2,
+        0.8400000000000034,
+        1.8399999999999892,
+        1.6800000000000068,
+        1.6899999999999977,
+        2.5200000000000102,
+        1.3700000000000045,
+        3.359999999999985
+      ]
+    },
+    {
+      "id": "tongue-follow",
+      "target": "tongue",
+      "name": "Tongue with the lip",
+      "driver": {
+        "mode": "expression",
+        "expression": "smile",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "smile"
+      },
+      "delta": [
+        -0.4099999999999966,
+        0.27000000000001023,
+        -0.2400000000000091,
+        1.75,
+        -0.1799999999999926,
+        2.1100000000000136,
+        0,
+        2.5,
+        0.1799999999999926,
+        2.1100000000000136,
+        0.23999999999998067,
+        1.75,
+        0.4200000000000159,
+        0.27000000000001023,
+        0.23999999999998067,
+        1.75,
+        0.1799999999999926,
+        2.1100000000000136,
+        0,
+        2.5,
+        -0.1799999999999926,
+        2.1100000000000136,
+        -0.2400000000000091,
+        1.75,
+        -0.4099999999999966,
+        0.27000000000001023
+      ]
+    },
+    {
+      "id": "tongue-round",
+      "target": "tongue",
+      "name": "Tongue with the pucker",
+      "driver": {
+        "mode": "expression",
+        "expression": "mouthRound",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "mouthRound"
+      },
+      "delta": [
+        3.930000000000007,
+        3.539999999999992,
+        2.280000000000001,
+        4.179999999999978,
+        1.6500000000000057,
+        4.340000000000003,
+        0,
+        4.5,
+        -1.6500000000000057,
+        4.340000000000003,
+        -2.2800000000000153,
+        4.179999999999978,
+        -3.9299999999999784,
+        3.539999999999992,
+        -2.2800000000000153,
+        4.179999999999978,
+        -1.6500000000000057,
+        4.340000000000003,
+        0,
+        4.5,
+        1.6500000000000057,
+        4.340000000000003,
+        2.280000000000001,
+        4.179999999999978,
+        3.930000000000007,
+        3.539999999999992
+      ]
+    },
+    {
+      "id": "tongue-skew",
+      "target": "tongue",
+      "name": "Tongue with the lean",
+      "driver": {
+        "mode": "expression",
+        "expression": "mouthSkew",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "mouthSkew"
+      },
+      "delta": [
+        2,
+        2.759999999999991,
+        2,
+        1.5999999999999943,
+        2,
+        1.1599999999999966,
+        2,
+        0,
+        2,
+        -1.1500000000000057,
+        2,
+        -1.6000000000000227,
+        2,
+        -2.759999999999991,
+        2,
+        -1.6000000000000227,
+        2,
+        -1.1500000000000057,
+        2,
+        0,
+        2,
+        1.1599999999999966,
+        2,
+        1.5999999999999943,
+        2,
+        2.759999999999991
+      ]
+    },
+    {
+      "id": "tongueTip-follow",
+      "target": "tongueTip",
+      "name": "Tongue tip with the lip",
+      "driver": {
+        "mode": "expression",
+        "expression": "smile",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "smile"
+      },
+      "delta": [
+        -0.4099999999999966,
+        0.27000000000001023,
+        -0.28999999999999204,
+        1.4099999999999966,
+        -0.13000000000000966,
+        2.299999999999983,
+        0,
+        2.5,
+        0.13000000000000966,
+        2.299999999999983,
+        0.28999999999999204,
+        1.4099999999999966,
+        0.4200000000000159,
+        0.27000000000001023,
+        0.28999999999999204,
+        1.4099999999999966,
+        0.13000000000000966,
+        2.299999999999983,
+        0,
+        2.5,
+        -0.13000000000000966,
+        2.299999999999983,
+        -0.28999999999999204,
+        1.4099999999999966,
+        -0.4099999999999966,
+        0.27000000000001023
+      ]
+    },
+    {
+      "id": "tongueTip-round",
+      "target": "tongueTip",
+      "name": "Tongue tip with the pucker",
+      "driver": {
+        "mode": "expression",
+        "expression": "mouthRound",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "mouthRound"
+      },
+      "delta": [
+        3.930000000000007,
+        3.539999999999992,
+        2.75,
+        4.030000000000001,
+        1.1799999999999926,
+        4.409999999999997,
+        0,
+        4.5,
+        -1.1799999999999926,
+        4.409999999999997,
+        -2.75,
+        4.030000000000001,
+        -3.9299999999999784,
+        3.539999999999992,
+        -2.75,
+        4.030000000000001,
+        -1.1799999999999926,
+        4.409999999999997,
+        0,
+        4.5,
+        1.1799999999999926,
+        4.409999999999997,
+        2.75,
+        4.030000000000001,
+        3.930000000000007,
+        3.539999999999992
+      ]
+    },
+    {
+      "id": "tongueTip-skew",
+      "target": "tongueTip",
+      "name": "Tongue tip with the lean",
+      "driver": {
+        "mode": "expression",
+        "expression": "mouthSkew",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "mouthSkew"
+      },
+      "delta": [
+        2,
+        2.759999999999991,
+        2,
+        1.9300000000000068,
+        2,
+        0.8199999999999932,
+        2,
+        0,
+        2,
+        -0.8300000000000125,
+        2,
+        -1.9300000000000068,
+        2,
+        -2.759999999999991,
+        2,
+        -1.9300000000000068,
+        2,
+        -0.8300000000000125,
+        2,
+        0,
+        2,
+        0.8199999999999932,
+        2,
+        1.9300000000000068,
+        2,
+        2.759999999999991
+      ]
+    },
+    {
+      "id": "tongueGroove-follow",
+      "target": "tongueGroove",
+      "name": "Tongue groove with the lip",
+      "driver": {
+        "mode": "expression",
+        "expression": "smile",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "smile"
+      },
+      "delta": [
+        0,
+        2.5,
+        0,
+        2.5,
+        0,
+        2.5,
+        0,
+        2.5,
+        0,
+        2.5
+      ]
+    },
+    {
+      "id": "tongueGroove-round",
+      "target": "tongueGroove",
+      "name": "Tongue groove with the pucker",
+      "driver": {
+        "mode": "expression",
+        "expression": "mouthRound",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "mouthRound"
+      },
+      "delta": [
+        0,
+        4.5,
+        0,
+        4.5,
+        0,
+        4.5,
+        0,
+        4.5,
+        0,
+        4.5
+      ]
+    },
+    {
+      "id": "tongueGroove-skew",
+      "target": "tongueGroove",
+      "name": "Tongue groove with the lean",
+      "driver": {
+        "mode": "expression",
+        "expression": "mouthSkew",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "mouthSkew"
+      },
+      "delta": [
+        2,
+        0,
+        2,
+        0,
+        2,
+        0,
+        2,
+        0,
+        2,
+        0
       ]
     },
     {
       "id": "teeth-open",
       "target": "teeth",
-      "name": "Teeth with the jaw",
+      "name": "Upper teeth with the jaw",
       "driver": {
         "mode": "expression",
         "expression": "mouthOpen",
@@ -24115,9 +27782,21 @@
       },
       "generatedBy": {
         "semanticPart": "mouth",
-        "control": "teeth"
+        "control": "mouthOpen"
       },
       "delta": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
         0,
         0,
         0,
@@ -24133,7 +27812,7 @@
     {
       "id": "teeth-show",
       "target": "teeth",
-      "name": "Teeth showing",
+      "name": "Upper teeth showing",
       "driver": {
         "mode": "expression",
         "expression": "mouthOpen * teeth",
@@ -24147,24 +27826,76 @@
       },
       "delta": [
         0,
-        3.3999999999999773,
+        3.4000000000000057,
         0,
-        7.5,
+        6.069999999999993,
         0,
-        3.3999999999999773,
+        3.4000000000000057,
         0,
-        24.200000000000017,
+        13.929999999999978,
         0,
-        3.3999999999999773
+        11.199999999999989,
+        0,
+        16.400000000000006,
+        0,
+        12.52000000000001,
+        0,
+        16.400000000000006,
+        0,
+        11.199999999999989,
+        0,
+        13.929999999999978,
+        0,
+        3.4000000000000057
       ]
     },
     {
-      "id": "teeth-follow",
-      "target": "teeth",
-      "name": "Teeth with the lip",
+      "id": "teethLower-open",
+      "target": "teethLower",
+      "name": "Lower teeth with the jaw",
       "driver": {
         "mode": "expression",
-        "expression": "smile",
+        "expression": "mouthOpen",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "mouthOpen"
+      },
+      "delta": [
+        0,
+        21.27000000000001,
+        0,
+        40.72999999999999,
+        0,
+        21.27000000000001,
+        0,
+        26.140000000000015,
+        0,
+        28.569999999999993,
+        0,
+        31,
+        0,
+        31,
+        0,
+        31,
+        0,
+        28.569999999999993,
+        0,
+        26.140000000000015,
+        0,
+        21.27000000000001
+      ]
+    },
+    {
+      "id": "teethLower-show",
+      "target": "teethLower",
+      "name": "Lower teeth showing",
+      "driver": {
+        "mode": "expression",
+        "expression": "mouthOpen * mouthOpen * teeth",
         "curve": "linear",
         "amplitude": 1,
         "offset": 0
@@ -24174,44 +27905,28 @@
         "control": "teeth"
       },
       "delta": [
-        -1.4000000000000057,
-        -2.9000000000000057,
         0,
-        7.900000000000006,
-        1.3999999999999773,
-        -2.9000000000000057,
+        -1.5,
         0,
-        7.900000000000006,
-        -1.4000000000000057,
-        -2.9000000000000057
-      ]
-    },
-    {
-      "id": "teeth-round",
-      "target": "teeth",
-      "name": "Teeth with the pucker",
-      "driver": {
-        "mode": "expression",
-        "expression": "mouthRound",
-        "curve": "linear",
-        "amplitude": 1,
-        "offset": 0
-      },
-      "generatedBy": {
-        "semanticPart": "mouth",
-        "control": "teeth"
-      },
-      "delta": [
-        13.700000000000003,
-        -1.6000000000000227,
+        -2.1599999999999966,
         0,
-        -5.399999999999977,
-        -13.700000000000017,
-        -1.6000000000000227,
+        -1.5,
         0,
-        -5.399999999999977,
-        13.700000000000003,
-        -1.6000000000000227
+        -4.139999999999986,
+        0,
+        -3.4499999999999886,
+        0,
+        -4.75,
+        0,
+        -3.780000000000001,
+        0,
+        -4.75,
+        0,
+        -3.4499999999999886,
+        0,
+        -4.139999999999986,
+        0,
+        -1.5
       ]
     },
     {
@@ -24227,23 +27942,35 @@
       },
       "generatedBy": {
         "semanticPart": "mouth",
-        "control": "tongue"
+        "control": "mouthOpen"
       },
       "delta": [
         0,
-        23.900000000000006,
+        24.439999999999998,
         0,
-        29.200000000000017,
+        28.789999999999992,
         0,
-        29.200000000000017,
+        29.849999999999994,
         0,
-        23.900000000000006,
+        31,
         0,
-        29.200000000000017,
+        29.849999999999994,
         0,
-        29.200000000000017,
+        28.789999999999992,
         0,
-        23.900000000000006
+        24.439999999999998,
+        0,
+        28.789999999999992,
+        0,
+        29.849999999999994,
+        0,
+        31,
+        0,
+        29.849999999999994,
+        0,
+        28.789999999999992,
+        0,
+        24.439999999999998
       ]
     },
     {
@@ -24265,81 +27992,353 @@
         0,
         0,
         0,
-        -20.399999999999977,
+        -23.160000000000025,
         0,
-        -20.399999999999977,
+        -23.150000000000006,
+        0,
+        -16.74000000000001,
+        0,
+        -23.150000000000006,
+        0,
+        -23.160000000000025,
         0,
         0,
         0,
-        8.800000000000011,
+        2.0299999999999727,
         0,
-        8.800000000000011,
+        2.030000000000001,
+        0,
+        1.740000000000009,
+        0,
+        2.030000000000001,
+        0,
+        2.0299999999999727,
         0,
         0
       ]
     },
     {
-      "id": "tongue-follow",
-      "target": "tongue",
-      "name": "Tongue with the lip",
+      "id": "uvula-open",
+      "target": "uvula",
+      "name": "Uvula with the jaw",
       "driver": {
         "mode": "expression",
-        "expression": "smile",
+        "expression": "mouthOpen",
         "curve": "linear",
         "amplitude": 1,
         "offset": 0
       },
       "generatedBy": {
         "semanticPart": "mouth",
-        "control": "tongue"
+        "control": "mouthOpen"
       },
       "delta": [
-        -1,
-        0.10000000000002274,
-        -0.5,
-        1.9000000000000057,
-        0.5,
-        1.9000000000000057,
-        1,
-        0.10000000000002274,
-        0.5,
-        1.9000000000000057,
-        -0.5,
-        1.9000000000000057,
-        -1,
-        0.10000000000002274
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
       ]
     },
     {
-      "id": "tongue-round",
-      "target": "tongue",
-      "name": "Tongue with the pucker",
+      "id": "uvula-show",
+      "target": "uvula",
+      "name": "Uvula showing",
       "driver": {
         "mode": "expression",
-        "expression": "mouthRound",
+        "expression": "mouthOpen * uvula",
         "curve": "linear",
         "amplitude": 1,
         "offset": 0
       },
       "generatedBy": {
         "semanticPart": "mouth",
-        "control": "tongue"
+        "control": "uvula"
       },
       "delta": [
-        9.099999999999994,
-        3.5,
-        4.5,
-        4.200000000000017,
-        -4.5,
-        4.200000000000017,
-        -9.100000000000009,
-        3.5,
-        -4.5,
-        4.200000000000017,
-        4.5,
-        4.200000000000017,
-        9.099999999999994,
-        3.5
+        0,
+        -1.039999999999992,
+        -2.430000000000007,
+        1.8199999999999932,
+        -2.430000000000007,
+        7.210000000000008,
+        0,
+        10.430000000000007,
+        2.430000000000007,
+        7.210000000000008,
+        2.430000000000007,
+        1.8199999999999932,
+        0,
+        -1.039999999999992
+      ]
+    },
+    {
+      "id": "tongueTip-open",
+      "target": "tongueTip",
+      "name": "Tongue tip with the jaw",
+      "driver": {
+        "mode": "expression",
+        "expression": "mouthOpen",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "mouthOpen"
+      },
+      "delta": [
+        0,
+        24.439999999999998,
+        0,
+        27.789999999999992,
+        0,
+        30.400000000000006,
+        0,
+        31,
+        0,
+        30.400000000000006,
+        0,
+        27.789999999999992,
+        0,
+        24.439999999999998,
+        0,
+        27.789999999999992,
+        0,
+        30.400000000000006,
+        0,
+        31,
+        0,
+        30.400000000000006,
+        0,
+        27.789999999999992,
+        0,
+        24.439999999999998
+      ]
+    },
+    {
+      "id": "tongueGroove-open",
+      "target": "tongueGroove",
+      "name": "Tongue groove with the jaw",
+      "driver": {
+        "mode": "expression",
+        "expression": "mouthOpen",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "mouth",
+        "control": "mouthOpen"
+      },
+      "delta": [
+        0,
+        31,
+        0,
+        31,
+        0,
+        31,
+        0,
+        31,
+        0,
+        31
+      ]
+    },
+    {
+      "id": "tongueTip-out",
+      "target": "tongueTip",
+      "name": "Tongue out",
+      "driver": {
+        "mode": "expression",
+        "expression": "tongue * tongueOut",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "tongue",
+        "control": "tongueOut"
+      },
+      "delta": [
+        0,
+        0,
+        0,
+        -12.159999999999997,
+        0,
+        -12.170000000000016,
+        0,
+        -10.419999999999987,
+        0,
+        -12.170000000000016,
+        0,
+        -12.159999999999997,
+        0,
+        0,
+        0,
+        13.879999999999995,
+        0,
+        13.879999999999995,
+        0,
+        11.219999999999999,
+        0,
+        13.879999999999995,
+        0,
+        13.879999999999995,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "tongueGroove-out",
+      "target": "tongueGroove",
+      "name": "Tongue groove out",
+      "driver": {
+        "mode": "expression",
+        "expression": "tongue * tongueOut",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "tongue",
+        "control": "tongueOut"
+      },
+      "delta": [
+        0,
+        -2.0800000000000125,
+        -1.7399999999999949,
+        2.4399999999999977,
+        0,
+        6.960000000000008,
+        1.7399999999999949,
+        2.4399999999999977,
+        0,
+        -2.0800000000000125
+      ]
+    },
+    {
+      "id": "tongue-out",
+      "target": "tongue",
+      "name": "Tongue reaching",
+      "driver": {
+        "mode": "expression",
+        "expression": "mouthOpen * tongue * tongueOut",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "tongue",
+        "control": "tongueOut"
+      },
+      "delta": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "tongueTip-curl",
+      "target": "tongueTip",
+      "name": "Tongue curl",
+      "driver": {
+        "mode": "expression",
+        "expression": "tongue * tongueOut * tongueCurl",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "tongue",
+        "control": "tongueCurl"
+      },
+      "delta": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -1.740000000000009,
+        -6.490000000000009,
+        -1.7399999999999949,
+        -6.490000000000009,
+        0,
+        -5.560000000000002,
+        1.7399999999999949,
+        -6.490000000000009,
+        1.740000000000009,
+        -6.490000000000009,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "tongueGroove-curl",
+      "target": "tongueGroove",
+      "name": "Tongue groove curl",
+      "driver": {
+        "mode": "expression",
+        "expression": "tongue * tongueOut * tongueCurl",
+        "curve": "linear",
+        "amplitude": 1,
+        "offset": 0
+      },
+      "generatedBy": {
+        "semanticPart": "tongue",
+        "control": "tongueCurl"
+      },
+      "delta": [
+        0,
+        0,
+        0,
+        -1.7199999999999989,
+        0,
+        -3.4499999999999886,
+        0,
+        -1.7199999999999989,
+        0,
+        0
       ]
     },
     {

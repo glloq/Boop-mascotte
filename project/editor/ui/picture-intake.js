@@ -46,6 +46,12 @@ const FEATURES = Object.freeze([
   ['eye', ['eye', 'eyes', 'oeil', 'yeux'], ['leftEye', 'rightEye']],
   // Everything inside a mouth, before the mouth: `teeth.png` and `tongue.png`
   // are not mouths, and a name that says both is still the part it names.
+  // The lower row and the tip before the two they are part of, and for the same
+  // reason: `teeth-lower.png` says "teeth" too.
+  ['teethLower', ['teethlower', 'lowerteeth', 'dentsbas', 'basdents'], ['teethLower']],
+  ['tongueTip', ['tonguetip', 'tiptongue', 'pointelangue', 'languepointe'], ['tongueTip']],
+  ['tongueGroove', ['tonguegroove', 'groovetongue', 'rainurelangue', 'languerainure'], ['tongueGroove']],
+  ['uvula', ['uvula', 'luette', 'glotte'], ['uvula']],
   ['teeth', ['teeth', 'tooth', 'dents', 'dent'], ['teeth']],
   ['tongue', ['tongue', 'langue'], ['tongue']],
   ['cavity', ['cavity', 'cavite', 'inside'], ['cavity']],

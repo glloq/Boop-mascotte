@@ -125,7 +125,7 @@ previewed against Head 2.5D. No claim of a Z-buffer; the runtime's rules stand.
   menu, floating bar and keyboard.
 - The panel does not rebuild while its column is off screen. Following the
   selection means being asked on every screen, and its cards are the most
-  expensive render in the editor — a hundred and fifty drawings with their ids
+  expensive render in the editor — every drawing on the shelf with its ids
   remapped. `CONTEXT_RENDER_PLAN` draws it on arrival instead (§31).
 
 Remaining for a later slice: multi-selection rotate/scale, Hands ↔ Draw context

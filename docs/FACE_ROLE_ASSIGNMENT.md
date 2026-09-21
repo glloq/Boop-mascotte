@@ -35,7 +35,7 @@ Three consequences, all of them things an author actually hit:
    And *How it moves*, which was, sat inside a block gated on
    `geometryFields(kind).length`, which is empty for a path: so on every
    drawn shape the Inspector asked neither question.
-3. **The library could not be browsed.** A hundred and fifty drawings ship
+3. **The library could not be browsed.** A library of drawings ships
    with the editor and `facePartCommands.replace()` had no caller, because the
    Character Builder that used to call it was removed. See
    docs/FACE_PART_LIBRARY.md § *Choosing a drawing*.

@@ -20,13 +20,15 @@ const eyeChildren = (side) => [`eyeWhite${side}`, `pupil${side}`, `glint${side}`
 const earChildren = (side) => [`ear${side}Shape`, `ear${side}Fold`];
 /** The shading is a folder of its own now, clipped to the head. */
 const shadingChildren = ['shadeLeft', 'shadeRight', 'faceLight', 'shadeHair'];
+/** And so is the inside of the mouth, clipped to the lips (docs/MOUTH_BUILD.md). */
+const mouthChildren = ['uvula', 'tongue', 'teethLower', 'teeth'];
 const faceChildren = ['hairBack', 'earLeft', 'earRight', 'head', 'faceShading', ...shadingChildren,
-  'mouth', 'tongue', 'teeth', 'eyeLeft', 'eyeRight', 'eyebrows', 'browLeft', 'browRight', 'nose', 'hairTop', 'hairFront', 'hair'];
+  'mouth', 'mouthInside', ...mouthChildren, 'tongueTip', 'tongueGroove', 'eyeLeft', 'eyeRight', 'eyebrows', 'browLeft', 'browRight', 'nose', 'hairTop', 'hairFront', 'hair'];
 /** The children the artwork nests, so a synthetic tree matches the drawn one. */
-const nested = { eyeLeft: eyeChildren('Left'), eyeRight: eyeChildren('Right'), faceShading: shadingChildren };
-const topChildren = faceChildren.filter((id) => !shadingChildren.includes(id));
+const nested = { eyeLeft: eyeChildren('Left'), eyeRight: eyeChildren('Right'), faceShading: shadingChildren, mouthInside: mouthChildren };
+const topChildren = faceChildren.filter((id) => !shadingChildren.includes(id) && !mouthChildren.includes(id));
 const ids = ['faceRoot', ...faceChildren, ...eyeChildren('Left'), ...eyeChildren('Right'), ...earChildren('Left'), ...earChildren('Right')];
-const paths = new Set(['head', 'mouth', 'teeth', 'tongue', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairTop', 'hairBack', 'shadeLeft', 'shadeRight', 'faceLight', 'shadeHair']);
+const paths = new Set(['head', 'mouth', 'uvula', 'teeth', 'teethLower', 'tongue', 'tongueTip', 'tongueGroove', 'lidUpperLeft', 'lidLowerLeft', 'lidUpperRight', 'lidLowerRight', 'browLeft', 'browRight', 'nose', 'hair', 'hairTop', 'hairBack', 'shadeLeft', 'shadeRight', 'faceLight', 'shadeHair']);
 const element = (id) => ({ baseTransform: { x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1, pivotX: 0, pivotY: 0 }, baseOpacity: 1, constraints: { translate: true, rotate: true, scale: true }, bindings: {}, meta: { nodeType: paths.has(id) ? 'path' : 'circle' } });
 const loaded = () => {
   const state = createCleanProjectState();
@@ -164,8 +166,30 @@ test('the mouth is one shape that opens and smiles at the same time', () => {
       // (docs/FACE_SVG_STATES.md).
       'lidUpperLeft-eyeSquint', 'lidUpperLeft-eyeCurve', 'lidLowerLeft-eyeSquint', 'lidLowerLeft-eyeCurve',
       'lidUpperRight-eyeSquint', 'lidUpperRight-eyeCurve', 'lidLowerRight-eyeSquint', 'lidLowerRight-eyeCurve',
-      'mouth-open', 'mouth-smile', 'mouth-frown', 'mouth-round', 'mouth-skull', 'teeth-skull', 'tongue-skull',
-      'teeth-open', 'teeth-show', 'teeth-follow', 'teeth-round', 'tongue-open', 'tongue-show', 'tongue-follow', 'tongue-round', 'head-jaw']);
+      // The lips: open, smile, frown, pucker, lean, and the bow a head that
+      // looks down puts across them.
+      'mouth-open', 'mouth-smile', 'mouth-frown', 'mouth-round', 'mouth-skew',
+      // And the same bow for everything drawn from them.
+      'mouth-skull', 'uvula-skull', 'teeth-skull', 'teethLower-skull', 'tongue-skull', 'tongueTip-skull', 'tongueGroove-skull',
+      // Each inside follows the lip it hangs off: the smile, the pucker, the lean.
+      // The uvula hangs off the *upper* one, which is the only one of these that does.
+      'uvula-follow', 'uvula-round', 'uvula-skew',
+      'teeth-follow', 'teeth-round', 'teeth-skew',
+      'teethLower-follow', 'teethLower-round', 'teethLower-skew',
+      'tongue-follow', 'tongue-round', 'tongue-skew',
+      'tongueTip-follow', 'tongueTip-round', 'tongueTip-skew',
+      'tongueGroove-follow', 'tongueGroove-round', 'tongueGroove-skew',
+      // Travelling with the jaw, and showing: two questions, two keys.
+      'teeth-open', 'teeth-show', 'teethLower-open', 'teethLower-show', 'tongue-open', 'tongue-show',
+      // And the drop at the back of a shouting mouth, which rests at nothing:
+      // a mascot that never asks for one draws what it always drew.
+      'uvula-open', 'uvula-show',
+      // The tip and its crease follow the jaw on keys of their own, because what
+      // brings them out is `tongueOut` rather than the mouth opening, and a blep
+      // needs no open mouth at all (docs/MOUTH_BUILD.md).
+      'tongueTip-open', 'tongueGroove-open',
+      'tongueTip-out', 'tongueGroove-out', 'tongue-out', 'tongueTip-curl', 'tongueGroove-curl',
+      'head-jaw']);
   const part = Object.values(state.semanticParts).find((item) => item.type === 'mouth');
   assert.equal(part.controlDrivers.mouthOpen.method, 'shapeKey');
   assert.equal(part.controlDrivers.smile.method, 'shapeKey');
@@ -230,27 +254,66 @@ test('an open mouth has teeth and a tongue in it, and a closed one has neither',
   const state = loaded();
   applyTemplateProject(state);
   const part = Object.values(state.semanticParts).find((item) => item.type === 'mouth');
-  assert.deepEqual(part.roles, { mouth: 'mouth', teeth: 'teeth', tongue: 'tongue' });
+  assert.deepEqual(part.roles, { mouth: 'mouth', uvula: 'uvula', teeth: 'teeth', teethLower: 'teethLower', tongue: 'tongue', tongueTip: 'tongueTip', tongueGroove: 'tongueGroove' });
   assert.equal(part.controlDrivers.teeth.method, 'shapeKey');
 
   const at = (values) => compileRigFrame(state.elements, { ...state.params, ...Object.fromEntries(Object.entries(values).map(([name, value]) => [name, { type: 'number', min: -1, max: 1, default: 0, value }])) }, {}, {}, { shapeKeys: state.shapeKeys });
+  /**
+   * The area the path actually paints, which is the question.
+   *
+   * The curves are flattened before the shoelace rather than shoelaced over the
+   * `d` string's numbers: a scalloped row of teeth is several segments where a
+   * plain band was two, its control polygon is not degenerate even when the
+   * shape it draws is empty, and the cheap version read 13 square units of ink
+   * on a shut mouth that paints none (docs/MOUTH_BUILD.md).
+   */
   const area = (d) => {
-    // The shoelace area of the path's points: a flat band has none, which is
-    // how a closed mouth hides what is behind it without an opacity trick.
-    const numbers = [...String(d).matchAll(/-?\d+(?:\.\d+)?/g)].map((match) => Number(match[0]));
-    let total = 0;
-    for (let index = 0; index < numbers.length; index += 2) {
-      const nextIndex = (index + 2) % numbers.length;
-      total += numbers[index] * numbers[nextIndex + 1] - numbers[nextIndex] * numbers[index + 1];
+    const tokens = String(d).match(/[MQCZ]|-?\d+(?:\.\d+)?/g) || [];
+    const points = [];
+    let index = 0, current = null, first = null;
+    const number = () => Number(tokens[index++]);
+    const push = (p) => { points.push(p); return p; };
+    while (index < tokens.length) {
+      const command = tokens[index++];
+      if (command === 'M') { current = first = push({ x: number(), y: number() }); continue; }
+      if (command === 'Z') { current = first; continue; }
+      const controls = command === 'Q' ? 1 : 2;
+      const between = Array.from({ length: controls }, () => ({ x: number(), y: number() }));
+      const end = { x: number(), y: number() };
+      const all = [current, ...between, end];
+      for (let step = 1; step <= 24; step += 1) {
+        const t = step / 24;
+        const run = all.map((p) => ({ ...p }));
+        for (let order = all.length - 1; order > 0; order -= 1) {
+          for (let k = 0; k < order; k += 1) { run[k].x += (run[k + 1].x - run[k].x) * t; run[k].y += (run[k + 1].y - run[k].y) * t; }
+        }
+        push(run[0]);
+      }
+      current = end;
     }
+    let total = 0;
+    for (let k = 0; k < points.length; k += 1) { const next = points[(k + 1) % points.length]; total += points[k].x * next.y - next.x * points[k].y; }
     return Math.abs(total) / 2;
   };
   // Turned all the way up, but with the lips closed: nothing shows.
-  assert.equal(area(at({ teeth: 1, tongue: 1 }).teeth.path), 0);
-  assert.equal(area(at({ teeth: 1, tongue: 1 }).tongue.path), 0);
+  //
+  // Not exactly nothing. The paths are rounded to a hundredth of a unit, a row
+  // of teeth is five segments each rounded on its own, and the rig adds a
+  // rounded delta to a rounded rest -- so an edge that retraces its partner
+  // exactly in arithmetic retraces it to within a hundredth on the page. One
+  // square unit is the bound that holds across every pose, against the 340 a
+  // shown row paints: a band 37 units long and a seventieth of a unit thick,
+  // which is a third of one per cent of the ink and no ink at all.
+  const NOTHING = 1;
+  assert.ok(area(at({ teeth: 1, tongue: 1 }).teeth.path) < NOTHING);
+  assert.ok(area(at({ teeth: 1, tongue: 1 }).teethLower.path) < NOTHING);
+  assert.ok(area(at({ teeth: 1, tongue: 1 }).tongue.path) < NOTHING);
+  assert.ok(area(at({ tongue: 1 }).tongueTip.path) < NOTHING, 'and the tip is in until it is asked out');
+  assert.ok(area(at({ tongue: 1 }).tongueGroove.path) < NOTHING, 'and so is the crease down it');
   // Open, with the controls down: still nothing, because it is a product.
-  assert.equal(area(at({ mouthOpen: 1 }).teeth.path), 0);
-  assert.equal(area(at({ mouthOpen: 1 }).tongue.path), 0);
+  assert.ok(area(at({ mouthOpen: 1 }).teeth.path) < NOTHING);
+  assert.ok(area(at({ mouthOpen: 1 }).teethLower.path) < NOTHING);
+  assert.ok(area(at({ mouthOpen: 1 }).tongue.path) < NOTHING);
   // Open and asked for: both, and both inside the mouth.
   const grinning = at({ mouthOpen: 1, teeth: 1, tongue: 1 });
   assert.ok(area(grinning.teeth.path) > 200);
@@ -269,7 +332,8 @@ test('every part of the face has a movement, and the jaw is one of them', () => 
   assert.deepEqual(controls.ears, ['earWiggle']);
   assert.deepEqual(controls.jaw, ['jawOpen']);
   assert.deepEqual(controls.hair, ['hairSway', 'hairLift']);
-  assert.deepEqual(controls.mouth, ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'teeth', 'tongue']);
+  assert.deepEqual(controls.mouth, ['mouthOpen', 'smile', 'mouthWidth', 'mouthRound', 'mouthSkew', 'teeth', 'tongue', 'uvula']);
+  assert.deepEqual(controls.tongue, ['tongueX', 'tongueY', 'tongueOut', 'tongueCurl']);
 
   // One outline that lengthens, rather than a second shape sliding out from
   // behind the first: that is what a double chin was.

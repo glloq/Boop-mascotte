@@ -193,6 +193,32 @@ export function validateFacePart(input, { taken = () => false, library = null } 
     if (capabilities.missing.length && category.installable) issues.push(warning('capabilities-incomplete', `Limited animation: ${capabilities.missing.join(', ')} ${capabilities.missing.length === 1 ? 'is' : 'are'} not carried by this drawing.`, 'capabilities'));
     checkDrivers(issues, asset.drivers, category.part ? SEMANTIC_PART_REGISTRY[category.part] : null, category.label, asset.capabilities, Object.keys(asset.roles), 'drivers');
     checkTurn(issues, asset.turn, Object.keys(asset.roles), 'turn');
+    /**
+     * What is drawn inside a mouth follows the lips, and only a **pose** can
+     * carry it there.
+     *
+     * `mouthOpen` and `smile` are bound to the lips and to nothing else, on
+     * purpose: both are transforms by default, and a transform on an inside is
+     * a transform on a shape the tongue part may also be translating, which
+     * every drawing with a tongue would then refuse to install over. So a card
+     * reaches its own insides by shipping a pose per role
+     * (`installShapedControl`; docs/MOUTH_BUILD.md).
+     *
+     * A card that draws an inside and does not is not wrong — it is a drawing
+     * whose teeth stay where the closed lips were while the lips open, which is
+     * a row of teeth over a chin. A warning rather than a refusal, because it
+     * costs an author a look rather than their asset, and because "limited
+     * animation" is the shape every other half-carried movement is reported in.
+     */
+    const INSIDES = ['cavity', 'teeth', 'teethLower', 'tongue', 'tongueTip', 'tongueGroove', 'uvula'];
+    const drawnInside = INSIDES.filter((role) => asset.roles[role]);
+    if (drawnInside.length) {
+      for (const control of ['mouthOpen', 'smile']) {
+        if (!asset.capabilities.includes(control) || asset.drivers[control]?.property !== 'shapeKey') continue;
+        const adrift = drawnInside.filter((role) => !asset.drivers[control].roles?.[role]?.posePath);
+        if (adrift.length) issues.push(warning('driver-inside-adrift', `"${control}" is shaped here but ships no pose for ${adrift.join(', ')}, so what is drawn inside the mouth will not follow the lips when it moves.`, `drivers.${control}.roles`));
+      }
+    }
 
     // The other parts the drawing carries: each a real part, not the
     // category's own, with roles it has, on shapes the artwork draws, each
@@ -209,8 +235,20 @@ export function validateFacePart(input, { taken = () => false, library = null } 
         else taken.set(elementId, role);
       }
       for (const control of part.capabilities) if (!definition.controls.includes(control)) issues.push(error('capability-unsupported', `${definition.displayName} has no movement called "${control}".`, `parts.${type}.capabilities`));
-      checkDrivers(issues, part.drivers, definition, definition.displayName, part.capabilities, Object.keys(part.roles), `parts.${type}.drivers`);
-      checkTurn(issues, part.turn, Object.keys(part.roles), `parts.${type}.turn`);
+      /**
+       * A part the asset draws also plays the roles it shares with the asset's
+       * own, and a driver hint may name those.
+       *
+       * One shape plays one role, and that rule is what the check above keeps:
+       * a mouth that draws a tongue cannot list it here as well. But the tongue
+       * part *moves* that tongue -- the mouth says whether it shows, the tongue
+       * part says where it is -- so the installer hands it over, and a hint
+       * naming it is describing something real (docs/MOUTH_BUILD.md).
+       */
+      const shared = definition.roles.filter((role) => asset.roles[role]);
+      const named = [...new Set([...Object.keys(part.roles), ...shared])];
+      checkDrivers(issues, part.drivers, definition, definition.displayName, part.capabilities, named, `parts.${type}.drivers`);
+      checkTurn(issues, part.turn, named, `parts.${type}.turn`);
     }
   }
 

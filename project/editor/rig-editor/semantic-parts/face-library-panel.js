@@ -59,6 +59,18 @@ import { movementEntry } from './face-movements.js';
 const movementWord = (control) => movementEntry(control)?.label?.toLowerCase() || control;
 
 /**
+ * A list of kinds of face, as a person would say it.
+ *
+ * The words are the morphology table's own labels, so the sentence on a button
+ * says what the table says is kept rather than offered and cannot drift from it
+ * — un-retiring a kind is one flag in `face-morphologies.js` and nothing here
+ * (§3.2 of the V6 brief; `core/face-library/face-catalogue.js`).
+ */
+const kinds = (list) => (list.length > 1 ? `${list.slice(0, -1).join(', ')} and ${list.at(-1)}` : list[0] || '');
+/** `An Animal`, `A Bird`: the labels are the table's, so the article is read off them. */
+const article = (word) => (/^[aeiou]/i.test(word) ? 'An' : 'A');
+
+/**
  * @param {HTMLElement} host
  * @param {object} store
  * @param {object} deps
@@ -82,6 +94,17 @@ export function createFaceLibraryPanel(host, store, { commands, onStatus = () =>
   // moment the author selects a different part of the face.
   let followed = null;
   let showAll = false;
+  /**
+   * Whether the packs the editor no longer offers are on the shelf (V6, §3).
+   *
+   * The animal, robot and bird drawings are ninety of the library's hundred and
+   * thirty-two, and the editor is about human faces: a Mouth row that offers
+   * one mouth rather than sixteen is the whole of the recentring an author sees
+   * (`core/face-library/face-catalogue.js`). Session state on this host, like
+   * the pressed tab and the compatibility filter beside it: no project stores
+   * which shelves somebody looked at.
+   */
+  let showLegacy = false;
   let notice = null;
   /** The signature of what is on screen, so an identical render is skipped. */
   let drawn = null;
@@ -104,7 +127,7 @@ export function createFaceLibraryPanel(host, store, { commands, onStatus = () =>
     return current;
   };
 
-  const model = () => faceLibraryModel(doc(), { category, subject: follow(), showAll });
+  const model = () => faceLibraryModel(doc(), { category, subject: follow(), showAll, showLegacy });
 
   /**
    * Put one drawing on the face.
@@ -138,6 +161,7 @@ export function createFaceLibraryPanel(host, store, { commands, onStatus = () =>
     if (!button) return;
     if (button.dataset.faceLibraryCategory) { category = button.dataset.faceLibraryCategory; followed = selected(); notice = null; onPreview(null); render(); return; }
     if (button.dataset.faceLibraryShowAll !== undefined) { showAll = button.dataset.faceLibraryShowAll === 'on'; onPreview(null); render(); return; }
+    if (button.dataset.faceLibraryShowLegacy !== undefined) { showLegacy = button.dataset.faceLibraryShowLegacy === 'on'; onPreview(null); render(); return; }
     if (button.dataset.faceLibraryWear) { onPreview(null); wear(button.dataset.faceLibraryWear); }
   });
 
@@ -182,7 +206,7 @@ export function createFaceLibraryPanel(host, store, { commands, onStatus = () =>
    */
   const signature = () => {
     const resolved = resolveLibraryCategory(doc(), { category, subject: follow() });
-    return [resolved.active, resolved.following, showAll, notice?.text || '', store.getPersistentRevision?.() ?? ''].join('\u0000');
+    return [resolved.active, resolved.following, showAll, showLegacy, notice?.text || '', store.getPersistentRevision?.() ?? ''].join('\u0000');
   };
 
   function render() {
@@ -206,6 +230,7 @@ export function createFaceLibraryPanel(host, store, { commands, onStatus = () =>
     host.dataset.faceLibraryTotal = String(view.total);
     host.dataset.faceLibraryFollowing = String(view.following);
     host.dataset.faceLibraryFiltered = String(view.filtered);
+    host.dataset.faceLibraryLegacy = String(view.legacy);
 
     // Only the categories the library has a drawing for. One with none is not
     // a category an author can do anything in, and a tab that opens on "no
@@ -216,7 +241,8 @@ export function createFaceLibraryPanel(host, store, { commands, onStatus = () =>
       <svg class="face-library-preview" viewBox="${esc(card.preview.viewBox)}" aria-hidden="true" focusable="false">${card.preview.markup}</svg>
       <b>${esc(card.name)}</b>
       ${card.description ? `<small>${esc(card.description)}</small>` : ''}
-      ${card.compatible ? '' : '<small class="face-library-note">Drawn for another kind of face.</small>'}
+      ${card.compatible ? '' : `<small class="face-library-note">Drawn for ${card.kinds.length ? `${article(card.kinds[0]).toLowerCase()} ${esc(kinds(card.kinds))} face` : 'another kind of face'}.</small>`}
+      ${card.legacy ? `<small class="face-library-note" data-face-library-legacy="true">${card.kinds.length ? `${article(card.kinds[0])} ${esc(kinds(card.kinds))} drawing: kept` : 'Kept'} for the faces that wear it, and no longer offered.</small>` : ''}
       ${card.loses.length ? `<small class="face-library-note" data-face-library-loses="${esc(card.loses.join(' '))}">⚠ Limited animation: ${esc(card.loses.map(movementWord).join(', '))} would switch off.</small>` : ''}
       <button type="button" class="${card.worn ? 'secondary' : ''}" data-face-library-wear="${esc(card.id)}" aria-label="${card.worn ? `${esc(card.name)} is on the face` : `Put ${esc(card.name)} on the face${card.loses.length ? `. Limited animation: ${esc(card.loses.map(movementWord).join(', '))} would switch off` : ''}`}">${card.worn ? '✓ On the face' : 'Use it'}</button>
     </article>`).join('');
@@ -225,13 +251,15 @@ export function createFaceLibraryPanel(host, store, { commands, onStatus = () =>
     const label = view.categories.find((item) => item.id === view.active)?.label || view.active || '';
     setPanelHtml(host, `<h3 id="face-library-heading">Face parts library</h3>
       <div role="status" aria-live="polite">${notice ? `<p class="face-pick-notice" data-tone="${notice.tone}">${esc(notice.text)}</p>` : ''}</div>
-      <p class="small">${view.total} drawings. Choosing one replaces that part of the face: where you had moved it and the movements it had are kept, and the new drawing arrives fitted to this head.</p>
+      <p class="small">${view.offered} drawings for ${esc(article(view.offeredKinds[0] || '').toLowerCase())} ${esc(kinds(view.offeredKinds).toLowerCase())} face. Choosing one replaces that part of the face: where you had moved it and the movements it had are kept, and the new drawing arrives fitted to this head.</p>
       <div class="pose-chips" role="group" aria-label="Which part">${tabs}</div>
       ${view.following ? `<p class="small" data-face-library-follow-note>Showing <b>${esc(label)}</b>, because that is what you have selected. Press another tab to look elsewhere.</p>` : ''}
       ${worn ? `<p class="small">Wearing <b>${esc(worn.name)}</b>.</p>` : '<p class="small">This part was drawn or imported rather than taken from the library.</p>'}
       <div class="face-library-cards" aria-labelledby="face-library-heading">${cards}</div>
       ${view.filtered ? `<button type="button" class="secondary" data-face-library-show-all="on">Show all ${view.filtered + view.cards.length} drawings (${view.filtered} drawn for other kinds of face)</button>` : ''}
-      ${view.showAll ? '<button type="button" class="secondary" data-face-library-show-all="off">Show only the ones that fit this face</button>' : ''}`);
+      ${view.showAll ? '<button type="button" class="secondary" data-face-library-show-all="off">Show only the ones that fit this face</button>' : ''}
+      ${view.legacy ? `<button type="button" class="secondary" data-face-library-show-legacy="on">Show the older packs too (${view.legacy} ${esc(kinds(view.legacyKinds).toLowerCase())} drawing${view.legacy === 1 ? '' : 's'})</button>` : ''}
+      ${view.showLegacy ? '<button type="button" class="secondary" data-face-library-show-legacy="off">Hide the older packs</button>' : ''}`);
     void sections;
   }
 

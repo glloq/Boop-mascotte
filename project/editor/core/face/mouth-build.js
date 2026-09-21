@@ -12,11 +12,11 @@
  * ```
  *
  * **Four points and one closed path.** The corners, the upper lip's control
- * point and the lower lip's, moved by four numbers — `open`, `smile`, `arc` and
- * `round` — and the teeth and the tongue drawn *from those same curves* rather
- * than beside them. Inside by construction, which is the whole reason a cavity
- * drawn as its own shape comes apart: a shape that only happens to line up stops
- * lining up the moment anything moves.
+ * point and the lower lip's, moved by five numbers — `open`, `smile`, `arc`,
+ * `round` and `skew` — and everything a mouth has *inside* it drawn from those
+ * same curves rather than beside them. Inside by construction, which is the
+ * whole reason a cavity drawn as its own shape comes apart: a shape that only
+ * happens to line up stops lining up the moment anything moves.
  *
  * The library used to hold five human mouths and not one of them could **speak**.
  * `mouthRound` is the control the visemes turn on — the difference between AE
@@ -30,6 +30,41 @@
  * always drawn with, moved out here so a card and the sample are the same mouth
  * — exactly as `core/face/eye-build.js` is the same eye (docs/EYE_BUILDS.md).
  *
+ * ## The five shapes (V6)
+ *
+ * ```text
+ *   mouth         the lips, and the cavity: one closed path, fill inside, stroke lips
+ *   teeth         the upper row, hung off the upper lip, its biting edge scalloped
+ *   teethLower    the lower row, the same band from the lower lip, shallower
+ *   tongue        the body: two lobes with a groove between them, inside the cavity
+ *   tongueTip     the lobe that laps **over** the lower lip when the tongue comes out
+ *   tongueGroove  the crease down the middle of that lobe
+ * ```
+ *
+ * The first three and the body are drawn *inside the aperture* and the template
+ * clips them to it; the tip and its groove are drawn in front of the lips on
+ * purpose, because a tongue hanging out is in front of the lip it hangs over and
+ * nothing else about a cartoon face is as unmistakable.
+ *
+ * ## The rule every shape here obeys
+ *
+ * **Every point is affine in every pose number, separately.** A band's anchors
+ * come from the lip curve, which is affine in `open`, `smile`, `arc`, `round`
+ * and `skew`; its offsets are constants times `show`, `out` or `curl`. There is
+ * no cross-term anywhere, which is what lets the rig drive each number with its
+ * own additive shape key and have the sum be *exactly* the drawing rather than
+ * an approximation of it (docs/SHAPE_KEYS.md). It is also why `BAND_REACH` is a
+ * constant and not this mouth's own height: derived from the pose it would make
+ * every offset a product of `open` and `show`, and a product is not the sum of
+ * its ends.
+ *
+ * **And every shape is empty at rest.** Each of the four insides is a closed
+ * path whose second half retraces its first exactly when its own number is 0:
+ * the same points, the same control points, in reverse. It encloses nothing and
+ * paints nothing, so a shut mouth has nothing behind it to hide — by
+ * construction rather than by arithmetic, and without an `opacity` a binding
+ * would then have to multiply back up.
+ *
  * The animal ω, the six beaks and the four robot grilles stay where they are.
  * A muzzle's mouth is two curves meeting under a nose, a beak is a rigid wedge
  * that hinges, and a grille is a lit panel: different constructions, not this one
@@ -37,7 +72,18 @@
  *
  * Pure geometry. Nothing here reads a document or touches the DOM.
  */
-const round = (value) => Math.round(value * 10) / 10;
+
+/**
+ * Two decimals, where V5 kept one.
+ *
+ * A row of teeth is now several segments where it was two, and each of them is
+ * rounded on its own: at one decimal the rounding of a crown's control point no
+ * longer cancels the rounding of the gum edge's, and a shape that is empty by
+ * construction came out enclosing a sliver a fiftieth of a unit thick. Invisible,
+ * and untrue -- and "empty at rest" is a property the rest of this module leans
+ * on rather than a nicety.
+ */
+const round = (value) => Math.round(value * 100) / 100;
 const point = (p) => `${round(p.x)} ${round(p.y)}`;
 
 /**
@@ -49,10 +95,6 @@ const point = (p) => `${round(p.x)} ${round(p.y)}`;
  * cavity, and half-open the lip sat across the hole like a stick. One closed
  * path has no such seam: the fill *is* the inside of the mouth and the stroke
  * *is* the lips, so every pose is a mouth.
- *
- * Every control point is affine in `open` and `smile`, which is what lets the
- * two additive shape keys reproduce any combination exactly rather than
- * approximately (docs/SHAPE_KEYS.md).
  *
  * **The neutral is not flat.** V1's rest pose put the upper lip's control
  * point level with its corners, which draws a straight bar: technically
@@ -81,7 +123,23 @@ export const MOUTH = Object.freeze({
    * Every one of them is 0 at `mouthRound 0`, which is every mouth that has
    * never been asked to pucker.
    */
-  roundPull: 19, roundTop: 7, roundFloor: 9
+  roundPull: 19, roundTop: 7, roundFloor: 9,
+  /**
+   * The smirk, in two numbers (`mouthSkew`).
+   *
+   * Every expression that is not a mask is the two halves of the face
+   * disagreeing, and the rig has had asymmetric *corners* since CR-28 — two
+   * pins, one per end of the lip line. What it had no way to say is the
+   * whole mouth **leaning**: a pin moves the artwork near it and lets go, so
+   * pulling one corner up leaves the lip line between them where it was.
+   *
+   * `skewRise` lifts one corner and drops the other by as much, and
+   * `skewLean` leans the lip line after them, which is what turns two moved
+   * corners into one crooked mouth. Signed, so one shape key serves both
+   * directions, and 0 at `mouthSkew 0` — which is every mouth that has never
+   * been asked to smirk.
+   */
+  skewRise: 6, skewLean: 4
 });
 
 /**
@@ -98,14 +156,18 @@ export const MOUTH = Object.freeze({
  *
  * Only the corners move, which is what keeps it a bow rather than a smile.
  */
-export function mouthGeometry({ open = 0, smile = 0, arc = 0, round: pucker = 0 } = {}) {
+export function mouthGeometry({ open = 0, smile = 0, arc = 0, round: pucker = 0, skew = 0 } = {}) {
   const cornerY = MOUTH.cornerY - MOUTH.smileRise * smile - MOUTH.arcRise * arc;
   const half = MOUTH.half - MOUTH.roundPull * pucker;
+  // One corner up, the other down by as much: a lean, never a lift, so a skew
+  // on its own never reads as half a smile.
+  const tilt = MOUTH.skewRise * skew;
+  const lean = MOUTH.skewLean * skew;
   return {
-    left: { x: MOUTH.cx - half - MOUTH.smileSpread * smile, y: cornerY },
-    right: { x: MOUTH.cx + half + MOUTH.smileSpread * smile, y: cornerY },
-    top: { x: MOUTH.cx, y: MOUTH.lipY + MOUTH.smileDrop * smile - MOUTH.roundTop * pucker },
-    bottom: { x: MOUTH.cx, y: MOUTH.floorY + MOUTH.smileDrop * smile + MOUTH.openDrop * open + MOUTH.roundFloor * pucker }
+    left: { x: MOUTH.cx - half - MOUTH.smileSpread * smile, y: cornerY + tilt },
+    right: { x: MOUTH.cx + half + MOUTH.smileSpread * smile, y: cornerY - tilt },
+    top: { x: MOUTH.cx + lean, y: MOUTH.lipY + MOUTH.smileDrop * smile - MOUTH.roundTop * pucker },
+    bottom: { x: MOUTH.cx + lean, y: MOUTH.floorY + MOUTH.smileDrop * smile + MOUTH.openDrop * open + MOUTH.roundFloor * pucker }
   };
 }
 
@@ -121,6 +183,11 @@ export function mouthPath(pose = {}) {
   const g = mouthGeometry(pose);
   return `M${point(g.left)} Q${point(g.top)} ${point(g.right)} Q${point(g.bottom)} ${point(g.left)} Z`;
 }
+
+/** The upper lip, left corner to right, as a function of how far along it. */
+const upperLip = (g) => (t) => quad(g.left, g.top, g.right, t);
+/** And the lower one, the same way round, so a band on either reads left to right. */
+const lowerLip = (g) => (t) => quad(g.left, g.bottom, g.right, t);
 
 /**
  * The box the lips occupy at rest, which is what the mouth's own pins are
@@ -139,119 +206,6 @@ export const MOUTH_BOX = Object.freeze((() => {
 })());
 
 /**
- * Teeth and tongue.
- *
- * Both are drawn *from the mouth's own curves* rather than beside them: the
- * teeth hang off the upper lip, the tongue rests just above the lower one.
- * Inside by construction, which is the whole reason the cavity used to come
- * apart — a shape that only happens to line up stops lining up the moment
- * anything moves.
- *
- * Each is **two quadratics that share their ends on the lip**, one with its
- * control point pushed into the mouth. `show` is how far. At 0 the two are the
- * same curve traced twice: the shape encloses nothing and nothing is painted,
- * so closed lips have nothing behind them to hide, by construction rather than
- * by arithmetic.
- *
- * That shared end is the whole of the redesign. The first version gave each
- * band an end of its own, a fraction of the way out, and joined the two with a
- * straight `L` — a vertical cut a few units tall at each end, with a step where
- * it met the lip. What it drew was a white slab with square corners and, under
- * it, a pink slab with square corners, the tongue being the worse of the two
- * because it was as wide as the mouth and half as deep: an open mouth was two
- * coloured blocks. Now the teeth taper into nothing before the corners the way
- * a row of upper teeth does, and the tongue is a narrow dome.
- */
-export const BAND = Object.freeze({
-  /** Where each band starts and ends along its lip, as a fraction of it. */
-  teethFrom: 0.14, teethTo: 0.86,
-  // Much narrower than the mouth: a tongue is a shape *in* the cavity, and one
-  // that reaches the corners is the cavity's floor instead.
-  tongueFrom: 0.29, tongueTo: 0.71,
-  /**
-   * How thick each is in the middle, as a fraction of the drawn cavity. A
-   * quadratic reaches half its control point's offset, hence the doubling
-   * where these are used.
-   */
-  teeth: 0.3, tongue: 0.48,
-  /**
-   * How far the near edge sits inside the lip, as a fraction of the far one.
-   * The lip's outline is 3.8 units wide and centred on the path, so a band
-   * whose edge lies exactly on it paints over the inner half and the lip goes
-   * thin where the teeth are.
-   */
-  tuck: 0.2,
-  /**
-   * How far the teeth hang **clear of the lip they grow from**, in units,
-   * at full show.
-   *
-   * `tuck` keeps the band's middle off the stroke; its *ends* were still on
-   * the lip, so the row of teeth was drawn over the top of the upper lip and
-   * the lip went missing behind it. The lip's outline is 3.8 units wide and
-   * centred on the path, so anything nearer than 1.9 is painting on it: this
-   * clears that and leaves a thread of cavity showing, which is what says the
-   * teeth are *inside* the mouth.
-   *
-   * Multiplied by `show` and nothing else, so the shape is still exactly empty
-   * at `show 0` and the one shape key still interpolates it linearly.
-   */
-  clear: 3.4,
-  /**
-   * The tongue's own two: how far it floats off the lower lip -- the dark line
-   * under it is what makes it a tongue in a mouth rather than the floor of one
-   * -- and how far its underside flattens towards the chord, which is what
-   * makes the shape a dome instead of a symmetric lens.
-   */
-  tongueLift: 0.1, tongueBase: 0.22
-});
-
-/**
- * The tongue, which is its own shape rather than a band.
- *
- * As a band it was a small hump on the floor of the mouth: it never came out,
- * and it never read as a tongue. A cartoon tongue is a **rounded slab that
- * fills the lower half of the mouth and hangs over the lip** — the *blep* —
- * with a groove down its back and a soft notch at its tip.
- *
- * ```text
- *         ╭────────╮         up     the back, one arch into the cavity
- *   ──────┤        ├──────   the lower lip, where it is anchored
- *          ╲______╱          out    the tip, lapping over the lip
- * ```
- *
- * **Two arches and nothing else.** Drawn with a node in the middle of each --
- * a groove down the back, a point at the tip -- a cubic's controls pulled the
- * curve up on either side of it and the tongue came out as two lobes with a V
- * between them: a butterfly. One arch per half has one peak, which is what a
- * tongue is. A cubic reaches three quarters of its controls' offset, so the
- * controls sit at four thirds of where the peak has to land.
- *
- * Every offset is a multiple of `show`, so at `show 0` every point of it lies
- * on the lip and the half that comes back retraces the half that went out: the
- * shape encloses nothing and paints nothing, which is what lets a shut mouth
- * hide it by construction rather than by arithmetic.
- */
-export const TONGUE = Object.freeze({
-  /** Where it is anchored along the lower lip. Wide, because a tongue that
-   *  spans the middle third reads as a lozenge in a hole -- but short of the
-   *  corners, or it is the floor of the mouth and the lip vanishes under it. */
-  from: 0.26, to: 0.74,
-  /**
-   * How far it reaches into the cavity, and how far past the lip, as fractions
-   * of the cavity a fully open mouth has.
-   *
-   * Both were half again as large first, and the tongue swallowed the mouth: as
-   * tall as the whole aperture, over the lower lip on both sides and onto the
-   * chin. It fills the lower half and laps over the lip, which is what reads as
-   * a tongue coming out; more than that reads as a pink shape where a mouth was.
-   */
-  up: 0.44, out: 0.19,
-  /** Where each arch's controls sit along its span: what makes it round
-   *  rather than square. */
-  shoulder: 0.25
-});
-
-/**
  * How far a band reaches at full stretch: half the cavity of a fully open
  * mouth, and a **constant**.
  *
@@ -265,56 +219,463 @@ export const TONGUE = Object.freeze({
  */
 const BAND_REACH = (MOUTH.floorY + MOUTH.openDrop - MOUTH.lipY) / 2;
 
+/* ------------------------------------------------------------------ teeth -- */
+
 /**
- * One band: two quadratics sharing their ends on the lip, one control point
- * pushed `offset` into the mouth and the other `tuck`.
+ * The two rows.
  *
- * A quadratic reaches half its control point's offset, so the drawn thickness
- * in the middle is half the difference. `tuck` is what keeps the near edge off
- * the lip's own stroke: the outline is 3.8 units wide and centred on the path,
- * so a band whose edge lies exactly on that path paints over the inner half of
- * it and the lip goes thin where the teeth are. The ends still pinch to the
- * lip, which is what makes the band taper away instead of stopping.
+ * Each is **a band hung off a lip whose biting edge is scalloped into crowns**,
+ * and the scallop is the whole of the V6 change. A single arc back along the
+ * lip draws a white slab with a curved bottom: at any size it reads as a bar of
+ * light behind the lips rather than as teeth, which is why every cartoon mouth
+ * ever drawn puts *some* division in it. Four crowns per row is the fewest that
+ * reads as a row and the most that survives being 60 px wide on a page — the
+ * brief's "simple, lisible, cartoon propre", and the reason there is no attempt
+ * here to draw an individual tooth with an individual outline.
  *
- * `lift` moves the whole band, ends and all, off the lip it hangs from — the
- * tongue's, so that a dark line of cavity shows under it. At `show 0` every one
- * of the three is 0, which is what keeps the empty shape empty.
+ * A crown is one quadratic through three points of the lip, its middle pushed
+ * to the full depth and its ends to `valley` of it. The envelope over the top
+ * of that — `crown()` below — is what tapers the row away before the corners,
+ * the way a row of upper teeth does and a slab does not.
  */
-const band = (lip, from, to, offset, tuck, lift = 0) => {
-  const a = lip(from), b = lip(to), control = through(a, lip((from + to) / 2), b);
-  const at = (delta) => point({ x: control.x, y: control.y + lift + delta });
-  return `M${point({ x: a.x, y: a.y + lift })} Q${at(tuck)} ${point({ x: b.x, y: b.y + lift })}`
-    + ` Q${at(offset)} ${point({ x: a.x, y: a.y + lift })} Z`;
+export const TEETH = Object.freeze({
+  /** Where each row starts and ends along its lip, as a fraction of it. */
+  from: 0.14, to: 0.86,
+  // The lower row is shorter as well as shallower: it is what shows over a
+  // lower lip, and a lower row as long as the upper one reads as a grimace.
+  lowerFrom: 0.22, lowerTo: 0.78,
+  /**
+   * How deep each row is in the middle, as a fraction of the cavity a fully
+   * open mouth has. These are depths *on the drawn edge*, not control-point
+   * offsets: every point of a crown is placed where it is wanted and the
+   * control is solved for, which is the only way a scalloped edge lands where
+   * the numbers say.
+   */
+  upper: 0.32, lower: 0.08,
+  /**
+   * How far the near edge sits inside the lip, as a fraction of the far one.
+   * The lip's outline is 3.8 units wide and centred on the path, so a band
+   * whose edge lies exactly on it paints over the inner half and the lip goes
+   * thin where the teeth are.
+   */
+  tuck: 0.12,
+  /**
+   * How far a row hangs **clear of the lip it grows from**, in units, at full
+   * show.
+   *
+   * `tuck` keeps the band's middle off the stroke; its *ends* were still on
+   * the lip, so the row of teeth was drawn over the top of the upper lip and
+   * the lip went missing behind it. The lip's outline is 3.8 units wide and
+   * centred on the path, so anything nearer than 1.9 is painting on it: this
+   * clears that and leaves a thread of cavity showing, which is what says the
+   * teeth are *inside* the mouth.
+   *
+   * Multiplied by `show` and nothing else, so the shape is still exactly empty
+   * at `show 0` and the one shape key still interpolates it linearly.
+   */
+  clear: 3.4, lowerClear: 1.5,
+  /** How many crowns a row is divided into, and how far the valleys between them come back. */
+  crowns: 4, valley: 0.82
+});
+
+/**
+ * The envelope over a row: full across the middle, nothing at the ends.
+ *
+ * `sin(πu)` alone tapers far too early and draws a lens; the root pulls the
+ * shoulders up so the row keeps its depth almost to the ends and then goes,
+ * which is what a row of teeth does behind a lip.
+ */
+const crownEnvelope = (u) => Math.sin(Math.PI * u) ** 0.45;
+
+/**
+ * One row: a gum edge tucked just inside the lip, and a scalloped biting edge
+ * back along it.
+ *
+ * At `depth`, `tuck` and `lift` all 0 the gum edge is the exact sub-arc of the
+ * lip between `from` and `to`, and each crown is the exact sub-arc of *that*:
+ * a quadratic restricted to a sub-interval is a quadratic, and `through` builds
+ * the one that passes through the lip's own point at the middle of it. So the
+ * biting edge retraces the gum edge exactly, the row encloses nothing and a
+ * shut mouth has nothing behind it — by construction, not by arithmetic.
+ */
+const teethBand = (lip, { from, to, depth, tuck, lift, crowns, valley }) => {
+  const at = (t, dy = 0) => { const p = lip(t); return { x: p.x, y: p.y + lift + dy }; };
+  const span = to - from;
+  const a = at(from), b = at(to);
+  let d = `M${point(a)} Q${point(through(a, at((from + to) / 2, tuck), b))} ${point(b)}`;
+  // How far the biting edge is from the lip at one point of it: the row's own
+  // envelope, drawn back to `valley` where two crowns meet.
+  const edge = (t, share) => at(t, depth * crownEnvelope((t - from) / span) * share);
+  for (let i = crowns; i > 0; i -= 1) {
+    const start = edge(from + span * i / crowns, valley);
+    const end = edge(from + span * (i - 1) / crowns, valley);
+    const belly = edge(from + span * (i - 0.5) / crowns, 1);
+    d += ` Q${point(through(start, belly, end))} ${point(end)}`;
+  }
+  return `${d} Z`;
 };
 
-export function teethPath({ open = 0, smile = 0, arc = 0, show = 0, round: pucker = 0 } = {}) {
-  const g = mouthGeometry({ open, smile, arc, round: pucker });
-  const drop = BAND_REACH * BAND.teeth * show * 2;
-  // Hung clear of the lip, ends and all, so the upper lip is still drawn where
-  // the teeth are. `clear` scales with `show` alone, which keeps the shape
-  // empty at rest and the shape key linear.
-  return band((t) => quad(g.left, g.top, g.right, t), BAND.teethFrom, BAND.teethTo, drop, drop * BAND.tuck, BAND.clear * show);
+export function teethPath({ open = 0, smile = 0, arc = 0, show = 0, round: pucker = 0, skew = 0 } = {}) {
+  const g = mouthGeometry({ open, smile, arc, round: pucker, skew });
+  const depth = BAND_REACH * TEETH.upper * show;
+  return teethBand(upperLip(g), {
+    from: TEETH.from, to: TEETH.to, depth, tuck: depth * TEETH.tuck,
+    lift: TEETH.clear * show, crowns: TEETH.crowns, valley: TEETH.valley
+  });
 }
 
-export function tonguePath({ open = 0, smile = 0, arc = 0, show = 0, round: pucker = 0 } = {}) {
-  const g = mouthGeometry({ open, smile, arc, round: pucker });
-  // The lower lip, left to right, which is where it is anchored.
-  const lip = (t) => quad(g.left, g.bottom, g.right, t);
-  const at = (t, dy) => { const p = lip(t); return point({ x: p.x, y: p.y + dy * show }); };
-  const span = TONGUE.to - TONGUE.from;
-  const t1 = TONGUE.from + span * TONGUE.shoulder, t2 = TONGUE.to - span * TONGUE.shoulder;
-  // Four thirds, because a cubic whose ends are level reaches three quarters
-  // of its controls' offset at the middle.
-  const up = -BAND_REACH * TONGUE.up / 0.75, out = BAND_REACH * TONGUE.out / 0.75;
-  return `M${at(TONGUE.from, 0)}`
-    // One arch over the back, into the cavity.
-    + ` C${at(t1, up)} ${at(t2, up)} ${at(TONGUE.to, 0)}`
-    // And one back under the tip, past the lip. Its controls are the other
-    // arch's in reverse, so at `show 0` this half retraces that one exactly
-    // and the tongue encloses nothing.
-    + ` C${at(t2, out)} ${at(t1, out)} ${at(TONGUE.from, 0)} Z`;
+/**
+ * The lower row, which exists for exactly one reason: a wide open mouth with
+ * teeth only along its top is a face with a hole under its nose.
+ *
+ * Shallower, shorter and — where the rig installs it — shown later than the
+ * upper row, because a mouth barely parted shows its upper teeth and nothing
+ * else. Everything below the lip is negative: the band hangs *up* off the lower
+ * lip, the way the upper one hangs down.
+ */
+export function teethLowerPath({ open = 0, smile = 0, arc = 0, show = 0, round: pucker = 0, skew = 0 } = {}) {
+  const g = mouthGeometry({ open, smile, arc, round: pucker, skew });
+  const depth = -BAND_REACH * TEETH.lower * show;
+  return teethBand(lowerLip(g), {
+    from: TEETH.lowerFrom, to: TEETH.lowerTo, depth, tuck: depth * TEETH.tuck,
+    lift: -TEETH.lowerClear * show, crowns: TEETH.crowns, valley: TEETH.valley
+  });
+}
+
+/* ----------------------------------------------------------------- tongue -- */
+
+/**
+ * The tongue, in two shapes, because it does two things in two places.
+ *
+ * ```text
+ *          ╭──╮╭──╮          tongue      the body: two lobes and the groove
+ *   ───────┤        ├──────  the lower lip, where both are anchored
+ *           ╲____╱           tongueTip   the lobe that laps over it
+ * ```
+ *
+ * **Why two.** A tongue that is out is *in front of the lower lip*, and a
+ * tongue that is in is *behind* it — one element cannot be both, and the one
+ * that used to try was drawn in front of the lips always, which is why it had
+ * to be kept narrow enough never to reach a corner. Split, the body is drawn
+ * inside the aperture and clipped to it, so nothing it is asked to do can push
+ * it through a lip; the tip is drawn in front of everything, because that is
+ * where a tongue hanging out belongs.
+ *
+ * **The groove.** V5 drew the back as one arch, on purpose: a single cubic with
+ * a node in its middle pulled up on both sides of it and came out as a
+ * butterfly. One arch has one peak, and one peak is a hill rather than a
+ * tongue. Two arches — a lobe per half, meeting at a node that stops short of
+ * their peaks — have two peaks and a groove between them, which is what a
+ * tongue looks like and what the butterfly was reaching for. It costs nothing
+ * at the rig: it is the same shape key, two segments longer.
+ *
+ * **`out` and `curl` are shapes, not transforms** (docs/FACE_CONTROL_RIG.md,
+ * CR-32 … CR-34). `tongueOut` was a `scaleY` about the tongue's middle, which
+ * stretches the root as much as the tip and grows a tongue *upwards into the
+ * skull* as readily as out of the mouth; `tongueCurl` was a rotation of the
+ * whole shape, which swings the root out through the cheek. Here `out` extends
+ * the **tip** past the lip and moves nothing else — the body behind it is what
+ * is *in* the mouth, and flattening it as the tip reached made the two halves of
+ * one tongue answer to different numbers — and `curl` lifts and draws in the
+ * tip's free edge and touches nothing else either. Which is what those two
+ * words mean.
+ */
+export const TONGUE = Object.freeze({
+  /** Where the body is read off the lower lip: the stations its own edges
+   *  take their *height* from, short of the corners so the lip goes on
+   *  reading as a lip behind it. Its *width* is its own -- see `width`. */
+  from: 0.27, to: 0.73,
+  /**
+   * Half the tongue's own width, as a fraction of the reach, and how much of
+   * the mouth's own half-span it adds to that (`grip`).
+   *
+   * A tongue used to be the lip curve between `from` and `to`, which meant a
+   * mouth pursed into an OO drew a tongue *58 % narrower* -- a pink spike out
+   * of a small round hole, where what a pursed mouth actually shows is the
+   * same tongue through a smaller opening. A tongue is a piece of the face,
+   * not a share of the aperture, so its width is mostly a number of its own
+   * and the mouth has a quarter of the say: enough that a pucker still reads
+   * as one, far short of taking the roundness off the end of it.
+   *
+   * Both terms are affine in the pose numbers -- a constant, and a quarter of
+   * a span that is itself affine -- so the shape keys still add up exactly.
+   */
+  width: 0.24, grip: 0.45,
+  /** How far each lobe rises into the cavity, as a fraction of the cavity a
+   *  fully open mouth has. Over the lower row of teeth, clearly -- a tongue
+   *  that only just clears them reads as a pink line rather than as a tongue --
+   *  and well short of the upper row, or it swallows the mouth. */
+  up: 0.56,
+  /**
+   * How far the groove between the two lobes comes back off their peaks.
+   *
+   * Small, and that is the point of it. At 0.3 the two lobes and the notch
+   * between them drew a capital **M**: a shape with a corner in it, which a
+   * tongue does not have. The dip is a fold in a soft thing, so it is a
+   * shallow one -- enough that the silhouette says *two* lobes, not enough
+   * that the eye reads a letter.
+   */
+  groove: 0.14,
+  /** Where each lobe's controls sit inside its half: what makes it round
+   *  rather than square, and -- spread wider than the 0.28 the M was drawn
+   *  with -- what turns the climb out of each corner into a slope rather
+   *  than a shoulder. */
+  shoulder: 0.42,
+  /** How far the body's underside hangs below the lip it rests on. Small: the
+   *  lip is its floor, and the dark line of it is what says the tongue is in a
+   *  mouth rather than being the floor of one. */
+  seat: 0.05,
+
+  /**
+   * The tip is drawn in the **body's own seat** -- the same centre, the same
+   * width -- because it is the same tongue. It used to have a seat of its own,
+   * two thirds as wide, and what that drew was a step in the silhouette right
+   * where the tongue crosses the lip: a tongue with a shoulder in it.
+   */
+  tipShoulder: 0.3,
+  /** How far past the lip the tip laps at `tongueOut 1`. */
+  reach: 0.34,
+  /**
+   * And how far its root is drawn back **up into the mouth**, so that a tongue
+   * that is out is one shape from its root to its end.
+   *
+   * This is the number that stops the tongue breaking in two. The tip is
+   * outside the clip and the body is inside it, so what joins them is however
+   * much of the tip is painted *above* the lip -- and at 0.1 that was three and
+   * a half units, less than the lower row of teeth stands (four), and less than
+   * `tongueY` moves the whole tongue down (six). Any of those opened a gap
+   * across the middle of the tongue.
+   *
+   * At 0.3 it reaches ten units back: over the lower row it laps across, and
+   * far enough that the aim cannot pull the two apart. Not further, because the
+   * tip is painted in **front** of the lips and a root deep enough for an open
+   * mouth is a pink blot over a shut one -- at 0.42 a blep covered the lip line
+   * it was supposed to be poking between.
+   *
+   * It is still a multiple of `out` and nothing else, so a tongue that is in
+   * has no tip at all.
+   */
+  root: 0.3,
+  /** The soft dimple at the very end: a cartoon tongue is *round*, so this is
+   *  a hint of a cleft rather than one -- at 0.14 the end had a corner in it. */
+  notch: 0.05,
+  /**
+   * A curl: the **middle** of the free edge lifts, the shoulders barely, and
+   * the lobe draws in behind it. Nothing here moves the root, which is what
+   * stops a curl swinging the tongue out through a cheek.
+   *
+   * The shoulders matter as much as the middle. Lifting the whole free edge by
+   * one number is not a curl, it is the tongue going back in: at `tongueCurl 1`
+   * there was nothing left lapping over the lip. Lifting the middle and holding
+   * the sides turns the end up and leaves the tongue as long as it was, which
+   * is what curling is -- and, signed, the same key droops it.
+   */
+  curlLift: 0.16, curlShoulder: 1, curlPinch: 0.05,
+
+  /**
+   * The crease down the middle of the tip, in three numbers: how far back into
+   * the mouth it starts, how far down it runs as a share of the tip's own
+   * reach, and how wide it is.
+   *
+   * It belongs to the **front** rather than to the body (§5.1 of the V6 brief
+   * puts `tongue-groove` under `tongue-front`), and that is a drawing decision
+   * rather than a filing one: the body already reads as two lobes because its
+   * silhouette dips between them, and a tongue *out* has no silhouette to dip
+   * -- it is a flat pink shape against a chin, and a line down it is the only
+   * thing that says which way up it is.
+   */
+  grooveRoot: 0.06, grooveRun: 0.62, grooveWidth: 0.05
+});
+
+/**
+ * A cubic reaches `(a + 3c₁ + 3c₂ + b) / 8` at its middle, so the control
+ * offset that puts a lobe's peak exactly where it is wanted is this.
+ *
+ * Linear in all three, which is what keeps the whole shape affine in the pose
+ * numbers and therefore exactly reproducible by additive shape keys.
+ */
+const lobeControl = (peak, a, b) => (8 * peak - a - b) / 6;
+
+/**
+ * The frame a tongue is drawn in: where it sits, how wide it is, and how high
+ * the lip is under each point across it.
+ *
+ * `u` runs from −1 at the left edge to +1 at the right. The **x** is the
+ * tongue's own half-width either side of the middle of the lip it grows from;
+ * the **y** is the lip's own height at the station that `u` corresponds to, so
+ * the tongue still sits on a lip that is smiling, open, puckered or leaning,
+ * and still leans with it.
+ *
+ * Splitting the two is the whole of it. A tongue whose edges *were* two points
+ * on the lip curve had no width of its own: pursing the mouth took the corners
+ * in and the tongue came with them, and `mouthRound 1` drew a spike. Reading
+ * the height there and the width from a number of its own gives a tongue that
+ * keeps its shape through the pose and an opening that can still be any size.
+ *
+ * Every term is affine in every pose number — `centre` and the lip heights are
+ * points on a quadratic whose controls are affine, `span` is a difference of
+ * two of them — so the rig's additive shape keys still reproduce any
+ * combination exactly.
+ */
+const tongueSeat = (lip, from, to, width) => {
+  const mid = (from + to) / 2;
+  const centre = lip(mid), span = (lip(to).x - lip(from).x) / 2;
+  const half = BAND_REACH * width + TONGUE.grip * span;
+  return (u, dy = 0, dx = 0) => ({ x: centre.x + half * u + dx, y: lip(mid + (to - mid) * u).y + dy });
+};
+
+/**
+ * The body: two lobes over the cavity, and the same two back underneath.
+ *
+ * The underside uses the back's own control *parameters* in reverse, which is
+ * what makes the shape exactly empty when every offset is 0: the second half
+ * retraces the first point for point, and a path that encloses nothing paints
+ * nothing at any opacity.
+ */
+export function tonguePath({ open = 0, smile = 0, arc = 0, show = 0, round: pucker = 0, skew = 0 } = {}) {
+  const g = mouthGeometry({ open, smile, arc, round: pucker, skew });
+  const at = tongueSeat(lowerLip(g), TONGUE.from, TONGUE.to, TONGUE.width);
+  // Up is negative. `out` is deliberately not here: the body is what is *in*
+  // the mouth, and flattening it as the tip reaches made the two halves of one
+  // tongue answer to different numbers -- at `tongue 0` and `tongueOut 1` it
+  // drew a slab below the lip that only the clip was hiding.
+  const peak = -BAND_REACH * TONGUE.up * show;
+  const dip = peak * (1 - TONGUE.groove);
+  const seat = BAND_REACH * TONGUE.seat * show;
+  // The four control stations, a pair inside each half.
+  const s = TONGUE.shoulder, u = [-1 + s, -s, s, 1 - s];
+  const backLobe = lobeControl(peak, 0, dip);
+  const underLobe = lobeControl(seat, 0, seat);
+  return `M${point(at(-1))}`
+    // The two lobes, and the shallow fold where they meet.
+    + ` C${point(at(u[0], backLobe))} ${point(at(u[1], backLobe))} ${point(at(0, dip))}`
+    + ` C${point(at(u[2], backLobe))} ${point(at(u[3], backLobe))} ${point(at(1))}`
+    // And back underneath, through the same stations in reverse.
+    + ` C${point(at(u[3], underLobe))} ${point(at(u[2], underLobe))} ${point(at(0, seat))}`
+    + ` C${point(at(u[1], underLobe))} ${point(at(u[0], underLobe))} ${point(at(-1))} Z`;
+}
+
+/**
+ * The tip: the lobe that laps over the lower lip, and nothing else.
+ *
+ * Empty at `out 0` — every offset in it is a multiple of `out` or of `curl`,
+ * and the underside retraces the upper edge when both are 0 — so a mouth whose
+ * tongue is in has no tip to hide. Its root is drawn *back into* the mouth so
+ * it meets the body under the lip; the lip's own stroke is 3.8 units wide and
+ * centred on the path, and the root clears half of that and then some.
+ *
+ * `curl` moves the free edge and never the root: the end lifts and the lobe
+ * draws in behind it, which is a tongue curling. It is applied to the underside
+ * alone, and that is deliberate — a pinch applied to both edges alike would
+ * retrace and the movement would come out as nothing at all.
+ */
+export function tongueTipPath({ open = 0, smile = 0, arc = 0, round: pucker = 0, skew = 0, out = 0, curl = 0 } = {}) {
+  const g = mouthGeometry({ open, smile, arc, round: pucker, skew });
+  const at = tongueSeat(lowerLip(g), TONGUE.from, TONGUE.to, TONGUE.width);
+  const s = TONGUE.tipShoulder, u = [-1 + s, -s, s, 1 - s];
+  // Back into the mouth at the root, out past the lip at the free edge, and
+  // the cleft short of it in the middle.
+  const root = -BAND_REACH * TONGUE.root * out;
+  const lap = BAND_REACH * TONGUE.reach * out, lift = BAND_REACH * TONGUE.curlLift * curl;
+  const reach = lap - lift * TONGUE.curlShoulder;
+  const cleft = lap * (1 - TONGUE.notch) - lift;
+  const pinch = BAND_REACH * TONGUE.curlPinch * curl;
+  const rootLobe = lobeControl(root, 0, root);
+  const freeLobe = lobeControl(reach, 0, cleft);
+  return `M${point(at(-1))}`
+    // The upper edge, tucked back under the lip.
+    + ` C${point(at(u[0], rootLobe))} ${point(at(u[1], rootLobe))} ${point(at(0, root))}`
+    + ` C${point(at(u[2], rootLobe))} ${point(at(u[3], rootLobe))} ${point(at(1))}`
+    // And the free edge back, past the lip: the curl lifts it and draws it in.
+    + ` C${point(at(u[3], freeLobe, -pinch))} ${point(at(u[2], freeLobe, -pinch))} ${point(at(0, cleft))}`
+    + ` C${point(at(u[1], freeLobe, pinch))} ${point(at(u[0], freeLobe, pinch))} ${point(at(-1))} Z`;
+}
+
+/**
+ * The crease down the tongue's tip.
+ *
+ * A slim lens from just inside the mouth to short of the tip's cleft, drawn in
+ * the cavity's own colour at a low opacity: a groove is a fold, and a fold is
+ * the shadow the light does not reach rather than a colour of its own. Painting
+ * it with the palette's `mouth` token is what keeps it in step with the inside
+ * of the mouth it is a fold of, on any face and in any palette.
+ *
+ * Every offset is a multiple of `out` or of `curl`, so at `tongueOut 0` its two
+ * ends are the same point, its two controls are that point, and it encloses
+ * nothing — a tongue that is in has no crease to show, by the same construction
+ * as everything else inside this mouth.
+ *
+ * It rides the curl: its foot is a share of the tip's own cleft, so turning the
+ * end of the tongue up carries the crease with it rather than leaving a line
+ * painted across a lip.
+ */
+export function tongueGroovePath({ open = 0, smile = 0, arc = 0, round: pucker = 0, skew = 0, out = 0, curl = 0 } = {}) {
+  const g = mouthGeometry({ open, smile, arc, round: pucker, skew });
+  const at = lowerLip(g)((TONGUE.from + TONGUE.to) / 2);
+  const lap = BAND_REACH * TONGUE.reach * out, lift = BAND_REACH * TONGUE.curlLift * curl;
+  const head = { x: at.x, y: at.y - BAND_REACH * TONGUE.grooveRoot * out };
+  const foot = { x: at.x, y: at.y + (lap * (1 - TONGUE.notch) - lift) * TONGUE.grooveRun };
+  const wide = BAND_REACH * TONGUE.grooveWidth * out;
+  const waist = (side) => point({ x: at.x + wide * side, y: (head.y + foot.y) / 2 });
+  return `M${point(head)} Q${waist(-1)} ${point(foot)} Q${waist(1)} ${point(head)} Z`;
+}
+
+/* ------------------------------------------------------------------ uvula -- */
+
+/**
+ * The uvula: the drop that hangs at the back of a shouting cartoon mouth.
+ *
+ * It is the one thing in here that is *not* about being read as anatomy. A
+ * mouth wide open with nothing in the dark of it reads as a hole; the same
+ * mouth with one small shape swinging at the back of it reads as a **shout**,
+ * and every cartoon ever drawn knows it. That is why it is offered and why it
+ * is off by default: it is a register, not a feature, and a mascot talking
+ * quietly should not have one.
+ *
+ * Drawn from the **upper** lip, at its middle, hanging down into the cavity —
+ * so it follows the lip line, the pucker and the lean like everything else in
+ * here, and it is the first thing painted inside the aperture because it is
+ * the furthest away.
+ */
+export const UVULA = Object.freeze({
+  /** Where along the upper lip it hangs from: the middle of it, which is the
+   *  back of the throat once the mouth is read as a mouth. */
+  at: 0.5,
+  /** How far its root is tucked up behind the lip, so it grows out of the
+   *  shadow instead of being pinned to the line. */
+  tuck: 0.03,
+  /** How far it hangs, and how wide it gets, as fractions of the cavity a
+   *  fully open mouth has. Small: a uvula that reaches the tongue is a
+   *  different drawing, and a funnier one than this mouth is for. */
+  drop: 0.3, wide: 0.07,
+  /** Where the two controls sit down its length: the shoulder high and the
+   *  belly low, which is what makes a drop rather than a cone. */
+  shoulder: 0.25, belly: 0.72
+});
+
+/**
+ * A drop: two cubics, out and back, from a point on the upper lip.
+ *
+ * Empty at `show 0` like everything else inside this mouth — every offset is a
+ * multiple of `show`, so its four points and its four controls are the same
+ * point on the lip and it encloses nothing.
+ */
+export function uvulaPath({ open = 0, smile = 0, arc = 0, show = 0, round: pucker = 0, skew = 0 } = {}) {
+  const g = mouthGeometry({ open, smile, arc, round: pucker, skew });
+  const lip = upperLip(g)(UVULA.at);
+  const run = BAND_REACH * UVULA.drop * show, wide = BAND_REACH * UVULA.wide * show;
+  const head = { x: lip.x, y: lip.y - BAND_REACH * UVULA.tuck * show };
+  const foot = { x: lip.x, y: lip.y + run };
+  const side = (at, s) => ({ x: lip.x + wide * s, y: head.y + (foot.y - head.y) * at });
+  return `M${point(head)}`
+    + ` C${point(side(UVULA.shoulder, -1))} ${point(side(UVULA.belly, -1))} ${point(foot)}`
+    + ` C${point(side(UVULA.belly, 1))} ${point(side(UVULA.shoulder, 1))} ${point(head)} Z`;
 }
 
 export const MOUTH_REST = mouthPath();
 export const TEETH_REST = teethPath();
+export const TEETH_LOWER_REST = teethLowerPath();
 export const TONGUE_REST = tonguePath();
+export const TONGUE_TIP_REST = tongueTipPath();
+export const TONGUE_GROOVE_REST = tongueGroovePath();
+export const UVULA_REST = uvulaPath();
